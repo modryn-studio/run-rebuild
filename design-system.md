@@ -191,13 +191,98 @@ on screen, and exactly the kind of check the design-check gate exists for.
 
 ---
 
+---
+
+## Gaps closed from `run-trading@v2` (2026-08-11)
+
+Three of the four gaps were already solved on `v2`, with the measurements recorded. Adopted.
+
+### ✅ Grid — ANSWERED
+
+| Constant | Value | Note |
+|---|---|---|
+| Shell header | `4rem` (64px) | **One number for three things** — the sidebar wordmark row, the pane header, and the floating Open control. Any disagreement shows as a step in the top edge, and two files hard-coding their own number is how that arrives (it was already 12px out once). |
+| Sidebar | `w-56` (224px) | Measured, not chosen. Was `w-64`. Collapses to `w-0` and hides **completely — no icon rail**, because a rail keeps taking horizontal space while giving nothing back. |
+| Page column | `mx-auto w-full px-4` | **No max-width**, and this deliberately reverses a `1600px` cap. |
+| Header left | `+pl-6` | The title sits 8px *inside* the left edge of the card it names — measured (header padded 24, title x=248, card x=240). **Do not "fix" a header that looks 8px off.** |
+| Summary rail | `lg:w-76` (304px) | Collapsible, toggled with `]` — the bracket that pairs with the sidebar's `[`. |
+
+**Why no max-width, since it looks like an oversight:** an ultrawide ledger row does put its date
+and its P&L far apart — but **that cost is paid by the row, so capping belongs to whatever renders
+rows, not to every page.** A surface that wants a measure caps its own content and still sits in
+this column. `mx-auto` stays even though it does nothing while uncapped, because it's the one line
+that has to be there rather than added later if a cap returns — a centred cap against a flush-left
+header is a 48px drift that only appears on a wide monitor.
+
+**The rail's behaviour — this is the answer to the blocking gap:**
+
+- It **collapses; it does not unmount.** Conditionally rendering it made a one-way door.
+- `lg:grid-cols-[minmax(0,1fr)_auto]` lets the track follow the child's own width; the child
+  animates `lg:w-76 → lg:w-0`, with an inner `lg:w-76` pinning the contents so they don't reflow
+  while the track closes.
+- **Below `lg` the rail is a stacked block that never collapses.** *"A panel the full width of the
+  screen is not a rail, and collapsing it would just be hiding content with no visible way back."*
+- Hiding it returns 304px plus the gutter — measured, the tape goes to 1236px.
+
+**Two gotchas recorded because they already bit:**
+
+1. **Use `cn()`, never a template string** for the rail width. `lg:w-76` and `lg:w-0` are the same
+   utility group under the same modifier — a raw template leaves *both* in the attribute and
+   Tailwind's sheet order decides, which puts `w-76` last.
+2. **The layout constants live in a module with no `'use client'`, and that absence is the point.**
+   Every export of a `'use client'` module becomes a client reference when a Server Component
+   imports it — a plain string does not survive it, and `clsx` silently drops any non-string.
+   Measured: `/sessions` (client) rendered the full column; `/accounts` and `/dashboard` (server)
+   rendered `class="pb-8"` and lost their gutter and max-width entirely. **No error, no warning.**
+
+### ✅ Loading — ANSWERED, and it corrects an assumption in our spec
+
+**Route-level:** a `LoadingMark` in `loading.tsx`. Next's automatic Suspense boundary wraps the
+*page*, not the layout — so **the sidebar stays mounted and interactive while only the content pane
+waits.** A slow surface never traps you; you can just pick another one.
+
+**Import:** a determinate stepped progress panel — which matches S1/S2's criteria. But there's a
+measured correction our spec would have missed:
+
+> With no floor, all four steps resolve inside one frame. The panel would appear and vanish in
+> ~16ms and the modal would blink shut.
+
+Luke's entire corpus is 80 events; ingest at that size is single-digit milliseconds per file. So
+`MIN_STEP_VISIBLE_MS` exists, and **the floor is not padding for its own sake.**
+
+The sharper lesson underneath it: the original step timings were real measurements — of a
+**3,420-row batch, roughly 40× heavier than a real daily session.** The panel had been tuned
+against a rhythm no user experiences. *Measured, but calibrated to the wrong load.*
+
+**Consequence for our spec:** S1/S2's "determinate, count-based, never an indeterminate spinner"
+stands, and gains a clause — `THE SYSTEM SHALL hold each import step visible for a minimum
+duration, so a fast import does not flash and vanish` — plus the standing caution that import
+timings must be calibrated against a daily session, not a bulk backfill.
+
+### ⚠️ Spacing — genuinely unanswered on v2 either
+
+Searched `v2`'s tokens, `brand.md` and all docs: **no spacing scale is documented anywhere.** The
+system rides Tailwind's stock 4px scale by inheritance, not by decision.
+
+So this is a real open gap, not something to be found. **Recommendation stands:** adopt Tailwind's
+scale explicitly and name the steps Run uses. It is already a real scale on a real base unit;
+inventing a parallel one costs a lot and buys nothing. The only thing missing is the sentence that
+makes it chosen rather than inherited — which is this system's own recorded lesson about defaults.
+
+### ⚠️ Kitchen sink — still doesn't exist
+
+`v2` has `preview-loading/[ms]` routes — a harness for rehearsing *one* state, which is the right
+instinct at one-tenth the scope. No route renders every component in every state in both modes.
+
+---
+
 ## Phase 3 gate
 
 - [x] Color decided, light and dark, contrast-checked
 - [x] Type scale decided, with weight baked into roles
 - [x] Shape, depth, motion decided
 - [ ] **Spacing system stated explicitly** (adopt Tailwind's scale deliberately)
-- [ ] **Grid: max content width, and the summary rail's collapse behaviour**
-- [ ] **Loading / empty / error shapes specified** (skeleton vs spinner, determinate progress)
+- [x] **Grid** — answered from v2: 64px header, 224px sidebar, uncapped page column, 304px collapsing rail
+- [x] **Loading shapes** — answered from v2: LoadingMark at route level, determinate stepped panel with a minimum-visible floor
 - [ ] Kitchen-sink route exists
 - [ ] Any wireframe screen can be built inventing nothing new
