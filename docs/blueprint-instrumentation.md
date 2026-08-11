@@ -124,6 +124,15 @@ Format: `<date> · <phase> · <what happened> · <what I did instead>`
              candidate: phase 1 should branch on whether the builder is also the user.
              (Full note in problem-brief.md.)
 
+2026-08-11 · P5 · S0. Phase 3 deferred the React primitives to "phase 5 with the build",
+             which assumes phase 5 starts from nothing. It doesn't — the boilerplate ships
+             working screens (login, admin) written against ITS token names, and swapping in
+             the phase 3 stylesheet degrades every one of them silently, because Tailwind
+             emits nothing for a utility with no token behind it. · Ported four primitives on
+             day one and retokened the rest. Amendment candidate: phase 3's "decisions, not
+             code" boundary holds only when phase 5 starts from an empty repo; starting from
+             a boilerplate makes the token swap a day-one migration, not a phase 5 task.
+
 2026-08-11 · P2 · "I don't want to just build what we think is best. I want to follow the
              great examples of the best. When does recon and analogous product research fit
              into the eight phases?" — it didn't. The blueprint had problem recon (P1) but no
