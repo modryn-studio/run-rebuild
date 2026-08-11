@@ -48,7 +48,7 @@ mobile, matches the design system, is merged, and is deployed.
 The thinnest possible end-to-end path, **deployed to real hosting immediately**, while the app
 is small enough to debug.
 
-- Next.js + Neon + Drizzle + better-auth from `modryn-boilerplate-pro`
+- Next.js + Neon + Drizzle + better-auth from `modryn-base`
 - `design/globals.css` in place before any screen exists
 - One route, one query, one rendered value, live on a real URL
 - CI green on push; **a rollback performed once, on purpose**
@@ -82,6 +82,25 @@ Not a screen. The pieces that corrupt everything downstream if they're wrong.
 `trader`, better-auth wiring, `display_timezone` user-settable and outranking detection, and
 the nullable `key_id` column — free now, a migration later, with the encryption itself
 explicitly deferred (architecture §1).
+
+### S3b — The shell
+
+Every screen sits inside it and no slice owned it, so it would have been built ad hoc inside
+whichever page landed first. The constants are already decided (`design-system.md`): 64px shell
+header, 224px sidebar collapsing to `w-0` with no icon rail, uncapped page column, 304px rail
+that collapses without unmounting.
+
+**Built in wave 2, before S4, deliberately.** The design-check gate is cheap to act on against
+an empty shell and expensive against four finished pages — finding a shell defect in S9 means
+re-checking every screen that inherited it.
+
+**The gotcha that must be carried over, because it already cost a wrong render:** the layout
+constants live in a module with **no `'use client'` at the top, and that absence is the point.**
+Every export of a `'use client'` module becomes a client reference when a Server Component
+imports it — a plain string does not survive it, and `clsx` silently drops any non-string.
+Measured on the old build: the client page rendered the full column while two server-rendered
+pages emitted `class="pb-8"` and lost their gutter and max-width entirely. **No error, no
+warning, and nobody noticed for two pages.**
 
 ### S4 — Add account + the three-file ingest ⭐ *the biggest slice*
 
@@ -128,7 +147,7 @@ they don't share a surface.
 | Wave | Parallel |
 |---|---|
 | 1 | `S0` skeleton · `S1` spike · `S2` primitives |
-| 2 | `S3` auth · kitchen-sink rack + ported primitives |
+| 2 | `S3` auth · `S3b` shell · kitchen-sink rack + ported primitives |
 | 3 | `S4` alone — everything downstream depends on its shape |
 | 4 | `S5` · `S6` (different pages, same projections) |
 | 5 | `S7` · `S8` |
