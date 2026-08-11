@@ -4,7 +4,7 @@
 > The reasoning matters more than the choice — future-you needs to know whether a constraint
 > still applies before overturning a decision.
 
-**Status:** draft — derived from `spec.md` @ `p2-gate`, before opening any prior architecture doc
+**Status:** LOCKED at the phase 4 gate, 2026-08-11
 **Last amended:** 2026-08-11
 
 <!-- DERIVATION NOTE: written from the locked spec only. run-trading/docs/data-model.md exists
@@ -357,13 +357,24 @@ trader ─1:many─> read ──many:1──> pattern
 
 ### Deletion policy
 
+**`[REVISED]` Restated for the event-log model.** The rule is simpler than the table I first
+drafted, because there is only one table that must never lose a row.
+
 | Relationship | On delete |
 |---|---|
-| `trader` → everything | account deletion only, full export first. Nothing else deletes |
-| `account` → `fill` / `trade` | **RESTRICT.** Accounts close, they don't disappear |
-| `import` → `fill` | **RESTRICT.** An import is a receipt; deleting it orphans provenance |
-| `pattern` → `pattern_occurrence` | CASCADE — a retired detector's occurrences are meaningless |
-| `trade` → `pattern_occurrence` | RESTRICT — an occurrence citing a missing trade is a broken claim |
+| `trader` → `account` / `session` / `fact` | **CASCADE.** All are projections — losing them loses nothing that can't be replayed |
+| `trader` → `event` | **NEVER.** `event` does not cascade with its trader. Only a trader with **zero events** is deletable in normal operation |
+| `account` → `event` | **RESTRICT.** Accounts close, they don't disappear |
+| `import` → `event` | **RESTRICT.** An import is a receipt; deleting it orphans provenance and P8 becomes a claim again |
+| `pattern` → `pattern_occurrence` | **CASCADE** — a retired detector's occurrences are meaningless |
+| `fact` → anything | **freely wiped.** Layer 2 is disposable by definition; regenerate by re-extracting |
+
+**The one exception, stated once so it isn't rediscovered as a contradiction:** an absolute
+"never delete" rule and a GDPR/CCPA erasure obligation cannot both be true. The honest form is
+*`event` is immutable **to the application role***. Erasure is a separate, privileged, audited
+path that the app never has — not an absence of the capability. `trader.key_id` and an encrypted
+`payload` exist so that path is possible later without a migration; **building it is deferred
+until there is somebody to erase.**
 
 ---
 
@@ -406,9 +417,12 @@ difference between Run's read and the field's "AI" that restates the chart.
 
 | Entry point | Validated by | Authorised by |
 |---|---|---|
-| CSV upload | server parser: size cap, row cap, schema match, per-row typing | session → `trader_id` |
+| CSV upload ×3 | server parser: size cap, row cap, **header-signature match to identify which export it is**, per-row typing | session → `trader_id` |
+| The three files together | **cross-file date-range overlap, per round trip** — not all-or-nothing (`#74`); fee-to-fill resolution non-empty (`#75`) | — |
+| Account resolution mid-import | a resolved account must already be owned by the caller, or be created by them in this flow | session → `trader_id` |
 | Any `account_id` in a URL | must resolve to a row owned by the caller | re-checked per request |
 | Filter/date params | parsed and clamped server-side | — |
+| `symbol_root` from a file | must exist in `contract_spec`, else quarantine — **never a default multiplier** | — |
 
 **Every query is scoped by `trader_id` from the session, never from the request.** The most
 common real-world web vuln is changing an id in a URL and reading someone else's record — and
@@ -462,16 +476,63 @@ sessionDateFor(exitAtUtc) -> date      // the ONLY way a session_date is produce
 
 ## 6. Screen → data map
 
-| Screen | Reads | Writes |
+**`[REVISED]` Verified against all five wireframes.** Every element that renders a value is
+traced to its source, because "the page reads `trade`" is not specific enough to catch a missing
+index or an unscoped query.
+
+| Screen | Element | Reads | Writes |
+|---|---|---|---|
+| **Today** | greeting | — | — |
+| | Today's read widget | `read` (latest by `session_date`) | — |
+| | Net P&L + delta + sparkline | `session` over window | — |
+| | Accounts widget: counts, "all read 2h ago" | `account` grouped by `state`; `import.uploaded_at` max per account | — |
+| | Last session widget | `session` (latest), `trade` count/win | — |
+| **Accounts** | hero metric selector + curve | `session` over window, scoped to selected accounts | — |
+| | group headers (Funded / Eval / Closed) with own totals | `account` grouped by `state`; `session` rollup per group | — |
+| | account row: name, type, sparkline, value | `account`, `session` per account | — |
+| | **freshness stamp per row** | `import.uploaded_at` max per `account_id` | — |
+| | summary rail (Totals/Percent, fees, CSV) | same window, re-aggregated | — |
+| **Add account** | account-type step | — | `account` |
+| | file parse + counts before commit | `contract_spec` (validate roots), `event.dedupe_key` (overlap) | — |
+| | **account resolution mid-flow** (`#59`/`#80`) | `account` by `external_account_id` prefix | `account` |
+| | commit | — | `import`, `event` (fill / round_trip / fee / csv_import), `session` |
+| **Trades** | session header: net, count, win rate | `session`; net derived with fee allocation | — |
+| | trade row | `event`→`round_trip` projection + `contract_spec` | — |
+| | `⚑` pattern flag | `pattern_occurrence` by `trade_id` | — |
+| | quarantine notice + resolve (S9b) | `event`, `import` | `trade.state`, `exclusion_reason` |
+| | summary rail digest | filtered set only (P6) | — |
+| | provenance line | `import` | — |
+| **Read → Patterns** | the card, all three states | `read` (stored `body` + `working`) | — |
+| | "the 9 sessions" / "the 31 trades" | `pattern_occurrence` → `trade` | — |
+| **Read → History** | pattern list with cost-then vs cost-now | `pattern` + `pattern_occurrence` aggregated by period | — |
+| **(nightly job)** | — | `event` projections, `session`, `contract_spec` | `pattern`, `pattern_occurrence`, `read`, `fact` |
+
+**Two things this traced check surfaced:**
+
+1. **Freshness is a `max(import.uploaded_at)` per account, and it appears on two screens.** It's
+   the answer to the field's defining failure (P5), so it gets one query used by both — not two
+   that can disagree.
+2. **Nothing reads `event.payload` on a render path.** Every surface above reads promoted columns
+   or a projection. This is the `#83` principle made checkable rather than aspirational.
+
+### Indexes
+
+Derived from the reads above — every field filtered, sorted or joined on:
+
+| Table | Index | Serves |
 |---|---|---|
-| Today | `session` (latest), `read` (latest), `account` (counts + freshness), `trade` (rollup) | — |
-| Accounts | `account`, `import` (freshness), `trade` (per-account rollup) | — |
-| Add account | `contract_spec` (validation) | `account`, `import`, `fill`, `trade`, `session` |
-| Trades | `trade` + `session` headers, filtered; `import` for provenance | — |
-| Trades → resolve (S9b) | `trade`, `import` | `trade.state`, `trade.exclusion_reason` |
-| Read → Patterns | `read` (today), `pattern`, `pattern_occurrence` | — |
-| Read → History | `pattern`, `pattern_occurrence` aggregated by period | — |
-| *(nightly job)* | `trade`, `session`, `pattern_occurrence` | `pattern`, `pattern_occurrence`, `read` |
+| `event` | `(account_id, occurred_at)` | every windowed projection |
+| `event` | `(trader_id, type, occurred_at)` | cross-account tape, extraction |
+| `event` | partial unique `(account_id, dedupe_key) WHERE dedupe_key IS NOT NULL` | idempotent re-import |
+| `event` | `(import_id)` | provenance, reconciliation |
+| `event` | `(corrects_event_id)` | correction chains |
+| `session` | PK `(trader_id, session_date)` | Today, Accounts curve, Trades headers |
+| `account` | `(trader_id, state)` · unique `(trader_id, platform, external_account_id)` | grouping, resolution |
+| `import` | `(account_id, uploaded_at DESC)` · unique `(account_id, file_hash)` | freshness, dedupe |
+| `trade` | `(account_id, session_date)` · `(state)` | tape, quarantine |
+| `pattern` | unique `(trader_id, key)` | detector idempotency |
+| `pattern_occurrence` | `(pattern_id, session_date)` · `(trade_id)` | History aggregation, the `⚑` flag |
+| `read` | unique `(trader_id, session_date)` | one read per session |
 
 ---
 
@@ -651,11 +712,11 @@ Two, and they need Luke's sign-off since `spec.md` is locked at `p2-gate`:
 
 ## Phase 4 gate
 
-- [ ] Every screen in the spec maps to specific tables *(drafted §6 — verify against wireframes)*
-- [ ] Every field filtered/sorted/joined on is indexed
-- [ ] Deletion policy decided for every relationship *(drafted §1)*
-- [ ] Trust boundary drawn; every entry point validated server-side *(drafted §3)*
-- [ ] Every external service has a named failure mode *(drafted §2)*
+- [x] Every screen maps to specific sources — §6 traced element-by-element against all five wireframes
+- [x] Every field filtered/sorted/joined on is indexed — §6 index table derived from the traced reads
+- [x] Deletion policy decided for every relationship — restated for the event-log model
+- [x] Trust boundary drawn; every entry point validated server-side — three-file intake included
+- [x] Every external service has a named failure mode
 - [x] `contract_spec` seeding rule set: narrow, exchange-sourced, hard-quarantine on unknown roots
 - [x] Compared against `run-trading@dev:docs/data-model.md` + v2 plans — see §8
 - [x] §1 tables rewritten as projections over an `event` log
