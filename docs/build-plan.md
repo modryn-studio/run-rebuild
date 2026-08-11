@@ -181,6 +181,12 @@ they don't share a surface.
 - **Nothing reads `event.payload` on a render path.** Promoted columns or a projection.
 - **One module owns every time bucket.** A shared name is not a shared definition.
 - **A component isn't done until it appears in the kitchen sink in every state.**
+- **"Matches the design system" means the token scan** — every font size is a `text-*` role,
+  every gap is one of the named steps, one radius scale, no raw hex in a component, five states
+  plus `focus-visible` and a 44px target. The checklist is Pass 2 of
+  [`docs/design/design-check.SKILL.md`](design/design-check.SKILL.md), kept as a document now
+  that the global `/postcheck` owns the review pass. Its LOCK mode is already spent — the tokens
+  were locked at the phase 3 gate.
 - **Log friction in the moment** — `// FRICTION <date>: <what>`. Phase 5 is where the blueprint
   gets its real test, because this is where not knowing what to do costs hours rather than
   minutes.
