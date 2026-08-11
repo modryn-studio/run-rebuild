@@ -19,7 +19,7 @@
 | | |
 |---|---|
 | **Problem** | A trader who wants to know what's actually going wrong in their trading can't trust any tool that claims to tell them. The numbers are wrong, the sync dies quietly, and the insight just restates the chart. |
-| **Who** | Switchers — prop/funded futures traders already paying for a journal and burned by it. Plus a first-timer minority. Luke is user #1. |
+| **Who** | Switchers — futures traders already paying for a journal and burned by it, on **both** prop/funded accounts **and** personal live brokerage accounts. Plus a first-timer minority. Luke is user #1. |
 | **Today** | TradeZella / TraderSync / TradesViz / Tradervue. Wrong P&L, zombie trades, silent sync death, AI that restates the chart. |
 | **Spin** | A model of you that gets sharper the longer you trade, told back as your own specific behavior with a dollar figure on it. Corpus = substance; the read = form. |
 | **Kill signal** | If the wedge can't name a pattern Luke didn't already know about himself — stop. |
@@ -61,12 +61,45 @@ record, which makes worthless insight. Each step earns the right to the next.
 3. **The read** — one named pattern, priced in dollars, from the trader's own trades
 
 **The one-sentence value claim:**
-> A switcher can connect Tradovate, see their real history reconciled, and be told one true
-> thing about their own trading they didn't already know — on day one.
+> A switcher can bring in their real history, see it reconciled, and be told one true thing
+> about their own trading they didn't already know — on day one.
 
-**Noted:** steps 1 and 2 may collapse into one continuous motion (connect → watch it fill →
-it's right). Treated as two below because they have separate acceptance criteria; if the
-build shows they're one screen, that's a finding, not a spec change.
+**Where each step lives (Luke, 2026-08-11) — the path is not three new screens:**
+
+| Step | Monarch equivalent | Run |
+|---|---|---|
+| 1. Connect | the `Add account` button on the Accounts page | the same button on Run's **Accounts** page |
+| 2. The record | the Transactions page | Run's **Trades** page |
+| 3. The read | **the Weekly Recap** — see §4.2 | Run's **Read** page |
+
+This matters: the critical path is *the first trip through the product*, not a separate
+onboarding wing. Every step happens on a page that exists for its own sake afterward.
+
+**Noted:** steps 1 and 2 may collapse into one continuous motion (add → watch it fill → it's
+right). Treated as two below because they have separate acceptance criteria; if the build
+shows they're one screen, that's a finding, not a spec change.
+
+### Audience note — personal accounts are in scope from v1
+
+Carried from `widening-plan.md`. The two axes are independent and must not be fused:
+
+- **Audience** (prop → personal) is nearly free. The data plane is account-type-agnostic by
+  construction; the cost is a handful of copy strings and a picker label.
+- **Rail** (Tradovate → NinjaTrader → Rithmic → ProjectX) is weeks per adapter and stays out
+  of v1.
+
+Two things this changes, and both are cheap now and expensive later:
+
+1. **No copy may promise that Run preserves data "after your firm wipes your blown account."**
+   That is true for prop and false for personal accounts, and it is the highest-stakes
+   misleading string in the product.
+2. **A connection must record its account type** (evaluation / funded / personal). Without it
+   Run cannot tell a personal signup from a prop one, and the whole point of admitting the
+   segment is learning what it does.
+
+The moat argument is scoped accordingly and must be stated this way everywhere: **the corpus
+moat protects the prop segment; personal accounts are added reach, not moated.** Never
+"Run has no moat" — the prop moat is unaffected.
 
 ---
 
@@ -100,6 +133,74 @@ row we add on evidence, not on anticipation.
 **Depth lives in page headers (P1).** `Trades` carries `All · By session`. `Read` carries
 `Patterns · History`. Nothing new appears in the sidebar.
 
+### 4.1 What sits below the divider, and why
+
+Monarch's sidebar is eleven rows, a divider, then `AI Assistant · Help & Support ·
+Get 45% discount · Luke`. Run's is four rows, a divider, then **Ask Run · Settings · Luke**.
+
+The rule: **above the divider are places in your trading. Below are things you carry, or
+things about the app.**
+
+Think of a school. Above the line are rooms — classroom, gym, cafeteria, library. Below the
+line are the things that aren't rooms: your backpack, the nurse, your name tag.
+
+- **Ask Run is the backpack.** You carry it into every room and open it where you are. Making
+  it a room would mean walking away from your trades to ask about your trades — and it would
+  be missing from the room where you actually needed it. Monarch's answer is an `Ask AI
+  Assistant` button *inside* each widget and page rail; Run does the same.
+- **Settings is the janitor's closet.** Necessary, not part of the day. The taxonomy the whole
+  product runs on lives here — Monarch keeps categories / merchants / rules / tags in Settings,
+  and Run keeps setups / symbols / tags there for the same reason.
+- **Luke is the name tag.**
+
+**The counter-example, stated so it isn't repeated:** TradeZella's front door *is* the chat
+box. The app opens on a question instead of your answer, and nothing on that screen is yours.
+An AI that is a destination is a chatbot you visit; an AI that is everywhere is a presence.
+
+### 4.2 The Read page, in depth
+
+**Where this comes from.** Monarch's analogue is **not** categories (that's taxonomy → Run's
+setups and tags, in Settings) and **not** notes. It is the **Weekly Recap**: generated, staged
+across five steps, written in specific prose, with the trust note repeated on every step.
+
+**The honest complication: in Monarch, the recap is not a nav row.** It is a dashboard widget
+that opens a modal. A strict clone would make Run's read a widget too.
+
+**Run promotes it to a row anyway, and the reason is a real difference between the products.**
+For Monarch the recap sits on top of budgeting — the product is the budget, the recap is a
+weekly nicety. For Run the read *is* the product; it is the entire reason a switcher moves.
+Demoting the wedge to a widget would be copying Monarch's row rather than Monarch's reasoning.
+
+**But it adopts Monarch's delivery wholesale:** the read *arrives*, generated and staged. It is
+never a blank page you fill in (P7). `Today` carries a widget that opens it, exactly as
+Monarch's dashboard does.
+
+**Tab 1 — `Patterns` (the current read).**
+- One named pattern, stated in prose in the recon register (P11): the behavior, how often, what
+  it costs in dollars, compared to the prior period.
+- The trades it was drawn from, openable inline (Monarch's transactions-inside-the-widget
+  pattern).
+- The trust note, stating what this read depends on and how to correct it (P8).
+- If nothing clears the confidence threshold: it says so, and says what would let it find one.
+  It never fills the space with a metric definition.
+
+**Tab 2 — `History` (every read Run has ever produced).**
+
+This is the tab neither competitor has, and it is where the corpus becomes visible.
+
+Monarch's recaps are disposable — generated weekly, read once, gone. TradeZella keeps a
+library (`Recaps & Insights`) but it is an archive of documents, not a tracked claim. Run's
+History answers the only question that matters about a behavioral read:
+
+> **Run told you about this pattern last month. Did it get better?**
+
+Each past read carries its named pattern, its dollar cost then, and its dollar cost now. A
+pattern that improves gets marked as such; one that doesn't stays open. **That is the
+compounding model made legible** — and it is the thing a competitor cannot clone in a week,
+because they have no history of ever having told you anything.
+
+**What is NOT on this page:** a chart rack, a metric dump, a score, a chat box.
+
 ### Cross-cutting controls
 
 One persistent filter bar under the header, carried in the URL so state is shareable:
@@ -112,21 +213,36 @@ trader's questions are almost always scoped to a period and an account.
 
 ⭐ = critical path.
 
-### ⭐ S1 — Connect a Tradovate account
+### ⭐ S1 — Add an account by CSV upload
 
-> As a switcher, I want to link my Tradovate account, so that Run can read my trades without
-> me uploading anything.
+> As a switcher, I want to add my account by uploading my broker export, so that I can use Run
+> today without waiting on an integration.
+
+**Corrected 2026-08-11 (Luke): v1 is CSV upload, not OAuth.** Run is not yet a registered
+Tradovate OAuth partner — `client_id`/`secret` have not been issued. The OAuth path is
+confirmed viable and is the right eventual answer (`tradovate-partner-api.md`: user-consent
+delegation works cross-firm without the prop firm's cooperation, which is how TradingView and
+TradersPost do it), but it is **not available to build against today.**
+
+**This is not a downgrade, and the spec should not treat it as one.** CSV is the floor by
+standing rule — the corpus must never be welded to a broker API. Building the CSV path first
+means the data plane is proven independent of any rail before a rail exists.
 
 Acceptance criteria:
-- `THE SYSTEM SHALL authenticate to Tradovate via read-only OAuth and never store the user's broker password`
-- `WHEN a connection succeeds, THE SYSTEM SHALL display every account discovered under that login, including evaluation and funded accounts, before any import begins`
-- `IF a connection fails, THEN THE SYSTEM SHALL display the reason and the single action that resolves it, and never a raw HTTP status code`
-- `WHILE an import is running, THE SYSTEM SHALL display progress as trades imported against trades discovered, not an indeterminate spinner`
+- `THE SYSTEM SHALL accept a Tradovate CSV export and create or update an account from it`
+- `THE SYSTEM SHALL record each connection's account type — evaluation, funded, or personal — at the time it is added`
+- `WHEN a file is uploaded, THE SYSTEM SHALL report the count parsed, the date range covered, and the count rejected, before committing anything`
+- `IF a file is not a recognised export, THEN THE SYSTEM SHALL name what it expected and SHALL NOT partially ingest it`
+- `IF the same file is uploaded twice, THEN THE SYSTEM SHALL detect the overlap and SHALL NOT double-count any fill`
+- `THE SYSTEM SHALL NOT display a raw HTTP status code or parser exception to a user`
 
 Edge cases:
-- Empty: a login with no accounts — *"No accounts on this login yet. Connect a different Tradovate login, or check back once your firm activates the account."*
-- Error: expired/revoked token — see S4, this is the field's defining failure
-- Loading: determinate progress, count-based
+- Empty: no file yet — *"Upload your Tradovate export to get started."* with the export steps inline, not in a help article
+- Error: unrecognised or partial file — named, rejected whole, re-uploadable
+- Loading: determinate, count-based
+
+**Deferred to v2, not v1:** OAuth connection, live sync, real-time fills. When it lands it is an
+*additional* source into the same pipeline, never a replacement for it.
 
 ---
 
@@ -142,9 +258,17 @@ Acceptance criteria:
 - `IF any trade cannot be reconciled, THEN THE SYSTEM SHALL quarantine it, exclude it from all computed statistics, and surface it for review`
 
 Edge cases:
-- Empty: connected but no trades — *"No trades on this account yet. Run will pick them up as you trade."*
+- Empty: added but no trades — *"No trades on this account yet."*
 - Error: partial import — must never silently succeed (P12)
 - Loading: determinate
+
+**Migration off TradeZella is a first-class path, not a footnote (Luke, 2026-08-11).** The
+audience is switchers; the moment they decide is the moment they find out whether their history
+comes with them. Run must document and support getting data *out* of TradeZella and into Run —
+their export, their column layout, their quirks — with the same care as the Tradovate path.
+`THE SYSTEM SHALL accept a TradeZella export and reconcile it against any overlapping
+Tradovate data rather than duplicating it.` Filed as its own slice; the exact export format
+needs a live read before criteria can be written.
 
 ---
 
@@ -318,11 +442,47 @@ Boxes and labels only. Structure, not styling.
 
 | Question | Options | Decide by | Decided |
 |---|---|---|---|
-| Does Connect + import collapse into one screen? | two screens / one continuous motion | end of wireframes | |
-| What is a "session" exactly — CME day, calendar day, or a gap-based cluster of fills? | affects every grouping and every daily figure | before P4 data model | |
+| Does Add-account + import collapse into one screen? | two screens / one continuous motion | end of wireframes | |
+| Entry or exit time decides a trade's session? | entry (recommended) / exit (TradeZella's choice) | before P4 data model | |
 | Confidence threshold for naming a pattern in S5 | must be decidable before the wedge is built | P4 | |
 | Does `Read` show one pattern or several? | one is bolder and matches the value claim; several hedges | before wireframes | |
-| Tradovate vendor OAuth availability | blocks S1 entirely; may force a temporary path | before P5 build | |
+| ~~Tradovate OAuth availability~~ | ~~blocks S1~~ | — | **RESOLVED** — not available; v1 is CSV (S1) |
+| ~~What is a "session"?~~ | — | — | **RESOLVED 2026-08-11 — CME day.** See below |
+
+### RESOLVED — a session is the CME trading day (5:00pm CT → 5:00pm CT)
+
+Researched 2026-08-11 rather than assumed. **A Run session runs from 17:00 `America/Chicago`
+to 17:00 the next day, and carries the date of the day it ends** — matching the exchange's own
+trade-date roll.
+
+**The evidence:**
+
+| Source | Convention |
+|---|---|
+| **CME Globex** | Trading day 5:00pm CT → 4:00pm CT next day, maintenance break 4–5pm CT. The **trade date rolls at 5pm CT to the next calendar date**; Globex reopens at 5pm CT "for the next trade date." |
+| **Tradovate** | Session starts 5:00pm CT. Daily profit and daily loss are computed on net P&L **from 5pm CT**, including realised *and* open P&L, fees and commissions. A daily-loss lock holds the account **until 5:00pm CT** when the next session begins. |
+| **Prop firms** | Futures firms reset the daily loss limit at the CME boundary. That boundary *is* the trader's risk day. |
+| **TradeZella** | Buckets by **Close Date** on a calendar-month grid. No CME-day handling observed (read live, 2026-08-11). |
+
+**Three reasons, in order of weight:**
+
+1. **The 5pm CT trader.** A trader who starts at the open on Monday evening is trading
+   **Tuesday's** session — that is what Tradovate says and what their firm settles against.
+   Calendar-day bucketing splits one continuous session across two rows.
+2. **It breaks the wedge, specifically.** "You size up after three losses" requires the losses
+   to be in one session. Cut the session at midnight and the pattern is invisible for every
+   trader who works the evening open — a large share of the audience.
+3. **It breaks P12.** Tradovate computes the daily figure from 5pm CT. A calendar-day daily
+   P&L *disagrees with the broker* for anyone trading the evening session. That is a number
+   Run cannot reconcile, which is the exact failure this product is built against.
+
+**Implementation notes that are easy to get wrong:**
+- The boundary is **17:00 `America/Chicago`**, not a fixed UTC offset. Hardcoding an offset
+  breaks the product twice a year at DST.
+- Friday close (4:00pm CT) to Sunday open (5:00pm CT) is not a session. Weekend has no bucket.
+- Holiday sessions and early closes follow the CME calendar, not a weekday rule.
+- **A session with no trades still exists** — needed for streaks, gaps, and "you don't trade
+  Mondays" reads.
 
 ---
 
