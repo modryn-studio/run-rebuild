@@ -102,6 +102,26 @@ Measured on the old build: the client page rendered the full column while two se
 pages emitted `class="pb-8"` and lost their gutter and max-width entirely. **No error, no
 warning, and nobody noticed for two pages.**
 
+### S3c — The kitchen sink
+
+Specced at phase 3 (`design/kitchen-sink.md`), named in a standing rule and in the phase 5
+gate, and owned by no slice — so it would have been the thing that never quite got built.
+Two routes, one door:
+
+- `/kitchen-sink` — every primitive and every Run composition, in **default · hover · focus ·
+  active · disabled · loading · empty · error**, light · dark · side-by-side. Plus the token
+  proofs: type ramp, spacing ramp, ground stack, elevation, and the contrast table
+- `/kitchen-sink/timing/[ms]` — the generalised timing harness, `?seq=` per sequence
+
+**This is where the ported `v3` primitives and the six Run compositions get built once** —
+session header row, account row, summary rail, widget, quarantine notice, read card. Building
+them here rather than inside the first page that needs them is what stops a second version
+appearing in the second page.
+
+Dev-only, out of the production build and the sitemap, and **no fixture that could be mistaken
+for a real read**. It is the enforcement mechanism for this phase's definition of done, so it
+has to exist before the definition means anything.
+
 ### S4 — Add account + the three-file ingest ⭐ *the biggest slice*
 
 Sub-sliced, because this is where correctness is won or lost:
@@ -147,7 +167,7 @@ they don't share a surface.
 | Wave | Parallel |
 |---|---|
 | 1 | `S0` skeleton · `S1` spike · `S2` primitives |
-| 2 | `S3` auth · `S3b` shell · kitchen-sink rack + ported primitives |
+| 2 | `S3` auth · `S3b` shell · `S3c` kitchen sink + ported primitives |
 | 3 | `S4` alone — everything downstream depends on its shape |
 | 4 | `S5` · `S6` (different pages, same projections) |
 | 5 | `S7` · `S8` |
