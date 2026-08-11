@@ -59,18 +59,26 @@ M3 is the emotional core and the vaguest, so it gets the sharpest test: at retro
 was any stretch where Luke could not name the current phase and the next gate, M3 is **not
 prevented**, regardless of how the build turned out.
 
-**Deferred decision — the "different Run" criterion.** Q6 originally asked whether starting
-fresh produces a *different* product. Luke can't set a falsifiable bar for that today, and
-guessing at one now would be worthless. So it's deferred to a hard checkpoint rather than
-left open:
+**WITHDRAWN 2026-08-11 — the "different Run" criterion.** Q6 originally also asked whether
+starting fresh produces a *different* product, deferred to a phase 2 comparison. Luke
+withdrew the premise:
 
-> **At the phase 2 gate** — once `spec.md` exists — compare the fresh spec against old Run
-> and record what differs (core screen / data model / primary user action). This requires
-> Luke's explicit okay to open the old repo. Still before any build code, so it is not
-> retrofitting.
+> *"I'm not necessarily looking to replace old Run's answers here. I'm just looking for a
+> better and new way to build the actual product. A blueprint. A structured way to go from
+> start to finished."*
 
-If the phase 2 gate passes without this comparison being made, that is itself a finding:
-record it in the friction log.
+Novelty was never the goal — **structure** is. Old Run's thinking is an input to be carried
+forward freely, not contamination to be avoided. Measuring "is it different" would have
+scored the wrong thing entirely, and could have pushed the build away from good answers just
+because they were pre-existing.
+
+Q6 therefore reduces to the mess list above, which is what Luke actually cares about: did
+the process fix *never knowing when a feature is done, never knowing what to start, and
+feeling lost.*
+
+The clean-slate rule still stands as a **default** — prior material comes in when Luke opens
+the door, so that carrying something forward is a choice rather than a drift. Doors opened
+so far are logged in `problem-brief.md`.
 
 ---
 

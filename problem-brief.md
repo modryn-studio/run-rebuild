@@ -1,6 +1,6 @@
 # Problem brief — Run
 
-> Phase 1 artifact. **Status: draft — two boxes unfilled.**
+> Phase 1 artifact. **Status: all five boxes filled — awaiting Luke's sign-off at the gate.**
 > Last updated 2026-08-11.
 
 <!-- FRICTION 2026-08-11 · P1 · The blueprint assumes discovery is an interview ("walk me
@@ -10,10 +10,15 @@
      exists — the story-interview is for when you're discovering someone else's problem,
      not documenting your own. Reacting to a draft > being interviewed, for this builder. -->
 
-<!-- CLEAN-SLATE DOOR OPENED 2026-08-11 · Luke explicitly authorized reading
-     run-trading/docs/competitor-failures.md. Evidence carried forward; commitments and
-     solutions in that doc deliberately NOT carried — those are phase 2 decisions to
-     re-derive. Logged for Q6. -->
+<!-- CLEAN-SLATE DOORS OPENED (log every one) ·
+     2026-08-11 · run-trading/docs/competitor-failures.md — competitor evidence + first-hand
+       TradeZella confirmation on Luke's 187 trades.
+     2026-08-11 · run-trading/docs/spin.md — the corpus/twin thesis, Tradovate-first
+       coverage, substance/form/action framing.
+     Note: the earlier "carry evidence, leave the answers" stance is WITHDRAWN. Luke's
+     framing 2026-08-11: he wants a better *process*, not different answers. Old Run's
+     conclusions are inputs to be used freely. See the Q6 amendment in
+     blueprint-instrumentation.md. -->
 
 ---
 
@@ -34,15 +39,19 @@ broken record.
 
 ## Who
 
-*UNFILLED — needs Luke.* Current candidates, unresolved:
+**Switchers, primarily** — prop/funded futures traders who already pay for a journal and
+have been burned by it. Plus a minority of first-timers who have decided they need a tool
+to trade better and are choosing one for the first time.
 
-- Luke himself (active NQ/ES futures trader) — user #1, definitely
-- Retail futures traders on prop/funded accounts
-- Any serious retail trader already paying for a journal and burned by it
+Luke (active NQ/ES futures trader) is user #1 and the test case.
 
-**The sharpening question:** the evidence base is *people who already pay for a journal and
-are angry*. That is a much narrower and more valuable "who" than "traders." It means the
-market is switchers, not the unconvinced — a different product and a different pitch.
+**What "switchers" implies, and it's not small:** they arrive with history and a grievance.
+Their first question is not "what does this do" — it's *"why should I move, and what happens
+to my existing trades?"* Import/onboarding is not a checkbox for this audience, it's the
+sales pitch. A switcher-first product looks different from an acquisition-first one.
+
+The first-timer minority matters mainly as a constraint: the product can't be so
+switcher-shaped that it's unusable with an empty account.
 
 ---
 
@@ -88,24 +97,33 @@ top of it. A trader acting on a corrupted stat is worse off than one with no jou
 
 ## Spin
 
-*Draft — the strongest candidate, but must survive phase 2 scrutiny before it's locked.*
+Sources: `run-trading/docs/spin.md` (the moat) and `competitor-failures.md` (the felt
+product). They are the same idea at two altitudes and neither is complete alone.
 
-> **Insight the trader could not have read off their own chart** — their specific pattern,
-> named, priced in dollars, tracked over time. A model of *the trader*, not a summary of
-> the trades.
+> **A model of you that gets sharper the longer you trade — told back to you as your own
+> specific behavior, with a dollar figure on it.**
 
-The shape, from the evidence: *"you size up 40–60% after 3 losses; 70% of those are losers;
-~$4,200 preventable."* Named behavior, real cost, their own data.
+**Substance — the corpus (why competitors can't follow).** A compounding, cross-firm
+behavioral record: every fill, every context, every blown account, across every firm. The
+journal is the data pipeline, not the product. The highest-signal data is the blow-up
+session — failure is where a model learns you — and it is exactly what incumbents miss,
+because they batch-sync and don't care if a breached account's session vanishes. A rival
+copies the feature in a sprint; their corpus still starts at zero and cannot be
+retroactively collected.
 
-**Why it resists cloning:** it isn't a feature, it's an accumulation. A competitor can copy
-the screen in a week; they cannot copy a history of a specific trader's behavior they never
-recorded. The moat compounds with time, which means it's worth nothing on day one and a
-great deal in month six — a real strategic constraint, not just a nice line.
+**Form — the read (why anyone pays in month one).** Insight the trader could not have read
+off their own chart: *"you size up 40–60% after 3 losses; 70% of those are losers; ~$4,200
+preventable."* Named behavior, real cost, their own data. The writing standard is Monarch,
+on personal finance — *"Your largest expense was $29 at Massive.com on August 3… You've
+used $39 of your $1,150 flex budget (3%)"* — names the thing, compares to the prior period,
+paces against the plan. Nothing in trading writes like this.
 
-**The standard to write to is outside trading.** Monarch, on personal finance: *"Your
-largest expense was $29 at Massive.com on August 3… Compared to last week… You've used $39
-of your $1,150 flex budget (3%)."* Names the thing, compares to the prior period, paces
-against the plan. Nothing in trading writes like this.
+### The tension to carry into phase 2
+
+**The moat is worth nothing on day one.** A corpus is an accumulation; a new user has none.
+Forward capture starts compounding immediately and a live account reads fully — but v1
+cannot promise depth it has not yet earned. This directly constrains what the first screens
+are allowed to claim, and it is a phase 2 scope decision, not a phase 1 one.
 
 **The guard:** the moment the insight reads as "here's what your chart already shows," the
 spin is gone and this is a better-looking competitor.
@@ -114,15 +132,30 @@ spin is gone and this is a better-looking competitor.
 
 ## Kill signal
 
-*UNFILLED — needs Luke.*
+**Confirmed by Luke, 2026-08-11:**
 
-What would have to be true for you to stop? Candidates to react to, not adopt:
+> If the depth wedge is built against Luke's own real trades and cannot name a single
+> pattern he did not already know about himself — stop.
 
-- The depth wedge can't actually be built from available data — the patterns aren't there,
-  or aren't specific enough to name and price
-- Correctness against a real broker turns out to be a permanent tax rather than a one-time
-  build
-- Traders who complain loudly about their journal won't actually switch
+Checkable early, on real data, with Luke as the test case. If the read is something he could
+have told you unprompted, it is a summary, and summaries are what the whole field already
+ships.
+
+### Carried to phase 2 as an open decision — is 187 trades enough?
+
+The kill signal only fires if there is enough real data for a pattern to exist. Unresolved,
+and it must be resolved before the wedge can be tested:
+
+- If **yes** — the kill signal works as written, on the data that exists today.
+- If **no** — v1's promise has to change, because the product cannot deliver its
+  differentiator to a new user either. That is the same problem as "the moat is worth
+  nothing on day one," arriving from a different direction.
+
+**Synthetic data does not resolve this.** Fabricated trades can validate *scale* — does the
+metrics engine hold at 20,000 rows, do queries stay fast, does the UI degrade — and that
+belongs in phase 6 hardening. It cannot validate the wedge: patterns you generate are
+patterns you invented, so detecting them proves only that the generator works. The wedge
+needs real trades, Luke's or other traders'.
 
 ---
 
