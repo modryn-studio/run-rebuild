@@ -13,6 +13,13 @@
 
 ---
 
+> **⚠️ REVISED 2026-08-11 after reading `run-trading@dev:docs/data-model.md` and the `v2` plans.**
+> The derivation below was materially wrong in four places and right in two that are worth
+> knowing. **§8 records the full reconciliation** — read it before trusting any table here.
+> The three most important corrections are folded in inline and marked `[REVISED]`.
+
+---
+
 ## 0. The three things that shape everything below
 
 **1. Identity is primary, the account is a child of it.** The spin is a model of *the trader*
@@ -25,6 +32,12 @@ stays visible. This is the corpus, and it means **no deletion cascade may ever r
 
 **3. Money is never a float.** P12 says never show a number you cannot reconcile, and floats
 cannot reconcile. `MAX DRAWDOWN 1644.2%` is what the alternative looks like in production.
+
+**4. `[REVISED]` State vs. log.** One immutable append-only table (`event`) is the corpus.
+Everything else — `trader`, `account`, `session`, `fact` — is **mutable current state,
+rebuildable by replaying the log.** This is the framing my derivation missed entirely, and it
+matters because it is what makes caching derived values safe: a projection you can regenerate is
+not a source of truth you can corrupt.
 
 ---
 
@@ -383,6 +396,130 @@ sessionDateFor(exitAtUtc) -> date      // the ONLY way a session_date is produce
 
 ---
 
+## 8. Reconciliation against the shipped model
+
+Read `run-trading@dev:docs/data-model.md` plus the `v2` plan set after drafting §1–§7 blind.
+**The derivation was wrong in four ways that matter and right in two worth recording.** Both
+directions are useful; the wrongness is more useful.
+
+### ❌ Wrong 1 — no event log. The biggest miss.
+
+I modelled `fill` as immutable and everything else as ordinary tables. The shipped model is
+**one append-only `event` log as the moat, with every other table a rebuildable projection.**
+
+Two details inside it that are not obvious and that I would not have arrived at:
+
+- **`event.id` is a `bigint identity`, not a uuid.** Monotonic total order is required because
+  **replay order is itself behavioral signal**, and timestamps cannot provide it — millisecond
+  ties are real and CSV `occurred_at` is coarse.
+- **Corrections append.** A bust or adjustment writes a new event with `corrects_event_id`
+  pointing at the original; the original never mutates. My answer was "re-import," which loses
+  the fact that a correction *happened* — and for a behavioral corpus, that's signal too.
+
+**Adopt.** `fill` and `trade` in §1 become projections over `event`, not base tables.
+
+### ❌ Wrong 2 — I had Run pairing fills into round trips
+
+`trade` in §1 implies a matching engine. **Tradovate's Position History export already contains
+Tradovate's own entry→exit pairing, including many-to-many splits.** The shipped intake ingests
+that as `round_trip` events and never builds a matcher.
+
+This is the difference between reconciling to the broker and *reimplementing* the broker. Under
+P12, a matching engine is a machine for producing numbers you cannot reconcile.
+
+**Adopt, without qualification.**
+
+### ❌ Wrong 3 — the fee model. This one is a shipped-bug-level error.
+
+My `fill` carried `fee_cents` and `commission_cents` from the fills export, and `trade` stored
+`net_pnl_cents`. Both are wrong, and the first is dangerous:
+
+> Tradovate charges four separate lines — Commission, Exchange, Clearing, NFA. **The Fills
+> export's `commission` column is only the first: measured, 42% of true cost.**
+> On a real 10-day export: gross −$1,840.50, fees −$1,934.36, net −$3,774.86.
+> **The fees exceeded the gross loss.** Gross-only reporting understated the real loss by half.
+
+So the Cash History export is **required on upload, not optional** — and my spec's single-file
+flow would have shipped a product that was wrong by ~50% on the headline number while displaying
+a confident provenance note. That is precisely the failure Run exists to attack.
+
+Two more corrections riding along:
+
+- **Net P&L is derived on every extraction, never stored.** It has to be: the batch ingests
+  fills → position history → cash history, so at the moment a `round_trip` is written **its fees
+  do not exist yet**, and an append-only log cannot revise the row later. My stored
+  `trade.net_pnl_cents` is structurally impossible in this design.
+- **The fee split is exact, not pro-rata.** Tradovate charges a flat rate per contract per side,
+  so a trade's cost is `pairedQty × (entry rate + exit rate)`. Across 360 round trips this
+  reproduced the file's totals **to the cent, zero remainder**. Pro-rata would have been close,
+  plausible, and unreconcilable.
+
+**Adopt all three. This is the single most valuable thing the comparison surfaced.**
+
+### ❌ Wrong 4 — no erasure doctrine
+
+I wrote "accounts are never deleted" with no answer for GDPR/CCPA. The shipped doctrine is
+honest about the contradiction:
+
+> *"Never deleted in normal operation" ≠ "physically undeletable."* `event` is immutable **to
+> the application role**; erasure is a privileged, audited path that is never the app's.
+
+And the part I would not have thought of: **crypto-shred exists for the backup-window problem.**
+A `DELETE` today does not scrub yesterday's PITR snapshot; dropping the trader's key makes the
+encrypted payload unreadable across every snapshot at once. Hard-deleting the rows is *also*
+required, because the plaintext promoted columns are pseudonymous — a timestamp+P&L+symbol
+series is a re-identifiable fingerprint.
+
+**Adopt as doctrine now, build before the first real user.**
+
+### ✅ Right 1 — the account unique key
+
+I derived `(trader_id, platform, external_account_id)`. Shipped is the same, and the reason is a
+**bug they actually caught (2026-07-22)**: external ids collide across traders, so a key without
+`trader_id` resolves the second person's import onto the *first* person's account row — where
+dedupe then silently drops their events as already-seen.
+
+Independent arrival at the same key from first principles is a good signal for both.
+
+### ✅ Right 2 — platform vs prop_firm
+
+I split them; shipped has a single `firm` column holding the platform, with the ambiguity
+recorded as known debt and the real firm recoverable from the account-name prefix. **The new
+build should take the split**, since it costs nothing before any rows exist.
+
+### 🔧 Implementation details worth carrying
+
+- **Chunk writes at 1,000 rows.** Postgres caps a statement at 65,535 bind parameters; ~10
+  columns per event row means a single INSERT throws somewhere past 6,500.
+- **`dedupe_key` is namespaced by type** (`f:` fills, `p:` round trips, `x:` cash) with a
+  **partial unique index** `(account_id, dedupe_key) WHERE dedupe_key IS NOT NULL` +
+  `onConflictDoNothing`. Re-uploading a file becomes a no-op at the database level rather than in
+  application logic.
+- **Fees key to fills on RAW STRINGS**, not parsed timestamps. Cash History names no fill id and
+  its timestamps carry no timezone — parsing them resolves against whatever zone the server runs
+  in and shifts every fee by the CT offset. **String equality cannot drift.** This is the
+  subtlest thing in the whole document and it would have been a real bug.
+- **`payload_version` on every event**, so a v0 row replays correctly through v2 extraction code.
+- **A verification script for the session boundary** exists (`scripts/verify-trade-date.mts`).
+  Carry the pattern: the highest-risk derived value gets a script that checks it, not a test that
+  asserts one case.
+- **Layer 2 `fact`** — disposable, re-derivable behavioral facts with `source_event_ids bigint[]`
+  for containment provenance, and an `embedding` column present but unused (V1 recall loads all
+  of a trader's facts into the prompt; similarity search waits until the corpus outgrows the
+  context window). This is where our `pattern` / `pattern_occurrence` should live.
+
+### Consequences for the locked spec
+
+Two, and they need Luke's sign-off since `spec.md` is locked at `p2-gate`:
+
+1. **S1/S2 assume a single file. The real intake is three** — Fills, Position History, Cash
+   History — and Cash History is required, not optional. The wireframe's upload step needs to
+   express "three files, and here's which ones," or it ships a 50%-wrong P&L.
+2. **§S3's "fees and commissions per fill"** is the wrong shape. Fees resolve per round trip via
+   an exact split; per-fill fee display would be a fabrication.
+
+---
+
 ## Phase 4 gate
 
 - [ ] Every screen in the spec maps to specific tables *(drafted §6 — verify against wireframes)*
@@ -391,4 +528,7 @@ sessionDateFor(exitAtUtc) -> date      // the ONLY way a session_date is produce
 - [ ] Trust boundary drawn; every entry point validated server-side *(drafted §3)*
 - [ ] Every external service has a named failure mode *(drafted §2)*
 - [ ] `contract_spec` seeded from published exchange specs, not memory
-- [ ] Compared against `run-trading/docs/data-model.md` — **needs Luke's door-open**
+- [x] Compared against `run-trading@dev:docs/data-model.md` + v2 plans — see §8
+- [ ] §1 tables rewritten as projections over an `event` log (§8 Wrong 1)
+- [ ] Fee model corrected: Cash History required, net P&L derived not stored (§8 Wrong 3)
+- [ ] Spec amendment signed off: three-file intake, per-round-trip fees (§8 Consequences)
