@@ -207,12 +207,40 @@ exist yet**, and an append-only log cannot revise the row afterwards.
 
 **This table is small, boring, and the highest-risk thing in the schema.** Round-trip P&L is
 `(exit − entry) × point_value × qty`. A wrong multiplier produces a number that is confidently,
-precisely wrong — which is the exact failure class as TradeZella's `1644.2%`. It is data, not
-code, so it can be corrected without a deploy; and it must be **seeded from the exchange's own
-published specs, never from memory.**
+precisely wrong — the exact failure class as TradeZella's `1644.2%`. It is data, not code, so it
+corrects without a deploy.
 
 NQ and MNQ are the same instrument at a 10:1 ratio. Getting that backwards is a 10× error in
-every figure.
+every figure in the product.
+
+#### The seed: narrow, sourced, and hard-failing on the unknown
+
+Prop firms permit a lot of markets — **Topstep lists ~32, Apex ~46** — and the instinct is to
+seed all of them. **Don't.**
+
+The asymmetry is what decides it. A missing row produces an obvious, loud failure. A *wrong* row
+produces a plausible number nobody catches, on the figure this product exists to get right. So
+breadth bought from memory or a blog post is a liability, not coverage — and there is precedent
+in this codebase: `market-hours.md` explicitly refuses to write agricultural hours it hasn't
+verified, on the grounds that *"writing plausible hours here from memory would be worse than the
+gap."* Same reasoning, higher stakes.
+
+**The rule:**
+
+- **Seed only what a real import contains** — today MNQ, NQ, and whatever else appears in Luke's
+  own exports. Four rows beats forty-six.
+- **Every value comes from the exchange's own published contract spec.** Not a prop-firm page,
+  not a comparison article, not memory. The source URL and the date read go in a comment beside
+  the row.
+- **`IF a symbol_root has no row, THEN the trade quarantines.`** It never falls back to a default
+  multiplier, never guesses from a similar root, never silently prices at zero. An unknown
+  instrument is exactly the case where being wrong is worst, so it is the case that must stop.
+- **The table grows on evidence.** A quarantined unknown is the signal to go read one spec and
+  add one verified row — which is a minute of work and produces a table that is correct by
+  construction rather than correct by hope.
+
+This makes coverage a function of what has actually been traded, which is the only definition of
+coverage that can be verified.
 
 ---
 
@@ -402,8 +430,12 @@ SESSION_BOUNDARY_HOUR  = 17            // pairs with the zone above — see spec
 sessionDateFor(exitAtUtc) -> date      // the ONLY way a session_date is produced
 ```
 
-- **Nothing else may compute a session date.** Two code paths for this is how a product disagrees
-  with itself about "your worst day."
+- **Nothing else may compute a session date — and more generally, one module owns every time
+  bucket in the product.** Session date, day, week, month, year-to-date: they all come from here,
+  under one vocabulary. Two code paths computing the same derived value is how a product
+  disagrees with itself about "your worst day" — and it has already happened once in a form
+  nobody would predict, with **a TypeScript bucketer and a SQL `date_trunc` both called "grain"
+  while meaning different things** (`#97`). A shared name is not a shared definition.
 - The zone/hour pair travels together. `America/New_York` + `17` is an hour wrong on every
   evening session, silently.
 - Named IANA zone, never a fixed offset. An offset breaks twice a year.
@@ -573,62 +605,37 @@ build should take the split**, since it costs nothing before any rows exist.
 Read `v2`'s plan set and all 100 issues on `modryn-studio/run-trading`. Beyond the fee and
 timestamp bugs already folded into §1, these change phase 4 decisions.
 
-### The classification axis — a real gap, and our design answers it differently
+**Scoping rule for this section (Luke, 2026-08-11).** A phase 4 artifact contains decisions this
+build acts on — not a digest of what the mine turned up. Two sections were written here and
+removed: the classification axis (a defence of `pattern_occurrence` against a challenge nobody
+made, about a page v1 won't build, already tracked as `#72` on their repo) and the dogfooding
+corpus finding (settled at phase 1 in `problem-brief.md`; its real home is phase 6, where
+fixtures get built, and there it is one line). **If half a document is background, a reader can't
+tell which half binds.**
 
-`v2:docs/plans/the-classification-axis.md` (approved, unbuilt) makes an argument worth taking
-seriously:
+Of nine tracker findings first carried here, **four bind, one shrinks to a clause, four left.**
 
-> Monarch labels a transaction even though the trader can see what it is. **The label's job is
-> not to reveal — it is aggregation.** A trader can see one trade where size went up after a
-> loss. They cannot see *what that habit cost across 20,000 round trips*, because there is
-> nothing to group by. Every Run surface groups by symbol or account, and both are **inventory** —
-> what you traded and where, never *how*.
+### What binds on the write path
 
-Their surface map lands on one missing page: Monarch's `/categories` has no Run equivalent.
-
-**Run's answer here is `pattern_occurrence`, and it is computed rather than labelled.** The
-group-by exists; the trader just never types it. That is arguably better — it's the wedge — and
-it costs nothing in user labour.
-
-**The honest limitation, recorded now:** a computed axis can only aggregate behaviours Run has a
-detector for. The trader cannot ask *"how did my breakout trades do?"* unless Run named
-"breakout". Correctly out of v1 (tagging is in the scope cut), but it is the reason a
-classification axis will eventually be wanted, and `[#72]` already tracks it.
-
-### Synthetic data cannot validate the wedge — now proven in code
-
-`v2:docs/plans/the-dogfooding-corpus.md` found the seed generator **draws the outcome first**:
-the day's P&L comes from the account's fate, the trade's from the day's, then everything is
-rescaled to land on the story exactly. **So size cannot correlate with anything** — the pattern
-detector's correct silence looks like a passing test.
-
-This independently confirms the phase 1 call that fabricated trades can validate scale but never
-the wedge. Worth carrying as a rule: **a fixture that cannot express the thing being tested is
-worse than no fixture, because its silence reads as a pass.**
-
-### Correctness rules from the tracker
-
-| # | Finding | Rule for the new build |
+| # | Finding | Decision |
 |---|---|---|
-| `#79` | An import writing zero rows looks identical to one writing everything. Luke's own corpus has three `csv_import` events with identical reconciliation — he uploaded the same files three times and two told him they succeeded | "Already saved" is a distinct outcome and must be said |
-| `#76` | P&L reconciliation is computed on every import and **discarded on all but the first** | Keep every reconciliation; it is the whole-file check |
-| `#97` | **Two things called "grain"** — a TS bucketer and a SQL `date_trunc`, with different vocabularies | One vocabulary for time buckets, named once |
-| `#89` | Four surfaces read the whole corpus on every render; the allocator is unscoped | Scope every read by account and window from the first query |
-| `#91` | The tape has no row ceiling, the export no cap, and rates can drift mid-scroll | Paginate and cap before there is data to hurt |
-| `#83` | Reads ship whole JSONB payloads the consumer never touches | Select promoted columns; reach into `payload` deliberately |
-| `#100` | **Erasure cannot complete at launch scale** — the privileged DELETE times out | Batch the erasure path; do not discover this at the first request |
-| `#35` | Timezone needs a manual override that outranks browser and CSV detection | `trader.display_timezone` is user-settable, not inferred-only |
-| `#59` `#80` | A manual account can receive fills only if they're Tradovate; an import naming several unknown accounts can't ask which is which | Account resolution is part of import, not a precondition |
+| `#79` | An import writing zero rows is indistinguishable from one writing everything | **The write path returns rows-actually-written, not just success.** Without that number no surface can tell the two cases apart. The user-facing half is already in the spec amendment |
+| `#76` | Reconciliation is computed on every import and **discarded on all but the first** | **Keep every reconciliation.** The whole-file check is the only thing that catches a Cash History that doesn't line up — it cannot be a first-import-only artifact |
+| `#59` `#80` | An import can name several accounts Run doesn't know | **Account resolution is part of the import flow, not a precondition to it.** This shapes the intake design: the file is read, the accounts it names are surfaced, and the trader resolves them mid-flow |
+| `#35` | Timezone detection from browser and CSV can both be wrong | `trader.display_timezone` is **user-settable and outranks detection** |
 
-### Two product findings worth keeping
+`#97` (two things called "grain") folds into §4 rather than standing alone — it is the same
+failure as the session-date rule, and §4 now covers time bucketing generally.
 
-- **`[#44]` An open-source export extension + native importer**, explicitly to kill the switching
-  cost from TradeZella/TradesViz. That is our S2 migration path with a sharper edge — the
-  audience is switchers, and making the exit from a competitor *easy and public* is a growth
-  mechanism, not just an import feature.
-- **`[#43]` `[#41]` The three-file daily upload is real friction**, acknowledged as such, and the
-  thing live capture removes. v1 ships the friction knowingly; it should not pretend otherwise in
-  the copy.
+### One principle for query shape, and nothing more
+
+`#89`, `#91` and `#83` are all query performance — reading the whole corpus per render, no
+pagination ceiling, shipping JSONB nobody reads. **They belong to phases 5–6, not here.** The
+principle that binds now:
+
+> **Scope every read by account and window from the first query, and select promoted columns
+> rather than whole payloads.** It costs nothing while the corpus is small and cannot be
+> retrofitted cheaply once four surfaces depend on it.
 
 ### Consequences for the locked spec
 
@@ -649,10 +656,9 @@ Two, and they need Luke's sign-off since `spec.md` is locked at `p2-gate`:
 - [ ] Deletion policy decided for every relationship *(drafted §1)*
 - [ ] Trust boundary drawn; every entry point validated server-side *(drafted §3)*
 - [ ] Every external service has a named failure mode *(drafted §2)*
-- [ ] `contract_spec` seeded from published exchange specs, not memory
+- [x] `contract_spec` seeding rule set: narrow, exchange-sourced, hard-quarantine on unknown roots
 - [x] Compared against `run-trading@dev:docs/data-model.md` + v2 plans — see §8
 - [x] §1 tables rewritten as projections over an `event` log
 - [x] Fee model corrected: Cash History required, net P&L derived not stored, six allocation rules recorded
 - [x] Spec amended: three-file intake, per-round-trip fees, three loud failure modes
-- [ ] Erasure batching designed (#100) before first real user
-- [ ] One time-bucket vocabulary named (#97)
+- [x] One time-bucket vocabulary named — §4 generalised to cover every time bucket
