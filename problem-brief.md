@@ -1,6 +1,6 @@
 # Problem brief — Run
 
-> Phase 1 artifact. **Status: all five boxes filled — awaiting Luke's sign-off at the gate.**
+> Phase 1 artifact. **Status: LOCKED — gate passed and tagged `p1-gate`, 2026-08-11.**
 > Last updated 2026-08-11.
 
 <!-- FRICTION 2026-08-11 · P1 · The blueprint assumes discovery is an interview ("walk me
@@ -24,7 +24,7 @@
 
 ## Problem
 
-*Draft — needs Luke's sign-off.*
+*Signed off 2026-08-11.*
 
 > A trader who wants to know what's actually going wrong in their trading can't trust any
 > tool that claims to tell them. The numbers are wrong, the sync dies quietly, and the
@@ -162,7 +162,7 @@ you invented, so detecting them proves only that the generator works.
 
 ## Phase 1 gate
 
-- [ ] Problem sentence signed off by Luke
-- [ ] "Who" narrowed to one specific person
-- [ ] Kill signal named
-- [ ] Would still build it if it took 3× longer than expected
+- [x] Problem sentence signed off by Luke
+- [x] "Who" narrowed to one specific person — switchers, prop + personal
+- [x] Kill signal named — and pulled forward to build slice `S1`
+- [x] Would still build it if it took 3× longer than expected — confirmed 2026-08-11

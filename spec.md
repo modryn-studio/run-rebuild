@@ -345,7 +345,7 @@ Edge cases:
 Acceptance criteria:
 - `THE SYSTEM SHALL display a relative freshness stamp on every account row, at all times` (P5)
 - `IF an account has not synced within its expected interval, THEN THE SYSTEM SHALL mark it stale and state what to do about it`
-- `IF a broker token expires, THEN THE SYSTEM SHALL surface it as a user-facing state and SHALL NOT allow sync to fail silently`
+- `IF an account's most recent import ends before the most recent completed session, THEN THE SYSTEM SHALL mark it stale and state which sessions are missing` — **amended 2026-08-11: staleness is upload-based, not token-based.** There is no broker token in v1, but the failure this story exists to prevent is unchanged: acting on a record that silently stopped being current. With CSV the gap is "you haven't uploaded since Tuesday" rather than "your token expired"
 - `WHILE an account is stale, THE SYSTEM SHALL mark every figure derived from it as covering a period ending at the last successful sync`
 
 Edge cases:
@@ -518,7 +518,7 @@ Longer than the story list, on purpose. Every line is an argument not had at 1am
 
 **Every broker except Tradovate**
 - Rithmic, ProjectX/TopstepX, NinjaTrader, anything non-futures
-- CSV upload as a primary path
+- ~~CSV upload as a primary path~~ — **struck 2026-08-11.** This line was written when OAuth was assumed available. It isn't, so CSV upload **is** the v1 path (S1). A scope-cut list only settles arguments if every line in it is still true
 - *Reason: one adapter reaches most of the funded-futures niche. A second adapter before the first is proven is pure cost.*
 
 **The rest of the AI surface**

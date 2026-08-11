@@ -79,7 +79,9 @@ Not a screen. The pieces that corrupt everything downstream if they're wrong.
 
 ### S3 — Auth and identity
 
-`trader`, better-auth wiring, `display_timezone` user-settable and outranking detection.
+`trader`, better-auth wiring, `display_timezone` user-settable and outranking detection, and
+the nullable `key_id` column — free now, a migration later, with the encryption itself
+explicitly deferred (architecture §1).
 
 ### S4 — Add account + the three-file ingest ⭐ *the biggest slice*
 

@@ -111,25 +111,59 @@ with per-group totals → summary rail.
 │       ⓘ This is recorded per connection. It changes nothing you see —    │
 │         Run needs it to keep firm accounts and personal accounts honest. │
 │                                                                          │
-│   2 ─ Upload your export                                                 │
+│   2 ─ Upload all three Tradovate exports                                 │
 │       ┌────────────────────────────────────────────────────────────┐     │
-│       │        Drop your Tradovate export here, or browse          │     │
+│       │  ✓ Fills              fills_2026-08-11.csv    412 rows      │     │
+│       │  ✓ Position History   positions_2026-08-11.csv 187 rows     │     │
+│       │  ○ Cash History       required — carries your real fees     │     │
+│       │                                                            │     │
+│       │              Drop files here, or browse                    │     │
 │       └────────────────────────────────────────────────────────────┘     │
-│       ▸ How to export from Tradovate      (inline steps, not a link out) │
-│       ▸ Coming from TradeZella?           (inline steps)                 │
+│       ⓘ All three are required. Tradovate bills fees on four separate    │
+│         lines and only Cash History carries them — without it your P&L   │
+│         would read about twice as good as it was.                        │
+│       ▸ How to export all three from Tradovate  (inline steps)           │
+│       ▸ Coming from TradeZella?                 (inline steps)           │
 │                                                                          │
 │   3 ─ Confirm before anything is saved                                   │
 │       ┌────────────────────────────────────────────────────────────┐     │
-│       │  187 trades found · Jun 3 – Aug 8, 2026                    │     │
-│       │  0 rejected · 0 duplicates of data you already have        │     │
+│       │  187 trades · Jun 3 – Aug 8, 2026                          │     │
+│       │  All three files cover the same dates.                     │     │
+│       │  Fees resolved on 187 of 187 trades.                       │     │
+│       │  0 rejected · 0 already saved                              │     │
 │       │                                          [Import 187]      │     │
 │       └────────────────────────────────────────────────────────────┘     │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Nothing commits until step 3.** The count, range and rejects are shown *before* the write
-(S1). This is the first trust moment in the product and it happens before a single figure is
-displayed.
+**Nothing commits until step 3.** The counts, range, overlap check and fee-resolution count are
+all shown *before* the write. This is the first trust moment in the product and it happens
+before a single figure is displayed.
+
+**Why the third file gets its own line and its own sentence.** Tradovate charges four separate
+fee lines and the Fills export carries only the first — measured at 42% of true cost. On a real
+10-day export the fees *exceeded* the gross loss. A missing Cash History is not a degraded
+import, it is a P&L that reads about twice as good as it was, which is the exact failure this
+product exists to attack. So it is named, not silently defaulted.
+
+**The three failure states this step must express** (spec S1, architecture §1):
+
+```
+   ✗  Your files cover different dates.
+      Fills: Jun 3 – Aug 8.  Cash History: Aug 1 – Aug 8.
+      Re-export all three over the same range.        [Choose files]
+
+   ✗  None of your fees matched a trade.
+      Cash History covers Aug 1 – Aug 8, your trades are Jun 3 – Jul 20.
+      Importing now would report gross P&L as net.    [Choose files]
+
+   ✓  Already saved.
+      All 187 trades were already in your record. Nothing new was added.
+```
+
+The third is not an error — but it is a **different outcome from a successful import**, and it
+must say so. Otherwise an upload that writes nothing looks exactly like one that writes
+everything (`#79`, which happened three times on real data).
 
 **Empty state:** *"Upload your Tradovate export to get started."* with the export steps inline
 — not in a help article (P9).

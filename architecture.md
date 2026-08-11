@@ -34,7 +34,7 @@ stays visible. This is the corpus, and it means **no deletion cascade may ever r
 cannot reconcile. `MAX DRAWDOWN 1644.2%` is what the alternative looks like in production.
 
 **4. `[REVISED]` State vs. log.** One immutable append-only table (`event`) is the corpus.
-Everything else — `trader`, `account`, `session`, `fact` — is **mutable current state,
+Everything else — `trader`, `account`, `session`, `pattern` — is **mutable current state,
 rebuildable by replaying the log.** This is the framing my derivation missed entirely, and it
 matters because it is what makes caching derived values safe: a projection you can regenerate is
 not a source of truth you can corrupt.
@@ -50,10 +50,27 @@ not a source of truth you can corrupt.
 | `id` | uuid | no | |
 | `email` | citext | no | unique |
 | `display_timezone` | text | no | IANA. **Display layer only** — never used for session bucketing |
+| `key_id` | uuid | yes | reserved crypto-shred hook. **Unused in v1** — see below |
 | `created_at` | timestamptz | no | |
 
 The timezone field is worth its own note: it exists so a trade renders at *their* 9:31am. It
 must never reach the session-bucketing code. See §4.
+
+**`key_id` is a column with nothing behind it, deliberately, and the honesty matters.** The
+erasure doctrine (§ deletion policy) says crypto-shred solves the backup-window problem — but
+that is only true if `event.payload` is actually encrypted with a per-trader key, and **in v1 it
+is not.**
+
+The split is: **the column ships in `S3` (free, nullable, no migration later); the encryption
+does not** (it changes every read path, for a product with one user and nobody to erase). The
+consequence, stated so nobody later assumes protection that isn't there:
+
+> **Until `payload` is encrypted, dropping a key does nothing.** v1 erasure means hard-delete
+> only, and a PITR snapshot taken before that delete still contains the payload until it ages off
+> the retention window.
+
+That is an acceptable position at this scale and an unacceptable one at any other. The trigger to
+build the encryption is **the first user who is not Luke.**
 
 ---
 
@@ -362,12 +379,12 @@ drafted, because there is only one table that must never lose a row.
 
 | Relationship | On delete |
 |---|---|
-| `trader` → `account` / `session` / `fact` | **CASCADE.** All are projections — losing them loses nothing that can't be replayed |
+| `trader` → `account` / `session` / `pattern` / `read` | **CASCADE.** All are projections — losing them loses nothing that can't be replayed |
 | `trader` → `event` | **NEVER.** `event` does not cascade with its trader. Only a trader with **zero events** is deletable in normal operation |
 | `account` → `event` | **RESTRICT.** Accounts close, they don't disappear |
 | `import` → `event` | **RESTRICT.** An import is a receipt; deleting it orphans provenance and P8 becomes a claim again |
 | `pattern` → `pattern_occurrence` | **CASCADE** — a retired detector's occurrences are meaningless |
-| `fact` → anything | **freely wiped.** Layer 2 is disposable by definition; regenerate by re-extracting |
+| `pattern` / `pattern_occurrence` / `read` | **freely wiped.** Layer 2 is disposable by definition; regenerate by re-extracting from the log |
 
 **The one exception, stated once so it isn't rediscovered as a contradiction:** an absolute
 "never delete" rule and a GDPR/CCPA erasure obligation cannot both be true. The honest form is
@@ -505,7 +522,7 @@ index or an unscoped query.
 | **Read → Patterns** | the card, all three states | `read` (stored `body` + `working`) | — |
 | | "the 9 sessions" / "the 31 trades" | `pattern_occurrence` → `trade` | — |
 | **Read → History** | pattern list with cost-then vs cost-now | `pattern` + `pattern_occurrence` aggregated by period | — |
-| **(nightly job)** | — | `event` projections, `session`, `contract_spec` | `pattern`, `pattern_occurrence`, `read`, `fact` |
+| **(nightly job)** | — | `event` projections, `session`, `contract_spec` | `pattern`, `pattern_occurrence`, `read` |
 
 **Two things this traced check surfaced:**
 
@@ -655,9 +672,18 @@ build should take the split**, since it costs nothing before any rows exist.
   Carry the pattern: the highest-risk derived value gets a script that checks it, not a test that
   asserts one case.
 - **Layer 2 `fact`** — disposable, re-derivable behavioral facts with `source_event_ids bigint[]`
-  for containment provenance, and an `embedding` column present but unused (V1 recall loads all
-  of a trader's facts into the prompt; similarity search waits until the corpus outgrows the
-  context window). This is where our `pattern` / `pattern_occurrence` should live.
+  for containment provenance, plus an unused `embedding` column.
+
+  **Not adopted, and the reason is a real design difference rather than scope-trimming.**
+  `fact` is free text sized for prompt recall. Run's wedge needs **the working** — *"this
+  happened 12 times, 9 lost, your usual rate is 54%"* — and a sentence cannot be aggregated into
+  that. So `pattern` + `pattern_occurrence` **are** Run's Layer 2: same job, same disposability,
+  same re-derive-from-the-log property, structured because the product's central claim is a
+  count and a cost rather than a description.
+
+  Adopting both would mean two Layer 2s with overlapping responsibility and no rule for which
+  one a detector writes to. The `embedding` column follows `fact` out — v1 has no similarity
+  search and nothing to recall.
 
 ---
 
