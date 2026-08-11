@@ -1,7 +1,62 @@
+# dependencies
 node_modules/
+.pnp
+.pnp.js
+
+# next.js
+.next/
+out/
+
+# build
+build/
+dist/
+
+# env files
 .env
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
-dist/
-build/
-.next/
+Thumbs.db
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# git worktrees (nested under .claude/worktrees/ — must never be tracked as gitlinks)
+.claude/worktrees/
+
+# stray logs (dev-server / install output redirected to a file)
+*.log
+
+# raw generative takes — big, disposable, and we shoot many to keep one.
+# The conformed web assets (*.web.mp4 / *.webp) and the .json prompt sidecars ARE tracked.
+# PNG stills are raw takes too (~7MB each, 58MB and counting): git never forgets a blob, so
+# committing them would weigh down every clone forever. Conform the keeper to .webp instead.
+public/video/**/take-*.mp4
+public/video/**/take-*.png
+!public/video/**/*.web.mp4
+!public/video/**/*.webp
+
+# rendered by `npm run email-preview` for eyeballing transactional mail
+email-preview.html
+
+# Generated A/B control for the completed Phase 1 experiment.
+# Regenerate with: npx tsx --conditions=react-server scripts/extract-baseline-lenses.mts
+src/lib/desk/lenses-baseline.ts

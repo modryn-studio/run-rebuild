@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch cancels the first — a queue of stale runs tells you
+# nothing and burns minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npx tsc --noEmit
+
+      # PLACEHOLDER ENV IS REQUIRED, NOT COSMETIC. src/lib/env.ts validates at import time and
+      # throws on a missing key, so `next build` fails at boot with a message about environment
+      # variables rather than about your code. Nothing here reaches a real service: every route
+      # that touches the database is force-dynamic, so the build never opens a connection.
+      # DATABASE_URL still has to parse as a URL — zod checks the shape, not the host.
+      - run: npm run build
+        env:
+          ANTHROPIC_API_KEY: ci-placeholder
+          REPLICATE_API_TOKEN: ci-placeholder
+          BETTER_AUTH_SECRET: ci-placeholder
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
