@@ -36,6 +36,5 @@ jobs:
       - run: npm run build
         env:
           ANTHROPIC_API_KEY: ci-placeholder
-          REPLICATE_API_TOKEN: ci-placeholder
           BETTER_AUTH_SECRET: ci-placeholder
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci

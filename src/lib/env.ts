@@ -15,11 +15,13 @@ const schema = z.object({
   // Required for AI routes (streamText, useChat, generateObject).
   ANTHROPIC_API_KEY: z.string().min(1, 'ANTHROPIC_API_KEY is required'),
 
-  // Media generation (video, imagery) for the landing and login surfaces. Required rather
-  // than optional, deliberately: every build reaches for it as early as its first marketing
-  // screen, and a key that fails at request time instead of at boot is exactly the failure
-  // this file exists to prevent.
-  REPLICATE_API_TOKEN: z.string().min(1, 'REPLICATE_API_TOKEN is required'),
+  // Media generation (video, imagery) for the landing and login surfaces. OPTIONAL, and the
+  // distinction is the whole point: it GENERATES assets, it does not SERVE them. The output is
+  // committed to public/ and shipped as static files, so the running app never reads this key.
+  // Marking it required would fail every production render on a credential production does not
+  // use. Absent = generation is dark, not broken — the same contract as the mail vars below.
+  // Fill it locally, leave it out of the deploy.
+  REPLICATE_API_TOKEN: z.string().optional(),
 
   // Neon Postgres (src/lib/db).
   DATABASE_URL: z.string().url('DATABASE_URL must be a valid Postgres connection string'),

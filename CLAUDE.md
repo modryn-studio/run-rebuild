@@ -2,9 +2,10 @@
 
 1. Copy the folder (or `git clone` then reset history). Rename in `package.json` and `README.md`.
 2. Fill in `src/config/site.ts` — name + description feed layout metadata, emails, the login page.
-3. `cp .env.local.example .env.local` and fill it. At minimum: `ANTHROPIC_API_KEY`,
-   `REPLICATE_API_TOKEN`, `DATABASE_URL`, `BETTER_AUTH_SECRET` — all four are required and the
-   app will not boot without them.
+3. `cp .env.local.example .env.local` and fill it. Required, and the app will not boot without
+   them: `ANTHROPIC_API_KEY`, `DATABASE_URL`, `BETTER_AUTH_SECRET`. Also fill
+   `REPLICATE_API_TOKEN` locally — it generates media, it does not serve it, so it belongs on
+   your machine and not on the deploy.
 4. **Lock the design system before the first component.** Recolor the `@theme` tokens in
    `src/app/globals.css`, choose a real display face and point `--font-heading` at it, then build
    the `ui/` primitives with all five states — against `modryn-hq/playbooks/design-system.md`.
