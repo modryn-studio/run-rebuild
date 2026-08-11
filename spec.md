@@ -41,7 +41,7 @@ actually means.
 | P5 | **Freshness is stamped on every row, always visible.** | Monarch: `22 hours ago` on every account. This is the direct answer to "sync dies quietly." |
 | P6 | **The summary digests the *filtered* set, not everything.** | Monarch's Transactions rail recomputes with the filter. |
 | P7 | **Generated arrives; typed does not.** The ritual is delivered, not a blank page with a folder around it. | Monarch's Weekly Recap arrives staged. TradeZella's Notebook is a blank note you type. |
-| P8 | **The product states what its own output depends on, every time.** | Monarch repeats the trust note on all five recap steps. This is data-integrity solved as a UI pattern rather than a promise. |
+| P8 | **The product states what its own output depends on, every time.** For Run this is **provenance, not adjustability** — which file, which account, which range, last read when. *Amended 2026-08-11 when S9 was cut:* Monarch's note ends *"you can review and adjust"*; Run has nothing to adjust, so Run's note names the source instead. Stronger, because "this came from your Tradovate export of Aug 5" is checkable, while "you can adjust it" is an invitation to doubt. | Monarch repeats the trust note on all five recap steps. Data integrity solved as a UI pattern rather than a promise. |
 | P9 | **Empty states name the next action in the user's own vocabulary.** Never "no data". | Monarch: *"Please sync another investment account to see top movers."* |
 | P10 | **AI is not a destination.** It is attached to the thing it's talking about. | Monarch's AI Assistant sits below the divider, with a per-widget button. If it becomes a nav row, it's a chatbot you visit. |
 | P11 | **Prose names specifics, compares to a prior period, and paces against a plan.** | Monarch: *"Your largest expense was $29 at Massive.com on August 3… you've used $39 of your $1,150 flex budget (3%)."* Nothing in trading writes like this. |
@@ -116,7 +116,7 @@ Trades     → what happened
 Read       → what it means about me
 ```
 
-Below the divider, not nav rows: **Ask Run · Settings · Luke**.
+Below the divider, not nav rows: **Settings · Luke**.
 
 **Why four and not more.** Applying P3 up front rather than at the first cleanup: every row
 is a promise v1 can keep. `Sessions` is deliberately *not* a fifth row — see below.
@@ -136,7 +136,12 @@ row we add on evidence, not on anticipation.
 ### 4.1 What sits below the divider, and why
 
 Monarch's sidebar is eleven rows, a divider, then `AI Assistant · Help & Support ·
-Get 45% discount · Luke`. Run's is four rows, a divider, then **Ask Run · Settings · Luke**.
+Get 45% discount · Luke`. Run's is four rows, a divider, then **Settings · Luke**.
+
+> **`Ask Run` is NOT IN V1 (Luke, 2026-08-11).** The slot below the divider is where it would
+> go *if* it ships — the point of the divider rule is that adding it later never costs a nav
+> row. v1 ships without a conversational surface at all. The reasoning below is retained
+> because it governs where it lands whenever it arrives.
 
 The rule: **above the divider are places in your trading. Below are things you carry, or
 things about the app.**
@@ -144,14 +149,18 @@ things about the app.**
 Think of a school. Above the line are rooms — classroom, gym, cafeteria, library. Below the
 line are the things that aren't rooms: your backpack, the nurse, your name tag.
 
-- **Ask Run is the backpack.** You carry it into every room and open it where you are. Making
-  it a room would mean walking away from your trades to ask about your trades — and it would
-  be missing from the room where you actually needed it. Monarch's answer is an `Ask AI
-  Assistant` button *inside* each widget and page rail; Run does the same.
-- **Settings is the janitor's closet.** Necessary, not part of the day. The taxonomy the whole
-  product runs on lives here — Monarch keeps categories / merchants / rules / tags in Settings,
-  and Run keeps setups / symbols / tags there for the same reason.
+- **A conversational surface is the backpack** (whenever it ships). You carry it into every
+  room and open it where you are. Making it a room would mean walking away from your trades to
+  ask about your trades — and it would be missing from the room where you actually needed it.
+  Monarch's answer is an `Ask AI Assistant` button *inside* each widget and page rail.
+- **Settings is the janitor's closet.** Necessary, not part of the day.
 - **Luke is the name tag.**
+
+**Taxonomy lives in Settings, not in the product surface.** Monarch keeps categories,
+merchants, rules and tags in Settings even though the entire product runs on them — the
+teardown found the whole taxonomy sitting under `/settings`. Run does the same with **setups,
+symbols and tags**. They are the vocabulary the product computes against; they are not a place
+you visit to do your trading. This is why `Read`'s analogue is not Monarch's categories.
 
 **The counter-example, stated so it isn't repeated:** TradeZella's front door *is* the chat
 box. The app opens on a question instead of your answer, and nothing on that screen is yours.
@@ -160,20 +169,24 @@ An AI that is a destination is a chatbot you visit; an AI that is everywhere is 
 ### 4.2 The Read page, in depth
 
 **Where this comes from.** Monarch's analogue is **not** categories (that's taxonomy → Run's
-setups and tags, in Settings) and **not** notes. It is the **Weekly Recap**: generated, staged
-across five steps, written in specific prose, with the trust note repeated on every step.
+setups, symbols and tags, in Settings) and **not** notes. It is the **Weekly Recap**:
+generated, written in specific prose, with the trust note repeated throughout.
 
-**The honest complication: in Monarch, the recap is not a nav row.** It is a dashboard widget
-that opens a modal. A strict clone would make Run's read a widget too.
+**Two deliberate departures from Monarch (Luke, 2026-08-11):**
 
-**Run promotes it to a row anyway, and the reason is a real difference between the products.**
-For Monarch the recap sits on top of budgeting — the product is the budget, the recap is a
-weekly nicety. For Run the read *is* the product; it is the entire reason a switcher moves.
-Demoting the wedge to a widget would be copying Monarch's row rather than Monarch's reasoning.
+**1. Daily, not weekly.** A trading session is a day. A trader's unit of reflection is the
+session they just finished, not a seven-day roll-up — and the whole product buckets on the CME
+trade date, so a daily recap is the one cadence that lines up with everything else. Weekly
+roll-ups can exist later as a view over dailies; the atom is the day.
 
-**But it adopts Monarch's delivery wholesale:** the read *arrives*, generated and staged. It is
-never a blank page you fill in (P7). `Today` carries a widget that opens it, exactly as
-Monarch's dashboard does.
+**2. A destination, not a modal.** Monarch's recap is a dashboard widget that opens a
+five-step modal walkthrough. Run does not do the modal. Luke's call, and it holds up: a modal
+is right for something you glance at once and dismiss, and wrong for the thing that *is* the
+product. `Read` is a page you can land on, link to, and come back to.
+
+**What is kept from Monarch, and it's the important half:** the read **arrives generated**. It
+is never a blank page you fill in (P7). That is the entire difference between Monarch's recap
+and TradeZella's Notebook — one is delivered, the other is a folder around an empty note.
 
 **Tab 1 — `Patterns` (the current read).**
 - One named pattern, stated in prose in the recon register (P11): the behavior, how often, what
@@ -280,7 +293,7 @@ needs a live read before criteria can be written.
 Acceptance criteria:
 - `THE SYSTEM SHALL group trades under session headers carrying that session's net P&L, trade count, and win rate`
 - `THE SYSTEM SHALL display fees and commissions per fill, and SHALL NOT present a net figure that excludes them`
-- `THE SYSTEM SHALL display, on every page presenting computed figures, a statement of what those figures depend on and how to correct them` (P8)
+- `THE SYSTEM SHALL display, on every page presenting computed figures, the provenance of those figures — the source file or connection, the account, the range covered, and when it was last read` (P8)
 - `WHEN a trade is quarantined, THE SYSTEM SHALL show it visibly excluded rather than omitting it silently`
 - `THE SYSTEM SHALL recompute the summary digest against the current filter, not the full dataset` (P6)
 - `THE SYSTEM SHALL NOT display any figure it cannot reconcile against the broker record` (P12)
@@ -366,13 +379,29 @@ Acceptance criteria:
 
 ---
 
-### S9 — Correct the record
+### ~~S9 — Correct the record~~ — CUT 2026-08-11 (Luke)
 
-> As a trader, I want to fix or annotate a trade Run got wrong, so that the record is mine and
-> the trust note isn't hollow.
+**Removed entirely. The option is not offered.**
 
-- `WHEN a user adjusts a trade, THE SYSTEM SHALL recompute every derived figure and mark the trade as user-adjusted`
-- `THE SYSTEM SHALL never silently overwrite a user adjustment on the next sync`
+> *"CSV files and Tradovate data doesn't lie. As long as Run displays the exact same info, no
+> edits necessary. Don't even offer the option."*
+
+This is the stronger position and it sharpens the whole product. Run's claim is not *"our
+numbers are editable"* — it is **"our numbers are the broker's numbers."** An edit feature
+would quietly undermine that: the moment a user can adjust a figure, every figure becomes a
+claim about what someone typed rather than what the broker recorded, and the reconciliation
+promise in P12 loses its meaning.
+
+It also removes a whole class of failure the field suffers from — user edits silently
+overwritten on the next sync, or silently overwriting broker truth.
+
+**What replaces it: provenance, not editing** (see the amended P8 below). If a number looks
+wrong, the answer is not "adjust it here" — it's "here is exactly which file and which broker
+record this came from," and the fix happens at the source.
+
+**The one case still open:** a genuine parse failure, where Run misreads a file the broker
+exported correctly. That is a Run bug, handled by quarantine (S2) and a fix, never by asking
+the user to patch the data.
 
 ---
 
@@ -400,7 +429,7 @@ Longer than the story list, on purpose. Every line is an argument not had at 1am
 - *Reason: one adapter reaches most of the funded-futures niche. A second adapter before the first is proven is pure cost.*
 
 **The rest of the AI surface**
-- Conversational assistant / "Ask Run" as a working feature (the nav slot exists; the feature doesn't)
+- Conversational assistant / "Ask Run" — **no slot, no feature.** The divider rule means it can be added later without costing a nav row
 - Auto-tagging, playbook checking, agents, anything that writes
 - Backtesting, trade replay, strategy/playbook objects
 - *Reason: S5 is the wedge. Everything else here is what the field already ships, and shipping it early is how S5 degrades into trend-summary.*
@@ -430,11 +459,15 @@ Longer than the story list, on purpose. Every line is an argument not had at 1am
 
 Boxes and labels only. Structure, not styling.
 
-- `Connect` → *pending*
-- `Today` → *pending*
-- `Accounts` → *pending*
-- `Trades` (grouped by session) → *pending*
-- `Read` → *pending*
+**Drawn 2026-08-11 → [`wireframes.md`](wireframes.md).** All five, derived from the live
+accessibility markup of Monarch's Accounts and Transactions pages (chrome-devtools CLI,
+2026-08-11) rather than inferred from screenshots.
+
+- `Accounts` ✅ — hero metric selector, groups carrying their own totals, freshness on every row
+- `Add account (CSV)` ✅ — nothing commits until the count/range/rejects are confirmed
+- `Trades` ✅ — session headers carrying net/count/win rate, filtered-set digest, read-only rows
+- `Read` ✅ — daily, a page not a modal, one pattern, plus the History tab
+- `Today` ✅ — Monarch's widget contract applied unchanged
 
 ---
 
@@ -443,7 +476,7 @@ Boxes and labels only. Structure, not styling.
 | Question | Options | Decide by | Decided |
 |---|---|---|---|
 | Does Add-account + import collapse into one screen? | two screens / one continuous motion | end of wireframes | |
-| Entry or exit time decides a trade's session? | entry (recommended) / exit (TradeZella's choice) | before P4 data model | |
+| ~~Entry or exit time decides a trade's session?~~ | — | — | **RESOLVED 2026-08-11 — exit.** See below |
 | Confidence threshold for naming a pattern in S5 | must be decidable before the wedge is built | P4 | |
 | Does `Read` show one pattern or several? | one is bolder and matches the value claim; several hedges | before wireframes | |
 | ~~Tradovate OAuth availability~~ | ~~blocks S1~~ | — | **RESOLVED** — not available; v1 is CSV (S1) |
@@ -476,13 +509,71 @@ trade-date roll.
    P&L *disagrees with the broker* for anyone trading the evening session. That is a number
    Run cannot reconcile, which is the exact failure this product is built against.
 
-**Implementation notes that are easy to get wrong:**
-- The boundary is **17:00 `America/Chicago`**, not a fixed UTC offset. Hardcoding an offset
-  breaks the product twice a year at DST.
+**Also worth stating, because the codebase has said both and looked self-contradictory**
+(`market-hours.md`): the **trade date** is 5pm→5pm (the 24 hours a fill is dated to) and the
+**tradeable session** is 5pm→4pm (when the book is actually open). The hour between is the
+Globex maintenance break. Both statements are true; neither is complete alone. Run buckets on
+the *trade date*.
+
+### RESOLVED — a trade belongs to the session it EXITED in
+
+**Corrected 2026-08-11. My earlier recommendation of entry was wrong**; `market-hours.md`
+settles it, and the reasoning generalises better than either default.
+
+**For prop accounts the question does not arise.** No prop position survives the close — every
+firm force-flattens well before the 4:00pm CT close (Topstep 3:10pm CT, Apex/Tradeify 3:59pm CT,
+Bulenox ~3:55pm, TradeDay ~3:50pm). Confirmed on Luke's own exports: **0 of 729 round trips
+span a 5:00pm boundary; longest hold 35 minutes.** Bucketing by close is therefore *identical*
+to bucketing by open, and no metric can double-count or drop a session-crossing trade.
+
+**For personal accounts, which can hold overnight, exit is the correct answer.** Luke's
+framing: a trade opened on a Monday and closed six months later does not reflect that Monday's
+P&L — it belongs to the day it was realised. Conventional, and it keeps a session's net equal
+to the P&L actually realised in that session.
+
+So: **exit, universally.** One rule, no branch on account type, and it is the rule that stays
+correct as the audience widens.
+
+**Consequence for the wedge, stated so it isn't discovered later:** behavioral reads are
+grouped by the session a trade *closed* in. For prop traders — where the whole wedge currently
+lives — entry and exit are in the same session by rule, so nothing is lost. For a personal
+trader holding overnight, a "sized up after three losses" read groups by realisation, not
+decision. If that ever proves wrong for behavioral analysis specifically, the fix is a separate
+decision timestamp on the trade, **not** a change to the session rule.
+
+### RESOLVED — time zones are three separate layers (Luke, 2026-08-11)
+
+Never one zone used for everything. Three layers, each with its own job:
+
+| Layer | Zone | Why |
+|---|---|---|
+| **Store** | UTC | The absolute instant. Never changes. |
+| **Session boundary** | a fixed US market zone, **always** — never the user's | A market fact. It does not move because the trader moved. |
+| **Display** | the user's own zone | Their trade happened at *their* 9:31am. |
+
+**Precision on the boundary layer, because getting it wrong costs an hour:** Luke specified
+`America/New_York`. That works — `America/New_York` and `America/Chicago` observe DST
+transitions at the same instants, so they are always exactly one hour apart and either can
+express the boundary. But the constant must match the zone:
+
+- `America/New_York` → the boundary is **18:00**
+- `America/Chicago` → the boundary is **17:00**
+
+Writing `America/New_York` with `17:00` silently files an hour of every evening session under
+the wrong trade date. **Pick one pair, name it in one constant, and never inline the other.**
+
+The load-bearing rule either way: **a named IANA zone, never a fixed UTC offset.** An offset
+breaks twice a year.
+
+**Other implementation notes:**
 - Friday close (4:00pm CT) to Sunday open (5:00pm CT) is not a session. Weekend has no bucket.
 - Holiday sessions and early closes follow the CME calendar, not a weekday rule.
 - **A session with no trades still exists** — needed for streaks, gaps, and "you don't trade
   Mondays" reads.
+- Equity-index RTH (8:30am–3:15pm CT, ~70% of volume) is **not** the boundary and must never be
+  used as one. It's the window most traders work in — relevant to time-of-day reads only.
+- The agricultural complex keeps different hours and is deliberately unhandled. If an ag
+  contract appears in a real import, fill this in from CME's product pages before bucketing it.
 
 ---
 
@@ -492,5 +583,5 @@ trade-date roll.
 - [x] Every critical-path story has testable acceptance criteria
 - [x] Every story has empty / error / loading defined
 - [x] NOT IN V1 is longer than the story list
-- [ ] Wireframes drawn
+- [x] Wireframes drawn
 - [ ] No open decision blocks the first slice
