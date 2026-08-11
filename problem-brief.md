@@ -141,21 +141,22 @@ Checkable early, on real data, with Luke as the test case. If the read is someth
 have told you unprompted, it is a summary, and summaries are what the whole field already
 ships.
 
-### Carried to phase 2 as an open decision — is 187 trades enough?
+### RESOLVED 2026-08-11 — 187 trades is enough
 
-The kill signal only fires if there is enough real data for a pattern to exist. Unresolved,
-and it must be resolved before the wedge can be tested:
+Luke, from direct knowledge of his own data: 187 trades is enough for a real pattern to
+exist and be named. **The kill signal works as written, against data that exists today** —
+no waiting, no data-collection phase before the wedge can be tested.
 
-- If **yes** — the kill signal works as written, on the data that exists today.
-- If **no** — v1's promise has to change, because the product cannot deliver its
-  differentiator to a new user either. That is the same problem as "the moat is worth
-  nothing on day one," arriving from a different direction.
+This also removes one half of the day-one problem. The moat still compounds over time, but
+the *read* does not require a large corpus to produce something true. A user needs a real
+history, not a long one.
 
-**Synthetic data does not resolve this.** Fabricated trades can validate *scale* — does the
-metrics engine hold at 20,000 rows, do queries stay fast, does the UI degrade — and that
-belongs in phase 6 hardening. It cannot validate the wedge: patterns you generate are
-patterns you invented, so detecting them proves only that the generator works. The wedge
-needs real trades, Luke's or other traders'.
+**Synthetic data has a different job.** ~20,000 fabricated trades for **scale and
+performance** — does the metrics engine hold, do queries stay fast, does the UI degrade.
+That is a phase 6 hardening task, filed now so it isn't rediscovered late.
+
+It cannot validate the wedge and should never be used to: patterns you generate are patterns
+you invented, so detecting them proves only that the generator works.
 
 ---
 
