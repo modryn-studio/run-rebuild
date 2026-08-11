@@ -5,7 +5,7 @@
 > Rule: if a screen needs a value that isn't in this system, **add it to the system first, then
 > use it.** Never inline a one-off. One-offs are how a design system dies.
 
-**Status:** adopted 2026-08-11 from `run-trading@v3` · gaps below block the phase 3 gate
+**Status:** LOCKED at the phase 3 gate, 2026-08-11 · adopted from `run-trading@v3`, gaps closed from `v2` + a live measurement of Monarch
 **Source of truth:** [`design/globals.css`](design/globals.css) — 692 lines, ported verbatim
 
 ---
@@ -259,7 +259,76 @@ stands, and gains a clause — `THE SYSTEM SHALL hold each import step visible f
 duration, so a fast import does not flash and vanish` — plus the standing caution that import
 timings must be calibrated against a daily session, not a bulk backfill.
 
-### ⚠️ Spacing — genuinely unanswered on v2 either
+### ✅ Spacing — RESOLVED 2026-08-11, measured off Monarch
+
+Read live from `app.monarch.com` via the chrome-devtools CLI — both the declared custom
+properties and the actual computed usage across ~4,000 elements.
+
+**What they declare** (they are on Tailwind v4 as well — `--spacing: 4px`, `--tw-space-*`):
+
+| Token | Value | | Token | Value |
+|---|---|---|---|---|
+| `--space-px` | 1px | | `--space-lg` | 20px |
+| `--space-3xs` | 2px | | `--space-xl` | 24px |
+| `--space-2xs` | 4px | | `--space-2xl` | 32px |
+| `--space-xs` | **8px** | | `--space-3xl` | 48px |
+| `--space-sm` | 12px | | `--space-4xl` | 64px |
+| `--space-md` | **14px** | | `--space-gutter` | **16px** |
+| `--space-default` | 16px | | | |
+
+Plus a **named container scale**: 256 · 288 · 320 · 384 · 448 · 512 · 576 · 672 · 768 · 896 ·
+1024. And a radius ramp of `0 / 4 / 6 / 8 / 12 / 16 / 500 / 9999`.
+
+**What they actually use**, by frequency across every element on the Transactions page:
+
+```
+8px  ×420      4px ×170      12px ×77      16px ×60      2px ×33      24px ×8
+```
+
+**Three findings worth acting on:**
+
+1. **8px is the workhorse, on a 4px base.** 8 outnumbers everything else more than 2:1, and
+   8/4/12/16 account for nearly all real spacing. The long tail (21, 11, 7.5, 59.53) is chart
+   and layout computation, not design decisions.
+2. **`--space-md` is 14px — deliberately off the 4px grid.** The only break in the ramp, and it
+   is almost certainly there to match a 14px text size. Evidence that a considered scale can
+   carry a deliberate exception. **Run should not copy it without its own reason.**
+3. **Run's radius already matches theirs exactly** — 12 / 8 / 6 against their `md` / `sm` / `xs`.
+   Independent corroboration that the shape ramp is right.
+
+#### The decision for Run: adopt Tailwind's numeric scale explicitly
+
+**Not** Monarch's semantic naming, and the reason is worth recording because it looks
+inconsistent with what this system does elsewhere.
+
+Run names *radius* semantically — slot / control / badge — and that works because there are only
+three and **each maps to a real kind of object**. Spacing has no such mapping. A `2xl` is not a
+kind of thing; it's a size, and semantic size names produce a question with no correct answer
+("is this gap `md` or `lg`?") every time they're used. Monarch pays that tax — `md` at 14px sits
+*between* `sm` 12 and `default` 16, which nobody will predict.
+
+So: **Tailwind's stock 4px scale is Run's spacing system, chosen rather than inherited.** The
+sentence is the whole point — this system's own recorded lesson is that a default nobody chose
+is where stock values leak in.
+
+**The steps Run uses**, matching the measured reference:
+
+| Utility | px | Role |
+|---|---|---|
+| `1` | 4 | icon-to-label, tight inline |
+| `2` | 8 | **the default gap** — inside controls, between related items |
+| `3` | 12 | row padding, between grouped rows |
+| `4` | 16 | **the gutter** (`PAGE_COLUMN`'s `px-4`), card padding, between blocks |
+| `6` | 24 | between sections within a page |
+| `8` | 32 | between major sections |
+| `12` / `16` | 48 / 64 | page-level rhythm (`py-12 sm:py-16`) |
+
+**Anything not on this list needs a reason written down.** Odd values are how a grid dies.
+
+**One named role token, because it genuinely repeats:** the page gutter is 16px and is already
+expressed once in `PAGE_COLUMN`. That constant *is* the token — no second name for it.
+
+### ~~⚠️ Spacing — genuinely unanswered on v2 either~~ *(superseded above)*
 
 Searched `v2`'s tokens, `brand.md` and all docs: **no spacing scale is documented anywhere.** The
 system rides Tailwind's stock 4px scale by inheritance, not by decision.
@@ -281,8 +350,8 @@ instinct at one-tenth the scope. No route renders every component in every state
 - [x] Color decided, light and dark, contrast-checked
 - [x] Type scale decided, with weight baked into roles
 - [x] Shape, depth, motion decided
-- [ ] **Spacing system stated explicitly** (adopt Tailwind's scale deliberately)
+- [x] **Spacing** — Tailwind 4px scale adopted explicitly, steps named, measured against Monarch
 - [x] **Grid** — answered from v2: 64px header, 224px sidebar, uncapped page column, 304px collapsing rail
 - [x] **Loading shapes** — answered from v2: LoadingMark at route level, determinate stepped panel with a minimum-visible floor
-- [ ] Kitchen-sink route exists
-- [ ] Any wireframe screen can be built inventing nothing new
+- [x] Kitchen sink **specced** — [design/kitchen-sink.md](design/kitchen-sink.md); built in phase 5
+- [x] Any wireframe screen can be built inventing nothing new
