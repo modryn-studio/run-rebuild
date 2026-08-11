@@ -118,6 +118,21 @@ Format: `<date> · <phase> · <what happened> · <what I did instead>`
 
 <!-- append below -->
 
+```
+2026-08-11 · P1 · blueprint assumes discovery is a story-interview; Luke rejected the format
+             outright and named the problem directly · switched to draft-and-react. Amendment
+             candidate: phase 1 should branch on whether the builder is also the user.
+             (Full note in problem-brief.md.)
+
+2026-08-11 · P2 · "I don't want to just build what we think is best. I want to follow the
+             great examples of the best. When does recon and analogous product research fit
+             into the eight phases?" — it didn't. The blueprint had problem recon (P1) but no
+             craft recon anywhere.
+             → AMENDED IMMEDIATELY, modryn-hq@v4 4a891dd: craft recon added as P2 step 0
+             (structural: IA, nav, first-run) and P3 step 0 (visual + writing standard), with
+             the rule that analogous products outweigh direct competitors.
+```
+
 ---
 
 ## Part 3 — Phase log
