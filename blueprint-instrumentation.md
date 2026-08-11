@@ -41,9 +41,23 @@ Q6 is checkable only against a named list. These are Luke's own words on what we
 building run-trading, recorded before this build starts. At retro, each line gets a yes/no:
 **did the blueprint prevent this?**
 
-| # | What went wrong on run-trading | Prevented? (fill at retro) |
-|---|---|---|
-| M1 | _pending — to be filled from Luke's own recollection, no repo access_ | |
+Luke's words, 2026-08-11: *"I never knew when a feature was done. I could never actually
+start a feature and know when it should be done. Felt like I had no structure. Felt like I
+was lost all the time."*
+
+One root cause stated three ways — **no definition of done, and no defined order.** Not a
+discipline failure; a missing artifact. Split below because each is checked against a
+different part of the blueprint.
+
+| # | What went wrong on run-trading | Blueprint claims to prevent it via | Prevented? (fill at retro) |
+|---|---|---|---|
+| M1 | Never knew when a feature was **done** | P2 EARS acceptance criteria + P5 definition of done (works / error / empty / mobile / design system / merged / deployed) | |
+| M2 | Never knew what to **start**, or when a feature should end | P2 critical path + P5 vertical slice ordering (skeleton → critical path → supporting → polish) | |
+| M3 | No structure — **lost all the time** | The phase + gate system as a whole. Check: at any given moment, could I name which phase I was in and what the next gate was? | |
+
+M3 is the emotional core and the vaguest, so it gets the sharpest test: at retro, if there
+was any stretch where Luke could not name the current phase and the next gate, M3 is **not
+prevented**, regardless of how the build turned out.
 
 **Deferred decision — the "different Run" criterion.** Q6 originally asked whether starting
 fresh produces a *different* product. Luke can't set a falsifiable bar for that today, and
@@ -67,6 +81,26 @@ cover this"* or *"I'm doing this out of order."* Ten seconds each.
 
 **Do not batch this.** In-the-moment friction is the only real data here; everything
 written later is memory, and memory is exactly what this file exists to replace.
+
+### Capture mechanism (amended 2026-08-11, Luke's call)
+
+Friction is captured **where the work is**, not in a second document:
+
+- **In code** — leave a dated comment inline: `// FRICTION 2026-08-14: <what happened>`
+- **In docs** (phases 1–4) — same convention as an HTML comment:
+  `<!-- FRICTION 2026-08-12: <what happened> -->`
+- **At retro** — `grep -rn "FRICTION" .` assembles the log.
+
+The fragile part of instrumentation is *recall*, not *assembly*. Notes written in the moment
+and collected later are still in-the-moment data. Notes written from memory at the end are not.
+
+### Phase timing (amended 2026-08-11 — replaces manual date-logging)
+
+**Tag the repo at every gate**: `git tag p1-gate`, `git tag p2-gate`, etc.
+
+Phase durations derive from tag dates. Zero recall, zero discipline cost, and it works for
+the document phases too since those commits are dated. The manual "Started / Closed" columns
+in Part 3 are filled from `git log` at retro, not by hand as you go.
 
 Format: `<date> · <phase> · <what happened> · <what I did instead>`
 
