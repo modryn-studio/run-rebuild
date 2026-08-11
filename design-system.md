@@ -1,274 +1,203 @@
 # Design system — Run
 
-> Phase 3 artifact. Every visual and interaction rule, decided once.
-> **If a screen needs a value that isn't in this file, add it here first, then use it.**
-> Never inline a one-off. One-offs are how a design system dies.
+> Phase 3 artifact. **Adopted, not derived.**
+> Every visual and interaction rule, decided once.
+> Rule: if a screen needs a value that isn't in this system, **add it to the system first, then
+> use it.** Never inline a one-off. One-offs are how a design system dies.
 
-**Status:** draft — values proposed, two decisions need Luke
-**Last amended:** 2026-08-11
-
-<!-- CLEAN-SLATE DOOR OPENED 2026-08-11 · Luke: "for phase 3 design system, i want to use what
-     we have in v3 branch" → modryn-hq@v3:playbooks/design-system.md and ui-ux-standards.md. -->
+**Status:** adopted 2026-08-11 from `run-trading@v3` · gaps below block the phase 3 gate
+**Source of truth:** [`design/globals.css`](design/globals.css) — 692 lines, ported verbatim
 
 ---
 
-## 0. What this file is, and what it inherits
+## Why this phase is a port, not a derivation
 
-**The rules come from `modryn-hq@v3:playbooks/design-system.md` and are not re-litigated here.**
-That doc is the studio's positive spec: token block first, primitives second, shell third, data
-last; 8-based spacing with one 4 half-step; eight type roles and no hand-picked sizes; all
-states on every primitive; both modes always; the `/design-check` ship gate. It fixes the
-**rules**; each project picks the **values**.
+Luke's call, 2026-08-11: phase 3 uses the design system already built on `run-trading@v3`.
 
-**This file picks Run's values and adds the layer the studio doc can't know about** — a trading
-instrument has requirements a generic app doesn't (§4).
+That is the right call and worth stating plainly, because it looks like a shortcut and isn't.
+The blueprint's phase 3 exists to force a set of decisions *before* screens get built, so that
+building is assembly rather than invention. **Those decisions have already been made here, at a
+level of rigour a fresh pass would not reach** — every token in that file carries its measured
+reasoning, including the reasoning for values that were tried and rejected. Examples:
 
-**On `ui-ux-standards.md`:** demoted 2026-08-07 to observations, not gates. Its failure modes
-are still worth recognising; it does not block a decision, and where it disagrees with a live
-reference, the reference usually wins.
+- The card shadow was raised after *measuring* that the reference's card-to-page contrast is
+  1.089 against Run's 1.071 — under 2%, invisible — so the perceived difference was the **shadow
+  and border**, not the fill. The fill was left alone and only the ambient layer changed.
+- The third content tier (`faint`) was **deleted as a colour** after it measured 3.43:1, under
+  the 4.5 AA floor, on timestamps and axis labels. The finding — that the palette has no stop
+  which is both legible and quieter than `muted` — means hierarchy below body is carried by
+  **size and weight** instead. `faint` survives as a name aliased to `muted` so ~40 call sites
+  don't churn.
+- The motion curve is set as a **Tailwind default override**, after an audit found 31
+  `transition` utilities silently inheriting Tailwind's stock curve while four hand-written
+  keyframes used the considered one. The lesson is recorded in the file: *a system that is not
+  the DEFAULT is a suggestion.*
 
-**Craft recon (the phase 3 step) is already done** — `ia-teardown.md` §1.7 measured Monarch's
-app live rather than describing it. Those measurements are the standard below.
+A from-scratch phase 3 would have produced a worse system and thrown away those findings.
 
----
-
-## 1. The named standard
-
-Decisions get measured against this instead of argued about taste.
-
-> **`app.monarch.com` — a calm, dense, 16px instrument in a single grotesque.**
-> Measured 2026-08-10: warm paper `#f6f5f3`, cards pure white, ink `rgb(34,32,29)` — a warm
-> near-black, **never `#000`**. One type family, no serif in-app. Base 16px/400, buttons
-> 14px/500. Cards `12px` radius with an **ink-tinted** elevation `rgba(34,32,29,.1) 0 2px 4px`,
-> not a grey shadow. Buttons and nav rows `8px`.
-
-**The trap, flagged in the teardown and repeated here because it is the most likely mistake:**
-`monarchmoney.com`, the *marketing* site, is big-type editorial — 48px/350, Copernicus serif.
-The app is none of those things. **Do not carry the marketing register into the product on
-Monarch's authority.**
-
-**The counter-example, also measured:** TradeZella ships the system font stack, pure `rgb(0,0,0)`
-ink, Highcharts defaults, and `BETA`/`NEW` badges in primary nav. The teardown's verdict —
-*"restraint by absence of decisions rather than by decision"* — names the thing Run must not be.
-Restraint that comes from not choosing looks identical to laziness, because it is.
+**The re-derivation this build DOES owe** is the audit below: does the ported system cover
+everything the blueprint's phase 3 requires, and does it still hold against the spec we locked
+in phase 2? That is where the remaining work is.
 
 ---
 
-## 2. Run's values
+## What was ported
 
-### 2.1 Color
-
-Warm-neutral base following the standard. **Never pure white on pure black in either mode.**
-
-| Token | Light | Dark | Role |
-|---|---|---|---|
-| `bg` | `#f7f6f4` | `#111110` | page background |
-| `surface` | `#ffffff` | `#1a1a18` | cards, panels, rows |
-| `elevated` | `#ffffff` | `#232320` | modals, popovers, drawers |
-| `border` | `#e6e3de` | `#2e2e2a` | dividers, input borders |
-| `border-strong` | `#d3cfc8` | `#403f3a` | emphasis, table rules |
-| `text` | `#22201d` | `#eceae6` | primary ink — warm near-black |
-| `muted` | `#6b6862` | `#9b978f` | secondary |
-| `subtle` | `#918d86` | `#6f6c66` | tertiary, placeholders |
-| `accent` | `#1f5f8b` | `#4f9ecb` | the one primary action |
-| `accent-foreground` | `#ffffff` | `#0d1b24` | on-accent text |
-| `focus-ring` | `#1f5f8b` | `#4f9ecb` | keyboard focus |
-
-**Why this accent, and why not the obvious ones.** In a trading product **green and red are
-reserved for data** (§4.1) — an accent in either would collide with the single most important
-signal on screen. Violet is a hard studio ban and the LLM default. That leaves a considered
-blue: `#1f5f8b`, a deep instrument blue, desaturated enough to sit under warm neutrals without
-fighting them, and clearly separable from the gain green for red-green colour deficiency.
-
-**⬜ Needs Luke:** the accent is a proposal, not a decision. It's the one value that carries the
-brand.
-
-### 2.2 Type
-
-**⬜ Needs Luke — this is the highest-stakes open value.** The studio doc is explicit that
-shipping `system-ui`/Geist/Inter as the identity is a reject, and Monarch's ABC Oracle is
-commercially licensed.
-
-**Proposal: IBM Plex Sans (UI) + IBM Plex Mono (numerals).** Reasoning rather than taste:
-open-licensed so there's no procurement step; a real point of view (drawn for technical
-products, slightly mechanical, unlike the neutral grotesques everything defaults to); and the
-mono companion is designed alongside it, which matters because **this product is mostly
-numbers**. One family for UI, one for figures, no third.
-
-Scale — the eight studio roles, values held from the standard's 16px base:
-
-| Role | Size | Line-height | Weight | Use |
-|---|---|---|---|---|
-| `display` | 40px | 44px | 600 | one per page, at most |
-| `h1` | 30px | 36px | 600 | page title |
-| `h2` | 22px | 28px | 600 | section |
-| `h3` | 18px | 24px | 600 | card / group title |
-| `body-lg` | 18px | 28px | 400 | the read's prose |
-| `body` | 16px | 24px | 400 | default |
-| `small` | 14px | 20px | 400 | secondary, controls |
-| `caption` | 12px | 16px | 500 | labels, stamps |
-
-Hierarchy comes from **weight + size + colour**, never from six invented sizes.
-
-### 2.3 Spacing, shape, motion
-
-- **Spacing:** studio scale unchanged — `4, 8, 12, 16, 24, 32, 40, 48, 64, 80, 96, 128`. Base
-  rhythm 8; 4 only for tight internals. No arbitrary values, no odd steps.
-- **Radius:** `sm 6px` (inputs, chips) · `md 10px` (buttons, rows) · `lg 14px` (cards, modals).
-  Full radius only for avatars and toggles.
-- **Elevation:** borders and a surface step do the work. Where a shadow is needed it is
-  **ink-tinted, not grey** — `rgba(34,32,29,.10) 0 2px 4px` — following the standard.
-- **Motion:** `fast 120ms` (hover, focus) · `base 200ms` (enter/exit). `ease-out
-  cubic-bezier(0.2,0,0,1)`. No spring, no bounce. Respect `prefers-reduced-motion`.
-
-### 2.4 Layout
-
-- Sidebar **224px** fixed, collapsible — matching the measured standard, inside the studio's
-  240–280px guidance at the low end because four rows don't need width.
-- App content max-width **1280px**. The read's prose column max-width **680px** — prose is
-  reading, not dashboard, and full-bleed body text is a studio ban.
-- Breakpoints: mobile `<640`, tablet `768`, desktop `1024 / 1280`.
-- **The locked-shell overflow rule applies**: every inner scroll pane needs `overflow-y-auto`
-  + `min-h-0`. Test every page at a short window height.
-
----
-
-## 3. States
-
-The studio's six, plus the two the blueprint requires. **The last three are what separate a
-real app from a demo.**
-
-| State | Rule |
+| File | What it is |
 |---|---|
-| Default | resting, token colours |
-| Hover | subtle bg/border shift, 120ms ease-out. Not a colour explosion |
-| Active | slight darken or `scale-[0.98]` |
-| Focus-visible | visible ring. Accessibility, not optional |
-| Disabled | `opacity-50`, no hover |
-| **Loading** | skeleton or in-place spinner, **no layout shift** |
-| **Empty** | names what's missing and offers exactly one action, in the user's vocabulary |
-| **Error** | says what happened and what to do next. Never a raw exception or status code |
+| [`design/globals.css`](design/globals.css) | The tokens. Tailwind v4 `@theme` + `.dark` block. **The source of truth.** |
+| [`design/design-system.instructions.md`](design/design-system.instructions.md) | The build rules — low cognitive load, shared primitives, responsive, touch targets, mobile keyboard |
+| [`design/design-check.SKILL.md`](design/design-check.SKILL.md) | The gate that runs before a screen is called done |
 
-Hit targets ≥ 44×44px.
+**Not ported:** the React primitives (`button.tsx`, `card.tsx`, `input.tsx`, `icon-button.tsx`,
+`menu.tsx`, `switch.tsx`, `textarea.tsx`, `tooltip.tsx`, `wordmark.tsx`, `icons.tsx`,
+`spinner.tsx`, `loading-mark.tsx`, `code-input.tsx`). They come across in phase 5 with the build,
+not now — phase 3 is decisions, not code.
 
 ---
 
-## 4. The trading layer
+## The system, against the blueprint's phase 3 checklist
 
-Rules the studio doc cannot know, derived from the spec's principles. **This section is where
-Run is won or lost visually**, because it governs how a number carries meaning.
+### ✅ Color — covered, and unusually well
 
-### 4.1 Gain and loss — the most important colour decision in the product
+Three-tier ground vocabulary, grounds and ink lifted wholesale from Monarch (measured out of
+their live theme object, both modes, not eyedropped), with Run's own hues carved out:
 
-- **Green = gain, red = loss.** Jakob's Law: this convention is decades old in every trading
-  platform. Do not invent.
-- **`success` / `danger` are reserved for P&L.** They never mean "button" or "status" anywhere
-  in the product. This is why the accent is blue (§2.1).
-- **A sign is always present.** `-$563.50`, `+$318.75`. **Colour is never the only carrier of
-  meaning** — roughly 1 in 12 men has red-green colour deficiency and this audience skews
-  heavily male. A user who sees no colour at all must read the figure correctly.
-- **Colour the figure, not the row.** Full-row tinting turns a losing week into a wall of red
-  and makes the screen unreadable. The number carries the colour; the surface stays neutral.
-- **Zero is neutral**, never green.
-
-| Token | Light | Dark |
+| Token | Light | Role |
 |---|---|---|
-| `gain` | `#1a7f4b` | `#4ec27f` |
-| `loss` | `#b3261e` | `#f2837c` |
-| `flat` | = `muted` | = `muted` |
+| `--color-bg` | `#f6f5f3` | page and sidebar (one colour, as theirs) |
+| `--color-surface` | `#ffffff` | the card |
+| `--color-surface-2` | `#ebe8e5` | a recessed slot inside a card, never raised |
+| `--color-hover` | `#fbfaf8` | a row lighting up *on* a card |
+| `--color-band` | `#f6f5f3` | the ground for a band inside a card — a day header in the tape |
+| `--color-border` | `#e4e1de` | default |
+| `--color-border-strong` | `#bebbb8` | an input, a control that must be found |
+| `--color-text` | `#22201d` | primary ink — warm near-black, never `#000` |
+| `--color-muted` | `#777573` | secondary, 4.60:1 on the page |
+| `--color-accent` | `#1f6b57` | deep pine — **the one accent** |
+| `--color-pos` / `--color-neg` | `#2f7d54` / `#a84a3c` | terracotta is the earned gravity hue |
+| `--color-warn` | `#b8863b` | a status hue, **not** a second accent |
 
-Both pass 4.5:1 on their own surface in both modes. **Verify before shipping, don't assume.**
+Dark mode is fully specified (`.dark` block, line 309) and is **not** the light values inverted
+— scrims, shadows and the pressed ground each have their own per-mode literals, with the
+reasoning recorded for each.
 
-### 4.2 Numerals
+**Directly relevant to our spec:** `--color-band` exists specifically for a day header in the
+tape. That is the session header in our Trades wireframe, already solved.
 
-- **`tabular-nums` everywhere a figure appears.** Non-tabular numerals in a column are a
-  correctness bug, not a style choice — misaligned digits are misread.
-- **Money right-aligned in tables**, so magnitudes line up.
-- **Two decimal places for currency, always.** `-$563.50`, never `-$563.5`.
-- **Precision follows the instrument** for prices — MNQ quotes in quarter-points (`19,204.25`)
-  and must not be rounded to two decimals by a generic formatter.
-- **Thousands separators always.** `$4,008.96`.
-- Negative uses a **minus sign, not parentheses** — accounting parens read as unfamiliar to
-  traders and collide visually with the sign convention above.
+### ✅ Type — covered, and it's a system rather than a set of numbers
 
-### 4.3 Freshness and staleness (P5)
+`micro · caption · small · body · body-lg · nav · title · h2 · figure · display · hero`.
 
-Every account row carries a relative stamp, always visible, never hidden behind a hover.
+Weight is **baked into the token** wherever a role is always heavier, which is the fix for the
+exact failure the file records: a written rule that "nav links are text-body-lg" which no token
+enforced, so the sidebar drifted to 400 by accident.
 
-| Condition | Treatment |
-|---|---|
-| Fresh | `caption` in `muted` — *"2h ago"* |
-| Stale | `caption` in `warning`, with an icon — *"3 days ago"* |
-| Never read | `caption` in `muted` — *"never synced"*, never blank |
-| Failed | `warning` treatment plus the one action that resolves it |
+`--text-figure` (1.6rem, 500, tabular) is the money/stat numeral — which is what our Accounts
+hero and the Read page's dollar figures set in.
 
-**A blank freshness stamp is a bug.** The absence of the signal is exactly the failure the
-product exists to prevent.
+### ✅ Shape — covered, with a rule better than "pick a radius"
 
-### 4.4 Quarantine and exclusion
+`--radius: 12px` (a **slot**: card, row, modal, selectable choice) · `--radius-sm: 8px` (a
+**control**: button, input, chip) · `--radius-xs: 6px` (a badge).
 
-- A quarantined trade is **visibly present and visibly excluded** — struck or dimmed, with a
-  reason, never omitted.
-- Any figure computed over a set containing quarantined trades states the exclusion count
-  inline. Silence here is the field's cardinal sin.
-- An excluded-by-user trade (S9b) reads as *acknowledged*, not as an error.
+Plus the 2026-08-01 rule: **shape follows the control's content, not its rank** — an icon-only
+control is a circle, a labelled one is a `--radius-sm` rectangle. Measured off the reference.
 
-### 4.5 The read's three states (S5)
+And the 2026-07-31 correction: **raised surfaces are a fill and a shadow, not a hairline.** The
+hairline survives *inside* those objects as row dividers, which is where "flat + hairline" was
+doing real work.
 
-| State | Visual weight | Rule |
-|---|---|---|
-| **Finding** | full card, `body-lg` prose, the working shown beneath a rule | a real, costed pattern |
-| **Watching** | same card, `muted` label, **no dollar figure** | a candidate below the floor. Never costed as though established |
-| **Quiet** | same card, unchanged structure | *"it didn't happen yesterday."* Good news, said plainly |
+### ✅ Motion — covered
 
-**The structure does not change between states.** A user must never learn to dread the layout —
-the shape is constant, only the content moves. Quiet is not a degraded Finding.
+One curve, `cubic-bezier(0.22, 0.61, 0.36, 1)` at 200ms, set as the Tailwind **default** so
+every bare `transition` inherits it. Per-element overrides still win.
 
-### 4.6 Provenance (P8)
+### ✅ Depth — covered
 
-The trust note is `caption` in `muted`, at the foot of every surface presenting computed
-figures. It names the source, the accounts, the range, and when it was read. It is not a
-tooltip, not behind an icon, and not dismissible.
+`--shadow-card` (`0 2px 4px rgba(34,32,29,0.10)`, matched to the reference), `--shadow-sm` for a
+control at rest, `--shadow-press` for the inverse. Per-mode literals; dark needs ~4× the alpha
+because a 10% ink shadow doesn't register on a near-value dark surface.
+
+### ⚠️ Spacing — NOT in the token file
+
+No `--spacing-*` tokens. The system relies on **Tailwind's stock 4px-based scale**, which is a
+legitimate answer — it is a real scale on a real base unit — but it is an *inherited* default
+rather than a decision, and this file's own recorded lesson is that **a system that is not the
+default is a suggestion**, with the corollary that a default nobody chose is where stock values
+leak in.
+
+**Gap to close:** state explicitly that Tailwind's scale is the spacing system and name the
+steps Run actually uses, or define tokens. My recommendation is the former — adopting the stock
+scale deliberately costs nothing and inventing a parallel one costs a lot.
+
+### ⚠️ Grid and breakpoints — NOT specified
+
+The instructions file covers **page padding** (`px-4 sm:px-6`, never `px-6` alone) and
+**section rhythm** (`py-12 sm:py-16`), which is real and useful. But there is no stated column
+count, max content width, or breakpoint set.
+
+**Gap to close, and it's now blocking:** the phase 2 wireframes assume a fixed ~224px sidebar,
+a main column, and a right summary rail on both Accounts and Trades. **That three-zone layout
+needs a stated max width and a defined behaviour when the rail doesn't fit.** Monarch's rail
+collapses; ours has no rule yet.
+
+### ⚠️ States — partially covered
+
+Default / hover / active / disabled / focus are handled by the primitives and the token set
+(`--color-hover`, `--pressed-bg`, `--shadow-press`).
+
+**Loading, empty and error are governed as writing rules, not as visual specs.** The
+instructions say *empty states get one minimal hint, error messages get one sentence* — good
+rules, and they align with P9. But there is no spec for the *shapes*: skeleton vs spinner, and
+where each applies.
+
+**Gap to close:** our spec commits to determinate, count-based progress on import (S1, S2) and
+skeleton rows preserving layout on Trades (S3). Those need to be system decisions, not
+per-screen ones.
+
+### ⚠️ Component inventory — deferred to phase 5, correctly
+
+Twelve primitives exist on `v3` and come across with the build. **But the wireframes need
+components that don't exist there yet:**
+
+- **the session header row** — a band carrying net, count, win rate
+- **the account row** — name, type, sparkline, value, freshness stamp
+- **the summary rail** — a labelled digest with a Totals/Percent toggle
+- **the widget** — title-links-to-page, headline value with delta, scope control, body
+- **the quarantine notice** — visible exclusion with a resolve action (S9b)
+- **the read card** — pattern / yesterday / this week / all time, plus the working
+
+**Not a gap in the ported system** — these are Run-specific compositions and belong to phase 5.
+Listed here so phase 5 doesn't invent them ad hoc.
+
+### ⚠️ Kitchen sink — does not exist
+
+No single route rendering every component in every state, both modes. Worth building; it is the
+fastest bug-finder available and dark mode makes it twice as valuable.
 
 ---
 
-## 5. Component inventory
+## The one thing to re-examine, not adopt
 
-Built in isolation, before any screen. Each ships with all eight states.
+**`--text-nav` assumes the sidebar carries rank through size and weight**, with colour left to
+the component because the ground is spent on hover. That was tuned against a sidebar with
+`v3`'s row count.
 
-**Primitives:** Button (primary / secondary / ghost / danger) · Input · Select · Checkbox ·
-Toggle · Card · Modal · Drawer · Toast · Tabs · Skeleton · EmptyState
-
-**Run-specific:** `Figure` (the money/number primitive — sign, colour, tabular, precision, all
-in one place so §4.1 and §4.2 are enforced by construction, not by discipline) ·
-`FreshnessStamp` · `SessionHeader` · `AccountRow` · `TradeRow` · `SummaryRail` ·
-`ProvenanceNote` · `ReadCard` (three states) · `WidgetCard` (Monarch's contract: title-links,
-headline value with delta, scope control, body)
-
-> **`Figure` is the highest-value component in this system.** Every §4.1/§4.2 rule lives inside
-> it. If money is ever rendered without it, those rules become things people remember to do,
-> and they will stop being done.
-
----
-
-## 6. Kitchen sink
-
-One route rendering every component in every state, both modes, mobile and desktop.
-**Route:** `/kitchen-sink`
-
-Must include: a losing session and a winning one; a stale account; a quarantined trade; all
-three read states; a 20-character symbol; a `-$1,644,200.00` figure; zero; and an empty
-account list.
+**Our spec has four rows.** Four rows in a 224px sidebar is a much emptier column than the
+system was tuned against, and "inactive rows are `muted`, the active row alone is full ink" may
+read differently when there are only four of them. Not a defect — a thing to look at once it's
+on screen, and exactly the kind of check the design-check gate exists for.
 
 ---
 
 ## Phase 3 gate
 
-- [ ] **Font decided** (§2.2)
-- [ ] **Accent decided** (§2.1)
-- [ ] Token block written to `globals.css`, both modes
-- [ ] Every wireframe screen buildable with no new values invented
-- [ ] `gain` / `loss` verified at 4.5:1 in both modes
-- [ ] All eight states exist on every primitive
-- [ ] Kitchen sink renders everything
-- [ ] `/design-check` passes
+- [x] Color decided, light and dark, contrast-checked
+- [x] Type scale decided, with weight baked into roles
+- [x] Shape, depth, motion decided
+- [ ] **Spacing system stated explicitly** (adopt Tailwind's scale deliberately)
+- [ ] **Grid: max content width, and the summary rail's collapse behaviour**
+- [ ] **Loading / empty / error shapes specified** (skeleton vs spinner, determinate progress)
+- [ ] Kitchen-sink route exists
+- [ ] Any wireframe screen can be built inventing nothing new
