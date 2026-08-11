@@ -4,8 +4,9 @@
 > If the code and this file disagree, one of them is a bug. Update this file **first**, always.
 > Point agents at this file, not at your memory of it.
 
-**Status:** draft — awaiting Luke's sign-off at the phase 2 gate
-**Last amended:** 2026-08-11 — first draft
+**Status:** LOCKED at the phase 2 gate, 2026-08-11
+**Last amended:** 2026-08-11 — session=exit, 3-layer time model, S9 cut + S9b added, daily read
+reframed as pacing rather than discovery, confidence floor set
 
 <!-- CRAFT RECON SOURCE: run-trading/docs/ia-teardown.md (2026-08-10, read live from Luke's
      authenticated Monarch + TradeZella accounts). monarch-for-traders.md deliberately NOT
@@ -58,11 +59,17 @@ record, which makes worthless insight. Each step earns the right to the next.
 
 1. **Connect** — Tradovate linked, history pulled in
 2. **The record** — trades, correct and reconciled, and *visibly* so
-3. **The read** — one named pattern, priced in dollars, from the trader's own trades
+3. **The read** — one named pattern, priced in dollars, and what yesterday did to it
 
-**The one-sentence value claim:**
-> A switcher can bring in their real history, see it reconciled, and be told one true thing
-> about their own trading they didn't already know — on day one.
+**The 60-second description (Luke, 2026-08-11 — the phase 2 gate answer):**
+
+> Run connects to your Tradovate account and pulls in your full history. It shows every trade,
+> grouped by session, with the numbers reconciled against your broker — and when something
+> can't be reconciled or has gone stale, it says so instead of guessing. Then once a day it
+> names one pattern in your own trading and what it's costing you in dollars.
+
+No "and also." Every clause maps to a story: connect (S1/S2), grouped by session (S3), says so
+instead of guessing (S3/S4/P12), one pattern daily with a dollar cost (S5).
 
 **Where each step lives (Luke, 2026-08-11) — the path is not three new screens:**
 
@@ -331,6 +338,40 @@ Edge cases:
 This is the wedge. If it degrades into trend-summary, the product is a better-looking
 competitor.
 
+#### The daily read is NOT "a new pattern every day" (Luke, 2026-08-11)
+
+**This resolves a contradiction the spec was carrying unnoticed.** `Read` is daily, and S5
+promised a named pattern — but **patterns are longitudinal.** They take weeks of sessions to
+emerge. A daily read that owes the user a fresh revelation every morning **will start inventing
+them by day four**, which is precisely the failure Run is positioned against.
+
+**The daily read is: "here's your pattern, and here's what yesterday did to it."**
+
+That is Monarch's actual model, correctly understood. The weekly recap does not uncover a new
+truth each week — it paces you against the prior period and your plan. Same numbers, moved.
+
+```
+Your pattern:   you size up 40–60% after three losses
+Yesterday:      it happened once. It lost $340.
+This week:      9 of 12 times, −$4,200.
+```
+
+Three things fall out of this at once, and they're why it's the right model:
+
+1. **The ritual has something to say every single day** without needing a discovery.
+2. **The corpus visibly compounds.** The user watches the count and the dollar figure move —
+   that is the moat becoming legible on the surface, daily.
+3. **It never fabricates.** The honest daily answer is often *"it didn't happen yesterday"* —
+   which is good news, and worth saying out loud.
+
+**Three legitimate states for a daily read**, and no fourth:
+
+| State | When | What it says |
+|---|---|---|
+| **Finding** | a pattern clears the floor | the pattern, what yesterday did to it, the running cost |
+| **Watching** | a candidate exists below the floor | *"I'm watching this — 5 times so far"* — named as a candidate, not a finding |
+| **Quiet** | the pattern didn't occur yesterday | says so plainly. This is a good day, not an empty one |
+
 Acceptance criteria:
 - `THE SYSTEM SHALL name a specific behavior, state its frequency, and state its dollar cost, computed from the user's own trades`
 - `THE SYSTEM SHALL cite the trades a pattern is drawn from, and SHALL allow the user to open them`
@@ -402,6 +443,33 @@ record this came from," and the fix happens at the source.
 **The one case still open:** a genuine parse failure, where Run misreads a file the broker
 exported correctly. That is a Run bug, handled by quarantine (S2) and a fix, never by asking
 the user to patch the data.
+
+---
+
+### S9b — Resolve a quarantined trade
+
+> As a trader with a trade Run couldn't reconcile, I want a way to deal with it, so that the
+> quarantine bin isn't a hole things fall into forever.
+
+**Added 2026-08-11 (Luke), after S9 was cut.** S2 quarantines unreconcilable trades and excludes
+them from every figure. With editing gone, they would sit there permanently with nothing the
+user can do — **a bin with no door**, which is its own broken promise and undercuts P8: a
+provenance note is hollow if the one thing that looks wrong can never be resolved.
+
+**This is not editing.** Neither action writes to the trade. Neither touches broker truth. It's
+roughly a tenth of S9's original weight, and it's the minimum that keeps quarantine honest.
+
+Two actions, and nothing else:
+
+- `WHEN a user re-syncs a quarantined trade, THE SYSTEM SHALL re-read it from source and reconcile again` — most mismatches are transient
+- `WHEN a user excludes a quarantined trade, THE SYSTEM SHALL require a reason, record it, and keep the exclusion visible` — an acknowledged exclusion, never a silent one
+- `THE SYSTEM SHALL NOT permit any modification of a trade's values through this flow`
+- `THE SYSTEM SHALL keep excluded trades visible and countable, and SHALL NOT let an exclusion silently shrink the record`
+
+Edge cases:
+- Empty: nothing quarantined — the surface doesn't appear at all
+- Error: re-sync fails again — say so, leave it quarantined, don't loop
+- Loading: per-trade, not a page-level block
 
 ---
 
@@ -477,8 +545,42 @@ accessibility markup of Monarch's Accounts and Transactions pages (chrome-devtoo
 |---|---|---|---|
 | Does Add-account + import collapse into one screen? | two screens / one continuous motion | end of wireframes | |
 | ~~Entry or exit time decides a trade's session?~~ | — | — | **RESOLVED 2026-08-11 — exit.** See below |
-| Confidence threshold for naming a pattern in S5 | must be decidable before the wedge is built | P4 | |
-| Does `Read` show one pattern or several? | one is bolder and matches the value claim; several hedges | before wireframes | |
+| ~~Confidence threshold for naming a pattern in S5~~ | — | — | **RESOLVED 2026-08-11 — show the working; floor of 8 + baseline separation.** See below |
+| ~~Does `Read` show one pattern or several?~~ | — | — | **RESOLVED 2026-08-11 — one, tracked over time.** The daily read paces one pattern rather than discovering new ones |
+
+### RESOLVED — pattern confidence: always show the working (Luke, 2026-08-11)
+
+**The move that dodges most of the argument: Run shows what the claim rests on.**
+
+```
+This happened 12 times. 9 lost. Your usual loss rate is 54%.
+```
+
+The user judges the confidence themselves. This is **P8 applied to the wedge** — the product
+stating what its own claim depends on, exactly as the provenance note does for figures.
+
+The consequence is that the threshold only has to be good enough to decide **what's worth
+showing**, not good enough to be an unchallengeable verdict. That is a far easier bar, and it
+removes the need to defend a magic number.
+
+**The floor, below which nothing is presented as a finding:**
+
+- **at least 8 occurrences**, AND
+- **the outcome must differ clearly from the trader's own baseline** — a 60% loss rate is
+  meaningless if their overall loss rate is 58%. The comparison is always against *themselves*,
+  never against a general standard.
+
+**Below the floor, the answer is `Watching`, not silence:**
+
+> *"I'm watching this — 5 times so far."*
+
+Named as a **candidate**, not a finding. This turns the thin-data early days from a dead screen
+into something interesting, and it makes the corpus legible from session one rather than from
+session fifteen. It is a legitimate third state, not a placeholder.
+
+`THE SYSTEM SHALL display, with every named pattern, the occurrence count, the outcome count, and the trader's own baseline for comparison`
+`THE SYSTEM SHALL NOT present as a finding any pattern below 8 occurrences or without clear separation from the trader's baseline`
+`WHERE a candidate exists below the floor, THE SYSTEM SHALL present it as watched, with its current count, and SHALL NOT state a cost as though established`
 | ~~Tradovate OAuth availability~~ | ~~blocks S1~~ | — | **RESOLVED** — not available; v1 is CSV (S1) |
 | ~~What is a "session"?~~ | — | — | **RESOLVED 2026-08-11 — CME day.** See below |
 
@@ -579,9 +681,9 @@ breaks twice a year.
 
 ## Phase 2 gate
 
-- [ ] v1 describable in 60 seconds with no "and also"
+- [x] v1 describable in 60 seconds with no "and also"
 - [x] Every critical-path story has testable acceptance criteria
 - [x] Every story has empty / error / loading defined
 - [x] NOT IN V1 is longer than the story list
 - [x] Wireframes drawn
-- [ ] No open decision blocks the first slice
+- [x] No open decision blocks the first slice

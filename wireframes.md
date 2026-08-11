@@ -208,15 +208,16 @@ net, row-level detail, right rail digesting the **filtered** set.
 │   Friday's session                                                       │
 │                                                                          │
 │   ┌────────────────────────────────────────────────────────────────┐     │
-│   │  You size up after losses, and it costs you.                   │     │
+│   │  YOUR PATTERN                                                  │     │
+│   │  You size up 40–60% after three losses.                        │     │
 │   │                                                                │     │
-│   │  In 9 of your 23 sessions you increased size 40–60% within     │     │
-│   │  two trades of a third consecutive loss. 7 of those 9 ended    │     │
-│   │  red. Yesterday it happened at 10:02 — 4 contracts after two   │     │
-│   │  losers, for -$125.00.                                         │     │
+│   │  YESTERDAY   It happened once, at 10:02. It lost $340.         │     │
+│   │  THIS WEEK   9 of 12 times.  −$4,200.                          │     │
+│   │  ALL TIME    31 times since Jun 3.  −$7,410.                   │     │
 │   │                                                                │     │
-│   │  Across 23 sessions this behavior has cost $4,215 — 41% more   │     │
-│   │  than the two weeks before it.                                 │     │
+│   │  ── the working ───────────────────────────────────────────    │     │
+│   │  This happened 12 times. 9 lost.                               │     │
+│   │  Your usual loss rate is 54%.                                  │     │
 │   │                                                                │     │
 │   │  [The 9 sessions]   [The 31 trades]                            │     │
 │   └────────────────────────────────────────────────────────────────┘     │
@@ -227,21 +228,45 @@ net, row-level detail, right rail digesting the **filtered** set.
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Writing standard (P11), taken from Monarch's recap verbatim in shape:** names the specific
-instance, compares to the prior period, paces against something. Never a metric definition,
-never a sentence true of any losing trader.
+**The daily read paces one pattern — it does not discover a new one each day.** Patterns are
+longitudinal; a daily promise of fresh revelation invents them by day four. The three rows
+(yesterday / this week / all time) are the corpus compounding in view.
 
-**When nothing clears the threshold** — the space is not filled with a definition:
+**Always show the working.** The user judges the confidence themselves — P8 applied to the
+wedge. The baseline comparison is against *the trader's own* rate, never a general standard.
+
+**Writing standard (P11):** names the specific instance, compares to the prior period, paces
+against something. Never a metric definition, never a sentence true of any losing trader.
+
+### The other two daily states
+
+**`Quiet` — the pattern didn't occur yesterday. This is good news and is said out loud:**
 
 ```
    ┌────────────────────────────────────────────────────────────────┐
-   │  Nothing Run is sure enough about yet.                         │
+   │  YOUR PATTERN                                                  │
+   │  You size up 40–60% after three losses.                        │
    │                                                                │
-   │  It has 6 sessions. Patterns like this need about 15 before    │
-   │  Run will name one — it would rather say nothing than tell     │
-   │  you something that isn't true about you.                      │
+   │  YESTERDAY   It didn't happen. You had two losses in a row     │
+   │              at 10:14 and kept your size.                      │
+   │  THIS WEEK   3 of 9 times.  −$890.                             │
    └────────────────────────────────────────────────────────────────┘
 ```
+
+**`Watching` — a candidate below the floor. Named as a candidate, never costed as a finding:**
+
+```
+   ┌────────────────────────────────────────────────────────────────┐
+   │  WATCHING                                                      │
+   │  You may be trading the first five minutes at a loss.          │
+   │                                                                │
+   │  5 times so far. Run needs 8 before it will call this real,    │
+   │  and it wants to see it separate from your usual rate first.   │
+   └────────────────────────────────────────────────────────────────┘
+```
+
+`Watching` turns the thin-data early days into something interesting rather than a dead screen,
+and makes the corpus legible from session one instead of session fifteen.
 
 ### Read → History
 
