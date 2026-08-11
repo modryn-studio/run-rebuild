@@ -114,26 +114,84 @@ Without it, provenance is a claim rather than a lookup.
 
 ---
 
-### `fill` — the atomic broker record, immutable
+### `event` — `[REVISED]` the log. The only immutable table, and the corpus.
+
+Replaces the `fill` table my derivation had. **Everything else in this document is a projection
+over this.**
 
 | Field | Type | Null | Notes |
 |---|---|---|---|
-| `id` | uuid | no | |
-| `account_id` / `import_id` | uuid | no | |
-| `external_fill_id` | text | yes | when the export provides one |
-| `symbol` | text | no | full contract, e.g. `MNQU6` |
-| `symbol_root` | text | no | `MNQ` — → `contract_spec` |
-| `side` | enum | no | `buy` · `sell` |
-| `qty` | int | no | |
-| `price` | numeric(19,6) | no | |
-| `filled_at` | timestamptz | no | **stored UTC** |
-| `fee_cents` / `commission_cents` | bigint | no | |
+| `id` | **bigint identity** | no | **Not a uuid.** Monotonic total order — replay order is behavioral signal, and timestamps can't provide it (ms ties; CSV stamps are coarse) |
+| `trader_id` | uuid | no | Events point at the **person**, not the account. The cross-firm identity rule |
+| `account_id` | uuid | yes | null for events not tied to one account |
+| `type` | text CHECK | no | `fill` · `round_trip` · `fee` · `csv_import` · … TS union is source of truth; CHECK stops typo-fragmentation of the corpus |
+| `payload` | jsonb | no | full-fidelity raw detail. Never lose detail |
+| `payload_version` | int | no | so a v0 row replays correctly through v2 extraction code |
+| `source` | text CHECK | no | `csv` · `api` · `app`. **On the event, not the account** — the same account ingests via CSV now and API later |
+| `pnl_cents` | bigint | yes | **null on raw fills.** A single leg has no realised P&L |
+| `symbol` / `qty` / `side` | — | yes | promoted from payload, fills only |
+| `corrects_event_id` | bigint | yes | self-FK. **Busts and adjustments append**; the original never mutates |
+| `occurred_at` / `recorded_at` | timestamptz | no | real-world instant / when captured. Both UTC |
+| `dedupe_key` | text | yes | namespaced by type: `f:` fills · `p:` round trips · `x:` cash |
 
-Indexes: `(account_id, filled_at)`, `import_id`, `external_fill_id`
+Partial unique index: `(account_id, dedupe_key) WHERE dedupe_key IS NOT NULL`, with
+`onConflictDoNothing` — **a re-uploaded file becomes a no-op at the database level**, not in
+application logic.
 
-**Immutable once written.** S9 is cut — nothing edits a fill, ever. Corrections happen by
-re-import, not by update. This is what makes "our numbers are the broker's numbers" true rather
-than aspirational.
+**Promoted columns are a projection of `payload`, written atomically in the same INSERT.** Safe
+here *only* because the table is immutable — projection and payload can never diverge after
+write. It would not be safe on a mutable table. They exist for **integrity, not speed**: P&L is
+the number everything rests on, so it gets a typed, constrained column that rejects garbage at
+write time rather than hiding a bad value inside a blob.
+
+**No per-type tables.** One log, many types.
+
+**Write in 1,000-row chunks.** Postgres caps a statement at 65,535 bind parameters; ~10 columns
+per row means a single INSERT throws somewhere past 6,500.
+
+---
+
+### `fill` / `round_trip` / `fee` — `[REVISED]` projections, not tables
+
+Derived from `event` by type. A `round_trip` comes from **Tradovate's own Position History
+pairing** — Run does not build a matching engine, because under P12 a matcher is a machine for
+producing numbers you cannot reconcile.
+
+**Net P&L is derived on every extraction, never stored.** It has to be: the batch ingests fills →
+position history → cash history, so **at the moment a `round_trip` is written its fees do not
+exist yet**, and an append-only log cannot revise the row afterwards.
+
+#### The fee allocation rules — every one of these is a fixed bug
+
+1. **The split is exact, not pro-rata.** Tradovate charges a flat rate per contract per side, so
+   a trade's cost is `pairedQty × (entry rate + exit rate)`. Across 360 real round trips this
+   reproduced the file's totals **to the cent, zero remainder**. Pro-rata would be close,
+   plausible, and unreconcilable.
+2. **Fees bucket to fills on RAW STRINGS** — `(local timestamp, contract)`. Cash History names no
+   fill id and its timestamps carry no timezone; parsing them resolves against the server's zone
+   and shifts every fee. **String equality cannot drift.**
+3. **`[#90.1]` A fee's `occurred_at` must be a real instant, not the naive local string.** A fill
+   stores true UTC; a fee storing local wall-clock lands on a *different trade date* for evening
+   sessions. Measured: a Chicago 18:30 fill files under 07-09 while its fee files under 07-08, so
+   a windowed query finds the trade and not the fee — **and that trade prices at zero fees**,
+   reading net on one page and gross on another. Carry the fill's instant onto its fee rows.
+4. **`[#90.3]` The fee rate key must include `account_id`.** A copy-trader fires one strategy into
+   many accounts at different firms, producing the same `(timestamp, contract)` bucket **at
+   different rates**. Pooling across firms corrupts every metric that reads a per-trade net.
+5. **`[#90.2]` A round trip whose entry fill is outside the window gets charged half its fees.**
+   Only reachable on accounts that hold overnight — which, now that personal accounts are in
+   scope from v1, is a live case rather than a theoretical one.
+6. **`[#36]` Cash History is not the only fee source.** The API path exposes per-fill fees
+   (`/fillFee/list`). Whatever consumes fees must not assume the CSV shape.
+
+#### The two failure modes that must be loud
+
+- **`[#74]` Partial date overlap.** The existing guard is `fillUtc.size === 0` — all-or-nothing.
+  If even one round trip resolves, every unresolved one silently degrades to local wall-clock or
+  ingest time, **corrupting session bucketing permanently.** The guard must be per-round-trip.
+- **`[#75]` A non-overlapping Cash History makes net silently equal gross.** No fill lands in a
+  fee bucket, `perContract` stays 0, the import succeeds, and every trade reports gross as net —
+  failing in the direction that flatters the trader.
 
 ---
 
@@ -169,7 +227,7 @@ every figure.
 | `session_date` | date | no | **derived from `exit_at`.** See §4 |
 | `qty` | int | no | |
 | `entry_price` / `exit_price` | numeric(19,6) | no | |
-| `gross_pnl_cents` / `fees_cents` / `net_pnl_cents` | bigint | no | |
+| `gross_pnl_cents` | bigint | no | from the round-trip event. **`net` is NOT stored** — see the projections section above |
 | `state` | enum | no | `ok` · `quarantined` · `excluded` |
 | `quarantine_reason` | text | yes | |
 | `exclusion_reason` | text | yes | user's words, S9b |
@@ -508,6 +566,70 @@ build should take the split**, since it costs nothing before any rows exist.
   of a trader's facts into the prompt; similarity search waits until the corpus outgrows the
   context window). This is where our `pattern` / `pattern_occurrence` should live.
 
+---
+
+## 9. What the `v2` plans and the issue tracker add
+
+Read `v2`'s plan set and all 100 issues on `modryn-studio/run-trading`. Beyond the fee and
+timestamp bugs already folded into §1, these change phase 4 decisions.
+
+### The classification axis — a real gap, and our design answers it differently
+
+`v2:docs/plans/the-classification-axis.md` (approved, unbuilt) makes an argument worth taking
+seriously:
+
+> Monarch labels a transaction even though the trader can see what it is. **The label's job is
+> not to reveal — it is aggregation.** A trader can see one trade where size went up after a
+> loss. They cannot see *what that habit cost across 20,000 round trips*, because there is
+> nothing to group by. Every Run surface groups by symbol or account, and both are **inventory** —
+> what you traded and where, never *how*.
+
+Their surface map lands on one missing page: Monarch's `/categories` has no Run equivalent.
+
+**Run's answer here is `pattern_occurrence`, and it is computed rather than labelled.** The
+group-by exists; the trader just never types it. That is arguably better — it's the wedge — and
+it costs nothing in user labour.
+
+**The honest limitation, recorded now:** a computed axis can only aggregate behaviours Run has a
+detector for. The trader cannot ask *"how did my breakout trades do?"* unless Run named
+"breakout". Correctly out of v1 (tagging is in the scope cut), but it is the reason a
+classification axis will eventually be wanted, and `[#72]` already tracks it.
+
+### Synthetic data cannot validate the wedge — now proven in code
+
+`v2:docs/plans/the-dogfooding-corpus.md` found the seed generator **draws the outcome first**:
+the day's P&L comes from the account's fate, the trade's from the day's, then everything is
+rescaled to land on the story exactly. **So size cannot correlate with anything** — the pattern
+detector's correct silence looks like a passing test.
+
+This independently confirms the phase 1 call that fabricated trades can validate scale but never
+the wedge. Worth carrying as a rule: **a fixture that cannot express the thing being tested is
+worse than no fixture, because its silence reads as a pass.**
+
+### Correctness rules from the tracker
+
+| # | Finding | Rule for the new build |
+|---|---|---|
+| `#79` | An import writing zero rows looks identical to one writing everything. Luke's own corpus has three `csv_import` events with identical reconciliation — he uploaded the same files three times and two told him they succeeded | "Already saved" is a distinct outcome and must be said |
+| `#76` | P&L reconciliation is computed on every import and **discarded on all but the first** | Keep every reconciliation; it is the whole-file check |
+| `#97` | **Two things called "grain"** — a TS bucketer and a SQL `date_trunc`, with different vocabularies | One vocabulary for time buckets, named once |
+| `#89` | Four surfaces read the whole corpus on every render; the allocator is unscoped | Scope every read by account and window from the first query |
+| `#91` | The tape has no row ceiling, the export no cap, and rates can drift mid-scroll | Paginate and cap before there is data to hurt |
+| `#83` | Reads ship whole JSONB payloads the consumer never touches | Select promoted columns; reach into `payload` deliberately |
+| `#100` | **Erasure cannot complete at launch scale** — the privileged DELETE times out | Batch the erasure path; do not discover this at the first request |
+| `#35` | Timezone needs a manual override that outranks browser and CSV detection | `trader.display_timezone` is user-settable, not inferred-only |
+| `#59` `#80` | A manual account can receive fills only if they're Tradovate; an import naming several unknown accounts can't ask which is which | Account resolution is part of import, not a precondition |
+
+### Two product findings worth keeping
+
+- **`[#44]` An open-source export extension + native importer**, explicitly to kill the switching
+  cost from TradeZella/TradesViz. That is our S2 migration path with a sharper edge — the
+  audience is switchers, and making the exit from a competitor *easy and public* is a growth
+  mechanism, not just an import feature.
+- **`[#43]` `[#41]` The three-file daily upload is real friction**, acknowledged as such, and the
+  thing live capture removes. v1 ships the friction knowingly; it should not pretend otherwise in
+  the copy.
+
 ### Consequences for the locked spec
 
 Two, and they need Luke's sign-off since `spec.md` is locked at `p2-gate`:
@@ -529,6 +651,8 @@ Two, and they need Luke's sign-off since `spec.md` is locked at `p2-gate`:
 - [ ] Every external service has a named failure mode *(drafted §2)*
 - [ ] `contract_spec` seeded from published exchange specs, not memory
 - [x] Compared against `run-trading@dev:docs/data-model.md` + v2 plans — see §8
-- [ ] §1 tables rewritten as projections over an `event` log (§8 Wrong 1)
-- [ ] Fee model corrected: Cash History required, net P&L derived not stored (§8 Wrong 3)
-- [ ] Spec amendment signed off: three-file intake, per-round-trip fees (§8 Consequences)
+- [x] §1 tables rewritten as projections over an `event` log
+- [x] Fee model corrected: Cash History required, net P&L derived not stored, six allocation rules recorded
+- [x] Spec amended: three-file intake, per-round-trip fees, three loud failure modes
+- [ ] Erasure batching designed (#100) before first real user
+- [ ] One time-bucket vocabulary named (#97)

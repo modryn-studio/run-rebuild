@@ -248,7 +248,31 @@ TradersPost do it), but it is **not available to build against today.**
 standing rule — the corpus must never be welded to a broker API. Building the CSV path first
 means the data plane is proven independent of any rail before a rail exists.
 
+#### AMENDED 2026-08-11 — the intake is THREE files, and the third is required
+
+Discovered in phase 4 against `run-trading@dev:docs/data-model.md`. This corrects a spec that
+would have shipped a headline number wrong by roughly half.
+
+| File | Becomes | Why it is required |
+|---|---|---|
+| **Fills** | `fill` events | The only export with a true UTC timestamp. The canonical intake. |
+| **Position History** | `round_trip` events | **Tradovate's own entry→exit pairing**, including many-to-many splits. Run never builds a matching engine — see architecture §8. |
+| **Cash History** | `fee` events | **Required, not optional.** |
+
+**Why Cash History is required:** Tradovate charges four separate lines — Commission, Exchange,
+Clearing, NFA. The Fills export's `commission` column is **only the first, measured at 42% of
+true cost.** On a real 10-day export: gross −$1,840.50, fees −$1,934.36, net −$3,774.86. **The
+fees exceeded the gross loss.** Gross-only reporting understates the real loss by half, on the
+number this product exists to get right.
+
+**Three failure modes that must be loud, each from a real bug:**
+
+- `IF the three files do not cover overlapping date ranges, THEN THE SYSTEM SHALL name the ranges of each file and refuse the import whole` — a total mismatch already fails well; **partial overlap silently degrades unresolved round trips to local wall-clock or ingest time, which corrupts session bucketing permanently.** The guard must be per-round-trip, not all-or-nothing.
+- `IF no fee resolves against any fill, THEN THE SYSTEM SHALL refuse the import and say the files do not line up` — otherwise every trade silently prices at zero fees and **net equals gross**, failing in the direction that flatters the trader.
+- `IF an upload writes zero rows because everything was already saved, THEN THE SYSTEM SHALL say so` — "already saved" and "saved" need different next actions, and they currently look identical.
+
 Acceptance criteria:
+- `THE SYSTEM SHALL require all three Tradovate exports — Fills, Position History and Cash History — before committing an import`
 - `THE SYSTEM SHALL accept a Tradovate CSV export and create or update an account from it`
 - `THE SYSTEM SHALL record each connection's account type — evaluation, funded, or personal — at the time it is added`
 - `WHEN a file is uploaded, THE SYSTEM SHALL report the count parsed, the date range covered, and the count rejected, before committing anything`
@@ -299,7 +323,8 @@ needs a live read before criteria can be written.
 
 Acceptance criteria:
 - `THE SYSTEM SHALL group trades under session headers carrying that session's net P&L, trade count, and win rate`
-- `THE SYSTEM SHALL display fees and commissions per fill, and SHALL NOT present a net figure that excludes them`
+- `THE SYSTEM SHALL display fees per round trip, and SHALL NOT present a net figure that excludes them` — **amended 2026-08-11: per round trip, not per fill.** Fees arrive on a separate export that names no fill id; they resolve to round trips by an exact per-contract-per-side split. A per-fill fee figure would be a fabrication.
+- `THE SYSTEM SHALL indicate, on any surface showing a net figure, whether fees were imported for that range` — the alternative is a gross number labelled net
 - `THE SYSTEM SHALL display, on every page presenting computed figures, the provenance of those figures — the source file or connection, the account, the range covered, and when it was last read` (P8)
 - `WHEN a trade is quarantined, THE SYSTEM SHALL show it visibly excluded rather than omitting it silently`
 - `THE SYSTEM SHALL recompute the summary digest against the current filter, not the full dataset` (P6)
