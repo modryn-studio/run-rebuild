@@ -42,15 +42,10 @@ michelle` — plus `trading/`, the vertical bench copied from `modryn-hq`:
 | `nathan` | the behaviour and psychology framing. **The wedge lives here** |
 | `hollis` | risk, sizing, prop-firm numbers |
 | `vera` | the market read, and the trader's own grammar |
-| `priya` | the CFTC line: descriptive and conditional, never prescriptive advice |
+| `priya` | the CFTC line. `Read` tells a trader about their own trading, and describing what their record shows is not advising what to do. A real line, not ceremony |
 
 **`soren` (macro/regime) is deliberately not here.** Run has no macro surface and `NOT IN V1` adds
-none, so the seat would sit empty. The bench's own README calls it the easy cut.
-
-`priya` is not ceremony: `Read` tells a trader things about their own trading, and the difference
-between describing what their record shows and advising what they should do is a real line.
-
-They build; `/postcheck` judges. Never the same seat for both.
+none, so the seat would sit empty. They build; `/postcheck` judges, never the same seat for both.
 
 ### Branching: one worktree per slice, and `main` is always live
 
