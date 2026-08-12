@@ -1,0 +1,211 @@
+// The desk call: two lenses read the same tape in parallel, one synthesizer speaks.
+//
+// The instruction is deliberately almost nothing. Every rule in the engine this replaces
+// existed because someone predicted a failure rather than observing one, and that is how it
+// ended up unable to notice anything it had not been told to look for. Constraints earn entry
+// here by a named, reproducible test failure, not by anticipation.
+//
+// One rule survives day one, and it is a code check on the output rather than a prompt
+// instruction, so it cannot shape what the model is able to see: NUMBERS COME FROM THE TAPE.
+// That one is backed by an observed failure on real data, which is the same bar being demanded
+// of every other rule.
+//
+// The em-dash pass is not a constraint either — it is a deterministic post-process that never
+// reaches the model.
+import { generateText } from 'ai';
+import { anthropic } from '@/lib/ai';
+import type { Tape } from './tape';
+import { renderTape } from './render';
+
+export const DESK_MODEL = 'claude-opus-5';
+export const DESK_EFFORT = 'high' as const;
+
+export interface LensRead {
+  name: string;
+  text: string;
+  ms: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+}
+
+export interface NumberCheck {
+  /** Numeric tokens in the final text that are not asserted anywhere in the tape. */
+  unverified: string[];
+  checked: number;
+}
+
+export interface DeskRead {
+  text: string;
+  lenses: LensRead[];
+  synthesis: { ms: number; inputTokens: number | null; outputTokens: number | null };
+  numberCheck: NumberCheck;
+  totalMs: number;
+}
+
+// Deterministic safety net for the repo's no-em-dash rule on rendered copy. Deliberately does
+// NOT touch U+2212, the money minus.
+const sanitize = (s: string) => s.replace(/\s*[—–]\s*/g, ', ');
+
+// Dates, clock times, durations, money, prices, percentages and bare numbers — ordered most
+// specific first so a figure is captured WHOLE. Order is the whole point: the first version
+// led with the number branch, so `09:15:52` arrived as three separate unverifiable tokens
+// ("09", "15", "52") and every clock time in a read produced three phantom failures.
+//
+// Two more shapes were being shredded by the old `\$?\d[\d,]*\.?\d*`, both because a comma or
+// period could terminate the match with nothing after it: `$190,` and `$80.` were flagged as
+// unverified when the tape holds `$190` and `$80` and the punctuation belonged to the
+// sentence. A comma must now be followed by exactly three digits, and a decimal point by at
+// least one.
+const NUMBER_TOKEN =
+  /\d{4}-\d{2}-\d{2}|\d{1,2}:\d{2}(?::\d{2})?|\d+m ?\d+s|\d+s\b|\$?\d{1,3}(?:,\d{3})+(?:\.\d+)?%?|\$?\d+(?:\.\d+)?%?/g;
+
+// Sentence-level formatting a tape can never contain but a writer will always produce.
+const IGNORE = new Set(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']);
+
+// SPELLED-OUT FIGURES ARE CLAIMS TOO, and they bypassed the check completely until a wrong
+// one rode through: "eighteen of twenty-one positions were closed by a stop you had already
+// placed", on a day whose true count was fourteen. Neither word was flagged, because neither
+// is a digit. A number is a claim whether it is typed in digits or spelled.
+//
+// Small values stay ignorable for the same reason their digit forms are: "one thing", "say
+// two words". Everything above ten is doing work in a sentence and gets checked.
+const ONES = ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+const TENS: Record<string, number> = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+const WORD_NUMBER = new RegExp(
+  `\\b(?:(?:${Object.keys(TENS).join('|')})(?:[-\\s](?:${ONES.slice(1, 10).join('|')}))?|${ONES.join('|')})\\b`,
+  'gi'
+);
+
+function spelledToNumber(raw: string): number | null {
+  const s = raw.toLowerCase().replace(/\s+/g, '-');
+  const [a, b] = s.split('-');
+  if (a in TENS) return TENS[a] + (b ? ONES.indexOf(b) : 0);
+  const i = ONES.indexOf(a);
+  return i >= 0 ? i : null;
+}
+
+// OBSERVE-ONLY while the tolerance is unknown. A strict check would reject "one session, seven
+// trades" and "the next 26 minutes" — true statements whose figures are derived rather than
+// quoted — fall back to the old engine, and leave the early phases measuring this regex rather
+// than the model. Log what it would have caught; enforce once the log says what the real
+// tolerance is.
+// The tape's figures as numbers, so a quoted figure can be recognised through the writer's
+// rounding. Cached because a ten-day tape asserts thousands of them.
+const NUMERIC_CACHE = new WeakMap<Tape, number[]>();
+function numericWhitelist(tape: Tape): number[] {
+  let xs = NUMERIC_CACHE.get(tape);
+  if (!xs) {
+    xs = [...tape.verifiedNumbers].map((s) => Number(s.replace(/[$,]/g, ''))).filter((n) => Number.isFinite(n));
+    NUMERIC_CACHE.set(tape, xs);
+  }
+  return xs;
+}
+
+// ROUNDING IS QUOTING, NOT INVENTING. "$623" for a tape figure of $622.50, or "56" for 56.50,
+// is a writer being readable, and treating it as an unverified number buried the real signal:
+// of 100 flags across Phase 3, none was a fabrication and nearly all were this.
+//
+// A token is accepted when some tape figure, reduced to the token's OWN precision by either
+// rounding or truncation, equals it. Both, because a writer does both: 622.50 rounds to 623,
+// and 56.50 truncates to 56.
+function matchesRounded(tok: string, tape: Tape): boolean {
+  const n = Number(tok.replace(/[$,%]/g, ''));
+  if (!Number.isFinite(n)) return false;
+  const dot = tok.indexOf('.');
+  const d = dot === -1 ? 0 : tok.replace(/[$,%]/g, '').length - dot;
+  const p = 10 ** d;
+  for (const v of numericWhitelist(tape)) {
+    if (Math.round(v * p) / p === n || Math.trunc(v * p) / p === n) return true;
+  }
+  return false;
+}
+
+export function checkNumbers(text: string, tape: Tape): NumberCheck {
+  const found = text.match(NUMBER_TOKEN) ?? [];
+  const unverified: string[] = [];
+  for (const raw of found) {
+    const tok = raw.trim();
+    if (IGNORE.has(tok)) continue;
+    if (tape.verifiedNumbers.has(tok)) continue;
+    // Money written without the symbol, or a price written with commas.
+    const bare = tok.replace(/[$,]/g, '');
+    if (tape.verifiedNumbers.has(bare) || tape.verifiedNumbers.has(`$${bare}`)) continue;
+    if (matchesRounded(tok, tape)) continue;
+    unverified.push(tok);
+  }
+
+  const spelled = text.match(WORD_NUMBER) ?? [];
+  for (const raw of spelled) {
+    const n = spelledToNumber(raw);
+    if (n === null || n <= 10) continue;
+    if (tape.verifiedNumbers.has(String(n))) continue;
+    if (matchesRounded(String(n), tape)) continue;
+    unverified.push(`${raw} (${n})`);
+  }
+
+  return { unverified: [...new Set(unverified)], checked: found.length + spelled.length };
+}
+
+async function callLens(name: string, system: string, tape: string): Promise<LensRead> {
+  const t0 = Date.now();
+  const { text, usage } = await generateText({
+    model: anthropic(DESK_MODEL),
+    system,
+    prompt: `${tape}\n\nSay one thing.`,
+    providerOptions: { anthropic: { effort: DESK_EFFORT } },
+  });
+  return {
+    name,
+    text: text.trim(),
+    ms: Date.now() - t0,
+    inputTokens: usage?.inputTokens ?? null,
+    outputTokens: usage?.outputTokens ?? null,
+  };
+}
+
+// The synthesizer gets the tape as well as the two reads, for the same reason a parent session
+// holds the original context when its subagents report back: it has to be able to tell which
+// read the record actually supports.
+//
+// Three constraints, and each one earned entry by something observed in a real run rather than
+// anticipated (Luke, after reading Phase 1's output):
+//   - PLAIN LANGUAGE. The reads were accurate and needlessly hard, e.g. "roughly self-funding
+//     at $2 a point" for "cheap while you were trading micros".
+//   - CONCISE. Length was not capped and must not be: capping would have cut the best line in
+//     the ten-day read. Density is the fix, not a word limit.
+//   - NO SELF-REFERENCE. One read opened "Run here. One thing." A product that announces
+//     itself is a product introducing a character, and the trader did not ask to meet one.
+// Nothing here says what to notice, which is the line these must not cross.
+const SYNTH_SYSTEM = `You are writing to the trader whose record this is. Two colleagues have each
+read it and written to you. Neither of them speaks to him; you do. Say one thing.
+
+Write the way a good teacher explains something to someone smart who is new to the words. Short
+sentences. Plain language over jargon whenever plain language is just as exact. Say it in as few
+words as it takes, and no fewer.
+
+Never name or refer to yourself, and never announce that you are about to say something. Just say
+it.`;
+
+export async function deskRead(tape: Tape, lenses: { name: string; prompt: string }[]): Promise<DeskRead> {
+  const started = Date.now();
+  const rendered = renderTape(tape);
+
+  const reads = await Promise.all(lenses.map((l) => callLens(l.name, l.prompt, rendered)));
+
+  const t0 = Date.now();
+  const { text, usage } = await generateText({
+    model: anthropic(DESK_MODEL),
+    system: SYNTH_SYSTEM,
+    prompt: `${rendered}\n\n${reads.map((r) => `--- ${r.name} ---\n${r.text}`).join('\n\n')}`,
+    providerOptions: { anthropic: { effort: DESK_EFFORT } },
+  });
+  const final = sanitize(text.trim());
+
+  return {
+    text: final,
+    lenses: reads,
+    synthesis: { ms: Date.now() - t0, inputTokens: usage?.inputTokens ?? null, outputTokens: usage?.outputTokens ?? null },
+    numberCheck: checkNumbers(final, tape),
+    totalMs: Date.now() - started,
+  };
+}
