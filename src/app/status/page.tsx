@@ -19,8 +19,18 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function StatusPage() {
-  const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(contractSpec);
-  const instruments = row?.n ?? 0;
+  // THE ERROR CASE IS THE POINT OF THIS ROUTE, not an afterthought on it. Uncaught, an
+  // unreachable database renders the framework's generic error page — which reports that
+  // something failed while withholding the one fact this page exists to state. A status page
+  // that cannot say "the database is the thing that is down" is not a status page.
+  let instruments: number | null = null;
+  let reachable = true;
+  try {
+    const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(contractSpec);
+    instruments = row?.n ?? 0;
+  } catch {
+    reachable = false;
+  }
 
   // WHICH BUILD AM I LOOKING AT. Absent locally, so "local" is the honest answer rather than a
   // blank. This is what makes a rollback verifiable instead of a thing you hope happened: promote
@@ -36,12 +46,27 @@ export default async function StatusPage() {
 
       <div className="bg-surface mt-8 rounded-[var(--radius)] p-6 shadow-[var(--shadow-card)]">
         <p className="text-caption text-muted uppercase">Instruments known</p>
-        <p className="text-figure mt-1 tabular-nums">{instruments}</p>
-        <p className="text-small text-muted mt-3">
-          Zero is the correct answer today. <span className="num">contract_spec</span> is seeded in
-          S2, narrow and from the exchange&rsquo;s own published specs, and an unknown symbol
-          quarantines rather than falling back to a default multiplier.
-        </p>
+        {reachable ? (
+          <>
+            <p className="text-figure mt-1 tabular-nums">{instruments}</p>
+            <p className="text-small text-muted mt-3">
+              Zero is the correct answer today. <span className="num">contract_spec</span> is seeded
+              in S2, narrow and from the exchange&rsquo;s own published specs, and an unknown symbol
+              quarantines rather than falling back to a default multiplier.
+            </p>
+          </>
+        ) : (
+          <>
+            {/* No number, not a zero. A zero here would read as "no instruments" when the truth is
+                "we could not ask", and inventing the difference is the failure this product is
+                built against. */}
+            <p className="text-figure text-neg mt-1">Unknown</p>
+            <p className="text-small text-muted mt-3">
+              The database did not answer, so this is not a count of zero, it is no count at all.
+              The app is serving and the build below is live.
+            </p>
+          </>
+        )}
       </div>
 
       <p className="text-caption text-muted mt-6">
