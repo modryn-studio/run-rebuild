@@ -47,7 +47,7 @@ in phase 2? That is where the remaining work is.
 |---|---|
 | [`design/globals.css`](design/globals.css) | The tokens. Tailwind v4 `@theme` + `.dark` block. **The source of truth.** |
 | [`design/design-system.instructions.md`](design/design-system.instructions.md) | The build rules — low cognitive load, shared primitives, responsive, touch targets, mobile keyboard |
-| [`design/design-check.SKILL.md`](design/design-check.SKILL.md) | The gate that runs before a screen is called done |
+| ~~`design/design-check.SKILL.md`~~ | Retired 2026-08-11. The review gate is the global `/postcheck`; its token scan and squint test live there |
 
 **Not ported:** the React primitives (`button.tsx`, `card.tsx`, `input.tsx`, `icon-button.tsx`,
 `menu.tsx`, `switch.tsx`, `textarea.tsx`, `tooltip.tsx`, `wordmark.tsx`, `icons.tsx`,
@@ -187,7 +187,7 @@ the component because the ground is spent on hover. That was tuned against a sid
 **Our spec has four rows.** Four rows in a 224px sidebar is a much emptier column than the
 system was tuned against, and "inactive rows are `muted`, the active row alone is full ink" may
 read differently when there are only four of them. Not a defect — a thing to look at once it's
-on screen, and exactly the kind of check the design-check gate exists for.
+on screen, and exactly the kind of check the review gate exists for.
 
 ---
 

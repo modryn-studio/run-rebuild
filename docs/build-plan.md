@@ -49,11 +49,26 @@ The thinnest possible end-to-end path, **deployed to real hosting immediately**,
 is small enough to debug.
 
 - Next.js + Neon + Drizzle + better-auth from `modryn-base`
-- `design/globals.css` in place before any screen exists
+- The phase 3 stylesheet in place as `src/app/globals.css` before any screen exists
 - One route, one query, one rendered value, live on a real URL
 - **A rollback performed once, on purpose**
 
 *Proves the pipeline works before there is anything to blame.*
+
+**✅ CLOSED 2026-08-11.** `/status` reads `contract_spec` from Neon at request time and renders the
+deployed commit SHA, live at `run.trading`. Type, grounds and tokens measured on the deployed page
+rather than locally — including `--mark-4`, the token a build step silently tree-shook once before.
+
+**The rollback, performed: ~20 seconds**, well inside the blueprint's five-minute bar. The steps,
+so they exist before they are needed at 3am:
+
+1. Vercel → **Deployments** → pick the last known-good build → `⋯` → **Promote to Production**
+2. Confirm on `/status`: the **Build** SHA is what makes this verifiable rather than assumed. Roll
+   back and it changes in front of you
+3. Roll forward the same way. Promotion is not destructive — every prior deployment stays
+
+*Recorded because an untested rollback is a belief, not a rollback, and because "about 20 seconds"
+is only knowable by having done it once on purpose.*
 
 **No CI, and the reasoning is recorded so it isn't re-litigated (Luke, 2026-08-11).** S0 originally
 carried "CI green on push", lifted from the blueprint's phase 7 bar. It was written and then
@@ -108,7 +123,7 @@ whichever page landed first. The constants are already decided (`design-system.m
 header, 224px sidebar collapsing to `w-0` with no icon rail, uncapped page column, 304px rail
 that collapses without unmounting.
 
-**Built in wave 2, before S4, deliberately.** The design-check gate is cheap to act on against
+**Built in wave 2, before S4, deliberately.** The review gate is cheap to act on against
 an empty shell and expensive against four finished pages — finding a shell defect in S9 means
 re-checking every screen that inherited it.
 
@@ -201,10 +216,9 @@ they don't share a surface.
 - **A component isn't done until it appears in the kitchen sink in every state.**
 - **"Matches the design system" means the token scan** — every font size is a `text-*` role,
   every gap is one of the named steps, one radius scale, no raw hex in a component, five states
-  plus `focus-visible` and a 44px target. The checklist is Pass 2 of
-  [`docs/design/design-check.SKILL.md`](design/design-check.SKILL.md), kept as a document now
-  that the global `/postcheck` owns the review pass. Its LOCK mode is already spent — the tokens
-  were locked at the phase 3 gate.
+  plus `focus-visible` and a 44px target, and no utility naming a token that does not exist. That
+  checklist, and the composition squint test above it, live in the global `/postcheck` skill.
+  Run it when a slice reaches its stopping point.
 - **Log friction in the moment** — `// FRICTION <date>: <what>`. Phase 5 is where the blueprint
   gets its real test, because this is where not knowing what to do costs hours rather than
   minutes.
