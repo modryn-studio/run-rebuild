@@ -312,15 +312,36 @@ export async function deskRead(tape: Tape, lenses: { name: string; prompt: strin
   const reads = await Promise.all(lenses.map((l) => callLens(l.name, l.prompt, rendered)));
 
   const t0 = Date.now();
-  // NOT CACHED, deliberately. The tape is a shared prefix here too, but the lens outputs that
-  // follow it differ on every run, so caching the tape portion means splitting this into two
-  // content blocks — a real change to the request shape. That waits until after the regression
-  // has a baseline. It is one third of the input and the cheapest third to leave on the table.
+  // SPLIT IN TWO SO THE TAPE CACHES. The static half is the tape; the varying half is what the
+  // two lenses said, which is different on every run. A cache breakpoint has to sit between
+  // them, and a breakpoint needs a block boundary — hence two content blocks where there was
+  // one string.
+  //
+  // THE CONCATENATION IS BYTE-IDENTICAL to the single string it replaces: the `\n\n` moved to
+  // the head of the second block rather than the tail of the first, so the model reads exactly
+  // the same characters in exactly the same order.
+  //
+  // The economics, stated because they run the wrong way at first: a cache WRITE is 1.25x, so
+  // this makes the FIRST run of a tape about $0.13 dearer and every repeat about $0.45 cheaper.
+  // It pays for itself on the first repeat and compounds after that.
+  const lensBlock = reads.map((r) => `--- ${r.name} ---\n${r.text}`).join('\n\n');
   const { text, usage } = await generateText({
     model: anthropic(DESK_MODEL),
     system: SYNTH_SYSTEM,
     maxOutputTokens: DESK_MAX_OUTPUT_TOKENS,
-    prompt: `${rendered}\n\n${reads.map((r) => `--- ${r.name} ---\n${r.text}`).join('\n\n')}`,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: rendered,
+            providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
+          },
+          { type: 'text', text: `\n\n${lensBlock}` },
+        ],
+      },
+    ],
     providerOptions: { anthropic: { effort: DESK_EFFORT } },
   });
   const final = sanitize(text.trim());
