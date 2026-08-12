@@ -848,12 +848,31 @@ export function buildTapeFromParsed(input: TapeInput): Tape {
   // formatters, so they cannot drift apart again.
   const addClock = (d: Date | null) => {
     if (!d) return;
-    const clock = displayClock(d, displayTimezone);
+    const clock = displayClock(d, displayTimezone); // HH:MM:SS, 24-hour, zero-padded
     v.add(clock);
     v.add(clock.slice(0, 5));
+    // FORMAT COUNTS AS QUOTING, exactly as rounding does. A writer types the time the way a
+    // person says it, and the tape's zero-padded 24-hour rendering is not that. Measured across
+    // two runs: "8:38", "8:32", "9:28", "8:43", "8:45", "9:32" and "1:34pm" were all flagged,
+    // and every one was a correctly-quoted figure the whitelist could not recognise. Six of
+    // seven flags on one run were this, which is the noise-buries-signal failure the number
+    // check's own record warns about.
+    const [h, m] = clock.split(':');
+    const h24 = Number(h);
+    v.add(`${h24}:${m}`); // 8:38
+    v.add(`${h24}:${m}:${clock.slice(6)}`); // 8:38:12
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    const suffix = h24 < 12 ? 'am' : 'pm';
+    v.add(`${h12}:${m}`); // 1:34
+    v.add(`${h12}:${m}${suffix}`); // 1:34pm
+    v.add(`${h12}:${m} ${suffix}`); // 1:34 pm
     const day = sessionDateFor(d);
     v.add(day);
     v.add(day.slice(5));
+    // 7/13, the way a trader writes a date in a sentence.
+    const [, mm, dd] = day.split('-');
+    v.add(`${Number(mm)}/${Number(dd)}`);
+    v.add(`${mm}/${dd}`);
   };
   for (const rt of tape.roundTrips) {
     addClock(rt.entryAt);

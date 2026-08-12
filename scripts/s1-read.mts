@@ -20,10 +20,14 @@ const { buildTapeFromParsed, fmtMoney } = await import('../src/lib/desk/tape');
 const { renderTape } = await import('../src/lib/desk/render');
 const { deskRead, costOf, DESK_MODEL, DESK_EFFORT } = await import('../src/lib/desk/read');
 const { NATHAN_LENS, HOLLIS_LENS } = await import('../src/lib/desk/lenses');
+const { NATHAN_LENS_TRIMMED, HOLLIS_LENS_TRIMMED } = await import('../src/lib/desk/lenses-trimmed');
 
 const D = 'C:/Users/Luke/Downloads/';
 const read = (f: string) => readFileSync(D + f).toString();
 const small = process.argv.includes('--small');
+// The A/B arm. Named in the console line and in the saved record, because a run whose arm is
+// not recorded is a data point you cannot use later.
+const trim = process.argv.includes('--trim');
 
 // The 07-02 session is a genuinely separate export set, on a DIFFERENT account from the ten-day
 // corpus. Using it rather than slicing one day out of the deep files keeps the small run a real
@@ -46,8 +50,8 @@ console.log(`  net ${fmtMoney(tape.totals.netCents)}, ${rendered.length} chars r
 console.log(`  model ${DESK_MODEL}, effort ${DESK_EFFORT}\n`);
 
 const result = await deskRead(tape, [
-  { name: 'Nathan', prompt: NATHAN_LENS },
-  { name: 'Hollis', prompt: HOLLIS_LENS },
+  { name: 'Nathan', prompt: trim ? NATHAN_LENS_TRIMMED : NATHAN_LENS },
+  { name: 'Hollis', prompt: trim ? HOLLIS_LENS_TRIMMED : HOLLIS_LENS },
 ]);
 
 const row = (label: string, u: { inputTokens: number | null; cacheReadTokens: number | null; cacheWriteTokens: number | null; outputTokens: number | null; ms: number }) =>
@@ -71,9 +75,9 @@ console.log('\n─────────────────────�
 // Kept, because a read is a thing the product SAID and the whole architecture rests on being able
 // to check a past claim against the tape it was drawn from.
 mkdirSync('runs', { recursive: true });
-const stamp = `${small ? 'small' : 'deep'}-${result.totalMs}`;
+const stamp = `${small ? 'small' : 'deep'}-${trim ? 'trim' : 'full'}-${result.totalMs}`;
 writeFileSync(
   `runs/${stamp}.json`,
-  JSON.stringify({ model: DESK_MODEL, effort: DESK_EFFORT, tape: FILES, result }, null, 2)
+  JSON.stringify({ model: DESK_MODEL, effort: DESK_EFFORT, arm: trim ? 'trimmed' : 'full', tape: FILES, result }, null, 2)
 );
 console.log(`saved runs/${stamp}.json`);
