@@ -163,6 +163,9 @@ export interface Tape {
      *  reported "eighteen of twenty-one closed by a stop" on a day where it was fourteen. */
     positions: { total: number; closedByStopFiring: number; stopWorkingAtClose: number; noStopFound: number };
     tradingDays: string[];
+    /** Sum of every round trip's quantity. Rendered, because a read that has to reconstruct it
+     *  from fees and a rounded rate arrives one contract short. */
+    contractsTraded: number;
     /** Duplicate rows dropped, by kind. Non-zero is normal on overlapping re-downloads. */
     deduped: { fills: number; roundTrips: number; orders: number; fees: number };
     /** Local-to-UTC offset derived empirically from filled orders vs their fills, so the
@@ -722,6 +725,7 @@ export function buildTapeFromParsed(input: TapeInput): Tape {
         noStopFound: episodes.filter((e) => e.stopSource === null).length,
       },
       tradingDays,
+      contractsTraded,
       deduped: { fills: fillsD.dropped, roundTrips: rtD.dropped, orders: ordersD.dropped, fees: feesD.dropped },
       localOffsetMs: offsetMs,
     },
@@ -823,6 +827,7 @@ export function buildTapeFromParsed(input: TapeInput): Tape {
   addCount(tape.meta.amendments);
   addCount(tape.meta.roundTrips);
   addCount(tape.meta.tradingDays.length);
+  addCount(tape.meta.contractsTraded);
   for (const n of Object.values(tape.meta.positions)) addCount(n);
 
   return tape;

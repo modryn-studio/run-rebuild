@@ -123,6 +123,12 @@ export function renderTape(tape: Tape, displayTimezone = tape.displayTimezone): 
     `Totals: ${fmtMoney(t.grossCents)} gross, ${fmtMoney(t.feeCents)} fees, ${fmtMoney(t.netCents)} net.  ` +
       `${t.winners} winners, ${t.losers} losers across ${m.roundTrips} round trips.`
   );
+  // STATED, BECAUSE A READ DERIVED IT AND GOT IT WRONG. On the ten-day tape a read computed
+  // "883 contract round turns" by dividing total fees by the ROUNDED $2.19 per-contract rate.
+  // The real figure is 884. Every defect in this project has been the model deriving something
+  // code already knew, and every fix has moved the derivation into code rather than into a
+  // prompt. This is that fix, for this figure.
+  out.push(`${m.contractsTraded} contracts round-tripped in total, at ${fmtMoney(t.feePerContractCents)} of fees each.`);
   if (!t.hasFees) out.push('No fee data was supplied, so net equals gross and both understate cost.');
   if (t.unallocatedFeeCents !== 0)
     out.push(`${fmtMoney(t.unallocatedFeeCents)} of fees belong to no completed round trip (open or partly paired).`);
