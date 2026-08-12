@@ -5,7 +5,7 @@
 > still applies before overturning a decision.
 
 **Status:** LOCKED at the phase 4 gate, 2026-08-11
-**Last amended:** 2026-08-11
+**Last amended:** 2026-08-12 — contract_spec point value DERIVED not seeded; price precision at parse and render; `order` added to the event types
 
 <!-- DERIVATION NOTE: written from the locked spec only. run-trading/docs/data-model.md exists
      and has NOT been read — deliberately, so this is an honest derivation rather than a
@@ -141,7 +141,7 @@ over this.**
 | `id` | **bigint identity** | no | **Not a uuid.** Monotonic total order — replay order is behavioral signal, and timestamps can't provide it (ms ties; CSV stamps are coarse) |
 | `trader_id` | uuid | no | Events point at the **person**, not the account. The cross-firm identity rule |
 | `account_id` | uuid | yes | null for events not tied to one account |
-| `type` | text CHECK | no | `fill` · `round_trip` · `fee` · `csv_import` · … TS union is source of truth; CHECK stops typo-fragmentation of the corpus |
+| `type` | text CHECK | no | `fill` · `round_trip` · `fee` · `order` · `csv_import` · … TS union is source of truth; CHECK stops typo-fragmentation of the corpus |
 | `payload` | jsonb | no | full-fidelity raw detail. Never lose detail |
 | `payload_version` | int | no | so a v0 row replays correctly through v2 extraction code |
 | `source` | text CHECK | no | `csv` · `api` · `app`. **On the event, not the account** — the same account ingests via CSV now and API later |
@@ -149,7 +149,7 @@ over this.**
 | `symbol` / `qty` / `side` | — | yes | promoted from payload, fills only |
 | `corrects_event_id` | bigint | yes | self-FK. **Busts and adjustments append**; the original never mutates |
 | `occurred_at` / `recorded_at` | timestamptz | no | real-world instant / when captured. Both UTC |
-| `dedupe_key` | text | yes | namespaced by type: `f:` fills · `p:` round trips · `x:` cash |
+| `dedupe_key` | text | yes | namespaced by type: `f:` fills · `p:` round trips · `o:` orders · `x:` cash |
 
 Partial unique index: `(account_id, dedupe_key) WHERE dedupe_key IS NOT NULL`, with
 `onConflictDoNothing` — **a re-uploaded file becomes a no-op at the database level**, not in
@@ -212,52 +212,69 @@ exist yet**, and an append-only log cannot revise the row afterwards.
 
 ---
 
-### `contract_spec` — the multiplier table
+### `contract_spec` — REVISED 2026-08-12. The multiplier is DERIVED, not seeded.
 
 | Field | Type | Notes |
 |---|---|---|
 | `symbol_root` | text | PK — `MNQ`, `NQ`, `ES`, `MES` |
-| `point_value_cents` | bigint | MNQ = 200, NQ = 2000 |
+| ~~`point_value_cents`~~ | — | **REMOVED.** Derived from the trader's own round trips — see below |
 | `tick_size` | numeric | |
 | `currency` | text | |
 | `exchange` | text | drives the session calendar |
 
-**This table is small, boring, and the highest-risk thing in the schema.** Round-trip P&L is
-`(exit − entry) × point_value × qty`. A wrong multiplier produces a number that is confidently,
-precisely wrong — the exact failure class as TradeZella's `1644.2%`. It is data, not code, so it
-corrects without a deploy.
+**The original design seeded the multiplier by hand from published exchange specs, and quarantined
+any root without a row. That was wrong, and P12 is what says so** (Luke, 2026-08-12):
 
-NQ and MNQ are the same instrument at a 10:1 ratio. Getting that backwards is a 10× error in
-every figure in the product.
+- **A hand-seeded multiplier is a number you cannot reconcile against the broker.** It is a human
+  transcription sitting underneath every P&L figure in the product, and *never show a number you
+  cannot reconcile* forbids exactly that.
+- **Derivation adds no new trust assumption.** `pointValue = gross ÷ (Δprice × qty)` is solved
+  from the broker's own realised P&L — the same source every other figure reconciles to.
+- **The seeded table is the only option that can invert NQ and MNQ into a 10× error.** This
+  document warned about precisely that risk and then proposed the mechanism that carries it.
+  Derivation cannot make that mistake: each root is solved from its own trades.
+- **It was already the stated goal.** "Coverage is a function of what has actually been traded"
+  is what derivation gives you automatically, rather than by a human reading spec pages.
 
-#### The seed: narrow, sourced, and hard-failing on the unknown
+Measured on the previous build's real ten-day tape: `MNQU6 = $2.00`, `NQU6 = $20.00`, derived with
+no table. That derivation is what priced the deepest finding in the corpus — the trader moved MNQ
+to NQ and kept his stop distances, going down in lots and up tenfold in risk.
 
-Prop firms permit a lot of markets — **Topstep lists ~32, Apex ~46** — and the instinct is to
-seed all of them. **Don't.**
+#### The derivation rules — each one is a defence, not a preference
 
-The asymmetry is what decides it. A missing row produces an obvious, loud failure. A *wrong* row
-produces a plausible number nobody catches, on the figure this product exists to get right. So
-breadth bought from memory or a blog post is a liability, not coverage — and there is precedent
-in this codebase: `market-hours.md` explicitly refuses to write agricultural hours it hasn't
-verified, on the grounds that *"writing plausible hours here from memory would be worse than the
-gap."* Same reasoning, higher stakes.
+1. **Per `symbol_root`, not per contract month.** Point value is a property of the product, so
+   keying on `MNQU6` splits the sample at every roll and leaves a thin month solving from two or
+   three trades. Position episodes still key on the specific contract, since both months can be
+   held at once.
+2. **One clean round trip is enough.** This is exact arithmetic — four knowns, one unknown,
+   solved rather than estimated. A "minimum sample" rule treats a solved equation like a noisy
+   measurement, and discarding a probably-correct value is the same conservatism as a "not enough
+   data yet" placeholder, which this product already rejects.
+3. **At n ≥ 2 the samples must AGREE within tolerance. Disagreement quarantines. NEVER a median.**
+   A median silently absorbs a corrupt row and emits a subtly wrong number with no flag;
+   agreement *detects* the conflict and refuses to guess which row lied. For an architecture whose
+   premise is that a confidently wrong number must not ship, **a detector beats a masker.** A
+   median does not even begin to work until n=3, since a median of two is a mean, which one bad
+   row poisons outright. **Do not let this be "optimised" into a median later** — the shipped
+   `desk-call` code does exactly that (`tape.ts` sorts and takes the middle), and it is the one
+   piece of it that must not be ported as written.
+4. **A wide order-of-magnitude bound guards n=1.** Listed futures point values live in a narrow
+   band, so a derived $0.0003 or $47,000 is detectably absurd from one trade with no table. This
+   is a sanity bound, not a spec: it never needs updating and can never be incomplete.
+5. **`IF a root's point value cannot be derived or does not agree, THEN the trade quarantines.`**
+   Never a default, never a guess from a similar root, never priced at zero.
+6. **An exchange-published value is a CROSS-CHECK, never the source.** Disagreement between the
+   published spec and the trader's own fills is a finding worth surfacing, not a reason to
+   overwrite what the broker actually paid.
+7. **Low confidence is rendered, not merely stored.** A single-sample root carries its note into
+   the text a read sees. A `confidence` field nothing reads is decoration.
 
-**The rule:**
+**The tradeoff, stated:** an instrument with no completed round trip cannot be priced — an open
+position, or fills that never closed. Free in v1, because the record *is* round trips and Live is
+out of scope. It becomes real the day open positions are shown.
 
-- **Seed only what a real import contains** — today MNQ, NQ, and whatever else appears in Luke's
-  own exports. Four rows beats forty-six.
-- **Every value comes from the exchange's own published contract spec.** Not a prop-firm page,
-  not a comparison article, not memory. The source URL and the date read go in a comment beside
-  the row.
-- **`IF a symbol_root has no row, THEN the trade quarantines.`** It never falls back to a default
-  multiplier, never guesses from a similar root, never silently prices at zero. An unknown
-  instrument is exactly the case where being wrong is worst, so it is the case that must stop.
-- **The table grows on evidence.** A quarantined unknown is the signal to go read one spec and
-  add one verified row — which is a minute of work and produces a table that is correct by
-  construction rather than correct by hope.
-
-This makes coverage a function of what has actually been traded, which is the only definition of
-coverage that can be verified.
+**Why now:** `contract_spec` is empty, the migration is one change, and nothing reads it but
+`/status`. This is the cheapest moment this decision will ever have.
 
 ---
 
@@ -271,7 +288,7 @@ coverage that can be verified.
 | `entry_at` / `exit_at` | timestamptz | no | UTC |
 | `session_date` | date | no | **derived from `exit_at`.** See §4 |
 | `qty` | int | no | |
-| `entry_price` / `exit_price` | numeric(19,6) | no | |
+| `entry_price` / `exit_price` | numeric(19,6) | no | **A QUOTE, NOT MONEY.** See the precision note below |
 | `gross_pnl_cents` | bigint | no | from the round-trip event. **`net` is NOT stored** — see the projections section above |
 | `state` | enum | no | `ok` · `quarantined` · `excluded` |
 | `quarantine_reason` | text | yes | |
@@ -283,6 +300,33 @@ Indexes: `(account_id, session_date)`, `(account_id, exit_at)`, `state`
 and the exchange calendar, then persisted — because every grouping in the product keys off it and
 recomputing a timezone-and-calendar-dependent value on every query is both slow and a place for
 two code paths to disagree.
+
+#### Price precision must survive PARSE and RENDER, not just storage
+
+**Added 2026-08-12, from a measured bug in the code being ported.** The previous build stored
+prices as `Math.round(price × 100)` — right for money, wrong for a quote, because precision
+belongs to the instrument:
+
+| Product | Quote | Stored | Renders | |
+|---|---|---|---|---|
+| ES · YM · CL · GC · NQ · MNQ | 6850.25 | ok | ok | works |
+| **6E** | 1.08500 | **109** | **1.09** | **silently wrong** |
+| **6A** | 0.65430 | **65** | **0.65** | **silently wrong** |
+
+A 6E trade from 1.08500 to 1.08600 stores as `109 → 109`: **identical entry and exit printed
+beside a real profit.** The read would describe a trade that never moved, confidently.
+
+Two rules, because the bug lives at two layers and fixing only one leaves it:
+
+- **At parse:** a quote is stored at instrument precision. `numeric(19,6)` above is what makes
+  this exact for any decimal product, including one never seen.
+- **At render:** a formatter must not hardcode two decimals. The ported `fmtPrice` is
+  `(cents / 100).toFixed(2)`, which re-introduces the same loss on the way out even from a
+  correctly stored value.
+
+**Name the unit in the field.** A variable called `priceCents` that no longer means cents is
+precisely the ambiguity that once rendered a 2.13-point gap as `$2.13` when the real money at 4
+MNQ was $17.04. Money stays in cents; quotes do not.
 
 **`state` carries quarantine and exclusion, and both are visible.** S3 and S9b: excluded trades
 stay countable. `ok` is the only state that feeds a computed figure.
@@ -659,7 +703,7 @@ build should take the split**, since it costs nothing before any rows exist.
 
 - **Chunk writes at 1,000 rows.** Postgres caps a statement at 65,535 bind parameters; ~10
   columns per event row means a single INSERT throws somewhere past 6,500.
-- **`dedupe_key` is namespaced by type** (`f:` fills, `p:` round trips, `x:` cash) with a
+- **`dedupe_key` is namespaced by type** (`f:` fills, `p:` round trips, `o:` orders, `x:` cash) with a
   **partial unique index** `(account_id, dedupe_key) WHERE dedupe_key IS NOT NULL` +
   `onConflictDoNothing`. Re-uploading a file becomes a no-op at the database level rather than in
   application logic.
