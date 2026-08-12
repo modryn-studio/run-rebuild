@@ -139,10 +139,6 @@ drizzle/            migrations. generate + migrate, never push
 will not boot without them. `REPLICATE_API_TOKEN` is **local only** — it generates media, it does not
 serve it, so it belongs on your machine and not on the deploy.
 
-**No CI, deliberately.** Vercel checks out fresh and builds on every push, and that build runs
-TypeScript. `npm run lint` is the only gap and it takes two seconds. See `docs/build-plan.md` for
-the reasoning and the condition that brings it back.
-
 ---
 
 ## Conventions
@@ -165,9 +161,3 @@ the reasoning and the condition that brings it back.
   or a plain hyphen. Code comments and docs are exempt.
 - **The app never names itself to the person using it.** Use *you / your*, or *we*, or nothing.
   Marketing surfaces are the exception.
-- **Empty states name the next action in the user's own vocabulary.** Never "no data".
-- **Every surface showing a computed figure states its provenance** — which file, which account,
-  which range, read when.
-- **After an implementation lands:** `/postcheck`.
-- **UI bar:** `modryn-hq@v3:playbooks/design-system.md`. If it looks like default LLM output, it's
-  rejected.
