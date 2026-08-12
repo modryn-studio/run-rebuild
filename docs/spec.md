@@ -658,9 +658,40 @@ one floor tuned differently:
 | A **structural** claim ("your risk per point changed tenfold and your stops did not") | not frequency at all. It is arithmetic on the tape, verifiable from one instance, and either true or false |
 
 **Undecided, and it needs Luke:** whether the daily read may present a structural finding, and if
-so what stops that category from becoming the loophole every thin claim escapes through. Until it
-is decided, `S7` cannot be specified — `S1` is unaffected, since the spike only has to print what
-it finds and show its working.
+so what stops that category from becoming the loophole every thin claim escapes through.
+
+#### The bigger version of the same question, surfaced 2026-08-12 by the S1 port
+
+The floor is one symptom. The root is that **§4.2's Read page and the proven read engine are
+different artefacts**, and only one of them exists.
+
+- §4.2 is built on **a pattern**: named, counted, priced, status-tracked across months. That is
+  what `read.working`, `read.state`, `read.pattern_id`, `pattern`, `pattern_occurrence` and the
+  whole **History** tab are shaped for.
+- The engine that actually works produces **a reading**: one subject, this tape, 150–450 words of
+  prose, no persistent object behind it.
+
+A letter does not slot into that layout, and the layout would flatten the letter. See
+`build-plan.md` `S7` for the field-by-field gap.
+
+**Neither is obviously right.** The pattern model is what makes History possible, and History is
+the thing the spec argues no competitor can clone. The reading model is what actually found the
+thing that cleared the kill signal — once, with no occurrence count, in a shape no floor would
+have passed.
+
+**The three live options**, so the decision is a choice rather than a drift:
+
+1. **Pattern wins.** Build detectors that emit `pattern_occurrence` rows; the engine writes the
+   prose around them. Keeps History and the floor. Risk: this is the metric engine the previous
+   build killed, and it could not notice what it was not told to look for.
+2. **Reading wins.** `read` stores prose plus provenance; History becomes a list of past readings
+   rather than tracked claims; the floor is retired. Risk: the spec's strongest differentiator
+   goes with it.
+3. **Both, with different tests.** A reading every day; a pattern promoted only when a structural
+   claim recurs enough to be counted. Risk: two systems, and the seam between them is unspecified.
+
+**Blocks `S7` and nothing else.** `S1` is unaffected — it prints what it finds and shows its
+working, which is true in every option.
 | ~~Tradovate OAuth availability~~ | ~~blocks S1~~ | — | **RESOLVED** — not available; v1 is CSV (S1) |
 | ~~What is a "session"?~~ | — | — | **RESOLVED 2026-08-11 — CME day.** See below |
 
