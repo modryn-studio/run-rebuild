@@ -181,9 +181,15 @@ export const fmtMoney = (cents: number): string => {
 // perfectly stored 1085000. Trailing zeros are trimmed but never below two decimals, so an index
 // future still reads 19204.25 rather than 19204.25000.
 export const fmtPrice = (micros: number): string => {
-  const fixed = (micros / PRICE_SCALE).toFixed(6);
-  const trimmed = fixed.replace(/(\.\d\d)0+$/, '$1').replace(/(\.\d*[1-9])0+$/, '$1');
-  return trimmed;
+  // Trim the padding first, THEN restore the two-decimal floor. Doing it the other way round
+  // lets the trim eat the floor: 29312.500000 became "29312.5" sitting in a column beside
+  // "29318.00", which is the same number rendered two ways in one table.
+  let s = (micros / PRICE_SCALE).toFixed(6).replace(/0+$/, '');
+  if (s.endsWith('.')) s = s.slice(0, -1);
+  const dot = s.indexOf('.');
+  const decimals = dot === -1 ? 0 : s.length - dot - 1;
+  if (decimals < 2) s += (dot === -1 ? '.' : '') + '0'.repeat(2 - decimals);
+  return s;
 };
 export const fmtDuration = (ms: number): string => {
   const s = Math.round(ms / 1000);
