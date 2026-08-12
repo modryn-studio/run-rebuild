@@ -109,7 +109,22 @@ check('an index future still reads with two', fmtPrice(toMicros('19204.25')), '1
 check('a whole number keeps two decimals', fmtPrice(toMicros('19204')), '19204.00');
 check('MNQ prices in the real tape are unchanged by the new scale', fmtPrice(deep.roundTrips[0].entryPriceMicros).includes('.'), true);
 
-console.log('\n=== 6. the tape resolves what a model must never infer ===\n');
+console.log('\n=== 6. sessions total to the same money as the tape ===\n');
+// A second grain computing the same money is a second chance to disagree with the broker. This
+// is the assertion that stops the Trades page and the read ever telling different stories about
+// the same day, which is the failure S5 and S7 would otherwise discover separately.
+const sessSum = (k: 'grossCents' | 'feeCents' | 'netCents') => deep.sessions.reduce((s, x) => s + x[k], 0);
+check('session gross sums to the tape gross', sessSum('grossCents'), deep.totals.grossCents);
+check('session net sums to the tape net', sessSum('netCents'), deep.totals.netCents);
+check('session round trips sum to the tape count', deep.sessions.reduce((s, x) => s + x.roundTrips, 0), deep.meta.roundTrips);
+check('session contracts sum to the tape count', deep.sessions.reduce((s, x) => s + x.contracts, 0), deep.meta.contractsTraded);
+check('one session row per trading day', deep.sessions.length, deep.meta.tradingDays.length);
+// The figures three separate reads got wrong by deriving them. Now stated, so they are quotable.
+const jul16 = deep.sessions.find((s) => s.sessionDate === '2026-07-16')!;
+check('07-16 net is stated, not derived', fmtMoney(jul16.netCents), '-$2,538.84');
+check('and its NQ round trips are stated as 56, not 55', jul16.byRoot.find((r) => r.root === 'NQ')?.roundTrips, 56);
+
+console.log('\n=== 7. the tape resolves what a model must never infer ===\n');
 check('every round trip has a direction', deep.roundTrips.every((r) => r.direction === 'long' || r.direction === 'short'), true);
 check('every round trip has a stated outcome', deep.roundTrips.every((r) => !!r.outcome), true);
 check('cancels are classified trader vs platform', deep.meta.traderCancels + deep.meta.ocoCancels, deep.meta.cancels);

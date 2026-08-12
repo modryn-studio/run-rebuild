@@ -129,6 +129,27 @@ export function renderTape(tape: Tape, displayTimezone = tape.displayTimezone): 
   // code already knew, and every fix has moved the derivation into code rather than into a
   // prompt. This is that fix, for this figure.
   out.push(`${m.contractsTraded} contracts round-tripped in total, at ${fmtMoney(t.feePerContractCents)} of fees each.`);
+
+  // SESSIONS, TOTALLED. Placed high, before the row-by-row detail, because a reader who has the
+  // sums does not need to build them out of 360 rows — and three reads in a row built one and
+  // got it slightly wrong. The per-root split is here for the same reason: an instrument switch
+  // is a fact the tape can state, not a pattern someone has to notice across 82 lines.
+  if (tape.sessions.length > 1) {
+    out.push('');
+    out.push('SESSIONS');
+    out.push('Totalled by code. A trade counts on the session it was REALISED in, not entered.');
+    out.push('  date         first-last     trips  lots     gross         fees          net      win%   by instrument');
+    for (const s of tape.sessions) {
+      const roots = s.byRoot
+        .map((r) => `${r.root} ${r.roundTrips} trips / ${r.contracts} lots / ${fmtMoney(r.netCents)}`)
+        .join('   ');
+      out.push(
+        `  ${s.sessionDate}  ${clock(s.firstAt, tz)?.slice(0, 5)}-${clock(s.lastAt, tz)?.slice(0, 5)}  ` +
+          `${lpad(s.roundTrips, 5)}  ${lpad(s.contracts, 4)}  ${lpad(fmtMoney(s.grossCents), 11)}  ` +
+          `${lpad(fmtMoney(s.feeCents), 11)}  ${lpad(fmtMoney(s.netCents), 11)}  ${lpad(s.winRate.toFixed(1), 5)}   ${roots}`
+      );
+    }
+  }
   if (!t.hasFees) out.push('No fee data was supplied, so net equals gross and both understate cost.');
   if (t.unallocatedFeeCents !== 0)
     out.push(`${fmtMoney(t.unallocatedFeeCents)} of fees belong to no completed round trip (open or partly paired).`);

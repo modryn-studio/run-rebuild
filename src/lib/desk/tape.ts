@@ -116,6 +116,39 @@ export interface TapeEpisode {
   grossCents: number;
 }
 
+/** One trading session, totalled by code.
+ *
+ *  ── WHY THIS EXISTS ──────────────────────────────────────────────────────────────────────
+ *  Three reads in a row derived a session-level figure and three got one slightly wrong:
+ *  "883 contract round turns" when it was 884, "55 round trips" when it was 56, and "up $922"
+ *  when the peak was $895. None was invented — each was arithmetic the model did itself over
+ *  hundreds of rows, because the tape stated the parts and never the sum.
+ *
+ *  That is the oldest pattern in this project: every defect has been the model deriving
+ *  something code already knew, and every fix moved the derivation into code rather than into a
+ *  prompt. This is that fix for the session grain.
+ *
+ *  It is also the object `S5` needs — the Trades page groups under a session header carrying
+ *  net, trade count and win rate — so the same computation serves the read and the record, and
+ *  they cannot disagree about "your worst day". */
+export interface TapeSession {
+  sessionDate: string;
+  roundTrips: number;
+  contracts: number;
+  winners: number;
+  losers: number;
+  /** Percent, one decimal. Stated so a read quotes it instead of dividing two counts. */
+  winRate: number;
+  grossCents: number;
+  feeCents: number;
+  netCents: number;
+  firstAt: Date | null;
+  lastAt: Date | null;
+  /** Per product root. This is the breakdown that makes an instrument switch visible as a fact
+   *  rather than as something a reader has to notice across 82 rows. */
+  byRoot: { root: string; roundTrips: number; contracts: number; netCents: number }[];
+}
+
 export interface Tape {
   accounts: string[];
   roundTrips: TapeRoundTrip[];
@@ -141,6 +174,8 @@ export interface Tape {
    *  hand-typed multiplier is a number that cannot be reconciled against the broker, and it is
    *  the only mechanism that can invert NQ and MNQ into a 10x error. See docs/architecture.md. */
   pointValue: PointValueResult;
+  /** One row per trading session, oldest first. See `TapeSession`. */
+  sessions: TapeSession[];
   /** Account name -> type, for the accounts on this tape. Stated rather than assumed, because
    *  what "survival" means depends on it and the risk lens used to hardcode one answer:
    *  "These traders are on funded accounts" is false for a personal account, where there is no
@@ -686,6 +721,48 @@ export function buildTapeFromParsed(input: TapeInput): Tape {
   for (const r of tapeRoundTrips) if (r.exitAt) dayKeys.add(sessionDateFor(r.exitAt));
   for (const f of fills) dayKeys.add(sessionDateFor(f.filledAt));
   const tradingDays = [...dayKeys].sort();
+
+  // Sessions, totalled here so nothing downstream has to add up rows. Keyed on the round trip's
+  // EXIT, because a trade belongs to the session it was realised in (spec.md §8) — the same rule
+  // `tradingDays` above uses, from the same function, so the two can never disagree about which
+  // day a trade landed on.
+  const sessions: TapeSession[] = [...dayKeys].sort().flatMap((sessionDate) => {
+    const rows = tapeRoundTrips.filter((r) => r.exitAt && sessionDateFor(r.exitAt) === sessionDate);
+    if (rows.length === 0) return [];
+
+    const byRootMap = new Map<string, { roundTrips: number; contracts: number; netCents: number }>();
+    for (const r of rows) {
+      const root = r.contract ? (rootOf.get(r.contract) ?? r.contract) : 'unknown';
+      const e = byRootMap.get(root) ?? { roundTrips: 0, contracts: 0, netCents: 0 };
+      e.roundTrips += 1;
+      e.contracts += r.qty;
+      e.netCents += r.netCents ?? r.grossCents;
+      byRootMap.set(root, e);
+    }
+
+    const winners = rows.filter((r) => r.outcome === 'winner').length;
+    const losers = rows.filter((r) => r.outcome === 'loser').length;
+    const times = rows.map((r) => r.exitAt!.getTime());
+    return [
+      {
+        sessionDate,
+        roundTrips: rows.length,
+        contracts: rows.reduce((s, r) => s + r.qty, 0),
+        winners,
+        losers,
+        // Against round trips, not against winners+losers: a scratch is a trade that happened.
+        winRate: Math.round((winners / rows.length) * 1000) / 10,
+        grossCents: rows.reduce((s, r) => s + r.grossCents, 0),
+        feeCents: rows.reduce((s, r) => s + (r.feeCents ?? 0), 0),
+        netCents: rows.reduce((s, r) => s + (r.netCents ?? r.grossCents), 0),
+        firstAt: new Date(Math.min(...times)),
+        lastAt: new Date(Math.max(...times)),
+        byRoot: [...byRootMap]
+          .map(([root, v]) => ({ root, ...v }))
+          .sort((a, b) => b.contracts - a.contracts),
+      },
+    ];
+  });
   const cancels = tapeOrders.filter((o) => o.status === 'canceled');
 
   const displayTimezone = input.displayTimezone ?? SESSION_BOUNDARY_ZONE;
@@ -710,6 +787,7 @@ export function buildTapeFromParsed(input: TapeInput): Tape {
       feesImplausible: net.hasFees && feePerContract > FEE_SANITY_CEILING_CENTS,
     },
     pointValue,
+    sessions,
     meta: {
       fills: fills.length,
       roundTrips: roundTrips.length,
@@ -828,6 +906,26 @@ export function buildTapeFromParsed(input: TapeInput): Tape {
   addCount(tape.meta.roundTrips);
   addCount(tape.meta.tradingDays.length);
   addCount(tape.meta.contractsTraded);
+  for (const s of tape.sessions) {
+    addMoney(s.grossCents);
+    addMoney(s.feeCents);
+    addMoney(s.netCents);
+    addCount(s.roundTrips);
+    addCount(s.contracts);
+    addCount(s.winners);
+    addCount(s.losers);
+    v.add(String(s.winRate));
+    v.add(String(Math.round(s.winRate)));
+    v.add(s.sessionDate);
+    v.add(s.sessionDate.slice(5));
+    addClock(s.firstAt);
+    addClock(s.lastAt);
+    for (const r of s.byRoot) {
+      addCount(r.roundTrips);
+      addCount(r.contracts);
+      addMoney(r.netCents);
+    }
+  }
   for (const n of Object.values(tape.meta.positions)) addCount(n);
 
   return tape;
