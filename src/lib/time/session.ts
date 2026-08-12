@@ -21,6 +21,22 @@
 // It also bucketed on EVERY FILL rather than the exit. A trade belongs to the session it was
 // realised in (spec.md §8), so a position opened before the roll and closed after it must count
 // once, on the later date.
+//
+// ── AND THE OLD CODEBASE HELD TWO RIVAL DEFINITIONS AT ONCE, NEITHER CORRECT ─────────────
+// Checked 2026-08-12 across run-trading's desk-call worktree and its dev branch:
+//
+//   tape.ts        `fills.map(f => f.filledAt.toISOString().slice(0, 10))`   a UTC calendar date
+//   aggregate.ts   `d.toLocaleDateString('en-CA', { timeZone: CT })`         a CHICAGO calendar date
+//
+// The second looks right and is not: a calendar date in Chicago still rolls at midnight, so a
+// 17:30 CT fill files under the day it started rather than the trade date the exchange and the
+// broker file it under. Two functions, two answers, three when you count the exchange's, and
+// nothing named the disagreement — the same failure recorded as `#97`, where a TypeScript
+// bucketer and a SQL `date_trunc` were both called "grain" while meaning different things.
+//
+// That is why this module exists and why the rule is that NOTHING else may compute a time
+// bucket. A shared name is not a shared definition, and two of them agree right up until the
+// evening session.
 
 /**
  * The boundary zone and hour TRAVEL TOGETHER and must never be separated.
