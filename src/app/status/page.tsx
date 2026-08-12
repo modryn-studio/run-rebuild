@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { sql } from 'drizzle-orm';
 import { db, contractSpec } from '@/lib/db';
+import { env } from '@/lib/env';
 
 // S0's walking skeleton, and the whole point of it is that it is not a feature.
 //
@@ -21,6 +22,11 @@ export default async function StatusPage() {
   const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(contractSpec);
   const instruments = row?.n ?? 0;
 
+  // WHICH BUILD AM I LOOKING AT. Absent locally, so "local" is the honest answer rather than a
+  // blank. This is what makes a rollback verifiable instead of a thing you hope happened: promote
+  // an older deployment and the seven characters below change in front of you.
+  const build = env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'local';
+
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center px-4 py-16 sm:px-6">
       <h1 className="text-h2">Status</h1>
@@ -37,6 +43,10 @@ export default async function StatusPage() {
           quarantines rather than falling back to a default multiplier.
         </p>
       </div>
+
+      <p className="text-caption text-muted mt-6">
+        Build <span className="num text-text">{build}</span>
+      </p>
     </main>
   );
 }

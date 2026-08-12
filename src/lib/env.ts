@@ -56,6 +56,11 @@ const schema = z.object({
 
   // ── Add project keys below. Required ones use .min(1) with a message; anything the app can
   // boot without stays .optional() so a half-configured environment still runs. ──
+
+  // Set by the deploy platform at build time, absent locally. /status renders it so the live
+  // build is always identifiable — which is what makes a rollback verifiable rather than a
+  // thing you hope happened. Optional by necessity: it does not exist on a dev machine.
+  VERCEL_GIT_COMMIT_SHA: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
