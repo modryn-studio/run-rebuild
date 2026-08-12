@@ -258,9 +258,36 @@ to NQ and kept his stop distances, going down in lots and up tenfold in risk.
    row poisons outright. **Do not let this be "optimised" into a median later** — the shipped
    `desk-call` code does exactly that (`tape.ts` sorts and takes the middle), and it is the one
    piece of it that must not be ported as written.
-4. **A wide order-of-magnitude bound guards n=1.** Listed futures point values live in a narrow
-   band, so a derived $0.0003 or $47,000 is detectably absurd from one trade with no table. This
-   is a sanity bound, not a spec: it never needs updating and can never be incomplete.
+4. **A wide order-of-magnitude bound guards n=1** — **on the TICK, not the point. Corrected
+   2026-08-12 (S2); the original text is kept below because the way it was wrong is the lesson.**
+
+   > ~~Listed futures point values live in a narrow band, so a derived $0.0003 or $47,000 is
+   > detectably absurd from one trade with no table. This is a sanity bound, not a spec: it never
+   > needs updating and can never be incomplete.~~
+
+   The band is not narrow. Measured across the 59 roots a Tradovate prop account can reach, point
+   value spans **eight orders of magnitude** — MET at $0.10 per point, 6J at $12,500,000. The
+   implemented bound of $0.10–$250 was calibrated, unconsciously, on a corpus containing exactly
+   MNQ and NQ, and it would have quarantined crude, gold's full-size contract, every treasury and
+   every FX pair, each with the message *"not plausible for a listed future"* — **a false claim
+   about a real trade, shown to the trader.** A wrong quarantine reason is worse than no
+   quarantine, because it spends the one thing this product sells.
+
+   **Tick value is the comparable quantity**, and not by accident: exchanges size a tick so it is
+   worth roughly the same to trade. Over the same 59 roots it spans **$0.05 to $50**. The bound is
+   an order of magnitude outside that on each side, which still catches the parse error and the
+   shifted column that were always the target.
+
+   **The unit must match the quote.** `tickValue = pointValue x tickSize` holds only when
+   `tick_size` is expressed in the units of the price column the point value was derived from.
+   CME publishes corn's tick as dollars per bushel while the market quotes cents — 100x apart. So
+   `contract_spec` is seeded only for roots whose quote convention is verified, and an unseeded
+   root falls through to a deliberately wide nonsense-catcher rather than being checked against a
+   guess. **This is why the seeded roster stops at 41 rather than 59:** grains, treasuries and
+   livestock are quoted in units one real export has not yet settled.
+
+   The general lesson, which is the same one the median produced: **a bound derived from the data
+   you happen to have is a bound shaped like your own account.**
 5. **`IF a root's point value cannot be derived or does not agree, THEN the trade quarantines.`**
    Never a default, never a guess from a similar root, never priced at zero.
 6. **An exchange-published value is a CROSS-CHECK, never the source.** Disagreement between the

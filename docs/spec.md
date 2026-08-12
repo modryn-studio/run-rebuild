@@ -780,13 +780,24 @@ breaks twice a year.
 
 **Other implementation notes:**
 - Friday close (4:00pm CT) to Sunday open (5:00pm CT) is not a session. Weekend has no bucket.
+  **AMENDED 2026-08-12 (S2): true of every CME Group product except crypto.** BTC, MBT, ETH and
+  MET are 24/7, so a crypto session date can be a Saturday or a Sunday. Verified against CME's own
+  contract-spec service; see `market-hours.md` §4 for the three consequences.
+- **The 17:00 CT roll is correct for the whole complex, and that is now measured rather than
+  assumed.** The agricultural gap the previous build deliberately left open is closed: grains
+  close at 13:20 and reopen at 19:00, so 17:00 lands in a dead zone and cannot mis-file a fill.
+  Livestock trades 08:30–13:05 only. `market-hours.md` §2–3.
 - Holiday sessions and early closes follow the CME calendar, not a weekday rule.
 - **A session with no trades still exists** — needed for streaks, gaps, and "you don't trade
   Mondays" reads.
 - Equity-index RTH (8:30am–3:15pm CT, ~70% of volume) is **not** the boundary and must never be
   used as one. It's the window most traders work in — relevant to time-of-day reads only.
-- The agricultural complex keeps different hours and is deliberately unhandled. If an ag
-  contract appears in a real import, fill this in from CME's product pages before bucketing it.
+- ~~The agricultural complex keeps different hours and is deliberately unhandled.~~ **RESOLVED
+  2026-08-12 from CME's own spec service.** Ag does keep different hours, and the boundary needs no
+  special case: the 17:00 roll sits inside the 13:20→19:00 gap, so no ag fill can land near it.
+  What ag still lacks is a `contract_spec` row, because it is quoted in cents while CME publishes
+  dollars per bushel, and an unverified `tick_size` is the wrong kind of guess. It quarantines
+  until one real export settles the convention. Same for the treasuries (32nds) and livestock.
 
 ---
 

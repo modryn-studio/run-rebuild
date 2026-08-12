@@ -134,9 +134,14 @@ export function displayClock(instantUtc: Date, displayTimezone: string): string 
 //
 //    Monday also happens to be the trading week: the session runs Sunday 17:00 CT to Friday
 //    16:00 CT (CME's own published hours, read 2026-08-12), and Sunday evening carries MONDAY's
-//    trade date. So a session date is always Mon–Fri, one Monday-start week holds exactly one
-//    trading week, and "the weekend has no bucket" (spec.md §8) is satisfied by having no
-//    weekend session dates to bucket.
+//    trade date. So one Monday-start week holds exactly one trading week.
+//
+//    WITH ONE EXCEPTION, and it is worth knowing rather than discovering: CME's crypto futures
+//    (BTC, MBT, ETH, MET) are 24/7, so a crypto session date CAN be a Saturday or a Sunday. It
+//    groups into the Monday-start week that began five days earlier, which is the right reading
+//    — Saturday crypto continues Friday's tape rather than starting the next week. See
+//    docs/market-hours.md §4; spec.md §8's "the weekend has no bucket" carries the same
+//    qualifier now.
 export type Grain = 'day' | 'week' | 'month' | 'year';
 
 const SESSION_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;

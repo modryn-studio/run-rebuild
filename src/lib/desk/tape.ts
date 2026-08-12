@@ -227,6 +227,10 @@ export interface TapeInput {
    *  caller forgets one, the least-wrong clock is the one the sessions are cut in, never a clock
    *  nobody trades on. */
   displayTimezone?: string;
+  /** `contract_spec.tick_size` by symbol root, in the same units as the price column. The caller
+   *  reads it from the database; this module never does. Absent roots still price — they just
+   *  fall through to the wide absurdity bound instead of the real tick-value check. */
+  tickSizeByRoot?: Map<string, number>;
 }
 
 // ── formatting: one place, so verifiedNumbers and the rendered tape cannot disagree ──
@@ -406,12 +410,48 @@ function buildEpisodes(fills: ParsedFill[], orderTypeByFill: Map<string, OrderTy
 // contract, which is correct — both months can be held at once — but economics key on the root.
 const AGREEMENT_TOLERANCE = 0.02; // 2%: absorbs a cent of rounding, not a wrong row.
 
-// A listed future's point value lives in a narrow band: micros roughly $0.50-$5, minis roughly
-// $2-$50, the outer edge of retail-accessible products roughly $0.10-$250. A derived $0.0003 or
-// $47,000 is detectably absurd from ONE trade with no table at all. An order-of-magnitude sanity
-// bound, not a spec — so it never needs updating and can never be incomplete.
-const POINT_VALUE_FLOOR_CENTS = 10; // $0.10
-const POINT_VALUE_CEILING_CENTS = 25_000; // $250
+// ── THE SANITY BOUND IS ON THE TICK, NOT THE POINT. Rewritten 2026-08-12 (S2). ───────────────
+//
+// It used to bound the POINT value to $0.10-$250, described as "the outer edge of retail-
+// accessible products." That sentence was true of the equity-index complex and false of
+// everything else, and it was written from a corpus containing exactly MNQ and NQ.
+//
+// Measured against CME's own published specs for the 59 roots a prop trader can reach
+// (`scripts/seed-contract-spec.mts`), point value spans EIGHT ORDERS OF MAGNITUDE:
+//
+//   MET  $0.10/point  ...  MNQ $2  ...  ES $50  ...  CL $1,000  ...  6J $12,500,000/point
+//
+// No single bound over that range can call anything absurd. Worse, the old one was inside it:
+// crude, gold's big brother, every rate and every FX pair quarantined with the message
+// "derived point value $1,000.00 per point is not plausible for a listed future" — a false
+// statement, about a real trade, shown to the trader. A wrong quarantine reason is worse than
+// no quarantine, because the product's one claim is that its numbers are the broker's.
+//
+// TICK VALUE IS THE COMPARABLE QUANTITY, and it is not a coincidence — exchanges deliberately
+// size a tick so it is worth roughly the same to trade. Over the same 59 roots:
+//
+//   MET $0.05  ·  MNQ/MYM/M2K/MBT $0.50  ·  CL/GC/NG $10  ·  ES/HG/ZC $12.50  ·  PA $50
+//
+// A thousand-to-one range collapses to a thousand-to-one... no: to 0.05-50, THREE orders of
+// magnitude narrower. The bound below is an order of magnitude outside that on each side, so it
+// still catches a derived $0.0003 or $47,000 from a parse error or a shifted column, which was
+// always the job.
+//
+// THE UNIT MUST MATCH THE QUOTE. tickValue = pointValue x tickSize only holds when `tickSize` is
+// expressed in the same units as the price column the point value was derived from. CME publishes
+// corn's tick as 0.0025 (dollars per bushel) while brokers quote it in cents — a 100x difference
+// that would produce a confident, wrong tick value. That is why `contract_spec` is seeded only for
+// roots whose quote convention is verified, and why an unseeded root falls through to the wide
+// bound below rather than being priced against a guess.
+const TICK_VALUE_FLOOR_CENTS = 1; // $0.01, an order of magnitude under MET's $0.05
+const TICK_VALUE_CEILING_CENTS = 50_000; // $500, an order of magnitude over PA's $50
+
+// The fallback when no tick size is known for the root. Deliberately wide enough to admit 6J at
+// $12.5M per point, which makes it a nonsense-catcher rather than a plausibility check — and the
+// code says so rather than implying a rigour it does not have. A root with no `contract_spec` row
+// quarantines at ingest anyway (architecture.md), so this guards only the disk-script path.
+const POINT_VALUE_ABSURD_FLOOR_CENTS = 1; // $0.01
+const POINT_VALUE_ABSURD_CEILING_CENTS = 10_000_000_000; // $100,000,000 per point
 
 export interface PointValue {
   cents: number;
@@ -436,7 +476,11 @@ export interface PointValueResult {
 // parser would need a table of month letters and would be wrong on the first unfamiliar venue.
 export function derivePointValueCents(
   roundTrips: TapeRoundTrip[],
-  rootOf: Map<string, string>
+  rootOf: Map<string, string>,
+  /** `contract_spec.tick_size` by root, in the SAME units as the price column. Absent roots fall
+   *  through to the wide absurdity bound — see the constants above. Passed in rather than read,
+   *  because nothing in `lib/` touches the database. */
+  tickSizeByRoot?: Map<string, number>
 ): PointValueResult {
   const samples = new Map<string, number[]>();
   for (const r of roundTrips) {
@@ -471,8 +515,20 @@ export function derivePointValueCents(
     // They agree (or there is only one), so any of them is the answer.
     const cents = Math.round(xs.reduce((s, v) => s + v, 0) / xs.length);
 
-    if (cents < POINT_VALUE_FLOOR_CENTS || cents > POINT_VALUE_CEILING_CENTS) {
-      quarantined.set(root, `derived point value ${fmtMoney(cents)} per point is not plausible for a listed future`);
+    // The real check, when the root's tick size is known: is one TICK worth a plausible amount?
+    const tickSize = tickSizeByRoot?.get(root);
+    if (tickSize !== undefined && tickSize > 0) {
+      const tickValue = cents * tickSize;
+      if (tickValue < TICK_VALUE_FLOOR_CENTS || tickValue > TICK_VALUE_CEILING_CENTS) {
+        quarantined.set(
+          root,
+          `derived tick value ${fmtMoney(Math.round(tickValue))} is not plausible for a listed future ` +
+            `(${fmtMoney(cents)} per point x tick ${tickSize})`
+        );
+        continue;
+      }
+    } else if (cents < POINT_VALUE_ABSURD_FLOOR_CENTS || cents > POINT_VALUE_ABSURD_CEILING_CENTS) {
+      quarantined.set(root, `derived point value ${fmtMoney(cents)} per point is not a real number`);
       continue;
     }
 
@@ -639,7 +695,7 @@ export function buildTapeFromParsed(input: TapeInput): Tape {
   const rootOf = new Map<string, string>();
   for (const f of fills) if (f.contract && f.symbol) rootOf.set(f.contract, f.symbol);
 
-  const pointValue = derivePointValueCents(tapeRoundTrips, rootOf);
+  const pointValue = derivePointValueCents(tapeRoundTrips, rootOf, input.tickSizeByRoot);
   // Resolve a specific contract to its product's point value, in cents. Null when the root
   // quarantined or never resolved — and null must stay null all the way to the render, never a
   // zero and never a default, because a defaulted multiplier is the 10x error made silently.

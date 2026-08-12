@@ -135,12 +135,88 @@ check(
 );
 
 const rows = await db.select().from(contractSpec).orderBy(contractSpec.symbolRoot);
-check('seeded narrow: two roots, and only what has been traded', rows.length, 2);
-check('roots', rows.map((r) => r.symbolRoot).join(','), 'MNQ,NQ');
-// 0.25 index points, outright, from CME's published spec for both products.
-check('tick sizes are in QUOTE units', rows.map((r) => Number(r.tickSize)).join(','), '0.25,0.25');
+const byRoot = new Map(rows.map((r) => [r.symbolRoot, r]));
+
+check('the seeded roster', rows.length, 41);
 check('currency', [...new Set(rows.map((r) => r.currency))].join(','), 'USD');
-check('exchange, which drives the session calendar', [...new Set(rows.map((r) => r.exchange))].join(','), 'CME');
+// Four exchanges, not one. CBOT holds the Dow pair, NYMEX the energy, COMEX the metals — and it
+// is the exchange that drives the session calendar, so filing YM under CME would be wrong.
+check(
+  'four exchanges, because CME Group is four exchanges',
+  [...new Set(rows.map((r) => r.exchange))].sort().join(','),
+  'CBOT,CME,COMEX,NYMEX',
+);
+check('YM is CBOT', byRoot.get('YM')?.exchange, 'CBOT');
+check('CL is NYMEX', byRoot.get('CL')?.exchange, 'NYMEX');
+check('GC is COMEX', byRoot.get('GC')?.exchange, 'COMEX');
+
+// Spot checks against CME's published Globex OUTRIGHT tick. EMD and the FX pairs are the two
+// places the exchange's API also carries a ClearPort tick, which is 10x smaller and would seed
+// silently wrong — so both are asserted rather than trusted.
+check('MNQ tick', Number(byRoot.get('MNQ')?.tickSize), 0.25);
+check('CL tick', Number(byRoot.get('CL')?.tickSize), 0.01);
+check('EMD tick is Globex 0.10, not ClearPort 0.01', Number(byRoot.get('EMD')?.tickSize), 0.1);
+check('6E tick is Globex 0.000050, not ClearPort 0.000010', Number(byRoot.get('6E')?.tickSize), 0.00005);
+
+// The deliberately absent. A missing row quarantines loudly; a wrong row is a plausible number
+// nobody catches. These three families are quoted in units one real export has not settled, and
+// SR3's tick is not a constant at all. Absent is the correct state, and it is asserted so that
+// nobody "completes" the table from memory.
+for (const root of ['ZC', 'ZS', 'ZB', 'ZN', 'LE', 'HE', 'SR3']) {
+  check(`${root} is deliberately NOT seeded`, byRoot.has(root), false);
+}
+
+console.log('\n=== 4. THE SANITY BOUND IS ON THE TICK, NOT THE POINT ===\n');
+
+// The bound that shipped in S1 was calibrated on a corpus of MNQ and NQ, and would have told a
+// crude trader their real $1,000-per-point contract was "not plausible for a listed future".
+// These assertions exist so that cannot come back.
+const { derivePointValueCents } = await import('../src/lib/desk/tape.ts');
+
+const tickSizes = new Map(rows.map((r) => [r.symbolRoot, Number(r.tickSize)]));
+
+// One synthetic round trip per product, priced at its real point value. `grossCents` is what the
+// broker would have paid: points x pointValue x qty, in cents.
+const rt = (contract: string, points: number, pointValueCents: number, qty = 1) => ({
+  contract,
+  entryPriceMicros: 0,
+  exitPriceMicros: points * 1_000_000,
+  qty,
+  grossCents: points * pointValueCents * qty,
+});
+
+const REAL = [
+  { root: 'MNQ', pv: 200 }, // $2/point   — tick 0.25 -> $0.50
+  { root: 'NQ', pv: 2_000 }, // $20       — $5.00
+  { root: 'CL', pv: 100_000 }, // $1,000  — tick 0.01 -> $10.00. QUARANTINED BY THE OLD BOUND.
+  { root: '6E', pv: 12_500_000 }, // $125,000 — tick 0.00005 -> $6.25. Off by 500x under the old one.
+  { root: 'MET', pv: 10 }, // $0.10       — tick 0.50 -> $0.05, the floor of the whole roster
+  { root: 'PA', pv: 10_000 }, // $100     — tick 0.50 -> $50.00, the ceiling
+];
+
+for (const { root, pv } of REAL) {
+  const res = derivePointValueCents(
+    [rt(`${root}Z6`, 10, pv)] as never,
+    new Map([[`${root}Z6`, root]]),
+    tickSizes,
+  );
+  const q = res.quarantined.get(root);
+  check(`${root} at ${(pv / 100).toLocaleString()}/point survives`, q ?? res.byRoot.get(root)?.cents, pv);
+}
+
+// And it still catches what it was written to catch. A price column parsed 100x too small makes
+// the derived point value 100x too LARGE, which is the shifted-column signature.
+const corrupt = derivePointValueCents(
+  [rt('CLZ6', 10, 100_000 * 100)] as never,
+  new Map([['CLZ6', 'CL']]),
+  tickSizes,
+);
+check('a 100x-corrupted CL still quarantines', corrupt.quarantined.has('CL'), true);
+check('...and says tick value, not point value', /tick value/.test(corrupt.quarantined.get('CL') ?? ''), true);
+
+// With no tick size, the wide fallback admits a real product rather than inventing a reason.
+const noTick = derivePointValueCents([rt('ZCZ6', 10, 500_000)] as never, new Map([['ZCZ6', 'ZC']]));
+check('an unseeded root is not falsely called implausible', noTick.quarantined.has('ZC'), false);
 
 console.log(`\n${failures === 0 ? 'S2 GATE PASSED' : `S2 GATE FAILED — ${failures} assertion(s)`}`);
 process.exit(failures === 0 ? 0 : 1);

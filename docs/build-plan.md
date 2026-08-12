@@ -201,19 +201,41 @@ still passes unchanged, and nothing in `lib/time/` reads the database.
   `point_value_cents`; the multiplier is derived from the trader's own round trips
   (`architecture.md`) — MNQ $2.00 from 296 round trips, NQ $20.00 from 61, solved from the broker's
   realised P&L with no table. What remains is what cannot be derived: `tick_size` (quote units,
-  never money), `currency` (a EUR product's P&L may not be summed with a USD one) and `exchange`
-  (drives the session calendar). **An unknown root still quarantines** — the row no longer carries
-  the multiplier, but it carries the currency and the calendar, and guessing either is the same
-  failure in a different field.
+  never money), `currency` and `exchange` (drives the session calendar). **An unknown root still
+  quarantines** — the row no longer carries the multiplier, but it carries the currency and the
+  calendar, and guessing either is the same failure in a different field.
   - **Seeded by `scripts/seed-contract-spec.mts`, not by a migration.** It is data, so it corrects
     without a deploy; baked into a migration a typo would need a schema change to fix.
-  - **Two rows, MNQ and NQ, and the narrowness is the point.** A missing row fails loudly; a wrong
-    row produces a plausible number nobody catches. ES and MES are the obvious next two and are
-    *not* seeded, because "obvious" is exactly the reasoning that puts an unverified row in.
-  - Values read 2026-08-12 from CME's own contract-spec pages, from the markup rather than a
-    summary of it, with the source URL beside each row. **The published contract unit is recorded
-    as a cross-check, never as the source** (derivation rule 6) — and the check passed: CME
-    publishes `$2 x Nasdaq-100` and `$20 x Nasdaq-100`, matching the derivation to the cent.
+  - **41 roots**, read from CME's own contract-spec service rather than a summary of it, covering
+    equity index, energy, metals, FX and crypto across **four exchanges** (CME, CBOT, NYMEX,
+    COMEX). Roster scoped to what a Tradovate prop or personal account can reach, which is the
+    same scoping the previous build arrived at (`run-trading@v2:src/lib/instruments.ts`).
+  - **Grains, treasuries and livestock are deliberately absent, and the gate asserts their
+    absence.** They are quoted in units that differ from CME's published figure — cents vs dollars
+    per bushel, 32nds vs decimals — and `tick_size` must match the broker's price column or the
+    plausibility check is confidently wrong. One real export settles it; until then a missing row
+    quarantines loudly, which is the correct failure. SR3 is out for a different reason: its tick
+    is not a constant.
+  - **The published contract unit is a cross-check, never the source** (derivation rule 6), and it
+    passed: CME publishes `$2 x Nasdaq-100` and `$20 x Nasdaq-100`, matching the derivation.
+
+#### ↩ REOPENED AND RE-CLOSED 2026-08-12, same day, on one question from Luke
+
+*"Will this work for any trader with a Tradovate account trading whatever they're allowed to
+trade?"* It would not have, and the reason was inside `S1`, not `S2`:
+
+- **The point-value plausibility bound was calibrated on a corpus of MNQ and NQ.** $0.10–$250 per
+  point. Crude is $1,000, a treasury is ~$1,000, 6E is $125,000 — so a real trade would have been
+  quarantined with *"not plausible for a listed future"*, **a false claim about a real trade shown
+  to the trader.** Now bounded on **tick value** instead, which spans only $0.05–$50 across all 59
+  reachable roots because exchanges size ticks to be economically comparable. `s2-gate.mts` §4.
+- **`docs/market-hours.md` written**, and it closes the agricultural gap `run-trading@v2` left
+  open: 17:00 CT needs no special case for ag, because grains close at 13:20 and reopen at 19:00,
+  so the roll lands in a dead zone. Livestock is 08:30–13:05, entirely before it.
+- **Crypto is 24/7** — the real exception, and one the previous build never found. A session date
+  can be a Saturday, which contradicted `spec.md` §8. Amended in both places.
+- **Crude is *not* an exception.** Checked because it is the one most often described as closing
+  early; that is its 13:30 settlement, not its session.
 
 ### S3 — Auth and identity
 

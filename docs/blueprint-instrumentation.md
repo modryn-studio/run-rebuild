@@ -142,6 +142,18 @@ Format: `<date> · <phase> · <what happened> · <what I did instead>`
              STRENGTHENS the existing S1 amendment candidate: the blueprint needs a definition of
              done for a non-UI slice, not just an exception noted twice.
 
+2026-08-12 · P5 · S2. Closed the slice, then Luke asked one question — "will this work for any
+             trader with a Tradovate account, trading whatever they're allowed to trade?" — and it
+             reopened immediately. A sanity bound written during S1 had been calibrated, without
+             anyone noticing, on the only corpus available: Luke's own two instruments. It would
+             have told a crude trader their real trade was "not plausible for a listed future".
+             Nothing in the seven-point definition of done asks who ELSE the code has to work for,
+             and the gate that passed was written by the same person holding the same assumption.
+             · Rebounded on tick value, wrote docs/market-hours.md, seeded 41 roots from the
+             exchange's own API. AMENDMENT CANDIDATE, and the strongest one so far: the definition
+             of done needs a line about the population beyond the builder. For a solo builder who
+             is also the only user, every constant is a sample of one until someone asks.
+
 2026-08-12 · P5 · S2. The plan predicted `scripts/s1-gate.mts` would BECOME S2's verification
              script. It didn't — S2 needed database-backed assertions S1 has no business
              carrying, so it wrote its own and S1's gate stayed as a regression. Small, but it
