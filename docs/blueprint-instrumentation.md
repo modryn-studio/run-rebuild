@@ -134,6 +134,21 @@ Format: `<date> · <phase> · <what happened> · <what I did instead>`
              should say to re-check what the probe built before deleting it, and should give a
              non-UI slice its own definition of done.
 
+2026-08-12 · P5 · S2. The seven-point definition of done did not apply AGAIN — "works on mobile,
+             matches the design system" is meaningless for a time module and a four-column data
+             table, exactly as at S1. Second occurrence, same slice shape, so this is a pattern
+             rather than a one-off. · Wrote S2 its own bar (tsc + eslint clean, its gate passes,
+             S1's gate still passes, nothing in lib/ reads the DB) and recorded it in the plan.
+             STRENGTHENS the existing S1 amendment candidate: the blueprint needs a definition of
+             done for a non-UI slice, not just an exception noted twice.
+
+2026-08-12 · P5 · S2. The plan predicted `scripts/s1-gate.mts` would BECOME S2's verification
+             script. It didn't — S2 needed database-backed assertions S1 has no business
+             carrying, so it wrote its own and S1's gate stayed as a regression. Small, but it
+             cost a minute of "am I supposed to be editing that file." · Kept both and corrected
+             the prediction in the plan. Amendment candidate, weak: a plan that names where an
+             artefact will END UP is guessing; naming what it is FOR would have survived.
+
 2026-08-11 · P5 · S0. The blueprint's phase 7 bar says "CI runs tests + typecheck + lint on
              every push; merging is blocked on green." Built it at S0, then deleted it the same
              day on Luke's pushback, and the pushback holds: the host already checks out fresh

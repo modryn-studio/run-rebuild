@@ -5,7 +5,7 @@
 > still applies before overturning a decision.
 
 **Status:** LOCKED at the phase 4 gate, 2026-08-11
-**Last amended:** 2026-08-12 — contract_spec point value DERIVED not seeded; price precision at parse and render; `order` added to the event types
+**Last amended:** 2026-08-12 — contract_spec point value DERIVED not seeded; price precision at parse and render; `order` added to the event types; §4 week/month/YTD bucket definitions specified (S2)
 
 <!-- DERIVATION NOTE: written from the locked spec only. run-trading/docs/data-model.md exists
      and has NOT been read — deliberately, so this is an honest derivation rather than a
@@ -483,7 +483,7 @@ difference between Run's read and the field's "AI" that restates the chart.
 | Account resolution mid-import | a resolved account must already be owned by the caller, or be created by them in this flow | session → `trader_id` |
 | Any `account_id` in a URL | must resolve to a row owned by the caller | re-checked per request |
 | Filter/date params | parsed and clamped server-side | — |
-| `symbol_root` from a file | must exist in `contract_spec`, else quarantine — **never a default multiplier** | — |
+| `symbol_root` from a file | must exist in `contract_spec`, else quarantine. The row no longer carries the multiplier, but it carries the **currency and the calendar**, and guessing either is the same failure in a different field | — |
 
 **Every query is scoped by `trader_id` from the session, never from the request.** The most
 common real-world web vuln is changing an id in a URL and reading someone else's record — and
@@ -515,6 +515,37 @@ sessionDateFor(exitAtUtc) -> date      // the ONLY way a session_date is produce
   evening session, silently.
 - Named IANA zone, never a fixed offset. An offset breaks twice a year.
 - `trader.display_timezone` must not be importable from this module.
+
+#### The coarser buckets — SPECIFIED 2026-08-12 (S2), because "week" was a word, not a definition
+
+```
+bucketStartFor(sessionDate, 'day' | 'week' | 'month' | 'year') -> date
+yearToDateWindow(asOfSessionDate)                              -> { from, to }
+```
+
+Two decisions, both chosen to make disagreement **impossible** rather than merely forbidden:
+
+- **Every bucket takes a session date, never an instant.** Accepting a `Date` would make
+  `bucketStartFor` answer the zone question a second time, and a second answer is the entire
+  failure. The session date has already resolved the boundary; a week is then calendar arithmetic
+  on that string and cannot drift from the day it was built from.
+- **The week starts Monday** — ISO 8601, and what Postgres `date_trunc('week', …)` returns by
+  definition with no configuration. `'month'` and `'year'` agree trivially. So the two code paths
+  that produced `#97` are *defined* to return the same answer, and `scripts/s2-gate.mts` proves it
+  against the real database over DST in both directions, a year boundary and a leap day, rather
+  than asserting it in a comment.
+
+Monday is also the trading week: CME Globex runs Sunday 17:00 CT to Friday 16:00 CT, and Sunday
+evening carries **Monday's** trade date, so a session date is always Mon–Fri and one Monday-start
+week holds exactly one trading week. That is what makes *"the weekend has no bucket"* (spec §8)
+true by construction — there are no weekend session dates to bucket.
+
+**Year to date is a WINDOW, not a bucket, and the vocabulary keeps them apart.** A bucket is fixed
+by the date inside it; a window depends on when you ask. A `bucketStartFor(d, 'ytd')` that quietly
+meant "to now" would make two different ranges look like one grain.
+
+A malformed date **throws**. `new Date('2026-02-30')` silently returns March 2nd, which is a
+plausible answer to a question that had no answer — the same failure class as a default multiplier.
 
 ---
 

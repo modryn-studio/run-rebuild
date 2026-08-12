@@ -112,3 +112,97 @@ export function displayClock(instantUtc: Date, displayTimezone: string): string 
     hour12: false,
   }).format(instantUtc);
 }
+
+// ── THE COARSER BUCKETS — week, month, year to date ──────────────────────────────────────
+// S2, 2026-08-12. `architecture.md` §4 names day, week, month and year-to-date as belonging to
+// this module; until now only the session date existed, which is the half that would have made
+// somebody write `date_trunc` somewhere else.
+//
+// TWO DESIGN DECISIONS DO ALL THE WORK HERE, and both exist to make disagreement impossible
+// rather than merely forbidden.
+//
+// 1. EVERY BUCKET TAKES A SESSION DATE, NEVER AN INSTANT. If `bucketStartFor` accepted a `Date`
+//    it would have to answer the zone question a second time, and a second answer is the whole
+//    failure. The session date has already resolved the boundary; a week is then plain calendar
+//    arithmetic on that string and cannot drift from the day it was built from.
+//
+// 2. THE WEEK STARTS MONDAY, which is ISO 8601 **and** what Postgres `date_trunc('week', …)`
+//    returns, by definition, with no configuration. `date_trunc` on 'month' and 'year' agree
+//    trivially. So the two code paths that produced `#97` — a TypeScript bucketer and a SQL
+//    `date_trunc` both called "grain" — are here defined to return the same answer, and
+//    `scripts/s2-gate.mts` proves it against the real database rather than asserting it.
+//
+//    Monday also happens to be the trading week: the session runs Sunday 17:00 CT to Friday
+//    16:00 CT (CME's own published hours, read 2026-08-12), and Sunday evening carries MONDAY's
+//    trade date. So a session date is always Mon–Fri, one Monday-start week holds exactly one
+//    trading week, and "the weekend has no bucket" (spec.md §8) is satisfied by having no
+//    weekend session dates to bucket.
+export type Grain = 'day' | 'week' | 'month' | 'year';
+
+const SESSION_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const DAY_MS = 86_400_000;
+
+// A malformed date must throw rather than bucket. Silently coercing `2026-02-30` into March 2nd
+// is the same class of failure as a default multiplier: a plausible answer to a question that
+// had no answer. `new Date(str)` does exactly that coercion, which is why it is not used here.
+function utcOf(sessionDate: string): Date {
+  const m = SESSION_DATE.exec(sessionDate);
+  if (!m) {
+    throw new Error(
+      `Not a session date: ${JSON.stringify(sessionDate)}. Expected YYYY-MM-DD from sessionDateFor().`,
+    );
+  }
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const at = new Date(Date.UTC(y, mo - 1, d));
+  // The round trip catches every overflow at once: month 13, February 30th, and the two-digit
+  // year that `Date.UTC` maps into the 1900s.
+  if (at.getUTCFullYear() !== y || at.getUTCMonth() + 1 !== mo || at.getUTCDate() !== d) {
+    throw new Error(`Not a real date: ${sessionDate}`);
+  }
+  return at;
+}
+
+/**
+ * The first session date of the bucket a session date falls in — the grouping key for every
+ * rollup in the product.
+ *
+ * `day` returns the input, deliberately: a day is not a special case with its own code path, it
+ * is the finest grain of one vocabulary.
+ *
+ * UTC arithmetic throughout, which is correct precisely BECAUSE no zone conversion is happening.
+ * Only the Y/M/D triple moves, and UTC is the one calendar with no DST to skip an hour across.
+ */
+export function bucketStartFor(sessionDate: string, grain: Grain): string {
+  const at = utcOf(sessionDate);
+
+  switch (grain) {
+    case 'day':
+      return sessionDate;
+    case 'week': {
+      // getUTCDay: 0 = Sunday. Shift so Monday is 0 and Sunday is 6.
+      const backToMonday = (at.getUTCDay() + 6) % 7;
+      return isoOf(new Date(at.getTime() - backToMonday * DAY_MS));
+    }
+    case 'month':
+      return iso(at.getUTCFullYear(), at.getUTCMonth() + 1, 1);
+    case 'year':
+      return iso(at.getUTCFullYear(), 1, 1);
+  }
+}
+
+/**
+ * Year to date, as a half-open-free inclusive window.
+ *
+ * **YTD is a WINDOW, not a bucket**, and keeping the two words apart is the point of a separate
+ * function. A bucket is fixed by the date inside it; a window depends on when you ask. Two reads
+ * of "year to date" a week apart are different ranges over the same year, and a `bucketStartFor`
+ * that quietly meant "to now" would make that difference invisible.
+ *
+ * Both ends are inclusive, because `session_date` is a date and every query over it is
+ * `BETWEEN from AND to`. There is no partial last day to exclude.
+ */
+export function yearToDateWindow(asOfSessionDate: string): { from: string; to: string } {
+  return { from: bucketStartFor(asOfSessionDate, 'year'), to: asOfSessionDate };
+}
+
+const isoOf = (d: Date) => iso(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());

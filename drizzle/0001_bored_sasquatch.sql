@@ -1,0 +1,1 @@
+ALTER TABLE "contract_spec" DROP COLUMN "point_value_cents";

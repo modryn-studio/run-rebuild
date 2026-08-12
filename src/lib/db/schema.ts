@@ -9,7 +9,6 @@ import {
   jsonb,
   boolean,
   index,
-  bigint,
   numeric,
 } from 'drizzle-orm/pg-core';
 
@@ -111,22 +110,33 @@ export const alertThrottle = pgTable('alert_throttle', {
 // CLAUDE.md. One push makes migrate skip older migrations forever, silently, exit 0.
 // ─────────────────────────────────────────────────────────────────────────────────────
 
-// ── contract_spec — the multiplier table. Small, boring, highest-risk thing in the schema.
-// Round-trip P&L is (exit - entry) x point_value x qty, so a wrong multiplier produces a
-// number that is confidently, precisely wrong — the same failure class as the competitor's
-// "MAX DRAWDOWN 1644.2%". NQ and MNQ are the same instrument at 10:1; getting that backwards
-// is a 10x error in every figure in the product. It is data, not code, so it corrects without
-// a deploy. See docs/architecture.md §1.
+// ── contract_spec — what an instrument is, MINUS the one field that used to matter most.
 //
-// SEEDED IN S2, NOT HERE, and seeded NARROW. The asymmetry decides it: a MISSING row fails
-// loudly (unknown root -> the trade quarantines, never a default multiplier), while a WRONG
-// row produces a plausible number nobody catches. So breadth bought from memory is a
-// liability, not coverage. Every value comes from the exchange's own published contract spec,
-// with the source URL and the date read in a comment beside the row, and the table grows only
-// when a real import quarantines something.
+// `point_value_cents` WAS here and is gone (S2, 2026-08-12 — see docs/architecture.md, the
+// contract_spec section). It is now DERIVED per symbol_root from the trader's own closed round
+// trips: pointValue = gross / (deltaPrice x qty), solved from the broker's realised P&L, which
+// is the same source every other figure in the product reconciles to. A hand-seeded multiplier
+// was a human transcription sitting underneath every P&L number, and "never show a number you
+// cannot reconcile" forbids exactly that. It was also the only design that could invert NQ and
+// MNQ into a 10x error; derivation cannot, because each root solves from its own trades.
+// `lib/desk/tape.ts` owns the derivation and quarantines on disagreement — never a median.
+//
+// WHAT REMAINS IS WHAT CANNOT BE DERIVED, and each field is load-bearing on its own:
+//   tick_size  the instrument's own precision, which a round trip does not reveal
+//   currency   a EUR-denominated product's P&L may not be summed with a USD one
+//   exchange   drives the session calendar (CME hours are not the ag complex's hours)
+//
+// AN UNKNOWN ROOT STILL QUARANTINES. The row no longer carries the multiplier, but it carries
+// the currency and the calendar, and guessing either is the same failure in a different field.
+//
+// SEEDED NARROW, by scripts/seed-contract-spec.mts, not by a migration — it is data, so it
+// corrects without a deploy. The asymmetry decides the width: a MISSING row fails loudly, a
+// WRONG row produces a plausible number nobody catches. So breadth bought from memory is a
+// liability rather than coverage. Every value comes from the exchange's own published contract
+// spec with the source URL and the date read beside it, and the table grows only when a real
+// import quarantines something.
 export const contractSpec = pgTable('contract_spec', {
-  symbolRoot: text('symbol_root').primaryKey(), // MNQ, NQ, ES, MES
-  pointValueCents: bigint('point_value_cents', { mode: 'number' }).notNull(), // MNQ 200, NQ 2000
+  symbolRoot: text('symbol_root').primaryKey(), // MNQ, NQ — what has actually been traded
   tickSize: numeric('tick_size').notNull(),
   currency: text('currency').notNull(),
   exchange: text('exchange').notNull(), // drives the session calendar

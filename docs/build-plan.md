@@ -127,7 +127,7 @@ assumes this is scratch and rewrites it.**
 | **Production** | `lib/time/session.ts` · `lib/csv/*` · `lib/fees/allocate.ts` · `lib/desk/tape.ts` |
 | **Proven engine, output shape UNRESOLVED** | `lib/desk/{render,lenses,read}.ts` — see the note at `S7` |
 | **Disposable** | `scripts/s1-render.mts` · `scripts/s1-boundary-check.mts` |
-| **Disposable, but has a home** | `scripts/s1-gate.mts` → becomes `S2`'s verification script |
+| **Kept, and it earned it** | `scripts/s1-gate.mts` — predicted to *become* `S2`'s verification script; instead `S2` wrote its own and this one stayed as the regression that proves a change did not move the money |
 
 **The done bar is production, and the seven-point definition does not apply** — "works on mobile,
 matches the design system" is meaningless for a parser library. Its bar instead:
@@ -176,23 +176,44 @@ against.
 
 Not a screen. The pieces that corrupt everything downstream if they're wrong.
 
-**MOSTLY DELIVERED BY `S1` — read this before starting it.**
+**✅ CLOSED 2026-08-12.** `S1` delivered the larger half; this closed the two gaps it left. Same
+non-UI done bar as `S1` (the seven-point definition is meaningless for a library and a data table):
+`tsc` and `eslint` clean, **`scripts/s2-gate.mts` passes — 51 assertions**, `scripts/s1-gate.mts`
+still passes unchanged, and nothing in `lib/time/` reads the database.
 
-- ✅ **The time module** — `lib/time/session.ts`, done. One function producing the session date
-  from `exit_at`, `SESSION_BOUNDARY_ZONE` and `_HOUR` travelling together, a named IANA zone, and
-  a display formatter that can never be mistaken for a bucketer. **Its verification script is
-  `scripts/s1-gate.mts` §4**, which asserts the roll in both DST directions — this is the
-  "verification script in the style of `verify-trade-date.mts`" the plan asks for.
-  - **Still to do:** the other buckets. Week, month and year-to-date are named in
-    `architecture.md` §4 as belonging to this module and only the session date exists.
+- ✅ **The time module** — `lib/time/session.ts`. `sessionDateFor` from `exit_at`,
+  `SESSION_BOUNDARY_ZONE` and `_HOUR` travelling together, a named IANA zone, a display formatter
+  that can never be mistaken for a bucketer, and now `bucketStartFor(sessionDate, grain)` plus
+  `yearToDateWindow`. Definitions in `architecture.md` §4.
+  - **The week starts Monday, and the reason is structural rather than stylistic:** it is what
+    Postgres `date_trunc('week', …)` returns by definition, so the TypeScript path and any future
+    SQL path cannot disagree. `#97` was a TS bucketer and a SQL `date_trunc` both called "grain"
+    while meaning different things; **§2 of the gate runs both against the real database** over DST
+    in both directions, a year boundary and a leap day. That is the difference between "these
+    should agree" and "these do."
+  - Every bucket takes a **session date, never an instant** — accepting a `Date` would reopen the
+    zone question in a second place, and a second answer is the whole failure.
+  - A malformed date **throws** rather than bucketing. `new Date('2026-02-30')` returns March 2nd.
   - **Known limit, measured:** Luke's corpus contains **zero fills after the 17:00 CT roll**
     (`scripts/s1-boundary-check.mts`), so the boundary is proven only synthetically. Real evening
     data would exercise it; nothing available does.
-- ⚠️ **`contract_spec`** — **changed shape.** `point_value_cents` is gone; the multiplier is
-  derived from the trader's own round trips (`architecture.md`), and that derivation already
-  works — MNQ $2.00, NQ $20.00, solved from the broker's realised P&L with no table.
-  - **Still to do:** the table for what cannot be derived — `tick_size`, `currency`, `exchange`
-    (which drives the session calendar) — and its seeding.
+- ✅ **`contract_spec`** — **changed shape, migrated, seeded.** `drizzle/0001` drops
+  `point_value_cents`; the multiplier is derived from the trader's own round trips
+  (`architecture.md`) — MNQ $2.00 from 296 round trips, NQ $20.00 from 61, solved from the broker's
+  realised P&L with no table. What remains is what cannot be derived: `tick_size` (quote units,
+  never money), `currency` (a EUR product's P&L may not be summed with a USD one) and `exchange`
+  (drives the session calendar). **An unknown root still quarantines** — the row no longer carries
+  the multiplier, but it carries the currency and the calendar, and guessing either is the same
+  failure in a different field.
+  - **Seeded by `scripts/seed-contract-spec.mts`, not by a migration.** It is data, so it corrects
+    without a deploy; baked into a migration a typo would need a schema change to fix.
+  - **Two rows, MNQ and NQ, and the narrowness is the point.** A missing row fails loudly; a wrong
+    row produces a plausible number nobody catches. ES and MES are the obvious next two and are
+    *not* seeded, because "obvious" is exactly the reasoning that puts an unverified row in.
+  - Values read 2026-08-12 from CME's own contract-spec pages, from the markup rather than a
+    summary of it, with the source URL beside each row. **The published contract unit is recorded
+    as a cross-check, never as the source** (derivation rule 6) — and the check passed: CME
+    publishes `$2 x Nasdaq-100` and `$20 x Nasdaq-100`, matching the derivation to the cent.
 
 ### S3 — Auth and identity
 

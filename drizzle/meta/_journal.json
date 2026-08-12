@@ -8,6 +8,13 @@
       "when": 1786490032866,
       "tag": "0000_init_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786562243883,
+      "tag": "0001_bored_sasquatch",
+      "breakpoints": true
     }
   ]
 }

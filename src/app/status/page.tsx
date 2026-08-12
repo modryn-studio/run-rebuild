@@ -50,9 +50,10 @@ export default async function StatusPage() {
           <>
             <p className="text-figure mt-1 tabular-nums">{instruments}</p>
             <p className="text-small text-muted mt-3">
-              Zero is the correct answer today. <span className="num">contract_spec</span> is seeded
-              in S2, narrow and from the exchange&rsquo;s own published specs, and an unknown symbol
-              quarantines rather than falling back to a default multiplier.
+              <span className="num">contract_spec</span> is seeded narrow, from the
+              exchange&rsquo;s own published specs, and grows only when a real import quarantines
+              something. An unknown symbol quarantines rather than falling back to a guess, and
+              the multiplier is not in this table at all: it is derived from your own round trips.
             </p>
           </>
         ) : (
