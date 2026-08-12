@@ -26,7 +26,7 @@ import type { ParsedFee } from '@/lib/csv/cash-history';
 import type { ParsedOrder, OrderType } from '@/lib/csv/orders';
 import { allocateFees, type NetPnlRow } from '@/lib/fees/allocate';
 import { PRICE_SCALE } from '@/lib/csv/shared';
-import { sessionDateFor } from '@/lib/time/session';
+import { sessionDateFor, displayClock, SESSION_BOUNDARY_ZONE } from '@/lib/time/session';
 
 export type Direction = 'long' | 'short';
 export type Outcome = 'winner' | 'loser' | 'scratch';
@@ -147,6 +147,10 @@ export interface Tape {
    *  firm above the trader and no rule that can take the account away. A missing entry stays
    *  missing — the render says the type is unstated, and the lens asks rather than guessing. */
   accountTypes: Record<string, AccountType | 'unstated'>;
+  /** The zone every clock in this tape is rendered in, and the zone its whitelist was built
+   *  against. ONE value, carried on the tape, because the render and the whitelist reading two
+   *  different zones is what flagged every correctly-quoted timestamp on the first run. */
+  displayTimezone: string;
   meta: {
     fills: number;
     roundTrips: number;
@@ -181,6 +185,10 @@ export interface TapeInput {
   /** Account name -> type. Optional, and its ABSENCE is meaningful: the tape then says the type
    *  is unstated rather than letting a reader assume one. See the note on `Tape.accountTypes`. */
   accountTypes?: Record<string, AccountType>;
+  /** The trader's own zone, for DISPLAY only. Defaults to the market zone rather than UTC: if a
+   *  caller forgets one, the least-wrong clock is the one the sessions are cut in, never a clock
+   *  nobody trades on. */
+  displayTimezone?: string;
 }
 
 // ── formatting: one place, so verifiedNumbers and the rendered tape cannot disagree ──
@@ -677,11 +685,13 @@ export function buildTapeFromParsed(input: TapeInput): Tape {
   const tradingDays = [...dayKeys].sort();
   const cancels = tapeOrders.filter((o) => o.status === 'canceled');
 
+  const displayTimezone = input.displayTimezone ?? SESSION_BOUNDARY_ZONE;
   const accountNames = [...new Set(fills.map((f) => f.accountName).filter((a): a is string => !!a))];
 
   const tape: Tape = {
     accounts: accountNames,
     accountTypes: Object.fromEntries(accountNames.map((n) => [n, input.accountTypes?.[n] ?? 'unstated'])),
+    displayTimezone,
     roundTrips: tapeRoundTrips,
     orders: tapeOrders,
     episodes,
@@ -743,13 +753,25 @@ export function buildTapeFromParsed(input: TapeInput): Tape {
   // back in at 09:31" is making a claim about the tape exactly as much as a dollar figure is,
   // and an invented timestamp is a class-1 error. Both HH:MM:SS as rendered and the HH:MM a
   // writer will naturally shorten it to.
+  //
+  // ── FIXED, AND THE BUG WAS INTRODUCED BY THE CLOCK FIX ITSELF ─────────────────────────────
+  // This used `d.toISOString()` — UTC — while the render moved to the trader's zone. So the
+  // whitelist held 13:25:21 while the tape showed 08:25:21, and every timestamp a read quoted
+  // CORRECTLY was flagged as unverified. Measured on the first small run: three flags, all three
+  // real figures, zero fabrications.
+  //
+  // That is the two-code-paths-for-one-value failure this codebase has a rule against, and
+  // fixing the render without following it here is how I created it. The repair is structural
+  // rather than a matching edit: both now read `tape.displayTimezone` and go through the same
+  // formatters, so they cannot drift apart again.
   const addClock = (d: Date | null) => {
     if (!d) return;
-    const iso = d.toISOString();
-    v.add(iso.slice(11, 19));
-    v.add(iso.slice(11, 16));
-    v.add(iso.slice(0, 10));
-    v.add(iso.slice(5, 10));
+    const clock = displayClock(d, displayTimezone);
+    v.add(clock);
+    v.add(clock.slice(0, 5));
+    const day = sessionDateFor(d);
+    v.add(day);
+    v.add(day.slice(5));
   };
   for (const rt of tape.roundTrips) {
     addClock(rt.entryAt);

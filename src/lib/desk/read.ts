@@ -20,12 +20,43 @@ import { renderTape } from './render';
 export const DESK_MODEL = 'claude-opus-5';
 export const DESK_EFFORT = 'high' as const;
 
-export interface LensRead {
+/** Claude Opus 5, US dollars per million tokens, from Anthropic's pricing page 2026-08-12.
+ *  Here rather than in a config because a cost report with stale rates is worse than none. */
+export const RATES = {
+  input: 5,
+  cacheWrite5m: 6.25, // 1.25x
+  cacheRead: 0.5, // 0.1x
+  output: 25,
+} as const;
+
+export interface Usage {
+  /** Uncached input — billed at the full rate. */
+  inputTokens: number | null;
+  /** Read from cache at 0.1x. Zero on the first call of a prefix. */
+  cacheReadTokens: number | null;
+  /** Written to cache at 1.25x. Non-zero only on the first call of a prefix. */
+  cacheWriteTokens: number | null;
+  /** Includes thinking tokens at `effort: high`, which caching never discounts. */
+  outputTokens: number | null;
+}
+
+/** What this call actually cost, in dollars. Printed per call rather than summed at the end:
+ *  the interesting number is the SPLIT — how much is uncached input, how much is cache read, and
+ *  how much is output that no cache can touch. A single total hides all three. */
+export function costOf(u: Usage): number {
+  const m = (tokens: number | null, rate: number) => ((tokens ?? 0) / 1_000_000) * rate;
+  return (
+    m(u.inputTokens, RATES.input) +
+    m(u.cacheReadTokens, RATES.cacheRead) +
+    m(u.cacheWriteTokens, RATES.cacheWrite5m) +
+    m(u.outputTokens, RATES.output)
+  );
+}
+
+export interface LensRead extends Usage {
   name: string;
   text: string;
   ms: number;
-  inputTokens: number | null;
-  outputTokens: number | null;
 }
 
 export interface NumberCheck {
@@ -37,9 +68,12 @@ export interface NumberCheck {
 export interface DeskRead {
   text: string;
   lenses: LensRead[];
-  synthesis: { ms: number; inputTokens: number | null; outputTokens: number | null };
+  synthesis: Usage & { ms: number };
   numberCheck: NumberCheck;
   totalMs: number;
+  /** Every call's cost, summed. Reported rather than estimated, so a plan's arithmetic can be
+   *  checked against what was actually billed instead of against a token-count guess. */
+  costUsd: number;
 }
 
 // Deterministic safety net for the repo's no-em-dash rule on rendered copy. Deliberately does
@@ -146,21 +180,52 @@ export function checkNumbers(text: string, tape: Tape): NumberCheck {
   return { unverified: [...new Set(unverified)], checked: found.length + spelled.length };
 }
 
+// The AI SDK reports cache tokens on a nested detail object. Read defensively: a missing field
+// must show as null, never as a zero, because "the cache did nothing" and "we could not see what
+// the cache did" are different findings and a zero would silently claim the first.
+type UsageLike = {
+  inputTokens?: number;
+  outputTokens?: number;
+  inputTokenDetails?: { cacheReadTokens?: number; cacheWriteTokens?: number };
+};
+const readUsage = (u: UsageLike | undefined): Usage => ({
+  inputTokens: u?.inputTokens ?? null,
+  outputTokens: u?.outputTokens ?? null,
+  cacheReadTokens: u?.inputTokenDetails?.cacheReadTokens ?? null,
+  cacheWriteTokens: u?.inputTokenDetails?.cacheWriteTokens ?? null,
+});
+
 async function callLens(name: string, system: string, tape: string): Promise<LensRead> {
   const t0 = Date.now();
   const { text, usage } = await generateText({
     model: anthropic(DESK_MODEL),
     system,
-    prompt: `${tape}\n\nSay one thing.`,
+    // CACHED, AND THE CONTENT IS BYTE-IDENTICAL TO WHAT `prompt:` PRODUCED.
+    //
+    // The tape is the same 55k+ tokens on every run, so re-sending it at full price to ask the
+    // same question twice is pure waste: a cache read is 0.1x. Marking it costs nothing and
+    // changes nothing the model sees — same role, same order, one text block, same string. That
+    // matters because the first thing this pipeline has to do is pass a REGRESSION test, and a
+    // restructured request would be another variable in it.
+    //
+    // The cached prefix is system + this block, so each lens caches separately (their systems
+    // differ) and a second run of the same lens on the same tape hits. Reads refresh the TTL, so
+    // sequential runs stay warm inside the 5-minute window.
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: `${tape}\n\nSay one thing.`,
+            providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
+          },
+        ],
+      },
+    ],
     providerOptions: { anthropic: { effort: DESK_EFFORT } },
   });
-  return {
-    name,
-    text: text.trim(),
-    ms: Date.now() - t0,
-    inputTokens: usage?.inputTokens ?? null,
-    outputTokens: usage?.outputTokens ?? null,
-  };
+  return { name, text: text.trim(), ms: Date.now() - t0, ...readUsage(usage) };
 }
 
 // The synthesizer gets the tape as well as the two reads, for the same reason a parent session
@@ -193,6 +258,10 @@ export async function deskRead(tape: Tape, lenses: { name: string; prompt: strin
   const reads = await Promise.all(lenses.map((l) => callLens(l.name, l.prompt, rendered)));
 
   const t0 = Date.now();
+  // NOT CACHED, deliberately. The tape is a shared prefix here too, but the lens outputs that
+  // follow it differ on every run, so caching the tape portion means splitting this into two
+  // content blocks — a real change to the request shape. That waits until after the regression
+  // has a baseline. It is one third of the input and the cheapest third to leave on the table.
   const { text, usage } = await generateText({
     model: anthropic(DESK_MODEL),
     system: SYNTH_SYSTEM,
@@ -200,12 +269,14 @@ export async function deskRead(tape: Tape, lenses: { name: string; prompt: strin
     providerOptions: { anthropic: { effort: DESK_EFFORT } },
   });
   const final = sanitize(text.trim());
+  const synthesis = { ms: Date.now() - t0, ...readUsage(usage) };
 
   return {
     text: final,
     lenses: reads,
-    synthesis: { ms: Date.now() - t0, inputTokens: usage?.inputTokens ?? null, outputTokens: usage?.outputTokens ?? null },
+    synthesis,
     numberCheck: checkNumbers(final, tape),
     totalMs: Date.now() - started,
+    costUsd: [...reads, synthesis].reduce((s, u) => s + costOf(u), 0),
   };
 }

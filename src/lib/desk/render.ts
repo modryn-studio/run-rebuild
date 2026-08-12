@@ -9,7 +9,7 @@
 // fired and a target that filled are different events with the same shape in a fills export.
 import type { Tape, TapeRoundTrip, TapeEpisode, TapeOrder } from './tape';
 import { fmtMoney, fmtPrice, fmtDuration } from './tape';
-import { sessionDateFor, displayClock, SESSION_BOUNDARY_ZONE } from '@/lib/time/session';
+import { sessionDateFor, displayClock } from '@/lib/time/session';
 
 const pad = (s: string | number, n: number) => String(s).padEnd(n);
 const lpad = (s: string | number, n: number) => String(s).padStart(n);
@@ -92,7 +92,9 @@ function orderLine(o: TapeOrder, tz: string): string {
   );
 }
 
-export function renderTape(tape: Tape, displayTimezone = SESSION_BOUNDARY_ZONE): string {
+// Defaults to the zone the tape was BUILT for, so the render and the whitelist cannot be
+// pointed at different clocks. Passing an override here is a bug unless the tape agrees.
+export function renderTape(tape: Tape, displayTimezone = tape.displayTimezone): string {
   const tz = displayTimezone;
   const t = tape.totals;
   const m = tape.meta;
