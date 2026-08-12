@@ -268,7 +268,7 @@ quarantine with S9b's two actions, provenance line.
 Hero metric selector, groups by state with own totals, **freshness stamp on every row**,
 `CLOSED` as a permanent group, summary rail.
 
-### S7 — Read ⭐ *the wedge* — ⛔ **BLOCKED, and not on engineering**
+### S7 — Read ⭐ *the wedge* — ⛔ **BLOCKED, and not on engineering** ([#2](https://github.com/modryn-studio/run-rebuild/issues/2))
 
 The daily read: one pattern, three states (`Finding` / `Watching` / `Quiet`), the working shown,
 plus the History tab. The nightly job that generates and stores `read.body` + `read.working`.
