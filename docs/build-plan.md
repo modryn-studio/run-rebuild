@@ -51,9 +51,27 @@ is small enough to debug.
 - Next.js + Neon + Drizzle + better-auth from `modryn-base`
 - `design/globals.css` in place before any screen exists
 - One route, one query, one rendered value, live on a real URL
-- CI green on push; **a rollback performed once, on purpose**
+- **A rollback performed once, on purpose**
 
 *Proves the pipeline works before there is anything to blame.*
+
+**No CI, and the reasoning is recorded so it isn't re-litigated (Luke, 2026-08-11).** S0 originally
+carried "CI green on push", lifted from the blueprint's phase 7 bar. It was written and then
+deleted the same day, because the bar assumes CI is the only clean-room build and here it is not:
+
+- **Vercel already checks out fresh and builds on every push**, and `next build` runs TypeScript.
+  Two of the three CI steps were duplicates of something that already happens.
+- **ESLint is the only real gap** — Next 16 no longer runs it during build — and that is
+  `npm run lint`, which takes two seconds.
+- **"Merging is blocked on green" needs merges.** One person pushing to `main` has no gate for CI
+  to be.
+
+The honest conclusion goes further than the deletion: *if Run ships with no automated checks at
+all, then CI at phase 7 is ceremony too, and the blueprint's line is inherited convention rather
+than a decision.* Filed as an amendment candidate — see `blueprint-instrumentation.md`.
+
+**Revisit when** parallel worktree slices start merging through pull requests (wave 1 onward). A
+gate with something to gate is a different proposition.
 
 ### S1 — The detector spike *(throwaway, runs in parallel with S0)*
 

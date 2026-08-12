@@ -7,7 +7,7 @@ description: >
   REVIEW (default; run before any UI is called done, or whenever it looks generated): run the ship
   gate — squint test + token scan + content/shell checks — produce a findings table, then fix the
   violations. Trigger on "design check", "deslop", "lock the design system", "fix the UI", "does this
-  look designed", or before handing off any screen. Full spec: modryn-hq/playbooks/design-system.md.
+  look designed", or before handing off any screen. Full spec: modryn-hq@v3:playbooks/design-system.md.
 argument-hint: "[lock | review (default) | path/to/component]"
 ---
 
@@ -18,7 +18,7 @@ argument-hint: "[lock | review (default) | path/to/component]"
 # /design-check — the anti-slop gate
 
 The studio's UI fails review when it looks *generated, not designed*. This skill enforces the
-positive spec in [`modryn-hq/playbooks/design-system.md`](../../../../modryn-hq/playbooks/design-system.md)
+positive spec in `modryn-hq@v3:playbooks/design-system.md`
 and the bans in `ui-ux-standards.md`. **Read the design-system doc first** — it's the source of truth;
 this skill operationalizes it. Don't restate the values from memory; open the doc.
 

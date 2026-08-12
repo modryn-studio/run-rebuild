@@ -124,6 +124,18 @@ Format: `<date> · <phase> · <what happened> · <what I did instead>`
              candidate: phase 1 should branch on whether the builder is also the user.
              (Full note in problem-brief.md.)
 
+2026-08-11 · P5 · S0. The blueprint's phase 7 bar says "CI runs tests + typecheck + lint on
+             every push; merging is blocked on green." Built it at S0, then deleted it the same
+             day on Luke's pushback, and the pushback holds: the host already checks out fresh
+             and builds on every push, and that build runs TypeScript, so two of three steps
+             were duplicates. Lint is the only gap and it is a two-second command. And the
+             "blocked on green" half needs merges, which a solo push-to-main does not have.
+             · Luke's sharper form: *"if Run ships with no automated checks at all, then CI at
+             phase 7 is ceremony too, and the blueprint's line is just inherited convention."*
+             AMENDMENT CANDIDATE: phase 7's pipeline bar was written for a team on a host that
+             does not build for you. It should ask what is NOT already covered by the deploy
+             platform, and it should tie the gate to whether merges exist at all.
+
 2026-08-11 · P5 · S0. Phase 3 deferred the React primitives to "phase 5 with the build",
              which assumes phase 5 starts from nothing. It doesn't — the boilerplate ships
              working screens (login, admin) written against ITS token names, and swapping in

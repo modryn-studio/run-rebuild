@@ -14,7 +14,7 @@
    ground change plus --shadow-card. The hairline survives INSIDE those objects, as dividers between
    rows and under headers, which is where "flat + hairline" was always doing real work. See brand.md.
    Refs: Copilot (flat crisp data-viz), Whoop/Oura (large type).
-   Governed by modryn-hq/playbooks/design-system.md + ui-ux-standards.md. */
+   Governed by modryn-hq@v3:playbooks/design-system.md + ui-ux-standards.md. */
 @theme {
   /* ─── GROUNDS AND INK, LIFTED WHOLESALE FROM THE REFERENCE (Luke, 2026-07-31) ───────────────
      "copy monarch colors exactly. i know we have a brand.md and visual-rams.md. but i dont care
@@ -687,6 +687,6 @@
   }
 }
 
-/* Blinking cursor for streaming AI text (see modryn-hq/playbooks/generative-ui.md). */
+/* Blinking cursor for streaming AI text (see modryn-hq@v3:playbooks/generative-ui.md). */
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 .cursor-blink { animation: blink 1s step-end infinite; }

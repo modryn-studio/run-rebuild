@@ -8,7 +8,7 @@
    your machine and not on the deploy.
 4. **Lock the design system before the first component.** Recolor the `@theme` tokens in
    `src/app/globals.css`, choose a real display face and point `--font-heading` at it, then build
-   the `ui/` primitives with all five states — against `modryn-hq/playbooks/design-system.md`.
+   the `ui/` primitives with all five states — against `modryn-hq@v3:playbooks/design-system.md`.
    Improvising structure per-component is why UI comes out as slop; front-load it here.
 5. `npm install`, then `npx drizzle-kit generate` + `migrate` (see the migration rule below).
 6. `npm run dev`.
@@ -116,7 +116,7 @@ scripts/            email-preview (renders the mail templates), load-env, funnel
   tracked but never queried is noise; a funnel query with no event behind it is a lie.
 - **`src/app/layout.tsx` sets `robots: { index: false }`.** Remove it when the project genuinely
   goes public — not before.
-- **UI bar:** build *to* `modryn-hq/playbooks/design-system.md`. Never ship a framework-default font
+- **UI bar:** build *to* `modryn-hq@v3:playbooks/design-system.md`. Never ship a framework-default font
   as the brand face, violet gradient CTAs, gradient text, glow blobs, glassmorphism, pill-everything,
   or emoji as UI. If it looks like default LLM output, it's rejected.
-- **Generative UI** (AI SDK v7 `streamText` + tools + `message.parts`): `modryn-hq/playbooks/generative-ui.md`.
+- **Generative UI** (AI SDK v7 `streamText` + tools + `message.parts`): `modryn-hq@v3:playbooks/generative-ui.md`.
