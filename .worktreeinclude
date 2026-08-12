@@ -1,0 +1,4 @@
+# Gitignored files copied into every worktree Claude Code creates.
+# Without this a fresh worktree has no .env.local, and env.ts throws at boot on the
+# first import — the app does not start and the cause is not obvious from the error.
+.env.local

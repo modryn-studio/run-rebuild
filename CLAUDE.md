@@ -32,6 +32,25 @@ matches the design system, is merged, and is deployed. Not before.
   replaces.
 - **Tag the repo at every gate** (`git tag p5-gate`). Phase durations derive from tag dates.
 
+### Branching: one worktree per slice, and `main` is always live
+
+```bash
+claude --worktree s4-ingest     # builds .claude/worktrees/s4-ingest on branch worktree-s4-ingest
+```
+
+- **`main` is deployed and always green.** It is the integration point. There is no `dev` branch:
+  a second integration point only pays off when several people integrate before a release, and
+  solo it just delays the "deployed" half of the definition of done.
+- **A worktree is a slice.** It branches from `origin/main`, not from local `HEAD`, so it starts
+  clean. One slice, one worktree, one merge. Two or three at once, never eight — `build-plan.md`'s
+  waves already say which slices can run together.
+- **Merge when the slice is done**, by the seven-point definition, not when it mostly works. Then
+  delete the worktree. A worktree kept "just in case" is the long-lived branch you avoided.
+- **Each worktree needs its own `npm install`** (a fresh checkout has no `node_modules`), and gets
+  its own dev port automatically — which is why `dev` must never pin one.
+- **`.worktreeinclude` carries `.env.local` in.** Without it the worktree cannot boot, and the
+  error does not name the cause.
+
 ---
 
 ## Run's own doctrine — violating any of these is a bug, not a preference
