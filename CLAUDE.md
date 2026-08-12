@@ -32,21 +32,6 @@ matches the design system, is merged, and is deployed. Not before.
   replaces.
 - **Tag the repo at every gate** (`git tag p5-gate`). Phase durations derive from tag dates.
 
-### The agents in this repo
-
-`.claude/agents/` holds the universal craft crew — `jobs · ogilvy · rams · kay · charlie · dana ·
-michelle` — plus `trading/`, the vertical bench copied from `modryn-hq`:
-
-| Agent | Keeps correct |
-|---|---|
-| `nathan` | the behaviour and psychology framing. **The wedge lives here** |
-| `hollis` | risk, sizing, prop-firm numbers |
-| `vera` | the market read, and the trader's own grammar |
-| `priya` | the CFTC line. `Read` tells a trader about their own trading, and describing what their record shows is not advising what to do. A real line, not ceremony |
-
-**`soren` (macro/regime) is deliberately not here.** Run has no macro surface and `NOT IN V1` adds
-none, so the seat would sit empty. They build; `/postcheck` judges, never the same seat for both.
-
 ### Branching: one worktree per slice, and `main` is always live
 
 ```bash
