@@ -104,6 +104,19 @@ export function renderTape(tape: Tape, displayTimezone = SESSION_BOUNDARY_ZONE):
       `${m.tradingDays.length} trading day${m.tradingDays.length === 1 ? '' : 's'}` +
       (m.tradingDays.length ? `, ${m.tradingDays[0]} to ${m.tradingDays[m.tradingDays.length - 1]}` : '')
   );
+  // WHAT KIND OF ACCOUNT, STATED. It changes what survival means, and the risk lens used to
+  // assert one answer for everybody. An evaluation or funded account is leased and can be ended
+  // by a rule; a personal account has no firm above it and no rule that can take it away, only
+  // real money. `unstated` is a real value and stays visible: an unanswered question beats an
+  // assumed answer, and the lens is told to ask rather than guess.
+  const TYPE_NOTE: Record<string, string> = {
+    evaluation: 'leased, rule-governed: drawdown limit, daily loss limit, can be ended by a rule',
+    funded: 'leased, rule-governed: drawdown limit, daily loss limit, can be ended by a rule',
+    personal: "the trader's own money, no firm above it, no rule-based termination",
+    unstated: 'NOT STATED for this import, so do not assume which',
+  };
+  for (const [name, type] of Object.entries(tape.accountTypes))
+    out.push(`Account type, ${name}: ${type.toUpperCase()} (${TYPE_NOTE[type]}).`);
   out.push(
     `Totals: ${fmtMoney(t.grossCents)} gross, ${fmtMoney(t.feeCents)} fees, ${fmtMoney(t.netCents)} net.  ` +
       `${t.winners} winners, ${t.losers} losers across ${m.roundTrips} round trips.`

@@ -141,6 +141,12 @@ export interface Tape {
    *  hand-typed multiplier is a number that cannot be reconciled against the broker, and it is
    *  the only mechanism that can invert NQ and MNQ into a 10x error. See docs/architecture.md. */
   pointValue: PointValueResult;
+  /** Account name -> type, for the accounts on this tape. Stated rather than assumed, because
+   *  what "survival" means depends on it and the risk lens used to hardcode one answer:
+   *  "These traders are on funded accounts" is false for a personal account, where there is no
+   *  firm above the trader and no rule that can take the account away. A missing entry stays
+   *  missing — the render says the type is unstated, and the lens asks rather than guessing. */
+  accountTypes: Record<string, AccountType | 'unstated'>;
   meta: {
     fills: number;
     roundTrips: number;
@@ -163,11 +169,18 @@ export interface Tape {
   verifiedNumbers: Set<string>;
 }
 
+/** What kind of account this is. Recorded per connection at the moment it is added
+ *  (docs/architecture.md §1) — never inferred from the export, which does not carry it. */
+export type AccountType = 'evaluation' | 'funded' | 'personal';
+
 export interface TapeInput {
   fills: ParsedFill[];
   roundTrips: ParsedRoundTrip[];
   fees: ParsedFee[];
   orders: ParsedOrder[];
+  /** Account name -> type. Optional, and its ABSENCE is meaningful: the tape then says the type
+   *  is unstated rather than letting a reader assume one. See the note on `Tape.accountTypes`. */
+  accountTypes?: Record<string, AccountType>;
 }
 
 // ── formatting: one place, so verifiedNumbers and the rendered tape cannot disagree ──
@@ -664,8 +677,11 @@ export function buildTapeFromParsed(input: TapeInput): Tape {
   const tradingDays = [...dayKeys].sort();
   const cancels = tapeOrders.filter((o) => o.status === 'canceled');
 
+  const accountNames = [...new Set(fills.map((f) => f.accountName).filter((a): a is string => !!a))];
+
   const tape: Tape = {
-    accounts: [...new Set(fills.map((f) => f.accountName).filter((a): a is string => !!a))],
+    accounts: accountNames,
+    accountTypes: Object.fromEntries(accountNames.map((n) => [n, input.accountTypes?.[n] ?? 'unstated'])),
     roundTrips: tapeRoundTrips,
     orders: tapeOrders,
     episodes,
