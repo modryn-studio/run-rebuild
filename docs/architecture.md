@@ -48,10 +48,27 @@ not a source of truth you can corrupt.
 | Field | Type | Null | Notes |
 |---|---|---|---|
 | `id` | uuid | no | |
-| `email` | citext | no | unique |
+| ~~`email`~~ `auth_user_id` | text | no | unique → `auth_user.id`. **AMENDED in S3a, see below** |
 | `display_timezone` | text | no | IANA. **Display layer only** — never used for session bucketing |
+| `display_timezone_set_by_user` | boolean | no | **ADDED in S3a.** False means the value was detected |
 | `key_id` | uuid | yes | reserved crypto-shred hook. **Unused in v1** — see below |
 | `created_at` | timestamptz | no | |
+
+**AMENDED 2026-08-12 (S3a): `email` became `auth_user_id`, and the reason is drift.** This table
+was derived before it was settled that Better Auth owns `auth_user` and mutates `auth_user.email`
+itself — on a Google sign-in, on a future email change. A second copy of an address that another
+library writes is a column guaranteed to disagree eventually, and it is the address a human uses
+to identify the account, so disagreeing is expensive. Nothing in the product looks a trader up by
+email anyway: **every query is scoped by `trader_id` from the session**, and admin surfaces can
+join. So the link is the identity and there is exactly one copy of the address, in the table whose
+library owns it.
+
+**ADDED in the same change: `display_timezone_set_by_user`.** The plan says the zone is
+*"user-settable and outranking detection"*, and outranking needs somewhere to live. Without a
+flag, the browser's detected zone would silently overwrite a deliberate choice the next time the
+trader opened the app from an airport. The alternative — a nullable `display_timezone` where null
+means "not chosen" — pushes a null check onto every render path that formats a clock. One boolean
+keeps the zone always usable and records the one fact that decides precedence.
 
 The timezone field is worth its own note: it exists so a trade renders at *their* 9:31am. It
 must never reach the session-bucketing code. See §4.

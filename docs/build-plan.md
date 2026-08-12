@@ -237,11 +237,47 @@ trade?"* It would not have, and the reason was inside `S1`, not `S2`:
 - **Crude is *not* an exception.** Checked because it is the one most often described as closing
   early; that is its 13:30 settlement, not its session.
 
-### S3 — Auth and identity
+### S3a — Auth and identity *(renamed from `S3` for symmetry with `S3b` / `S3c`)*
 
 `trader`, better-auth wiring, `display_timezone` user-settable and outranking detection, and
 the nullable `key_id` column — free now, a migration later, with the encryption itself
 explicitly deferred (architecture §1).
+
+**✅ CLOSED 2026-08-12.** Non-UI done bar, as `S1` and `S2`: `tsc` and `eslint` clean,
+**`scripts/s3-gate.mts` passes — 28 assertions**, and the earlier gates still pass unchanged.
+
+- ✅ **`trader`** — `drizzle/0002`. **Linked to `auth_user`, not carrying a copy of the email.**
+  Better Auth owns and rewrites `auth_user.email`, so a second copy would be a column guaranteed
+  to disagree eventually, and nothing looks a trader up by address anyway. `architecture.md` §1
+  amended with the reasoning in the same change.
+- ✅ **`lib/trader.ts` is the one accessor**, it takes no arguments, and **there is deliberately
+  no `getTraderById`** — a helper that accepts an id is a helper that will eventually be handed
+  one from a URL. This is the *"scoped by `trader_id` from the session, never from the request"*
+  rule made structural rather than remembered.
+  - **The row is created on read, not in a signup hook.** A hook fires once, and anything that
+    stops it firing leaves an account that can sign in and has no record. Resolving on read makes
+    that unreachable rather than unlikely, for one indexed lookup.
+  - **The default zone is the market zone, never UTC.** If detection never runs, the least-wrong
+    clock for a futures trader is the one their sessions are cut in.
+- ✅ **`display_timezone_set_by_user`** — added to the schema and to `architecture.md`, because
+  *"outranking detection"* needs somewhere to live. The airport case is the one that matters: a
+  trader who chose Chicago and then opens the app in Frankfurt must not find every clock in their
+  record relabelled. Gate §3 proves it.
+- ✅ **Zone validation asks `Intl`, not a list.** The IANA database changes; a hand-kept list goes
+  stale silently and a regex accepts `Foo/Bar`.
+- ✅ **`key_id` ships null and nothing reads it.** Until `event.payload` is encrypted, dropping a
+  key does nothing, and v1 erasure is hard-delete only. The trigger for the rest is the first user
+  who is not Luke.
+- ⚠️ **The zone has an API but no screen yet.** `POST /api/trader/timezone` accepts both a
+  detected and a chosen zone; the settings UI lands with the shell rather than being built now
+  and rebuilt in `S3b`. `DetectTimezone` is mounted on `/admin` because it is the only
+  authenticated surface that exists, and it moves into the shell for the same reason.
+
+**The guard worth knowing about:** gate §1 is a *source* check, not a behavioural one.
+`display_timezone` reaching the bucketing code would not throw, would not fail a type check and
+would not look wrong in a render — it would file evening sessions under a date that depends on
+where the trader was sitting. So the assertion is on the shape of the code: the time module may
+not import the trader module or the database, and `sessionDateFor` takes no zone argument at all.
 
 ### S3b — The shell
 
@@ -364,7 +400,7 @@ they don't share a surface.
 | Wave | Parallel |
 |---|---|
 | 1 | `S0` skeleton · `S1` data layer + read engine · `S2` primitives (mostly folded into `S1`) |
-| 2 | `S3` auth · `S3b` shell · `S3c` kitchen sink + ported primitives |
+| 2 | `S3a` auth · `S3b` shell · `S3c` kitchen sink + ported primitives |
 | 3 | `S4` alone — everything downstream depends on its shape |
 | 4 | `S5` · `S6` (different pages, same projections) |
 | 5 | `S8` · `S7` **only once the pattern-vs-reading decision is made** |

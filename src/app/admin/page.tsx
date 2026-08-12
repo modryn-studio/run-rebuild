@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { desc, eq, sql } from 'drizzle-orm';
 import { db, analyticsEvent, authUser } from '@/lib/db';
 import { getAdmin } from '@/lib/require-admin';
+import { requireTrader } from '@/lib/trader';
+import { DetectTimezone } from '@/components/detect-timezone';
 
 // Never let this into an index, even by accident.
 export const metadata: Metadata = {
@@ -92,11 +94,22 @@ export default async function AdminPage() {
 
   const s = await loadStats();
 
+  // Resolves the trader row on first sight, so signing in is all it takes to have a record.
+  // Rendered below rather than logged, because a value that only ever appears in a server log
+  // is a value nobody checks.
+  const trader = await requireTrader();
+
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-12">
+      {/* Moves to the app shell in S3b. See the component's own note. */}
+      <DetectTimezone />
+
       <header className="mb-10">
         <h1 className="text-h2">Admin</h1>
-        <p className="text-small text-muted mt-1">All-time. Signed in as {admin.email}.</p>
+        <p className="text-small text-muted mt-1">
+          All-time. Signed in as {admin.email}, showing clocks in {trader.displayTimezone}{' '}
+          {trader.displayTimezoneSetByUser ? '(your choice)' : '(detected)'}.
+        </p>
       </header>
 
       {/* THE HEADLINE NUMBERS. Replace these with the metrics that actually decide whether this

@@ -83,6 +83,22 @@ check(
   '2026-08-10 2026-08-10',
 );
 
+console.log('\n=== 1c. A WEEKEND SESSION DATE IS LEGAL, because crypto is 24/7 ===\n');
+
+// Whether a prop firm PERMITS Saturday trading is a firm rule, and Run never infers firm rules
+// (market-hours.md §5). The only question the code has to answer is: if a Tradovate export
+// contains a Saturday fill, does Run file it correctly? These assert that it does, so the answer
+// stops depending on anybody's belief about what the firms allow.
+const satMidday = sessionDateFor(new Date('2026-08-15T15:00:00Z')); // Sat 10:00 CT
+const friEvening = sessionDateFor(new Date('2026-08-14T23:00:00Z')); // Fri 18:00 CT, past the roll
+check('a Saturday fill keeps Saturday', satMidday, '2026-08-15');
+check('a Friday-evening crypto fill rolls to Saturday', friEvening, '2026-08-15');
+check(
+  'and it groups with the week that preceded it, not the one after',
+  bucketStartFor(satMidday, 'week'),
+  '2026-08-10',
+);
+
 console.log('\n=== 2. TypeScript and Postgres MUST agree — this is #97 ===\n');
 
 // Chosen to break a bucketer that is only accidentally right: DST in both directions, a year

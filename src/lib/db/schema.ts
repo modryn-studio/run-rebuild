@@ -141,3 +141,40 @@ export const contractSpec = pgTable('contract_spec', {
   currency: text('currency').notNull(),
   exchange: text('exchange').notNull(), // drives the session calendar
 });
+
+// ── trader — the domain identity, and the thing every query is scoped by ─────────────
+//
+// ONE ROW PER AUTH USER, linked rather than duplicated. Better Auth owns `auth_user` and
+// writes `auth_user.email` itself (Google supplies one, a future email change rewrites it),
+// so a second copy of the address here would be a column guaranteed to disagree eventually.
+// Nothing looks a trader up by email: every query is scoped by `trader_id` FROM THE SESSION,
+// never from the request, and admin surfaces join. See docs/architecture.md §1.
+//
+// `display_timezone` IS DISPLAY ONLY and must never reach the bucketing code. A trade renders
+// at THEIR 9:31am; which session it belongs to is a market fact that does not move because the
+// trader moved (spec.md §8, the three time layers). `lib/time/session.ts` cannot import this
+// module, and `scripts/s3-gate.mts` asserts that it doesn't — the one guard that matters here,
+// because the failure is silent and would corrupt every figure in the product.
+//
+// `display_timezone_set_by_user` IS THE PRECEDENCE RULE, not a preference. False means the
+// value was detected from the browser and may be improved; true means a human chose it and
+// detection must never overwrite it. Without this, opening the app from an airport would
+// silently relabel every clock in the record.
+//
+// `key_id` IS A COLUMN WITH NOTHING BEHIND IT, deliberately. The erasure doctrine says
+// crypto-shred solves the backup window, but that is only true once `event.payload` is
+// encrypted with a per-trader key, and in v1 it is NOT. The column ships now because it is
+// free and nullable; the encryption does not, because it changes every read path for a product
+// with one user. UNTIL PAYLOAD IS ENCRYPTED, DROPPING A KEY DOES NOTHING — v1 erasure is
+// hard-delete only. The trigger to build the rest is the first user who is not Luke.
+export const trader = pgTable('trader', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  authUserId: text('auth_user_id')
+    .notNull()
+    .unique()
+    .references(() => authUser.id, { onDelete: 'cascade' }),
+  displayTimezone: text('display_timezone').notNull(),
+  displayTimezoneSetByUser: boolean('display_timezone_set_by_user').notNull().default(false),
+  keyId: uuid('key_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
