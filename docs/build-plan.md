@@ -88,17 +88,42 @@ than a decision.* Filed as an amendment candidate — see `blueprint-instrumenta
 **Revisit when** parallel worktree slices start merging through pull requests (wave 1 onward). A
 gate with something to gate is a different proposition.
 
-### S1 — The detector spike *(throwaway, runs in parallel with S0)*
+### S1 — The read spike *(throwaway, runs in parallel with S0)*
 
-A script over Luke's real exports. **Fires the kill signal.**
+A script over Luke's real exports. **The kill signal already fired here — in the affirmative.**
 
-- Parse the three CSVs from disk — no DB, no auth
-- Pair round trips from Position History; allocate fees by the exact split
-- Reconcile the total against Account Balance History **to the cent**
-- Run candidate detectors; print each with its working: occurrences, outcomes, baseline
+#### ✅ GATE CLEARED 2026-08-12, before the slice was written
 
-**Gate — this is a real stop:** does it name a pattern Luke didn't already know? If no, the
-build stops here and the phase 1 kill signal has done its job for the price of one script.
+The `run-trading@desk-call` worktree already ran this against the real ten-day tape, and it named
+the MNQ→NQ multiplier finding that Luke confirms he did not know (`problem-brief.md`). **The build
+continues.** S1 is therefore a **port and a re-verification**, not an investigation.
+
+**REWRITTEN 2026-08-12: "run candidate detectors" was the architecture that already failed.** The
+previous build had a hand-coded metric engine and killed it for two reasons: it could not notice
+anything it had not been told to look for, and it shipped a false read that would have cost the
+trader $960 in bad advice. The replacement, proven across five test phases and 30+ runs with zero
+fabricated figures, is:
+
+```
+4 CSVs -> parsers -> resolved tape -> render -> 2 lenses -> synthesizer -> number check
+```
+
+**Code resolves every ambiguity before a model sees anything; the model reasons and never
+resolves.** Every one of the 15 constraints in that build's record was earned by an observed
+failure, and every fix moved a derivation *into* code rather than into a prompt.
+
+- Parse the four CSVs from disk — no DB, no auth. `Orders` is required (`spec.md` §S1)
+- Round trips from Position History; fees by the exact per-contract-per-side split
+- Reconcile against Account Balance History **to the cent** — the ported tape already does this at
+  $0.00 across two independent sets
+- Derive point value per `symbol_root`; **agreement at n≥2, never a median** (`architecture.md`)
+- Resolve direction, outcome, exit mechanism and cancel cause in code
+- Assert fee plausibility in code, not in the read
+- Then the read itself, and check every figure against the tape's whitelist
+
+**Do not port these three as written:** the median point value, the UTC-calendar trading day, and
+the two-decimal price formatter. Each is a defect this project has already documented a rule
+against.
 
 ### S2 — The two primitives everything else is wrong without
 

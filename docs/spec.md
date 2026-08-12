@@ -5,8 +5,9 @@
 > Point agents at this file, not at your memory of it.
 
 **Status:** LOCKED at the phase 2 gate, 2026-08-11
-**Last amended:** 2026-08-11 — session=exit, 3-layer time model, S9 cut + S9b added, daily read
-reframed as pacing rather than discovery, confidence floor set
+**Last amended:** 2026-08-12 — intake is FOUR files (`Orders` required), fee plausibility as a
+fourth loud failure mode, code resolves direction/outcome/exit/cancel before any model sees the
+tape. Earlier: session=exit, 3-layer time model, S9 cut + S9b added, daily read reframed as pacing
 
 <!-- CRAFT RECON SOURCE: run-trading/docs/ia-teardown.md (2026-08-10, read live from Luke's
      authenticated Monarch + TradeZella accounts). monarch-for-traders.md deliberately NOT
@@ -248,16 +249,38 @@ TradersPost do it), but it is **not available to build against today.**
 standing rule — the corpus must never be welded to a broker API. Building the CSV path first
 means the data plane is proven independent of any rail before a rail exists.
 
-#### AMENDED 2026-08-11 — the intake is THREE files, and the third is required
+#### AMENDED 2026-08-12 — the intake is FOUR files, and all four are required
 
-Discovered in phase 4 against `run-trading@dev:docs/data-model.md`. This corrects a spec that
-would have shipped a headline number wrong by roughly half.
+First amended 2026-08-11 from one file to three, against `run-trading@dev:docs/data-model.md`.
+Amended again 2026-08-12 after reading the `desk-call` worktree, where a four-file tape was
+built and tested across five phases: **`Orders` is the fourth, and it is what separates a stop
+firing from a decision the trader made.**
 
 | File | Becomes | Why it is required |
 |---|---|---|
 | **Fills** | `fill` events | The only export with a true UTC timestamp. The canonical intake. |
 | **Position History** | `round_trip` events | **Tradovate's own entry→exit pairing**, including many-to-many splits. Run never builds a matching engine — see architecture §8. |
 | **Cash History** | `fee` events | **Required, not optional.** |
+| **Orders** | `order` events | **The decision layer fills cannot see:** order type, status, amendments, cancels. |
+
+**Why Orders is required, and it is the same class of error as the fee gap — a confident wrong
+sentence rather than a missing one.** Fills record that a position closed. Only the order log
+records *what closed it*. Two measured failures, both from the previous build:
+
+- A trade exited in 8 seconds was reported as the trader cutting a loser fast. **It was a stop
+  the market hit.** Holding would have cost **$1,092.50 instead of $132.50** — the stop saved
+  $960, and the product told him it was a flaw.
+- *"Eleven of your twenty-one positions closed with no protective order live"* when **all
+  twenty-one had a stop.** A stop that fires is *filled*, not canceled, so the field that
+  identifies a working stop was null on exactly the positions that were best protected.
+
+Three of eight cancels on the reference tape are the platform's own OCO siblings. Reporting
+those as decisions accuses a disciplined trader of pulling his own protection. **Without Orders,
+every one of these is unknowable, and the read fills the gap with an accusation.**
+
+**Account Balance History is a fifth file and a different job:** it is the broker's own daily
+statement, used to reconcile and never ingested as events. The tape already matches it at
+**$0.00 difference** across two independent sets.
 
 **Why Cash History is required:** Tradovate charges four separate lines — Commission, Exchange,
 Clearing, NFA. The Fills export's `commission` column is **only the first, measured at 42% of
@@ -265,14 +288,16 @@ true cost.** On a real 10-day export: gross −$1,840.50, fees −$1,934.36, net
 fees exceeded the gross loss.** Gross-only reporting understates the real loss by half, on the
 number this product exists to get right.
 
-**Three failure modes that must be loud, each from a real bug:**
+**FOUR failure modes that must be loud, each from a real bug:**
 
-- `IF the three files do not cover overlapping date ranges, THEN THE SYSTEM SHALL name the ranges of each file and refuse the import whole` — a total mismatch already fails well; **partial overlap silently degrades unresolved round trips to local wall-clock or ingest time, which corrupts session bucketing permanently.** The guard must be per-round-trip, not all-or-nothing.
+- `IF the four files do not cover overlapping date ranges, THEN THE SYSTEM SHALL name the ranges of each file and refuse the import whole` — a total mismatch already fails well; **partial overlap silently degrades unresolved round trips to local wall-clock or ingest time, which corrupts session bucketing permanently.** The guard must be per-round-trip, not all-or-nothing.
 - `IF no fee resolves against any fill, THEN THE SYSTEM SHALL refuse the import and say the files do not line up` — otherwise every trade silently prices at zero fees and **net equals gross**, failing in the direction that flatters the trader.
 - `IF an upload writes zero rows because everything was already saved, THEN THE SYSTEM SHALL say so` — "already saved" and "saved" need different next actions, and they currently look identical.
+- `IF the fee cost per contract round turn is implausible for a listed future, THEN THE SYSTEM SHALL flag the import and state the figure` — **added 2026-08-12, and it cannot be left to the read.** Measured: with fees inflated roughly fiftyfold by a column shift, **one model run in three built a confident 45-point breakeven rule on the corrupted number** and never questioned it. It invented nothing; it faithfully reported what it was handed. A 1-in-3 miss is not a prompting problem, so **plausibility belongs at ingest, in code.** The bound is deliberately generous — single-digit dollars per contract round turn is normal, so a ceiling around $20 catches a broken export without policing anyone's commission schedule.
 
 Acceptance criteria:
-- `THE SYSTEM SHALL require all three Tradovate exports — Fills, Position History and Cash History — before committing an import`
+- `THE SYSTEM SHALL require all four Tradovate exports — Fills, Position History, Cash History and Orders — before committing an import`
+- `THE SYSTEM SHALL resolve, in code and before any model sees the tape, a trade's direction, its outcome, what closed it, and whether a cancel was the trader's decision or the platform's OCO sibling` — every one of these was a measured wrong read when left to inference
 - `THE SYSTEM SHALL accept a Tradovate CSV export and create or update an account from it`
 - `THE SYSTEM SHALL record each connection's account type — evaluation, funded, or personal — at the time it is added`
 - `WHEN a file is uploaded, THE SYSTEM SHALL report the count parsed, the date range covered, and the count rejected, before committing anything`
@@ -606,6 +631,36 @@ session fifteen. It is a legitimate third state, not a placeholder.
 `THE SYSTEM SHALL display, with every named pattern, the occurrence count, the outcome count, and the trader's own baseline for comparison`
 `THE SYSTEM SHALL NOT present as a finding any pattern below 8 occurrences or without clear separation from the trader's baseline`
 `WHERE a candidate exists below the floor, THE SYSTEM SHALL present it as watched, with its current count, and SHALL NOT state a cost as though established`
+
+#### ⚠️ REOPENED 2026-08-12 — the floor would have discarded the finding that cleared the kill signal
+
+**This is a real conflict and it is not yet decided.** The floor above assumes a pattern is a
+*repeated* behavior whose confidence grows with occurrence count. The finding that actually
+cleared phase 1's kill signal is not that shape:
+
+> He moved from MNQ to NQ and kept his stop distances. Down in lots, up tenfold in risk. Twelve
+> trades, −$2,331.40, **61.8% of the ten-day loss** — and Luke did not know.
+
+That happened **once**. Eight occurrences would mean waiting for it to happen seven more times, at
+roughly $2,300 a time. The floor is not merely unhelpful here; applied literally it would suppress
+the single most valuable thing the corpus has produced.
+
+**What the floor is genuinely right about** is the thing it was written against: *"you size up
+after three losses"* asserted from four instances is a coincidence with a dollar figure attached.
+Frequency-based claims do need a frequency floor.
+
+So the shape of the answer is probably **two kinds of finding, with different tests**, rather than
+one floor tuned differently:
+
+| | Test that earns it |
+|---|---|
+| A **rate** claim ("you do X, and it costs you") | the existing floor: 8 occurrences + separation from the trader's own baseline |
+| A **structural** claim ("your risk per point changed tenfold and your stops did not") | not frequency at all. It is arithmetic on the tape, verifiable from one instance, and either true or false |
+
+**Undecided, and it needs Luke:** whether the daily read may present a structural finding, and if
+so what stops that category from becoming the loophole every thin claim escapes through. Until it
+is decided, `S7` cannot be specified — `S1` is unaffected, since the spike only has to print what
+it finds and show its working.
 | ~~Tradovate OAuth availability~~ | ~~blocks S1~~ | — | **RESOLVED** — not available; v1 is CSV (S1) |
 | ~~What is a "session"?~~ | — | — | **RESOLVED 2026-08-11 — CME day.** See below |
 

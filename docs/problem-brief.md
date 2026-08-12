@@ -141,6 +141,33 @@ Checkable early, on real data, with Luke as the test case. If the read is someth
 have told you unprompted, it is a summary, and summaries are what the whole field already
 ships.
 
+### ✅ CLEARED 2026-08-12 — the wedge named something Luke did not know
+
+**The kill signal has fired in the affirmative, on real data, before the product exists.** Found
+in the `run-trading@desk-call` worktree on Luke's own ten-day tape, by three independent runs that
+each reached it without being pointed at it:
+
+> On 07-16 he moved from MNQ to NQ and kept his stop distances. One MNQ point is $2. One NQ point
+> is $20. He went **down** in lots and **up tenfold** in risk.
+>
+> *"Your stop distances never changed. Only the multiplier did."*
+
+Verified against the tape: point values derived empirically as MNQU6 $2.00 and NQU6 $20.00, nine
+days of MNQ before the switch, and the window the reads name is **12 trades at −$2,331.40, 61.8%
+of the entire ten-day loss.**
+
+**Luke, asked directly whether he already knew this: no.**
+
+Three things follow, and the third is the uncomfortable one:
+
+1. **The build does not stop.** The condition phase 1 set for continuing is met.
+2. **It was found by reasoning over a resolved tape, not by a detector.** No metric would ever
+   have been written for "kept his stop distance across a tenfold multiplier change", because
+   nobody knew to look for it. That is the argument for the architecture `S1` now ports.
+3. **It happened essentially once, so the confidence floor would have discarded it.** `spec.md`
+   §8 requires 8 occurrences plus separation from the trader's own baseline. The most valuable
+   finding this corpus has produced clears neither. **That conflict is open.**
+
 ### RESOLVED 2026-08-11 — 187 trades is enough
 
 Luke, from direct knowledge of his own data: 187 trades is enough for a real pattern to
