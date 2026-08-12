@@ -124,6 +124,16 @@ Format: `<date> · <phase> · <what happened> · <what I did instead>`
              candidate: phase 1 should branch on whether the builder is also the user.
              (Full note in problem-brief.md.)
 
+2026-08-12 · P5 · S1. Called it a throwaway spike, built it, and it is production code — the
+             time module, four parsers, the fee allocation, the resolved tape, all written to
+             the locked doctrine and all load-bearing for S2/S4/S5/S7. The spike manoeuvre
+             itself worked: the kill signal fired before a screen existed. · Reclassified the
+             slice as merged rather than deleted, and split its done bar from the seven-point
+             one, which is meaningless for a library with no UI. AMENDMENT CANDIDATE: a spike
+             that has to be CORRECT to answer its question is not disposable. The blueprint
+             should say to re-check what the probe built before deleting it, and should give a
+             non-UI slice its own definition of done.
+
 2026-08-11 · P5 · S0. The blueprint's phase 7 bar says "CI runs tests + typecheck + lint on
              every push; merging is blocked on green." Built it at S0, then deleted it the same
              day on Luke's pushback, and the pushback holds: the host already checks out fresh

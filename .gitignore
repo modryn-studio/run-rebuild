@@ -60,3 +60,4 @@ email-preview.html
 # Generated A/B control for the completed Phase 1 experiment.
 # Regenerate with: npx tsx --conditions=react-server scripts/extract-baseline-lenses.mts
 src/lib/desk/lenses-baseline.ts
+runs/
