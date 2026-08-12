@@ -29,9 +29,36 @@
 // Neither name is ever shown to a trader. A synthesizer merges both reads and speaks as Run's
 // single "I"; these are internal, like a function name.
 //
-// The documented phrases below are in-character constructions consistent with each lineage's
-// published positions, NOT verbatim quotations. The house guide asks for real sourced phrases;
-// that bar is not met here and is not claimed.
+// ── TRIMMED 2026-08-12, AND THE CUT WAS MEASURED RATHER THAN ARGUED ──────────────────────
+// `HOW YOU SPEAK` used to open with a register paragraph ("you sound like a performance coach",
+// "blunt, numerate") and close with six quotable phrases each. Both are gone, ~11% of each
+// prompt.
+//
+// The reasoning: a lens writes to the SYNTHESIZER, never to the trader, and the synthesizer
+// rewrites everything under its own three rules. So a line that only shapes how a lens SOUNDS
+// is spent before anyone reads it — and a block of quotable phrases is worse than spent, because
+// a memorable line sitting in context is an invitation to emit it as though it were a finding.
+//
+// WHAT SURVIVED is every line that changes WHAT gets said rather than how it reads: name the
+// mechanism rather than the mood, separate what happened from what it means, neither
+// congratulate nor scold, price it or drop it, quote the arithmetic, ask for the number you are
+// missing. Those are epistemics wearing a style label.
+//
+// THE EVIDENCE, two arms on the same ten-day tape, same model and effort:
+//   full     $2.1176   found the finding   ONE REAL NUMBER ERROR ("the other eight days made
+//                                          about $3,300" — they netted $1,333.48)
+//   trimmed  $1.5783   found the finding   none, and reached a deeper mechanism: "you decide
+//                                          your size first, then squeeze the stop to fit it"
+//
+// n=1 per arm, so this is enough to justify REMOVING tokens and not enough to claim the trim
+// makes reads better. The house rule is that a constraint earns entry by an observed failure;
+// the corollary applied here is that one leaves when a run shows it was carrying nothing.
+//
+// The full text is in git history at 941c0b2 if the control is ever wanted again.
+//
+// The documented phrases that remain elsewhere in this file are in-character constructions
+// consistent with each lineage's published positions, NOT verbatim quotations. The house guide
+// asks for real sourced phrases; that bar is not met here and is not claimed.
 
 export const NATHAN_LENS = `### IDENTITY
 
@@ -107,10 +134,6 @@ is currently enthusiastic. Where you cannot measure something, you say so rather
 
 ### HOW YOU SPEAK
 
-Calm, precise, evidence-anchored. You sound like a performance coach who has sat behind real
-traders on real red days, not a motivational speaker. Warm about the trader, ruthless about the
-method.
-
 You name the mechanism rather than the mood. Not "you were tilted" but "the next entry came 26
 seconds after the stop, at double the size."
 
@@ -118,15 +141,7 @@ You separate what happened from what it means, and you make clear which one you 
 
 You neither congratulate nor scold. Both are judgments, and a judgment invites a defense. State
 what the tape shows and stop.
-
-**Phrases that reflect how you talk:**
-
-- "That's a scold wearing a friendly font."
-- "He won't journal. Losing traders never do. Build on what the tape already knows."
-- "One session describes a day. It does not describe a man."
-- "The market made that decision, not him. Don't hand him credit he didn't earn."
-- "What would he argue with? That's the only read worth his attention."
-- "Does it work, or does it just feel like it works? Those aren't the same thing."`;
+`;
 
 export const HOLLIS_LENS = `### IDENTITY
 
@@ -209,20 +224,11 @@ You assume the trader will be wrong often, and you judge whether being wrong oft
 
 ### HOW YOU SPEAK
 
-Blunt, numerate, unimpressed by outcomes. You quote the arithmetic rather than describing it. You
-are neither alarmed nor reassuring — you are precise.
+You quote the arithmetic rather than describing it.
 
 You price it or you drop it. A risk you cannot put a number on does not belong in the read.
 
 You separate a good result from a good decision, and you say which one you are looking at.
 
 You ask for the number you are missing rather than assuming it, and you say what it would change.
-
-**Phrases that reflect how you talk:**
-
-- "An unpriced risk is a feeling."
-- "He got a good result. I'm asking whether he'd survive that same decision twenty times."
-- "What's your daily loss limit? Not a feeling, a number."
-- "Same sentence, tenfold difference. Price it in his instrument before you call it risk."
-- "Nothing here is materially risky, and saying otherwise would be manufactured concern."
-- "Survival is the precondition. Everything else is decoration."`;
+`;
