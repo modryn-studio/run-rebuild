@@ -118,13 +118,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <DetectTimezone />
 
       {/* The scrim exists only in overlay mode, and only while open. `md:hidden` keeps it out of
-          the desktop tree entirely rather than relying on opacity. */}
+          the desktop tree entirely rather than relying on opacity.
+          `--scrim-nav` is the system's own token for exactly this — the underlay for a panel that
+          slides OVER the page rather than pushing it — and it is a separate literal per mode, not
+          a tint of the modal scrim. Applied as an inline style because it lives outside a Tailwind
+          colour namespace, so there is no `bg-*` utility for it. */}
       {!collapsed && (
         <button
           type="button"
           aria-label="Close navigation"
           onClick={toggle}
-          className="bg-ink/20 fixed inset-0 z-30 md:hidden"
+          style={{ background: 'var(--scrim-nav)' }}
+          className="fixed inset-0 z-30 md:hidden"
         />
       )}
 
@@ -153,7 +158,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               onClick={toggle}
               aria-label="Collapse navigation"
               title="Collapse navigation  ["
-              className="text-muted hover:text-ink hover:bg-surface-2 focus-visible:ring-accent grid size-11 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none md:size-8"
+              className="text-muted hover:text-text hover:bg-surface-2 focus-visible:ring-accent grid size-11 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none md:size-8"
             >
               <X className="size-4 md:hidden" />
               <PanelLeft className="hidden size-4 md:block" />
@@ -187,7 +192,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               onClick={toggle}
               aria-label="Open navigation"
               title="Open navigation  ["
-              className="text-muted hover:text-ink hover:bg-surface-2 focus-visible:ring-accent grid size-11 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none md:size-8"
+              className="text-muted hover:text-text hover:bg-surface-2 focus-visible:ring-accent grid size-11 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none md:size-8"
             >
               <PanelLeft className="size-4" />
             </button>
@@ -228,7 +233,7 @@ function NavRow({
       aria-current={active ? 'page' : undefined}
       className={cn(
         'text-nav focus-visible:ring-accent flex min-h-11 items-center gap-3 rounded-sm px-3 focus-visible:ring-2 focus-visible:outline-none md:min-h-9',
-        active ? 'bg-surface-2 text-ink' : 'text-muted hover:text-ink hover:bg-surface-2',
+        active ? 'bg-surface-2 text-text' : 'text-muted hover:text-text hover:bg-surface-2',
       )}
     >
       <Icon className="size-4 shrink-0" />

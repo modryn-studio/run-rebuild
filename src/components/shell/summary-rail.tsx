@@ -83,7 +83,7 @@ export function WithSummaryRail({
           onClick={toggle}
           aria-label="Open summary"
           title="Open summary  ]"
-          className="text-muted hover:text-ink hover:bg-surface-2 focus-visible:ring-accent fixed right-4 bottom-4 z-20 hidden size-11 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none lg:grid"
+          className="text-muted hover:text-text hover:bg-surface-2 focus-visible:ring-accent fixed right-4 bottom-4 z-20 hidden size-11 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none lg:grid"
         >
           <PanelRight className="size-4" />
         </button>
