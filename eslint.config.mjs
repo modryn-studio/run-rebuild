@@ -39,12 +39,22 @@ export default [
         {
           // Legitimate one-offs live here and NOWHERE ELSE. If this list grows past a handful,
           // that is a signal the system is missing a token, not that the rule is wrong.
+          // HAND-WRITTEN UTILITIES DEFINED IN globals.css OUTSIDE @theme, and that is why they
+          // are here rather than being made into tokens: an animation and a font-family stack
+          // are CSS rules, not scale values, so `@theme` has nowhere to put them. Each one is
+          // real and greppable in the stylesheet — none is a suppression.
+          //
+          // If this list grows past a handful, that is a signal the system is missing a token,
+          // not that the rule is wrong.
           whitelist: [
-            // Hand-written utilities defined in globals.css outside @theme. `num` is the mono +
-            // tabular-nums treatment for MACHINE STRINGS — order ids, timestamps, tickers — and
-            // deliberately never a money figure.
             'cursor-blink',
+            // Mono + tabular-nums for MACHINE STRINGS — order ids, timestamps, tickers — and
+            // deliberately never a money figure. globals.css:390.
             'num',
+            // globals.css:386. The stylesheet names its one consumer: ui/wordmark.tsx.
+            'serif',
+            // globals.css:435, and already handled in the reduced-motion block at :659.
+            'soft-pulse',
             // Structural, not visual: these carry no design decision.
             'sr-only',
             'group',
