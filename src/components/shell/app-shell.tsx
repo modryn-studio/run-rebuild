@@ -112,7 +112,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [toggle]);
 
   return (
-    <div className="bg-bg flex min-h-dvh">
+    /* h-dvh + overflow-hidden, NOT min-h-dvh. THE PANE SCROLLS, NOT THE DOCUMENT, and that is a
+       structural decision rather than a scrollbar preference:
+         - the sidebar and the header stay put instead of scrolling away with the content
+         - the scrollbar belongs to the pane, so `.scroll-thin` governs it. Let the document
+           scroll and you get the platform's 15px grey slab, which reads as chrome sitting beside
+           a surface whose whole register is content on paper with nothing framing it
+         - `loading.tsx` can then replace only the pane, which is what makes the sidebar stay
+           interactive while a route waits
+       Corrected 2026-08-13 after the rack's bar did not match the previous build's; the cause was
+       here, not in the CSS. */
+    <div className="bg-bg flex h-dvh overflow-hidden">
       {/* Reports the browser's zone once per tab. Lives here rather than on a page so it covers
           every signed-in surface — the relocation S3a's note promised. */}
       <DetectTimezone />
@@ -204,7 +214,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <main className="min-w-0 flex-1 pb-12">{children}</main>
+        {/* min-h-0 is what lets a flex child actually shrink and scroll; without it the pane
+            grows to its content and the document scrolls again. */}
+        <main className="scroll-thin min-h-0 min-w-0 flex-1 overflow-y-auto pb-12">{children}</main>
       </div>
     </div>
   );

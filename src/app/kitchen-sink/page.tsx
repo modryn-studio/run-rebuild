@@ -24,7 +24,6 @@
  */
 
 import { useState } from 'react';
-import { notFound } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { Card, cardSurface, slotSurface } from '@/components/ui/card';
@@ -55,10 +54,11 @@ type ThemeMode = 'light' | 'dark' | 'both';
 const WIDTHS = [375, 768, 1280, 1920] as const;
 type Width = (typeof WIDTHS)[number];
 
+/* SHIPS TO PRODUCTION, deliberately (Luke, 2026-08-13). It was dev-gated and that was wrong: the
+ * rack's whole job is review, and "works on mobile" means a DEPLOYED build on a real phone. A route
+ * that only exists on localhost cannot be opened on the device it is meant to be judged on.
+ * Unlinked and `noindex` like the rest of the app, so nothing points at it. */
 export default function KitchenSinkPage() {
-  // DEV-ONLY. Not shipped, not linked, not in the sitemap. `notFound()` rather than a redirect:
-  // a 404 does not confirm the route exists.
-  if (process.env.NODE_ENV === 'production') notFound();
   return <Rack />;
 }
 
@@ -71,9 +71,12 @@ function Rack() {
   const errorText = density === 'long' ? ERROR_LONG : ERROR_SHORT;
 
   return (
-    <div className="min-h-dvh">
+    /* h-dvh + an internal scroll region, matching the app shell. The rack sits OUTSIDE the
+       shell (a review surface has no business carrying app nav), so without this the document
+       scrolls and you get the platform's grey slab instead of `.scroll-thin`. */
+    <div className="flex h-dvh flex-col overflow-hidden">
       {/* A review tool, not a product control. Lives here and nowhere else. */}
-      <header className="border-border bg-bg sticky top-0 z-50 border-b">
+      <header className="border-border bg-bg shrink-0 border-b">
         <div className="mx-auto flex w-full flex-wrap items-center gap-4 px-4 py-3">
           <h1 className="text-title mr-auto">Kitchen sink</h1>
 
@@ -107,10 +110,10 @@ function Rack() {
       {/* SIDE BY SIDE IS THE MODE THAT FINDS BUGS. This system's dark values are per-mode
           literals, not inversions — scrims, shadows and pressed grounds each have their own
           value, so each can be wrong in exactly one mode. Nobody finds that by using the app. */}
-      <div className={cn('flex', theme === 'both' ? 'divide-border divide-x' : '')}>
+      <div className={cn('scroll-thin flex min-h-0 flex-1 overflow-y-auto', theme === 'both' ? 'divide-border divide-x' : '')}>
         {(theme === 'both' ? (['light', 'dark'] as const) : ([theme] as const)).map((mode) => (
           <div key={mode} className={cn('min-w-0 flex-1', mode === 'dark' && 'dark')}>
-            <div className="bg-bg text-text min-h-dvh">
+            <div className="bg-bg text-text min-h-full">
               <div className="scroll-thin mx-auto overflow-x-auto" style={{ maxWidth: width }}>
                 <div className="space-y-12 px-4 py-10" style={{ width }}>
                   <p className="text-caption text-muted">

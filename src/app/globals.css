@@ -547,7 +547,11 @@
    here: a card is a region you read, a button is a thing you hit, and an edge is how a hit target
    says where it ends. */
 .lift-rest { background-color: var(--color-surface); box-shadow: var(--shadow-sm); border: 1px solid var(--color-border); }
-.lift-press:hover { background-color: var(--lift-bg); box-shadow: var(--shadow-card); }
+/* :not(:disabled) ADDED 2026-08-13. Without it a disabled IconButton still lifted on hover
+   and pushed in on press: CSS :hover fires on a disabled button, so the control looked live and
+   only failed on click. Found in the rack, which is the first place a disabled one was rendered
+   beside an enabled one. */
+.lift-press:not(:disabled):hover { background-color: var(--lift-bg); box-shadow: var(--shadow-card); }
 /* HOVER IS THE BORDER AND NOTHING ELSE, for anything that is already a raised object (Luke,
    2026-07-31: "monarch doesn't highlight the entire button on hover. i think its just the border.
    and its subtle"). He is right and it is in their source verbatim - their button carries
@@ -572,7 +576,7 @@
    equal specificity and source order decides; placed later, the held state survives the pointer
    passing over it. It sits BEFORE :active so a real press still reads as a press. */
 .lift-press[data-active='true'] { background-color: var(--press-bg); box-shadow: var(--shadow-press); }
-.lift-press:active { background-color: var(--press-bg); box-shadow: var(--shadow-press); }
+.lift-press:not(:disabled):active { background-color: var(--press-bg); box-shadow: var(--shadow-press); }
 @media (prefers-reduced-motion: reduce) { .lift-press { transition: none; } }
 
 /* A quiet settle when a selectable card becomes active - just enough weight to confirm the choice,
