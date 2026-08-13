@@ -55,6 +55,12 @@ export default [
             'serif',
             // globals.css:435, and already handled in the reduced-motion block at :659.
             'soft-pulse',
+            // The raised-chip mechanic — rest / hover / press as one named pair, so a control
+            // cannot invent its own version of "lifted". Both defined in globals.css.
+            'lift-rest',
+            'lift-press',
+            // Menu's open animation.
+            'pop-in',
             // Structural, not visual: these carry no design decision.
             'sr-only',
             'group',

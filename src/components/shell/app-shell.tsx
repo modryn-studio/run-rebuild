@@ -31,8 +31,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Wallet, Receipt, Sparkles, Settings, PanelLeft, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { Icon, type IconName } from '@/components/ui/icon';
 import { site } from '@/config/site';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { DetectTimezone } from '@/components/detect-timezone';
@@ -57,10 +57,10 @@ import {
  * long note in that file before moving anything.
  */
 const NAV = [
-  { label: 'Today', href: '/today', Icon: LayoutDashboard },
-  { label: 'Accounts', href: '/accounts', Icon: Wallet },
-  { label: 'Trades', href: '/trades', Icon: Receipt },
-  { label: 'Read', href: '/read', Icon: Sparkles },
+  { label: 'Today', href: '/today', icon: 'today' },
+  { label: 'Accounts', href: '/accounts', icon: 'accounts' },
+  { label: 'Trades', href: '/trades', icon: 'trades' },
+  { label: 'Read', href: '/read', icon: 'read' },
 ] as const;
 
 const isOverlay = () =>
@@ -160,19 +160,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               title="Collapse navigation  ["
               className="text-muted hover:text-text hover:bg-surface-2 focus-visible:ring-accent grid size-11 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none md:size-8"
             >
-              <X className="size-4 md:hidden" />
-              <PanelLeft className="hidden size-4 md:block" />
+              <Icon name="close" className="md:hidden" />
+              <Icon name="collapse" className="hidden md:block" />
             </button>
           </div>
 
           <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
-            {NAV.map(({ label, href, Icon }) => (
-              <NavRow key={href} href={href} label={label} Icon={Icon} pathname={pathname} />
+            {NAV.map(({ label, href, icon }) => (
+              <NavRow key={href} href={href} label={label} icon={icon} pathname={pathname} />
             ))}
           </nav>
 
           <div className="border-border shrink-0 border-t px-3 py-2">
-            <NavRow href="/settings" label="Settings" Icon={Settings} pathname={pathname} />
+            <NavRow href="/settings" label="Settings" icon="settings" pathname={pathname} />
           </div>
         </div>
       </aside>
@@ -194,7 +194,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               title="Open navigation  ["
               className="text-muted hover:text-text hover:bg-surface-2 focus-visible:ring-accent grid size-11 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none md:size-8"
             >
-              <PanelLeft className="size-4" />
+              <Icon name="collapse" />
             </button>
           )}
           <div className="ml-auto">
@@ -217,12 +217,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 function NavRow({
   href,
   label,
-  Icon,
+  icon,
   pathname,
 }: {
   href: string;
   label: string;
-  Icon: React.ComponentType<{ className?: string }>;
+  icon: IconName;
   pathname: string;
 }) {
   // Prefix match so /trades/123 still lights the Trades row, but never let '/' match everything.
@@ -236,7 +236,7 @@ function NavRow({
         active ? 'bg-surface-2 text-text' : 'text-muted hover:text-text hover:bg-surface-2',
       )}
     >
-      <Icon className="size-4 shrink-0" />
+      <Icon name={icon} className="shrink-0" />
       {label}
     </Link>
   );

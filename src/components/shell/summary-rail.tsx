@@ -16,8 +16,8 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { PanelRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { Icon } from '@/components/ui/icon';
 import { PAGE_COLUMN, RAIL_W } from '@/lib/shell';
 
 const RAIL_COLLAPSE_KEY = 'run_rail_collapsed';
@@ -85,7 +85,7 @@ export function WithSummaryRail({
           title="Open summary  ]"
           className="text-muted hover:text-text hover:bg-surface-2 focus-visible:ring-accent fixed right-4 bottom-4 z-20 hidden size-11 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none lg:grid"
         >
-          <PanelRight className="size-4" />
+          <Icon name="expand" />
         </button>
       )}
     </div>
