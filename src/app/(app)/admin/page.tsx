@@ -4,7 +4,9 @@ import { desc, eq, sql } from 'drizzle-orm';
 import { db, analyticsEvent, authUser } from '@/lib/db';
 import { getAdmin } from '@/lib/require-admin';
 import { requireTrader } from '@/lib/trader';
-import { DetectTimezone } from '@/components/detect-timezone';
+import { PageHeader } from '@/components/shell/page-header';
+import { PAGE_COLUMN } from '@/lib/shell';
+import { cn } from '@/lib/cn';
 
 // Never let this into an index, even by accident.
 export const metadata: Metadata = {
@@ -100,94 +102,106 @@ export default async function AdminPage() {
   const trader = await requireTrader();
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-6 py-12">
-      {/* Moves to the app shell in S3b. See the component's own note. */}
-      <DetectTimezone />
+    // No <main>, no gutter of its own, no DetectTimezone: the shell owns all three now (S3b).
+    //
+    // THE HEADER AND THE BODY ARE SIBLINGS, each applying PAGE_COLUMN ONCE. Two wrong shapes were
+    // measured on the way here, and both type-checked and looked plausible:
+    //
+    //   1. A `mx-auto max-w-5xl px-4` wrapper around both. PAGE_COLUMN's gutter then sat inside
+    //      another gutter and the header indent went from its measured 8px to 24px.
+    //   2. PAGE_COLUMN applied directly to each `<section>`. Those sections ARE the cards, so the
+    //      gutter became padding inside the card's own border and the card bled to the pane edge.
+    //
+    // The indent is only correct when the gutter is on a WRAPPER the cards sit in. Caught by
+    // measuring the rendered page, never by tsc — which is why the shell is checked in a browser.
+    <>
+      <PageHeader title="Admin" />
 
-      <header className="mb-10">
-        <h1 className="text-h2">Admin</h1>
-        <p className="text-small text-muted mt-1">
+      <div className={PAGE_COLUMN}>
+        <p className="text-small text-muted mb-10">
           All-time. Signed in as {admin.email}, showing clocks in {trader.displayTimezone}{' '}
           {trader.displayTimezoneSetByUser ? '(your choice)' : '(detected)'}.
         </p>
-      </header>
 
-      {/* THE HEADLINE NUMBERS. Replace these with the metrics that actually decide whether this
+        {/* THE HEADLINE NUMBERS. Replace these with the metrics that actually decide whether this
           product works — traffic is the least interesting thing on this page. */}
-      <section className="mb-10 grid gap-4 sm:grid-cols-2">
-        <Stat label="Users" value={s.users} />
-        <Stat label="Tracked events" value={s.recent.length} hint="last 50 shown below" />
-      </section>
+        <section className="mb-10 grid gap-4 sm:grid-cols-2">
+          <Stat label="Users" value={s.users} />
+          <Stat label="Tracked events" value={s.recent.length} hint="last 50 shown below" />
+        </section>
 
-      <section className={`${CARD} mb-10 p-6`}>
-        <h2 className="text-title mb-1">Funnel</h2>
-        <p className="text-small text-muted mb-4">Unique visitors per step.</p>
-        <Row label="Saw login" value={s.funnel.sawLogin} />
-        <Row
-          label="Started signup"
-          value={s.funnel.startedSignup}
-          hint={pct(s.funnel.startedSignup, s.funnel.sawLogin)}
-        />
-        <Row
-          label="Signed up"
-          value={s.funnel.signedUp}
-          hint={pct(s.funnel.signedUp, s.funnel.startedSignup)}
-        />
-        <p className="text-caption text-muted mt-4">
-          Steps read zero until their screens exist and are instrumented. Add product steps here as
-          you add events — see src/lib/analytics.ts.
-        </p>
-      </section>
+        <section className={cn(CARD, 'mb-10 p-6')}>
+          <h2 className="text-title mb-1">Funnel</h2>
+          <p className="text-small text-muted mb-4">Unique visitors per step.</p>
+          <Row label="Saw login" value={s.funnel.sawLogin} />
+          <Row
+            label="Started signup"
+            value={s.funnel.startedSignup}
+            hint={pct(s.funnel.startedSignup, s.funnel.sawLogin)}
+          />
+          <Row
+            label="Signed up"
+            value={s.funnel.signedUp}
+            hint={pct(s.funnel.signedUp, s.funnel.startedSignup)}
+          />
+          <p className="text-caption text-muted mt-4">
+            Steps read zero until their screens exist and are instrumented. Add product steps here
+            as you add events — see src/lib/analytics.ts.
+          </p>
+        </section>
 
-      <section className={`${CARD} mb-10 p-6`}>
-        <h2 className="text-title mb-4">Sign-in method</h2>
-        {s.methods.length === 0 ? (
-          <Empty />
-        ) : (
-          s.methods.map((m) => <Row key={m.method ?? 'unknown'} label={m.method ?? 'unknown'} value={m.n} />)
-        )}
-      </section>
+        <section className={cn(CARD, 'mb-10 p-6')}>
+          <h2 className="text-title mb-4">Sign-in method</h2>
+          {s.methods.length === 0 ? (
+            <Empty />
+          ) : (
+            s.methods.map((m) => (
+              <Row key={m.method ?? 'unknown'} label={m.method ?? 'unknown'} value={m.n} />
+            ))
+          )}
+        </section>
 
-      <section className={`${CARD} mb-10 p-6`}>
-        <h2 className="text-title mb-4">Recent signups</h2>
-        {s.signups.length === 0 ? (
-          <Empty />
-        ) : (
-          <ul className="divide-border divide-y">
-            {s.signups.map((u) => (
-              <li key={u.id} className="flex items-center justify-between gap-4 py-2">
-                <span className="text-body truncate">{u.email}</span>
-                <span className="text-small text-muted shrink-0">
-                  {new Date(u.createdAt).toLocaleString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        <section className={cn(CARD, 'mb-10 p-6')}>
+          <h2 className="text-title mb-4">Recent signups</h2>
+          {s.signups.length === 0 ? (
+            <Empty />
+          ) : (
+            <ul className="divide-border divide-y">
+              {s.signups.map((u) => (
+                <li key={u.id} className="flex items-center justify-between gap-4 py-2">
+                  <span className="text-body truncate">{u.email}</span>
+                  <span className="text-small text-muted shrink-0">
+                    {new Date(u.createdAt).toLocaleString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
-      <section className={`${CARD} p-6`}>
-        <h2 className="text-title mb-1">Recent activity</h2>
-        <p className="text-small text-muted mb-4">Last 50 tracked events.</p>
-        {s.recent.length === 0 ? (
-          <Empty />
-        ) : (
-          <ul className="divide-border divide-y">
-            {s.recent.map((e, i) => (
-              <li key={i} className="flex items-center justify-between gap-4 py-2">
-                <span className="text-body">
-                  {e.name}
-                  {e.path ? <span className="text-muted"> · {e.path}</span> : null}
-                </span>
-                <span className="text-small text-muted shrink-0">
-                  {new Date(e.createdAt).toLocaleString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+        <section className={cn(CARD, 'p-6')}>
+          <h2 className="text-title mb-1">Recent activity</h2>
+          <p className="text-small text-muted mb-4">Last 50 tracked events.</p>
+          {s.recent.length === 0 ? (
+            <Empty />
+          ) : (
+            <ul className="divide-border divide-y">
+              {s.recent.map((e, i) => (
+                <li key={i} className="flex items-center justify-between gap-4 py-2">
+                  <span className="text-body">
+                    {e.name}
+                    {e.path ? <span className="text-muted"> · {e.path}</span> : null}
+                  </span>
+                  <span className="text-small text-muted shrink-0">
+                    {new Date(e.createdAt).toLocaleString()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+    </>
   );
 }
 

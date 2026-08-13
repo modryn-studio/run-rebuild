@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { sql } from 'drizzle-orm';
 import { db, contractSpec } from '@/lib/db';
 import { env } from '@/lib/env';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 // S0's walking skeleton, and the whole point of it is that it is not a feature.
 //
@@ -39,6 +40,8 @@ export default async function StatusPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center px-4 py-16 sm:px-6">
+      {/* Its own toggle: /status sits OUTSIDE the app shell, which carries one in its header. */}
+      <ThemeToggle className="fixed top-4 right-4 z-50" />
       <h1 className="text-h2">Status</h1>
       <p className="text-small text-muted mt-1">
         The walking skeleton. One query, read at request time.

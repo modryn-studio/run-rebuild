@@ -3,7 +3,6 @@ import { Newsreader, Hanken_Grotesk, IBM_Plex_Mono } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { site } from '@/config/site';
 import { ThemeProvider } from '@/components/theme-provider';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 import './globals.css';
 
 // THREE FACES, ONE JOB EACH. One grotesque for the whole app, mono for machine strings only
@@ -64,11 +63,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       {/* No font class on <body>: globals.css sets the family on <html> from --font-sans. */}
       <body className="antialiased">
-        <ThemeProvider>
-          {/* One toggle for the whole app. Move it into a real header when the project grows one. */}
-          <ThemeToggle className="fixed top-4 right-4 z-50" />
-          {children}
-        </ThemeProvider>
+        {/* The toggle used to float here at `fixed top-4 right-4`, with a note saying to move it
+            into a real header once the project grew one. S3b grew one: the shell renders its own
+            toggle inside the 64px header band, and a fixed copy would have sat on top of it.
+            Surfaces OUTSIDE the shell — /login, /status — render their own. */}
+        <ThemeProvider>{children}</ThemeProvider>
         {/* Vercel Web Analytics: pageviews only, no cookie, no cross-site identity, so it does not
             add anything to the Privacy Policy's cookie section. Inert in development and on any
             non-Vercel host, so local runs never emit. Our own /api/track handles product events;

@@ -343,6 +343,53 @@ Measured on the old build: the client page rendered the full column while two se
 pages emitted `class="pb-8"` and lost their gutter and max-width entirely. **No error, no
 warning, and nobody noticed for two pages.**
 
+**✅ CLOSED 2026-08-13.** `tsc` and `eslint` clean; every number below measured on the running
+page rather than eyeballed, because the failures in this slice are all invisible ones.
+
+| Measured on `/admin` at 1280 | |
+|---|---|
+| Sidebar | **224px**, collapses to **0** with no icon rail |
+| Sidebar band and pane header | **64px and 64px** — no step in the top edge |
+| Title vs the card it names | **x=248 against x=240 — the 8px indent, exactly as recorded** |
+| `PAGE_COLUMN` into a Server Component | arrived as `mx-auto w-full px-4`, **not** dropped |
+| Both modes | sidebar `#191918` dark, nav `#989691` / `#777573` — tokens, no raw hex |
+
+- ✅ **`lib/shell.ts`** — the constants, in a plain module. The gotcha above did **not** recur:
+  `/admin` is a Server Component and the string arrived intact.
+- ✅ **`(app)` route group with the auth gate.** One null check from `getTrader()` covers both
+  "never signed in" and "signed in with no trader row". **No dev bypass**, unlike the previous
+  build, whose own comment had to admit the gate could then only be tested against a production
+  build. Verified anonymous vs authenticated: anonymous gets no page content and no sidebar.
+  - **The trap, confirmed live:** a layout `redirect()` comes back as **200 with `NEXT_REDIRECT`
+    in the body**, not a 307, because Next has already begun streaming. *The status line alone
+    says the gate is open when it is not.* Grep the body, never the status.
+- ✅ **`AppShell` is a layout, not a per-page wrapper.** Next preserves layouts and remounts page
+  subtrees, so a shell inside each page would rebuild the sidebar on every nav click — collapse
+  state re-read, panel re-animating, a flicker per move.
+- ✅ **Collapse, both controls, and `[`** — measured: 224 → 0, the floating Open control appears
+  at the pane's top-left, state persists to `localStorage`.
+- ✅ **`DetectTimezone` relocated** from `/admin` into the shell, which is what `S3a` promised.
+- ⚠️ **`WithSummaryRail` is built and mounted nowhere.** No page has a filtered set to digest yet.
+  It is specified as part of this slice and its reasoning is captured now while it is cheap, but
+  **its first real exercise is `S3c`'s kitchen sink** — it has not been seen on screen.
+- ⚠️ **The four nav rows 404 by design** (Luke, 2026-08-13). Today, Accounts, Trades and Read land
+  with `S8`, `S6`, `S5`, `S7`. Stub pages were rejected: a stub is a screen somebody has to
+  remember to delete.
+
+**MOBILE IS DEFERRED, and this is a deliberate deviation from the seven-point definition of done**
+(Luke, 2026-08-13): *"build the desktop version first and then go back to iterate mobile design
+last… don't worry about viewport issues while we build out the project for desktop first."* What
+shipped is *not broken* on a phone — the sidebar overlays with a scrim below 768px rather than
+eating 60% of a 375px screen — but it is **not designed**, and it should not be read as a settled
+decision. `design-system.md` still records breakpoints as *NOT specified*. The mobile pass is its
+own later slice, with `run-trading@v2`'s `/accounts` as the reference Luke already started from.
+
+**Two shapes that type-checked and were still wrong**, both caught only by measuring the rendered
+page: a `max-w-5xl px-4` wrapper around header *and* body put `PAGE_COLUMN`'s gutter inside another
+gutter and pushed the indent to 24px; applying `PAGE_COLUMN` to each `<section>` made the gutter
+padding *inside* the card border, so the card bled to the pane edge. The header and the body must
+be **siblings, each applying the column once.**
+
 ### S3c — The kitchen sink
 
 Specced at phase 3 (`design/kitchen-sink.md`), named in a standing rule and in the phase 5

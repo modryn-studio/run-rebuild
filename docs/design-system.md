@@ -189,6 +189,27 @@ system was tuned against, and "inactive rows are `muted`, the active row alone i
 read differently when there are only four of them. Not a defect — a thing to look at once it's
 on screen, and exactly the kind of check the review gate exists for.
 
+**It is on screen now (S3b, 2026-08-13)** — built as specified so the check has the real thing to
+look at. Measured in place: inactive `#777573` light / `#989691` dark, active row full ink on
+`surface-2`. Still open for the review gate.
+
+---
+
+## ⚠️ Mobile — DEFERRED, not solved (Luke, 2026-08-13)
+
+The breakpoint gap above stays open on purpose. Desktop is being built first and **mobile gets its
+own pass at the end**, because mobile is a different layout rather than a narrower one:
+
+> *"build the desktop version first and then go back to iterate mobile design last… I do realize
+> that mobile view will have a design based on desktop for the time being. And that is fine for
+> now. Just don't worry about viewport issues while we build out the project for desktop first."*
+
+So what ships until that pass is **"not broken", not "designed"**: below 768px the sidebar
+overlays with a scrim instead of pushing, because at 375px a 224px inline panel leaves 151px of
+content, which is a squeeze rather than a layout. **Do not read any of it as a settled decision**,
+and do not spend review time on mobile spacing until the pass happens. Reference for that pass:
+`run-trading@v2`'s `/accounts`, where the desktop/mobile split was already started.
+
 ---
 
 ---
