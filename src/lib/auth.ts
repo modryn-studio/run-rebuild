@@ -113,7 +113,18 @@ export const auth = betterAuth({
    * Auth's static-string path (not this dynamic one) resolves it once at boot. */
   baseURL: isProd
     ? env.BETTER_AUTH_URL
-    : { allowedHosts: ['localhost:*', '127.0.0.1:*'], protocol: 'http' },
+    : {
+        // `*.localhost:*` is here for the door/app split. Production runs the marketing site on
+        // the apex and the product on `app.run.trading`; locally that shape is reachable because
+        // Chrome resolves any `*.localhost` to loopback with no hosts-file edit, and Next serves
+        // whatever Host it is handed. Checked against the installed library: `app.localhost:3001`
+        // does NOT match `localhost:*` — the pattern is matched against the whole host — so
+        // without this line a sign-in from the app subdomain 403s, invisibly to curl, which is
+        // exactly the failure the port pin already cost a session. Safari does not resolve
+        // `*.localhost`; it needs a hosts entry.
+        allowedHosts: ['localhost:*', '*.localhost:*', '127.0.0.1:*'],
+        protocol: 'http',
+      },
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema: { user: authUser, session: authSession, account: authAccount, verification: authVerification },
