@@ -85,6 +85,24 @@ so they exist before they are needed at 3am:
    back and it changes in front of you
 3. Roll forward the same way. Promotion is not destructive — every prior deployment stays
 
+**⚠ THE DEPLOY CAN STOP SILENTLY, and it did (2026-08-13).** Production sat on `187e235` while
+`main` moved three commits ahead — the multi-port auth fix, a docs pass, and all of `S3b`. Nothing
+failed loudly: no red build, no alert, and the site kept serving the old bundle perfectly happily.
+It was found only because `/status` renders the deployed SHA and the number stopped changing.
+
+The trigger was the repo being **private on a Vercel Hobby plan**; making it public resumed
+deploys. *The exact mechanism is unverified* — it is recorded as the observed sequence, not as a
+confirmed rule, because the vendor's own docs read otherwise and guessing here would be the kind
+of confident-wrong note this project keeps catching.
+
+Two things generalise regardless of the cause:
+
+- **A stalled deploy is invisible without the SHA on a page.** That line was added at `S0` to make
+  a rollback verifiable; its first real save was this, an entirely different failure. Keep it.
+- **"`main` is deployed and always green" is a claim that needs checking, not asserting.** Confirm
+  the SHA after a push that matters. A local `next build` passing proves the code, not the deploy —
+  both were true here and the site was still three commits stale.
+
 *Recorded because an untested rollback is a belief, not a rollback, and because "about 20 seconds"
 is only knowable by having done it once on purpose.*
 
