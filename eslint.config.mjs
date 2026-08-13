@@ -61,6 +61,10 @@ export default [
             'lift-press',
             // Menu's open animation.
             'pop-in',
+            // The app pane's scrollbar: `scrollbar-width: thin` plus a thumb from the border
+            // token. Standard properties only, never `::-webkit-scrollbar` — the two do not
+            // compose, so carrying both means maintaining two descriptions of one bar.
+            'scroll-thin',
             // Structural, not visual: these carry no design decision.
             'sr-only',
             'group',

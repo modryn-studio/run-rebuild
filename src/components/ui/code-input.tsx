@@ -109,7 +109,7 @@ export function CodeInput({
               className={cn(
                 // h-12 matches Input's min-h-12 and Button size="lg", so a code box and a text
                 // field are the same height everywhere in the product.
-                'num flex h-12 min-w-0 max-w-12 flex-1 items-center justify-center rounded-[var(--radius-sm)] border text-h2 transition-colors',
+                'tabular-nums flex h-12 min-w-0 max-w-12 flex-1 items-center justify-center rounded-[var(--radius-sm)] border text-h2 transition-colors',
                 disabled && 'opacity-50',
                 invalid
                   ? 'border-neg text-neg'

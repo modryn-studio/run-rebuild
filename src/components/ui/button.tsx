@@ -34,7 +34,8 @@ const variantClasses: Record<ButtonVariant, string> = {
   // primary one) - distinct from `secondary`, whose edge only firms up on hover.
   outline:
     'border border-accent/40 text-accent hover:border-accent active:shadow-[var(--shadow-press)] disabled:opacity-50',
-  ghost: 'text-muted hover:text-text active:text-text disabled:opacity-50',
+  ghost:
+    'text-muted hover:text-text hover:bg-[var(--pressed-bg)] active:bg-[var(--pressed-bg)] active:text-text active:shadow-[var(--shadow-press)] disabled:opacity-50',
 };
 
 // Sizes reflect the app's real button scale, not an invented one: sm = a compact header control,

@@ -111,7 +111,7 @@ function Rack() {
         {(theme === 'both' ? (['light', 'dark'] as const) : ([theme] as const)).map((mode) => (
           <div key={mode} className={cn('min-w-0 flex-1', mode === 'dark' && 'dark')}>
             <div className="bg-bg text-text min-h-dvh">
-              <div className="mx-auto overflow-x-auto" style={{ maxWidth: width }}>
+              <div className="scroll-thin mx-auto overflow-x-auto" style={{ maxWidth: width }}>
                 <div className="space-y-12 px-4 py-10" style={{ width }}>
                   <p className="text-caption text-muted">
                     {mode} · {width}px · {density}
@@ -204,7 +204,7 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
         note="Every mark at the system stroke of 1.5. Lucide ships 2, which reads chunky against a 14px body face and a hairline border. One wrapper, one number, so two icons at the same size can never disagree."
       >
         <Row label="16px (default)">
-          {(['today', 'accounts', 'trades', 'read', 'settings', 'collapse', 'expand', 'close', 'check', 'chevron', 'moon', 'sun'] as const).map(
+          {(['today', 'accounts', 'trades', 'read', 'settings', 'collapse', 'expand', 'menu', 'close', 'check', 'chevron', 'moon', 'sun'] as const).map(
             (n) => (
               <span key={n} className="text-muted flex flex-col items-center gap-1">
                 <Icon name={n} />
@@ -325,7 +325,7 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
         title="The overlong list"
         note="400 rows. Named in the blueprint because a list that reads fine at six is where layout and performance both give out."
       >
-        <div className={cn(cardSurface, 'max-h-64 overflow-y-auto')}>
+        <div className={cn(cardSurface, 'scroll-thin max-h-64 overflow-y-auto')}>
           {Array.from({ length: 400 }, (_, i) => (
             <div
               key={i}
@@ -438,7 +438,7 @@ function TokenProofs() {
         title="Contrast"
         note="Every ink on every ground. `faint` is aliased to `muted` precisely because this check failed once at 3.43:1, under the 4.5 floor, while rendering timestamps and axis labels."
       >
-        <div className="overflow-x-auto">
+        <div className="scroll-thin overflow-x-auto">
           <table className="text-small w-full border-collapse">
             <thead>
               <tr>

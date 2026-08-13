@@ -150,8 +150,15 @@
   --text-title: 18px;        --text-title--line-height: 24px;         --text-title--font-weight: 500; --text-title--letter-spacing: -0.01em;
   --text-h2: 24px;           --text-h2--line-height: 30px;            --text-h2--font-weight: 500;    --text-h2--letter-spacing: -0.01em;
   /* MONEY / STAT NUMERALS. Not a display step - it never set in the serif and it is not a heading
-     role. Sans + tabular-nums, never `.num` (that is for machine strings). */
-  --text-figure: 1.6rem;  --text-figure--line-height: 1.9rem;   --text-figure--font-weight: 500; --text-figure--letter-spacing: -0.015em;
+     role. Sans + tabular-nums, never `.num` (that is for machine strings).
+     px SINCE 2026-08-13, WAS 1.6rem/1.9rem. The kitchen sink put the whole ramp in one column and
+     this was the only step below `display` written in rem, so it computed to 25.6px in a column of
+     otherwise round values - and its own comment above says it is NOT a display step, which is the
+     group it had been sharing units with. 26/30 keeps it a step above h2 (24/30) and lands it back
+     with the px group it belongs to. The 0.4px change is imperceptible; the inconsistency was not,
+     once anything sat beside it. Found by adjacency, which is the only way this class of drift is
+     ever found. */
+  --text-figure: 26px;    --text-figure--line-height: 30px;     --text-figure--font-weight: 500; --text-figure--letter-spacing: -0.015em;
 
   /* DISPLAY STEPS, re-derived as GROTESQUE objects 2026-07-30 (Rams' spec, Luke's call). These were
      "editorial serif display steps" and they are not serif any more - the app reads in Hanken, and
@@ -344,6 +351,18 @@
      "pushed in" also just reads as receding toward black, which +1 step up the ramp cannot say.
      So a filled control presses to the PAGE. One deliberate deviation, and the light value - which
      Luke says now feels right - is untouched and still theirs. */
+  /* SAME VALUE AS `--color-hover` IN DARK (#2a2a28), and unlike the light-mode coincidence with
+     `bg`, this one is NOT obviously harmless. Surfaced by the kitchen sink's ground stack on
+     2026-08-13, which is the first time the two had ever sat adjacent.
+     Both are individually right and both come from the same reference ramp: a band is the step
+     above the card, and a hover is the step above the card. They only collide where BOTH appear
+     on one surface - which is exactly the Trades tape, where a session header band sits above
+     hoverable trade rows. There, a hovered row will read as another band.
+     LEFT AS MEASURED rather than nudged now: changing a value that is correct in isolation, to
+     fix an adjacency that has no screen yet, is how a palette acquires a token nobody can explain.
+     THE TRIGGER IS `S5`. When the session header row and the trade rows are built, put them in the
+     rack together in dark; if the hover disappears into the band, the fix is a distinct dark
+     `--color-band`, not a darker hover (hover is shared by every list in the product). */
   --color-band: #2a2a28;
   --pressed-bg: #191918;
   --color-accent-fg: #0b1512;

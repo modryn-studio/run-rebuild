@@ -165,7 +165,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
 
-          <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
+          {/* scroll-thin: the platform default is a 15px grey slab that reads as chrome beside
+              the content, and this pane is content on paper with nothing framing it. */}
+          <nav className="scroll-thin flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
             {NAV.map(({ label, href, icon }) => (
               <NavRow key={href} href={href} label={label} icon={icon} pathname={pathname} />
             ))}

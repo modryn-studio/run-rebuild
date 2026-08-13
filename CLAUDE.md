@@ -178,7 +178,15 @@ serve it, so it belongs on your machine and not on the deploy.
   styles or hand-written CSS need `@theme static` or they are tree-shaken away.
 - **Both modes, always.** The `.dark` block is per-mode literals, not inversions — scrims, shadows
   and pressed grounds each have their own value, and each can be wrong in exactly one mode.
-- **A component isn't done until it appears in the kitchen sink in every state** (`S3c`).
+- **A component isn't done until it appears in `/kitchen-sink` in every state** (`S3c`), and that
+  is a live gate, not a checklist item: the rack is where a component is reviewed, so one that
+  isn't in it has not been looked at. It is also where the system gets judged, because a design
+  system cannot be evaluated one component at a time. Its first run found `text-figure` in `rem`
+  in a px ramp, `Textarea` on Tailwind's default `text-sm`, and a dark band/hover collision.
+- **"Works on mobile" means a deployed build on a real phone.** A 375px viewport in a desktop
+  browser is a width check, not a device check: it has a mouse, so `:hover` fires and every touch
+  target passes; it has no on-screen keyboard, no iOS Safari, and no real scroll momentum. The
+  rack's 375 column and this rule do different jobs, and only the second one is the gate.
 - **`layout.tsx` sets `robots: { index: false }`.** Remove it when the project genuinely goes public.
 - **No em dashes in user-facing copy** (headlines, labels, any UI text). Comma, colon, parentheses,
   or a plain hyphen. Code comments and docs are exempt.
