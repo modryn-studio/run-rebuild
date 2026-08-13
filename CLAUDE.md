@@ -117,11 +117,15 @@ Each is a bug that shipped or a session that got burned.
   error, no type complaint. **The shell's layout constants live in a module with no `'use client'`
   at its top, and that absence is the point.** Re-exporting from the client file does NOT launder
   them. On the old build this cost two server-rendered pages their gutter and max-width entirely.
-- **Better Auth rejects any origin that is not `BETTER_AUTH_URL`.** That URL is pinned to :3000, but
-  Next takes :3001 the moment 3000 is busy — any second dev server, any worktree. Every browser POST
-  then 403s before the throttle hook and before any mail, while the screen reports a generic send
-  failure, so retrying can never work. **And it is invisible to curl:** the origin check only runs
-  on requests carrying a Cookie header. Reproduce auth bugs in a browser or not at all.
+- **In dev, `baseURL` resolves per request from the `Host` header — it is not pinned to one port.**
+  A pinned `BETTER_AUTH_URL` breaks the moment a second dev server or worktree takes the next port,
+  and it breaks in a way that costs the most time: every browser POST 403s before the throttle hook
+  and before any mail, the screen reports a generic send failure, and retrying can never work.
+  `src/lib/auth.ts` uses Better Auth's `baseURL: { allowedHosts: [...], protocol: 'http' }` in dev
+  instead — its own multi-host feature, not a workaround — so sign-in works on whatever port Next
+  actually bound to. Production keeps a pinned string; a wildcard host allowlist in production is
+  an open redirect. **Still invisible to curl either way:** the origin check only runs on requests
+  carrying a Cookie header. Reproduce auth bugs in a browser or not at all.
 - **Next.js 16 is not the Next.js in your training data.** Read `node_modules/next/dist/docs/`
   before writing framework code. `next dev` maintains that pointer in `AGENTS.md`, which exists so
   Next writes its managed block there instead of into this file.

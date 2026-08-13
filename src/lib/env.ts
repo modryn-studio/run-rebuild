@@ -29,7 +29,7 @@ const schema = z.object({
   // Auth (Better Auth, src/lib/auth.ts). Secret is required; sign-in providers are
   // optional and stay dark until their creds land.
   BETTER_AUTH_SECRET: z.string().min(1, 'BETTER_AUTH_SECRET is required'),
-  BETTER_AUTH_URL: z.string().url().optional(), // defaults to http://localhost:3000
+  BETTER_AUTH_URL: z.string().url().optional(), // production only — dev resolves per request, see auth.ts
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
 
