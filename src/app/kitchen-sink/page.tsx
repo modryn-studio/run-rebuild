@@ -49,6 +49,8 @@ const ERROR_SHORT = 'That code has expired.';
 const ERROR_LONG =
   'Cash History covers a window that does not overlap your Fills at all, so no fee could be resolved against any trade, and importing anyway would price every trade at zero fees and report a net that equals gross.';
 
+const NAV_DEMO = ['Today', 'Accounts', 'Trades', 'Read'] as const;
+
 type Density = 'normal' | 'long';
 type ThemeMode = 'light' | 'dark' | 'both';
 const WIDTHS = [375, 768, 1280, 1920] as const;
@@ -324,6 +326,60 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
         <Note>Type or paste a six digit code.</Note>
       </Section>
 
+      {/* ── THE NAV ROW DECISION, both candidates rendered rather than described ─────────────
+          All three systems agree on the geometry: a 224px rail, an 8px row radius, 16px type, and
+          `surface-2` as the active ground. They disagree on ONE thing, and only measurement showed
+          it — the previous build was assumed to have copied the reference here and did not.
+
+          Measured live 2026-08-13, the reference on its Accounts page and the previous build on
+          localhost:
+
+            reference   inactive 16/400 FULL INK   active 16/400 full ink + surface-2
+            previous    inactive 16/500 muted      active 16/500 full ink + surface-2
+            this build  inactive 16/500 muted      active 16/500 full ink + surface-2
+
+          So the previous build diverged from the reference on weight AND on inactive colour, and
+          this build inherited that divergence. `design-system.md` already flagged the rule as "the
+          one thing to re-examine, not adopt", because it was tuned against a twelve-row sidebar and
+          Run has four. Four rows are below. */}
+      <Section
+        title="Nav row A: the reference"
+        note="Every row full ink at 400. The active row is distinguished by its ground alone. Quieter, and it stops the sidebar competing with the content it points at."
+      >
+        <div className="bg-bg w-56 rounded-[var(--radius)] p-3">
+          {NAV_DEMO.map((r) => (
+            <div
+              key={r}
+              className={cn(
+                'text-text flex min-h-9 items-center rounded-sm px-3 text-[16px] font-normal',
+                r === 'Accounts' && 'bg-surface-2',
+              )}
+            >
+              {r}
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section
+        title="Nav row B: this build and the previous one"
+        note="Inactive muted at 500, active full ink at 500, plus the same ground. Louder hierarchy: the active row is doing three things at once."
+      >
+        <div className="bg-bg w-56 rounded-[var(--radius)] p-3">
+          {NAV_DEMO.map((r) => (
+            <div
+              key={r}
+              className={cn(
+                'text-nav flex min-h-9 items-center rounded-sm px-3',
+                r === 'Accounts' ? 'bg-surface-2 text-text' : 'text-muted',
+              )}
+            >
+              {r}
+            </div>
+          ))}
+        </div>
+      </Section>
+
       <Section
         title="The overlong list"
         note="400 rows. Named in the blueprint because a list that reads fine at six is where layout and performance both give out."
@@ -358,7 +414,6 @@ const TYPE_STEPS = [
   'h2',
   'figure',
   'display',
-  'hero',
 ] as const;
 
 const SPACE_STEPS = [1, 2, 3, 4, 6, 8, 12, 16] as const;

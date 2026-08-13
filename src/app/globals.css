@@ -169,7 +169,11 @@
      which is the serif spec's residue and the one thing that would make this read as generic
      consumer-marketing), and tracking pulled tighter to hold the larger x-height together. */
   --text-display: 2rem;   --text-display--line-height: 2.2rem;  --text-display--font-weight: 500; --text-display--letter-spacing: -0.025em;
-  --text-hero: 2.5rem;    --text-hero--line-height: 2.7rem;     --text-hero--font-weight: 500;    --text-hero--letter-spacing: -0.03em;
+  /* `--text-hero` (2.5rem/40px) DELETED 2026-08-13. Zero call sites in the app, and the reference
+     this system is derived from tops out at 24px on a real screen - so a 40px step had neither a
+     consumer nor a source. A ramp step nothing uses is not free: it is one more decision a future
+     screen can make wrongly, and `display` at 32px already covers anything that has to shout.
+     Bring it back only when a surface needs it and can say why. */
   /* `--text-mega` (3.5rem) DELETED 2026-07-30. Its written job was "out-rank the 32px wordmark in
      the same view" and the wordmark is 20px at every call site (ui/wordmark.tsx), so the job never
      existed. 56px at font-light in a grotesque is exactly the register Luke rejected. `hero` is the
