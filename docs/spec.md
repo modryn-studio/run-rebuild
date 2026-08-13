@@ -7,7 +7,10 @@
 **Status:** LOCKED at the phase 2 gate, 2026-08-11
 **Last amended:** 2026-08-12 — intake is FOUR files (`Orders` required), fee plausibility as a
 fourth loud failure mode, code resolves direction/outcome/exit/cancel before any model sees the
-tape. Earlier: session=exit, 3-layer time model, S9 cut + S9b added, daily read reframed as pacing
+tape; §8 the agricultural-hours gap RESOLVED (the 17:00 CT roll lands in ag's 13:20→19:00 dead
+zone, so it needs no special case) and "the weekend has no bucket" qualified — CME crypto is 24/7,
+so a crypto session date can be a Saturday. See `market-hours.md`. Earlier: session=exit, 3-layer
+time model, S9 cut + S9b added, daily read reframed as pacing
 
 <!-- CRAFT RECON SOURCE: run-trading/docs/ia-teardown.md (2026-08-10, read live from Luke's
      authenticated Monarch + TradeZella accounts). monarch-for-traders.md deliberately NOT

@@ -5,7 +5,7 @@
 > still applies before overturning a decision.
 
 **Status:** LOCKED at the phase 4 gate, 2026-08-11
-**Last amended:** 2026-08-12 — contract_spec point value DERIVED not seeded; price precision at parse and render; `order` added to the event types; §4 week/month/YTD bucket definitions specified (S2)
+**Last amended:** 2026-08-12 — contract_spec point value DERIVED not seeded; price precision at parse and render; `order` added to the event types; §4 week/month/YTD bucket definitions specified, and derivation rule 4 rebounded on TICK value after the point-value bound proved to be shaped like Luke's own account (S2). Then 2026-08-13 — §1 `trader.email` became `auth_user_id` (Better Auth owns the address; a second copy drifts) and `display_timezone_set_by_user` added to carry the precedence rule (S3a)
 
 <!-- DERIVATION NOTE: written from the locked spec only. run-trading/docs/data-model.md exists
      and has NOT been read — deliberately, so this is an honest derivation rather than a

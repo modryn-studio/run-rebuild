@@ -243,8 +243,25 @@ trade?"* It would not have, and the reason was inside `S1`, not `S2`:
 the nullable `key_id` column — free now, a migration later, with the encryption itself
 explicitly deferred (architecture §1).
 
-**✅ CLOSED 2026-08-12.** Non-UI done bar, as `S1` and `S2`: `tsc` and `eslint` clean,
-**`scripts/s3-gate.mts` passes — 28 assertions**, and the earlier gates still pass unchanged.
+**✅ CLOSED 2026-08-12, and exercised end to end by a real sign-in 2026-08-13.** Non-UI done bar,
+as `S1` and `S2`: `tsc` and `eslint` clean, **`scripts/s3-gate.mts` passes — 28 assertions**, and
+the earlier gates still pass unchanged.
+
+**What the live run added that the gate could not.** The gate proves the logic against fixtures;
+it cannot prove that a human signing in produces a record. Luke signed in on `:3001` with the
+emailed code, and:
+
+| | |
+|---|---|
+| `auth_user` | 1 row, `emailVerified: true`, empty `name` — the tell that it was the code path, not Google |
+| `trader` | **created on the first `/admin` load, not at signup** — exactly the lazy-resolve design |
+| zone | `America/Chicago`, `displayTimezoneSetByUser: false` |
+| `key_id` | `null` |
+
+The gap between those two rows is the design working: the trader row did not exist immediately
+after signing in, because nothing had called `getTrader()` yet. That is the intended behaviour and
+it is the reason a signup hook was rejected — but it is also the one thing a reader is most likely
+to mistake for a bug, so it is recorded here rather than left to be rediscovered.
 
 - ✅ **`trader`** — `drizzle/0002`. **Linked to `auth_user`, not carrying a copy of the email.**
   Better Auth owns and rewrites `auth_user.email`, so a second copy would be a column guaranteed
@@ -271,7 +288,35 @@ explicitly deferred (architecture §1).
 - ⚠️ **The zone has an API but no screen yet.** `POST /api/trader/timezone` accepts both a
   detected and a chosen zone; the settings UI lands with the shell rather than being built now
   and rebuilt in `S3b`. `DetectTimezone` is mounted on `/admin` because it is the only
-  authenticated surface that exists, and it moves into the shell for the same reason.
+  authenticated surface that exists, and it moves into the shell for the same reason. **So
+  `displayTimezoneSetByUser` is still `false` for every trader** — the precedence rule is proven
+  by the gate, not yet by use.
+
+#### The port fix that came out of this slice
+
+Signing in on `:3001` did not work at first, and the reason was inherited rather than new.
+`BETTER_AUTH_URL` was pinned to `:3000` while Next had bound `:3001`, which is the failure this
+repo already carried a scar-tissue note about — but the note's fix (widening `trustedOrigins`)
+only ever addressed the origin check, **not the base URL Better Auth builds redirects and OAuth
+callbacks from.** Replaced with Better Auth's own multi-host feature:
+
+```ts
+baseURL: isProd ? env.BETTER_AUTH_URL : { allowedHosts: ['localhost:*', '127.0.0.1:*'], protocol: 'http' }
+```
+
+Production stays a pinned string, deliberately — a wildcard host allowlist in production is an
+open redirect. `CLAUDE.md`'s scar-tissue entry was rewritten in the same commit, per this repo's
+own rule, and the fix was **ported to `modryn-base` and `cairn`** so no future clone inherits the
+old one.
+
+**A correction worth keeping, because it is the standing pattern in miniature.** The first version
+of that code comment claimed `protocol: 'http'` was load-bearing — that without it the derived
+origins would come out `https://` and every POST would 403. Checked against the installed library
+rather than left asserted, and it is false: `isLoopbackHost` recognises the `localhost:*` wildcard,
+so an `http://` origin is added either way. `protocol: 'http'` only narrows the allowlist by
+dropping `https://` twins nothing local will use. **A confident wrong explanation in scar tissue is
+worse than none, because the next reader trusts it** — the same failure class as the plausibility
+bound in `S2`, one layer up.
 
 **The guard worth knowing about:** gate §1 is a *source* check, not a behavioural one.
 `display_timezone` reaching the bucketing code would not throw, would not fail a type check and
@@ -427,8 +472,18 @@ they don't share a surface.
 
 ## Phase 5 gate
 
-- [ ] Every merged slice is independently demoable
-- [ ] `S1` fired or cleared the kill signal, and the result is recorded
-- [ ] Reconciliation matches the broker to the cent on Luke's real export
-- [ ] Kitchen sink renders every component in every state, both modes
-- [ ] The critical path works end to end for a switcher with no prior data
+*Status as of 2026-08-13. `S0`, `S1`, `S2`, `S3a` merged and deployed; `S3b`, `S3c`, `S4`–`S9` open.*
+
+- [x] **`S1` fired or cleared the kill signal, and the result is recorded** — CLEARED. The MNQ→NQ
+      multiplier finding, confirmed by Luke as something he did not already know
+      (`problem-brief.md`). Recorded before the slice was written.
+- [x] **Reconciliation matches the broker to the cent on Luke's real export** — $0.00 across two
+      independent sets, asserted by `scripts/s1-gate.mts` and re-run on every change since.
+- [~] **Every merged slice is independently demoable** — *partially, and the wording does not fit
+      what got built.* `S0` demos at `/status`. `S1`, `S2` and `S3a` are a library, a data table
+      and an identity resolver; their honest demo is a gate script, not a screen, which is why
+      each carries a non-UI done bar instead. **Revisit the wording at the retro** rather than
+      pretending a parser is demoable — see the amendment candidates in
+      `blueprint-instrumentation.md`.
+- [ ] Kitchen sink renders every component in every state, both modes — `S3c`, not started
+- [ ] The critical path works end to end for a switcher with no prior data — needs `S4`

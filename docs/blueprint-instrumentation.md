@@ -142,6 +142,26 @@ Format: `<date> · <phase> · <what happened> · <what I did instead>`
              STRENGTHENS the existing S1 amendment candidate: the blueprint needs a definition of
              done for a non-UI slice, not just an exception noted twice.
 
+2026-08-13 · P5 · S3a. The slice's gate passed on 2026-08-12 and the code was still broken for
+             the only user, because the gate proved the LOGIC and nobody had signed in. Two
+             defects only a real sign-in could surface: a dev-server port mismatch that 403s
+             before any mail (inherited, and the existing scar-tissue note's fix addressed only
+             half of it), and the fact that the trader row does not appear until a page calls
+             getTrader() — correct by design, indistinguishable from a bug without the note.
+             · Signed in for real, fixed the port resolution, recorded the lazy-create behaviour
+             in the plan. AMENDMENT CANDIDATE: the non-UI done bar this build invented for S1/S2
+             (tsc + eslint + gate) is missing a line. A slice that touches auth or identity is
+             not done until a human has used it once; a fixture can satisfy every assertion in a
+             gate and still not prove a person can get in.
+
+2026-08-13 · P5 · S3a. Wrote a confident code comment explaining WHY protocol:'http' was
+             load-bearing, then checked it against the installed library and it was false —
+             isLoopbackHost recognises the wildcard, so the option only narrows the allowlist.
+             Caught before commit only because the port fix was being ported to two other repos,
+             which forced a second look. · Corrected in all three. Not blueprint friction, but
+             the same shape as S2's bound: an explanation derived from what I expected rather
+             than what I measured. BUILD-SPECIFIC, logged because the pattern keeps recurring.
+
 2026-08-12 · P5 · S2. Closed the slice, then Luke asked one question — "will this work for any
              trader with a Tradovate account, trading whatever they're allowed to trade?" — and it
              reopened immediately. A sanity bound written during S1 had been calibrated, without

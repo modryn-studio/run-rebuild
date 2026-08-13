@@ -93,12 +93,20 @@ export const auth = betterAuth({
    * is Better Auth's own multi-host feature: it derives the real origin from each request's
    * `Host` header, checked against this allowlist, so sign-in works on whichever port Next
    * bound to — 3000, 3001, a worktree's 3002, whatever — with no coordination required and no
-   * env var to keep in sync. `protocol: 'http'` matters: without it, a wildcard host like
-   * `localhost:*` doesn't match the loopback auto-detection (that check strips a NUMERIC port
-   * suffix and compares the hostname, and `*` isn't a digit), so the derived trusted origins
-   * would come out `https://localhost:*` — wrong scheme for local dev — and every POST would
-   * 403 again, invisibly to a cookieless curl probe (the origin check only runs when the
-   * request carries a Cookie header; reproduce auth bugs in a browser or not at all).
+   * env var to keep in sync.
+   *
+   * `protocol: 'http'` IS A NARROWING, NOT A REQUIREMENT — checked against the installed
+   * library rather than assumed, after a first draft of this comment claimed the opposite.
+   * `getTrustedOrigins` adds an `http://` entry for any host `isLoopbackHost` recognises, and
+   * it recognises `localhost:*` and `127.0.0.1:*` wildcards, so dev would work without this.
+   * What it changes is that the allowlist becomes exactly `http://localhost:*` and
+   * `http://127.0.0.1:*` instead of also carrying `https://` twins nothing local will ever
+   * use. Keep it for the narrower surface and the stated intent, not because omitting it
+   * breaks anything.
+   *
+   * WHATEVER GOES WRONG HERE IS INVISIBLE TO A COOKIELESS CURL PROBE: the origin check only
+   * runs when the request carries a Cookie header. Reproduce auth bugs in a browser or not at
+   * all.
    *
    * PRODUCTION STAYS PINNED, on purpose — a wildcard host allowlist in production is an open
    * redirect waiting to happen. `env.BETTER_AUTH_URL` there is a plain string, and Better
