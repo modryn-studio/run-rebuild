@@ -18,6 +18,8 @@ const { fillEventValues, roundTripEventValues, resolveRoundTripInstant } = await
   '../src/lib/intake/write.ts'
 );
 const { commitImport, markImportCommitted } = await import('../src/lib/intake/commit.ts');
+const { preflight } = await import('../src/lib/intake/preflight.ts');
+const { parseCashHistory } = await import('../src/lib/csv/cash-history.ts');
 
 let failures = 0;
 const check = (label: string, actual: unknown, expected: unknown) => {
@@ -399,6 +401,88 @@ const [{ n: linked }] = await db
   .from(event)
   .where(eq(event.importId, rtImport.importId));
 check('every row points at its import', linked, roundTrips.length);
+
+
+// Taken BEFORE any preflight runs, so section 10 can prove the checks are read-only.
+const [{ n: eventCountBeforePreflight }] = await db
+  .select({ n: sql<number>`count(*)::int` })
+  .from(event)
+  .where(eq(event.traderId, t.id));
+
+console.log('\n=== 9. THE LOUD FAILURES, EACH ONE PROVOKED ===\n');
+
+/* A guard nobody has watched refuse something is a guard you hope works. Each of these takes the
+   REAL export and breaks it in the specific way the check exists to catch, so the assertion is
+   that it fires — and, just as importantly, that it does NOT fire on the clean file. */
+const feesText = readCsv('Cash History.csv');
+const realFees = parseCashHistory(feesText).fees;
+
+// The clean case first. If this ever goes false the guards are miscalibrated, and a false refusal
+// costs more than a missed one: it blocks a trader whose files are fine.
+const clean = preflight({ fills, roundTrips, fees: realFees });
+check('the real export passes every check', clean.ok, true);
+check('...with no findings at all', clean.findings.length, 0);
+console.log(
+  `        ${clean.counts.fills} fills · ${clean.counts.roundTripsMatched}/${clean.counts.roundTrips} round trips matched · ${clean.counts.feesMatched} fee buckets matched`
+);
+
+// #74a — Position History with no Fills to place it against.
+const noFills = preflight({ fills: [], roundTrips, fees: [] });
+check('Position History with no Fills is refused', noFills.ok, false);
+check('...and names the cause', noFills.findings[0]?.code, 'fills_empty');
+
+// #74b — the two files are from different accounts. Every round trip would ALSO be unmatched, so
+// this asserts the cause is reported rather than the symptom.
+const otherAccount = roundTrips.map((rt) => ({ ...rt, accountName: 'SOMEONEELSE999' }));
+const mismatched = preflight({ fills, roundTrips: otherAccount, fees: [] });
+check('files from different accounts are refused', mismatched.ok, false);
+check(
+  '...naming the accounts, not the symptom',
+  mismatched.findings.some((f) => f.code === 'accounts_differ'),
+  true
+);
+
+/* #74c — the case the previous build shipped without. HALF the round trips lose their fills, which
+   is what re-exporting three files over slightly different windows actually looks like. The old
+   guard fired only when NOTHING resolved, so this passed straight through. */
+const half = Math.floor(roundTrips.length / 2);
+const partiallyOrphaned = roundTrips.map((rt, i) =>
+  i < half ? { ...rt, buyFillId: `missing-${i}`, sellFillId: `missing-${i}b` } : rt
+);
+const partial = preflight({ fills, roundTrips: partiallyOrphaned, fees: realFees });
+check('a PARTIAL overlap is refused, not only a total one', partial.ok, false);
+const orphanFinding = partial.findings.find((f) => f.code === 'round_trips_unmatched');
+check('...and says how many, because 12 of 87 is not 87 of 87', orphanFinding?.detail.blocked, half);
+check('...out of how many', orphanFinding?.detail.total, roundTrips.length);
+check('...and still counts the ones that DID match', partial.counts.roundTripsMatched, roundTrips.length - half);
+
+/* #75 — the dangerous one. Cash History from a window that does not overlap the fills: every
+   bucket key misses, every round trip allocates zero fees, and net silently equals gross. On this
+   export the fees EXCEED the gross loss, so the flattering answer is roughly half the real one. */
+const shiftedFees = realFees.map((f) => ({ ...f, bucketKey: f.bucketKey ? `${f.bucketKey}-SHIFTED` : null }));
+const noFeeMatch = preflight({ fills, roundTrips, fees: shiftedFees });
+check('fees that match no trade are refused', noFeeMatch.ok, false);
+check('...naming the cause', noFeeMatch.findings.some((f) => f.code === 'fees_unmatched'), true);
+
+// And the guard does NOT fire when there are simply no fills to match against — that is a
+// different situation, and refusing there would blame the wrong file.
+const feesAlone = preflight({ fills: [], roundTrips: [], fees: realFees });
+check('fees uploaded alone are NOT blamed for having no fills', feesAlone.ok, true);
+
+// Every finding is reported in one pass, so a trader fixing one problem does not then meet another.
+const doublyBroken = preflight({ fills, roundTrips: partiallyOrphaned, fees: shiftedFees });
+check('two problems are reported together, not one at a time', doublyBroken.findings.length, 2);
+
+console.log('\n=== 10. AND NOTHING WAS WRITTEN BY ANY OF THAT ===\n');
+
+// The whole point of a preflight is that it runs before the log is touched. If any of the checks
+// above had written a row, `fees_unmatched` in particular would be worse than useless: storing the
+// fees first flips the tape's "I know my costs" flag while every per-trade net is still gross.
+const [{ n: afterPreflight }] = await db
+  .select({ n: sql<number>`count(*)::int` })
+  .from(event)
+  .where(eq(event.traderId, t.id));
+check('the preflight wrote nothing', afterPreflight, eventCountBeforePreflight);
 
 // ── teardown ────────────────────────────────────────────────────────────────────────
 // `event` cannot be deleted by the app, which is the point of section 2 — so the fixture's
