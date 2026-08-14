@@ -64,8 +64,18 @@
      `faint` stays as a NAME because ~40 call sites use it and the distinction may come back as
      weight or size rather than colour; it resolves to the same ink as `muted` until then. Hierarchy
      below body is carried by SIZE (12 vs 14) and weight, which is where it should have been. */
-  --color-muted: #777573;       /* their content.secondary. 4.60:1 on the page */
-  --color-faint: #777573;       /* alias - see above */
+  /* DARKENED 2026-08-13, #777573 -> #696765, and the old comment named the wrong ground. It said
+     "4.60:1 on the page"; 4.60 was the value on the CARD, and on the page it measured 4.21 - under
+     the 4.5 floor, on the ground this ink sits on most. On `surface-2` it was 3.76.
+     Found by the kitchen sink's contrast proof the day that proof started computing instead of
+     printing a placeholder. Same failure github #67 corrected for `faint`, missed for `muted`
+     because the audit that closed it recorded the card's number against the page's name.
+     The new value clears 4.5 on EVERY ground, worst case 4.61 on `surface-2`. Solved with headroom
+     rather than to the line: at exactly 4.50 the hex rounding landed it back at 4.48 in the browser,
+     which the proof caught immediately.
+     Hue and saturation are unchanged; only lightness moved, by 10.5%. */
+  --color-muted: #696765;       /* their content.secondary, darkened to clear AA on every ground */
+  --color-faint: #696765;       /* alias - see above */
   /* ── The carve-out: Run's own three hues, unchanged ────────────────────────────────────────
      Their brand is #ff692d and every one of these would have been a Radix stock value. Pine is the
      product's one accent (Rams, validated cold twice); pos/neg carry more than a colour role -
@@ -74,9 +84,14 @@
   --color-accent: #1f6b57;      /* deep pine - the one accent */
   --color-accent-hover: #185545; /* one step down, the way their orange has orangeDark */
   --color-accent-fg: #ffffff;
-  --color-pos: #2f7d54;
+  --color-pos: #2b754e;         /* darkened 5.5%: 4.11 on surface-2 was under the floor */
   --color-neg: #a84a3c;         /* muted terracotta - the earned gravity / enforcement hue */
-  --color-warn: #b8863b;        /* muted ochre - the red-zone AMBER (a status hue, not a 2nd accent) */
+  /* DARKENED 2026-08-13, #b8863b -> #85612a. It failed EVERY light ground - 2.96 / 3.23 / 2.64 /
+     3.09 - so it was not a legible ink anywhere, and at 2.64 on `surface-2` it missed even the 3:1
+     floor a graphical indicator needs. That matters beyond text: its documented job is the red-zone
+     gauge, and a red zone nobody can see is the one hue in this palette that must never fail.
+     Dark needed no change (4.72 worst) because dark had already been lifted for exactly this. */
+  --color-warn: #85612a;        /* the red-zone AMBER (a status hue, not a 2nd accent) */
   /* Their ramp: 4 / 6 / 8 / 12 / 16 / 9999. We use three of them, which is the point of naming them -
      a SLOT (a row, a card, a selectable choice) is 12, a CONTROL (a button, an input, a chip) is 8,
      and a BADGE is 6. Before this the row radius was hand-typed as `--radius` at eight call sites
@@ -353,8 +368,12 @@
   --color-rule: #323130;
   --color-border-strong: #6f6d68; /* their border.secondary */
   --color-text: #ffffff;        /* their content.primary */
-  --color-muted: #989691;       /* their content.secondary */
-  --color-faint: #989691;       /* alias of muted - see the light note. 5.70:1 on the page */
+  /* LIGHTENED 2026-08-13, #989691 -> #a6a4a0. 3.85 on `surface-2`, under the floor. Dark's worst
+     ground is the recessed slot for the same reason light's is: it is the biggest step away from
+     the card, in the direction that compresses contrast for this mode's ink. 6.99 / 6.33 / 4.52 /
+     5.71 now. */
+  --color-muted: #a6a4a0;       /* their content.secondary, lifted to clear AA on every ground */
+  --color-faint: #a6a4a0;       /* alias of muted - see the light note */
   --color-accent: #56b79b;
   --color-accent-hover: #47a189;
   --chart-axis: #3b3a37;
@@ -382,8 +401,8 @@
   --color-band: #2a2a28;
   --pressed-bg: #191918;
   --color-accent-fg: #0b1512;
-  --color-pos: #57a882;
-  --color-neg: #cf7d70;
+  --color-pos: #6ab391;         /* lifted 11%: 3.97 on surface-2 was under the floor */
+  --color-neg: #d89388;         /* lifted 16%: 3.69 on surface-2 was under the floor */
   --color-warn: #cf9f4e;        /* ochre lifted for legibility on dark */
   /* Dark surfaces sit near-value to bg, so the lift needs a stronger black-based shadow to read.
      Widened with the light value above and by the same ratio, so a card does not read as raised in

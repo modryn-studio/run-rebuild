@@ -26,8 +26,16 @@ type ButtonSize = 'sm' | 'md' | 'lg';
 const variantClasses: Record<ButtonVariant, string> = {
   // Their primary has no shadow and darkens on hover (orange -> orangeDark); pine gets the same
   // treatment through --color-accent-hover rather than an opacity wash, which greys the fill.
+  /* DISABLED IS A REAL SWAP, not an opacity drop (2026-08-13). `secondary` already did this and it
+   * is the considered version: opacity fades the control's EDGES as well as its ink, so a filled
+   * button goes soft and blurry rather than reading as off. A ground change keeps the shape crisp
+   * and says "inert" instead of "faded". Both filled variants now answer the same way.
+   *
+   * `ghost`, `Input` and `Textarea` keep opacity, deliberately: a bare or bordered control has no
+   * fill to swap, and this palette has only two ink tiers (`faint` is an alias of `muted`), so
+   * there is no quieter ink to move them to. Opacity is the only lever they have. */
   primary:
-    'bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-hover active:shadow-[var(--shadow-press)] disabled:opacity-50',
+    'bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-hover active:shadow-[var(--shadow-press)] disabled:bg-surface-2 disabled:text-muted disabled:shadow-none disabled:opacity-100',
   secondary:
     'border-border bg-surface text-text border shadow-[var(--shadow-sm)] hover:border-border-strong active:bg-[var(--pressed-bg)] active:shadow-[var(--shadow-press)] disabled:bg-surface-2 disabled:text-muted disabled:shadow-none disabled:opacity-100',
   // The quiet, always-accent-colored outline (a header "add" control, a secondary CTA beside a
