@@ -228,6 +228,43 @@ routine to disrupt. Edgewonk's per-trade emotion tagging *is* a routine, and the
 
 ---
 
+## 7b. Reconciling with the prior recon — one live conflict
+
+`docs/docs from run-trading/analogous-products.md` already covered this feature-world for the old
+build, and it was not read before this research was commissioned. That was a process error; the
+overlap is recorded here rather than left for someone to trip over.
+
+**Where it agrees and adds:** it already names Whoop and Oura as *"the GOLD standard for the feel"*
+— calm, premium, habituating, present-tense — which partly closes a gap flagged below. It also names
+chess insights (Chess.com Insights, Aimchess) as *"nearly 1:1"* with the cross-session
+repeating-weakness surface, which is a better-developed analogue than anything the new research
+found. Both stand.
+
+**Where it conflicts, and it is a real conflict.** The prior doc recommends mining poker
+LeakTracker's pattern of flagging your leaks **"vs winning players"**, calling *"you vs. a winning
+baseline"* a proven, paid convention. The new research says the opposite twice over: Auer &
+Griffiths found normative comparison against other players produced a **null result** where the
+same-data self-appraisal version worked, and Kluger & DeNisi classify social comparison as a self
+cue — the harmful side of the axis.
+
+**The resolution is the distinction the rest of this document already runs on**, and it dissolves
+most of the conflict:
+
+| Shape | Points at | Verdict |
+|---|---|---|
+| *"Winning players defend the big blind 40% of the time. You defend 22%."* | TASK — a named behaviour with a number to move | A baseline used as a **diagnostic**. Defensible. |
+| *"You are in the bottom quartile of traders."* | SELF — a standing | A baseline used as **social pressure**. Never. |
+
+Auer & Griffiths' null was measured on the second shape — time and money spent versus other players,
+a standing rather than an action. So the prior doc's instinct survives if and only if a baseline
+names a behaviour rather than ranking a person.
+
+**Mostly moot for v1 regardless:** Run's corpus is cross-*firm* for one trader, not cross-trader. It
+has no other-trader baseline to show and does not propose building one. The conflict is live for
+whenever that changes, and the rule above is the answer when it does.
+
+---
+
 ## 8. The measurement Run is not yet taking
 
 `History` as specified — *"Run told you about this pattern last month. Did it get better?"* — cannot
@@ -263,8 +300,9 @@ uncertainties, recorded here.
 - **No real user voice.** Reddit is policy-blocked in this environment; Trustpilot, G2 and the app
   stores were not reached. Competitor user reaction rests on a single forum thread.
 - **Tradervue, TraderSync, TradesViz, Chartlog, Topstep** — no first-hand coverage.
-- **Whoop / Oura and orthosomnia** — not covered, and it is the strongest available medical evidence
-  for the anti-score position (tracker-induced anxiety about a daily readiness number).
+- **Whoop / Oura orthosomnia** — the *products* are covered in the prior recon (§7b), but the
+  **orthosomnia literature** is not: tracker-induced anxiety about a daily readiness number is the
+  strongest available medical evidence for the anti-score position, and nobody has pulled it.
 - **Full texts behind 403s:** the *one sec* CHI paper, the L@S 2022 Duolingo gamification-misuse
   paper, Edgewonk's own Tiltmeter documentation.
 
