@@ -27,7 +27,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
        * which is the argument for the rack.
        */
       className={cn(
-        'border-border bg-surface text-text placeholder:text-faint focus:border-accent min-h-24 w-full resize-none rounded-[var(--radius-sm)] border px-4 py-3 text-body-lg transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+        'border-border bg-surface text-text placeholder:text-faint focus:border-accent aria-invalid:border-neg min-h-24 w-full resize-none rounded-[var(--radius-sm)] border px-4 py-3 text-body-lg transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
         className
       )}
       {...props}

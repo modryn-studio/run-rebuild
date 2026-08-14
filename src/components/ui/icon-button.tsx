@@ -60,8 +60,12 @@ import { cn } from '@/lib/cn';
  * The four state declarations live in globals.css as `.lift-press`; only the geometry and the ink
  * are utilities here. The reasoning for that split is in the CSS.
  */
+/* `disabled:` ADDED 2026-08-13. The hover fix earlier that day stopped a disabled button LIFTING,
+ * which left it worse than before: it no longer moved, but it still looked exactly like a live
+ * control and the cursor never said otherwise. Matches Button ghost, its closest sibling - a bare
+ * control with no ground of its own. */
 const ICON_BUTTON =
-  'lift-press text-muted hover:text-text flex h-9 w-9 shrink-0 items-center justify-center rounded-full';
+  'lift-press text-muted hover:text-text flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-50';
 
 export function IconButton({ className, ...props }: React.ComponentProps<'button'>) {
   // `type="button"` before the spread so a caller inside a form can still override it. Without the

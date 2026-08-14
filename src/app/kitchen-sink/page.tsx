@@ -23,7 +23,7 @@
  * never a plausible P&L figure that could be screenshotted and read as a real trade.
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { Card, cardSurface, slotSurface } from '@/components/ui/card';
@@ -351,7 +351,7 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
             <div
               key={r}
               className={cn(
-                'text-text flex min-h-9 items-center rounded-sm px-3 text-[16px] font-normal',
+                'text-nav text-text flex min-h-9 items-center rounded-sm px-3',
                 r === 'Accounts' && 'bg-surface-2',
               )}
             >
@@ -370,7 +370,9 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
             <div
               key={r}
               className={cn(
-                'text-nav flex min-h-9 items-center rounded-sm px-3',
+                // Hard-coded ON PURPOSE: this is a frozen record of what was replaced, so it must
+                // not move when `--text-nav` does. It read 500 until the token dropped to 400.
+                'flex min-h-9 items-center rounded-sm px-3 text-[16px] leading-6 font-medium tracking-[-0.01em]',
                 r === 'Accounts' ? 'bg-surface-2 text-text' : 'text-muted',
               )}
             >
@@ -513,9 +515,7 @@ function TokenProofs() {
                 <tr key={ink}>
                   <td className="text-caption text-muted p-2">{ink}</td>
                   {GROUNDS.map(([g, groundCls]) => (
-                    <td key={g} className={cn(groundCls, 'p-2')}>
-                      <span className={inkCls}>Aa 0.00</span>
-                    </td>
+                    <ContrastCell key={g} ground={g} groundCls={groundCls} inkCls={inkCls} />
                   ))}
                 </tr>
               ))}
@@ -523,12 +523,65 @@ function TokenProofs() {
           </table>
         </div>
         <Note>
-          Read this by eye first: anything that disappears is a failure regardless of what a
-          calculator says. `faint` and `muted` are the same ink by design, so those two rows
-          matching is correct, not a bug.
+          Ratios are computed from the colours the browser actually painted, not from a token map,
+          so this cannot drift from what it describes. Read it by eye FIRST: anything that
+          disappears is a failure regardless of what the number says. `faint` and `muted` are the
+          same ink by design, so those two rows matching is correct, not a bug.
         </Note>
       </Section>
     </>
+  );
+}
+
+
+/* THE CELL COMPUTES ITS OWN RATIO FROM WHAT IT ACTUALLY RENDERED.
+ *
+ * It used to print the literal string `Aa 0.00`, which is worse than printing nothing: the section
+ * looked like a proof, was named a proof in the spec, and asserted a number it had never measured.
+ * Every contrast failure in this palette was sitting in that table the whole time, unreadable.
+ *
+ * It reads the COMPUTED colours off the rendered node rather than a token map, so it measures what
+ * the browser painted - including anything a mode, an alpha or a cascade did on the way. That is
+ * the only version of this check that cannot drift from the thing it describes.
+ */
+function ContrastCell({
+  ground,
+  groundCls,
+  inkCls,
+}: {
+  ground: string;
+  groundCls: string;
+  inkCls: string;
+}) {
+  const ref = useRef<HTMLTableCellElement>(null);
+  const [ratio, setRatio] = useState<number | null>(null);
+
+  useEffect(() => {
+    const cell = ref.current;
+    const span = cell?.querySelector('span');
+    if (!cell || !span) return;
+    const rgb = (v: string) => (v.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+    const lum = (c: number[]) => {
+      const [r, g, b] = c.map((n) => {
+        const x = n / 255;
+        return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const a = lum(rgb(getComputedStyle(span).color));
+    const b = lum(rgb(getComputedStyle(cell).backgroundColor));
+    setRatio((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05));
+  }, [ground, groundCls, inkCls]);
+
+  // 4.5 is the AA floor for small text, and this table sets at 12px, so 4.5 is the right line.
+  const pass = ratio === null || ratio >= 4.5;
+  return (
+    <td ref={ref} className={cn(groundCls, 'p-2 whitespace-nowrap')}>
+      <span className={inkCls}>Aa</span>{' '}
+      <span className={cn('num text-micro', pass ? 'text-muted' : 'text-neg')}>
+        {ratio === null ? '' : `${ratio.toFixed(2)}${pass ? '' : ' FAIL'}`}
+      </span>
+    </td>
   );
 }
 

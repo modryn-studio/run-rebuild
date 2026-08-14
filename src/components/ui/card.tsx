@@ -27,7 +27,18 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 
 export function Card({ className, interactive, ...props }: CardProps) {
   return (
-    <div className={cn(cardSurface, interactive && 'transition hover:shadow-md', className)} {...props} />
+    /* GROUND CHANGE, NOT A LIFT. This was `hover:shadow-md`, and `--shadow-md` does not exist in
+       this system - so the class emitted Tailwind's STOCK shadow: pure black, both layers,
+       identical in both modes, where every other shadow here is a per-mode literal in warm ink.
+       Measured in dark, pointing at the card DROPPED its shadow alpha 0.32 -> 0.10, and
+       globals.css already states that a 10% ink shadow on a near-value dark surface does not
+       register at all. Hovering made the card sink.
+       The elevation ramp has no rung above `--shadow-card` (sm -> card -> press), so an
+       interactive card had nothing to lift to and the reach landed outside the system. A ground
+       change is the house answer a clickable region already uses (`slotSurface`), and it needs no
+       new token. If a lift is ever genuinely wanted it needs a real `--shadow-raised` with a dark
+       literal, added to the system FIRST. */
+    <div className={cn(cardSurface, interactive && 'hover:bg-hover transition', className)} {...props} />
   );
 }
 
