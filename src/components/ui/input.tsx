@@ -21,11 +21,32 @@ type InputProps = InputHTMLAttributes<HTMLInputElement>;
  * is added to the box when clicked on. just make the border pine like you did with the 'search or
  * type your firm' box").
  *
- * It is still an accessible focus indicator - the border goes from #e4dfd3 to pine #1f6b57, a colour
- * change well past the 3:1 that WCAG 2.4.11 asks of a focus indicator against its adjacent colours,
- * and it surrounds the whole control. What it is not is a SECOND indicator on top of the first.
+ * It is still an accessible focus indicator - the border goes to pine #1f6b57, a colour change well
+ * past the 3:1 that WCAG 2.4.11 asks of a focus indicator against its adjacent colours, and it
+ * surrounds the whole control. What it is not is a SECOND indicator on top of the first.
  * The exception is scoped to text inputs; every button, link and card keeps the global outline,
  * because none of them have a border that changes.
+ *
+ * THE REST EDGE IS THE QUIET ONE, AND THE GESTURE IS THE POINT (Luke, 2026-08-14: "the border
+ * should be subtle and more pronounced on click, active state"). Rest is `border` at 1.30:1 and
+ * focus is pine at 6.37:1 - a 4.9x jump, which is what makes clicking into a field feel like
+ * something happened. A pass earlier that day moved rest to `field` (3.83:1) for SC 1.4.11, and the
+ * cost was exactly this: from an already-firm edge, lighting it pine is a colour change rather than
+ * an arrival. Reverted to the pair v2 ships.
+ *
+ * WHAT THAT TRADES, STATED PLAINLY BECAUSE IT IS A REAL TRADE. 1.4.11 asks 3:1 of the information
+ * required to identify a control, and for an empty text field the outline is a serious candidate for
+ * being that information. Two things carry it instead here: every field in this product is placed
+ * with a visible placeholder or label, which is content saying "type here" that a code box does not
+ * have; and the focus state is unambiguous. `CodeInput` keeps `--color-field` for the opposite
+ * reason - six empty boxes with nothing inside them, which is the case Luke reported in the first
+ * place ("the outline of the code boxes on the login screen are hard to see").
+ * So the split is not by component type, it is by whether anything INSIDE the control identifies it.
+ *
+ * NO HOVER. v2 has none on a field and neither does this. A hover is unreachable by keyboard and by
+ * touch, so it can only ever be a second cue for a mouse; the two states worth having are resting
+ * and active. `hover:border-muted` was added here for twenty minutes on a misreading of the note
+ * above and removed the moment it was read back correctly.
  *
  * `:focus`, not `:focus-visible` - a text field is active when it has the caret, however you got
  * there. That is the opposite call from a button, where a mouse press should not leave a ring. */

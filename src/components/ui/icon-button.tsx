@@ -67,6 +67,14 @@ import { cn } from '@/lib/cn';
 const ICON_BUTTON =
   'lift-press text-muted hover:text-text flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-50';
 
+/* `className` CANNOT RE-POSITION THIS ONE, and it fails silently, so it is stated here rather than
+ * learned twice. `.lift-press` sets `position: relative` to anchor the invisible 44px hit expander,
+ * and globals.css keeps that rule UNLAYERED on purpose so a stray utility at a call site cannot
+ * half-override the mechanic. Unlayered beats Tailwind's layered utilities, so `fixed`/`absolute`
+ * passed in here resolve to `relative` plus an offset — the control lands somewhere in the middle
+ * of the page with no error and no type complaint. Caught 2026-08-14 when ThemeToggle became an
+ * IconButton and took /status's corner toggle with it. Wrap this in a positioned element instead;
+ * every other utility passes through fine. */
 export function IconButton({ className, ...props }: React.ComponentProps<'button'>) {
   // `type="button"` before the spread so a caller inside a form can still override it. Without the
   // default, one of these dropped into a <form> silently submits it.

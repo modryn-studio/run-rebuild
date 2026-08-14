@@ -52,8 +52,73 @@
      as quiet as a block of it, which is the reference's whole trick - but they answer different
      questions and one moving is not a reason for the other to follow. */
   --color-band: #f6f5f3;
-  --color-border: #e4e1de;      /* their border.primary */
-  --color-border-strong: #bebbb8; /* their border.secondary - an input, a control that must be found */
+  /* ── FOUR JOBS, FOUR TOKENS, AND THE FLOOR COMES FROM THE JOB (2026-08-14) ──────────────────
+     A census of the rebuild found 438 painted borders and every one of them was `--color-border`:
+     39 structural edges, 399 row dividers, and every control in the product. `--color-rule` had
+     ZERO call sites and `--color-border-strong` had one - a button's hover. Both weights were
+     argued out at length below and then never deployed, so the ramp existed only in this file.
+
+     The jobs, and what each one owes:
+
+       divider   separates siblings INSIDE one container   decoration; WCAG exempts it; no floor
+                 rows in a list, the rule under a card header, a rail's group rules
+       edge      BOUNDS an object, or rests under a        not required information; no floor
+                 LABELLED control                          a card, a popover, a menu, a tooltip,
+                                                           a page-level rule, a secondary button
+       hover     firms an edge up under the pointer        no floor; see below
+       field     IS the control - the only thing saying    SC 1.4.11 non-text contrast, 3:1
+                 a control is there                        an input, a textarea, a code box
+
+     THE LINE INSIDE "CONTROL" IS WHETHER THE EDGE CARRIES THE IDENTIFICATION, and getting that
+     wrong is what this block records. The first pass read SC 1.4.11 as "interactive means 3:1" and
+     moved every control onto the strong value, including the secondary button. It does not reach
+     there: 1.4.11 asks 3:1 of the visual information REQUIRED to identify a component, and a button
+     with a visible text label is identified by its label - the edge is chrome. A FIELD has no label
+     inside it and no fill of its own worth the name, so the outline is the whole statement, which
+     is why that one is the case the standard actually names.
+     Luke, 2026-08-14, on the secondary button: "i like run-trading@v2's border because it's more
+     subtle... did you change them because of a major issue?" No. Reverted.
+
+     A HOVER CAN NEVER CARRY A FLOOR, and that is why it is its own row rather than a value borrowed
+     from the field edge. A hover state is only reachable once you have already found the control,
+     so it cannot be what identifies it - and pointing it at a compliant value took the secondary
+     button's rest-to-hover step from 1.47x to 2.94x, i.e. loud, against the "hover is the border and
+     nothing else, and it is subtle" that `.lift-rest` argues for two hundred lines down.
+
+     The floor is set by the job, never by the token. A divider at 1.09:1 is CORRECT, a labelled
+     button's edge at 1.30:1 is CORRECT, and an input at 1.30:1 is a defect - one number, three
+     verdicts. The rack proves it (kitchen-sink `Edges`), measured off what the browser painted, with
+     the floor stated per row. Nothing proved it before, which is how one value came to do three
+     jobs without anything complaining. */
+  --color-border: #e4e1de;      /* their border.primary - an object's edge, and a LABELLED control's */
+  --color-border-strong: #bebbb8; /* their border.secondary - the subtle firm-up under the pointer */
+  /* THE FIELD EDGE, NEW 2026-08-14, and it is now used by ONE component - `CodeInput`. It exists
+     because that is the one control in the product with nothing inside it: six empty boxes, no
+     label, no placeholder, and a fill that is the card's own colour. The outline is not chrome on
+     that control, it IS the control, which makes it the required information SC 1.4.11 measures and
+     puts a hard 3:1 on it.
+
+     Luke, 2026-08-14: "the outline of the code boxes on the login screen are hard to see." Measured,
+     they were: `--color-border` is 1.30:1 on a white card, so the boxes were invisible until focus
+     lit one pine. Focus and invalid had always been compliant; the RESTING state never was.
+
+     IT BRIEFLY COVERED `Input` AND `Textarea` TOO, AND THOSE CAME BACK to `--color-border` the same
+     day: "the border should be subtle and more pronounced on click, active state" - which is v2's
+     gesture and a real one, a 1.30 -> 6.37 jump that a 3.83 resting edge flattens to 1.7x. Those two
+     always carry a placeholder or a label, so something inside them says "type here" and the
+     outline is not the only identifier. A code box has nothing. The split is by whether anything
+     INSIDE the control identifies it, not by component type - see input.tsx for the full trade.
+
+     The value is arithmetic rather than taste. 3:1 against #ffffff caps relative luminance at 0.30,
+     which IS a mid grey - a hairline on white cannot be both faint and compliant, and there is no
+     lighter value anywhere that clears it. Solved with headroom (3.14 worst case, on `surface-2`)
+     rather than to the line, for the reason recorded against `--color-muted`: at exactly 3.00 the
+     hex rounding lands back under in the browser and the rack catches it immediately.
+
+     It reads nearly the same in both modes (#848280 / #888680) and that is not an oversight. A line
+     that must clear 3:1 against near-white AND near-black has almost nowhere to go; every other
+     token here is a per-mode literal because it has one direction to satisfy, and this one has two. */
+  --color-field: #848280;
   --color-text: #22201d;        /* their content.primary */
   /* TWO CONTENT TIERS, NOT THREE (github #67, closed 2026-07-31). Borrowing their ramp put `faint`
      on their gray10 at 3.43:1, under the 4.5 AA floor for small text - and it renders timestamps,
@@ -261,8 +326,23 @@
      token inverts by mode, and this has to stay a MID grey on both a warm-paper card and a
      near-black one. --color-border is too close to the card to read as a control at all (the
      switch would look disabled), and --color-muted is text-weight ink, too heavy for a resting
-     track sitting under a live one. */
-  --switch-off: #b5b1a9;
+     track sitting under a live one.
+
+     DARKENED 2026-08-14, #b5b1a9 -> #85827c, by the border pass above. The track carries no edge, so
+     the FILL is this control's boundary and SC 1.4.11's 3:1 lands on it directly. #b5b1a9 measured
+     2.14 on the card and 1.75 on `surface-2` - the switch was legible as a shape and not as a
+     control. 3.14 worst case now.
+     IT KEEPS THE FLOOR EVEN THOUGH THE SECONDARY BUTTON GAVE ITS BACK. A labelled button is
+     identified by its label, so its edge is chrome; a switch is identified by NOTHING except this
+     track and the position of the thumb on it, and 1.4.11 covers states explicitly. There is no
+     label to fall back on here, which is the same reason a field keeps its floor.
+
+     It lands at effectively the same lightness as `--color-field` and is NOT an alias of it, the
+     same arrangement `--color-band` and `--color-rule` already carry: they coincide because both
+     answer the same floor against the same grounds, and they answer different questions. This one is
+     a FILL whose job is a state (off, and about to be on); that one is a LINE whose job is an
+     outline. Either can move without the other following. The warm cast stays this token's own. */
+  --switch-off: #85827c;
 
   /* ── Instrument marks (lib/instruments.ts + views/accounts/instrument-mark.tsx) ──────────
      Seven hues a futures product's root is hashed into. Specified by Rams, 2026-07-31, and the
@@ -345,6 +425,9 @@
 /* Dark mode — a warm-matched counterpart, accent lifted for legibility. Toggled via
    ThemeProvider (src/components/theme-provider.tsx) adding/removing .dark on <html>. */
 .dark {
+  /* Pairs with `color-scheme: light` on <html> — see the note there. This is what makes a native
+     scrollbar or form control dark when the trader has chosen dark, regardless of the OS setting. */
+  color-scheme: dark;
   /* Their dark ramp, verbatim, read off the same CSS custom properties as light. Note the
      direction: `surface` is LIGHTER than `bg` here where it is lighter than nothing in light -
      their rule is that the card is always the step away from the page, and in dark that means up. */
@@ -366,7 +449,12 @@
      value as the selected row's fill, so three columns read as one field with only the outer edge
      drawn. #323130 is 1.227, which holds the same rule-to-hover relationship light has. */
   --color-rule: #323130;
-  --color-border-strong: #6f6d68; /* their border.secondary */
+  --color-border-strong: #6f6d68; /* their border.secondary - the subtle firm-up under the pointer */
+  /* The field edge in dark. Its worst ground is `surface-2` at 3.12, which is the same shape as
+     every other dark-mode near-miss in this file: `surface-2` is the biggest step away from the
+     card, so it is where this mode's contrast compresses, and it is also exactly where a field sits
+     when it is inside a recessed slot. See the light note. */
+  --color-field: #888680;
   --color-text: #ffffff;        /* their content.primary */
   /* LIGHTENED 2026-08-13, #989691 -> #a6a4a0. 3.85 on `surface-2`, under the floor. Dark's worst
      ground is the recessed slot for the same reason light's is: it is the biggest step away from
@@ -414,7 +502,15 @@
      own near-white text colour gets BRIGHTER, which is the failure this replaces. */
   --scrim: rgba(0, 0, 0, 0.62);
   --scrim-nav: rgba(0, 0, 0, 0.32);
-  --switch-off: #4a4f57;
+  /* MIGRATED 2026-08-14, #4a4f57 -> #888680. Two bugs in one line, and the first is why the second
+     survived: #4a4f57 is a COOL SLATE in a palette that is warm-neutral everywhere else, left over
+     from the pre-Monarch ink (the same family as `--scrim-nav`'s rgba(28,36,48) two lines up). It
+     was the only token in this block carrying no comment, which is what a value nobody re-derived
+     looks like. And it measured 1.93 on the card, 1.38 on `surface-2` - a switch you could not find
+     in the mode this product is mostly used in.
+     Warm now, and 3.12 worst case. Light is a different literal (#85827c) because the two modes'
+     grounds are not mirror images; see that token's note. */
+  --switch-off: #888680;
   /* Lifted for a dark ground, same as the accent and the status hues above. Ratios against their
      own tint: 5.57 worst case, 4.96 on --color-surface-2. All AA at any size. */
   --mark-1: #bec469;
@@ -431,6 +527,20 @@
   html {
     background: var(--color-bg);
     color: var(--color-text);
+    /* THE NATIVE UI FOLLOWS THE THEME (2026-08-14). `.scroll-thin` themes the scrollbars we own,
+       and it always did - it is byte-identical to the value v2 shipped. What it cannot reach is a
+       scrollbar the BROWSER draws: the document's own, and the ones inside native controls. Those
+       read `color-scheme`, and with it unset the UA assumes light and paints a light-grey bar down
+       the side of a #191918 page.
+       Surfaced by a real bug rather than in the abstract - a stray `sr-only` escaped the rack's
+       clip and gave the document a scrollbar it should never have had, and the thing that made it
+       obvious was that it did not change with the theme when the pane's did. That escape is fixed
+       (loading-mark.tsx), so this is the belt to its braces: if a native bar ever appears again it
+       will at least be the right colour. It also themes date pickers, selects and the like, which
+       this product will grow.
+       On <html> and driven by the .dark class below, NOT `prefers-color-scheme`: the theme here is
+       an explicit user choice that can disagree with the OS. */
+    color-scheme: light;
     font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;

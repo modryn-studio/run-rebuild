@@ -236,7 +236,18 @@ export function Login() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      {/* The theme toggle is rendered once, globally, in src/app/layout.tsx. */}
+      {/* THE COMMENT HERE USED TO SAY "rendered once, globally, in src/app/layout.tsx" AND IT WAS
+          FALSE. Layout stopped rendering a floating toggle when S3b grew a real header, and its own
+          note records the arrangement that replaced it: the shell renders one in its band, and
+          "surfaces OUTSIDE the shell — /login, /status — render their own". /status does. This did
+          not, so it kept the import (which no lint rule flags) and a comment pointing at a global
+          that no longer exists, and the one screen a visitor lands on cold had no way to change
+          mode. Same placement as /status, because these two are the same case. */}
+      {/* Positioned by a WRAPPER, not by `className` on the control — see the note in status/page.tsx:
+          `.lift-press` owns `position: relative` and is unlayered, so a `fixed` passed in loses. */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
       <main className="flex flex-1 items-center justify-center px-6 py-16">
         <div className="w-full max-w-sm">
           <h1 className="text-display text-center text-balance">{site.name}</h1>

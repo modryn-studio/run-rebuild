@@ -217,8 +217,9 @@ function Stat({ label, value, hint }: { label: string; value: number; hint?: str
 
 // value takes a string too, for ratios like "3/5" where a bare count would lose the denominator.
 function Row({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
+  // `rule`: a line between two rows in a list is a divider, not a card edge. See globals.css.
   return (
-    <div className="border-border flex items-baseline justify-between gap-4 border-b py-2 last:border-b-0">
+    <div className="border-rule flex items-baseline justify-between gap-4 border-b py-2 last:border-b-0">
       <span className="text-body">{label}</span>
       <span className="flex items-baseline gap-3">
         {hint ? <span className="text-small text-muted tabular-nums">{hint}</span> : null}

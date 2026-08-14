@@ -40,8 +40,16 @@ export default async function StatusPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-2xl flex-col justify-center px-4 py-16 sm:px-6">
-      {/* Its own toggle: /status sits OUTSIDE the app shell, which carries one in its header. */}
-      <ThemeToggle className="fixed top-4 right-4 z-50" />
+      {/* Its own toggle: /status sits OUTSIDE the app shell, which carries one in its header.
+          THE POSITIONING IS ON A WRAPPER, NOT ON THE CONTROL. `.lift-press` sets `position:
+          relative` to anchor its invisible 44px hit expander, and it is deliberately UNLAYERED so a
+          call site cannot half-override the mechanic — which means it also beats Tailwind's layered
+          `fixed`. Passing `fixed` through `className` silently became `relative` with a 16px offset
+          and put the toggle in the middle of the page. A primitive that owns its own `position` is
+          not a thing a caller may re-position; it is a thing a caller wraps. */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
       <h1 className="text-h2">Status</h1>
       <p className="text-small text-muted mt-1">
         The walking skeleton. One query, read at request time.

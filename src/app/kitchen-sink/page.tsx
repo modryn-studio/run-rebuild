@@ -145,11 +145,16 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
     <>
       <Section
         title="Button"
-        note="Three variants, three sizes. `loading` disables and swaps the label, so no async action fires twice from a double click."
+        note="Four variants, three sizes. `outline` rests on a quiet accent/40 edge and firms to the full accent under the pointer; `secondary` rests on the hairline and firms to `border-strong`. `loading` disables and swaps the label, so no async action fires twice from a double click."
       >
+        {/* `outline` was missing from this row until 2026-08-14 and that omission cost something
+            real: it is the one variant whose edge was drawn with an ALPHA, and an alpha composites
+            differently per mode. Side by side in both columns it reads 2.85:1 in light and 1.09:1
+            in dark, i.e. no visible edge at all on the right. Four variants exist, so four render. */}
         <Row label="variants">
           <Button variant="primary">Primary</Button>
           <Button variant="secondary">Secondary</Button>
+          <Button variant="outline">Outline</Button>
           <Button variant="ghost">Ghost</Button>
         </Row>
         <Row label="sizes">
@@ -163,6 +168,9 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
           </Button>
           <Button variant="secondary" disabled>
             Secondary
+          </Button>
+          <Button variant="outline" disabled>
+            Outline
           </Button>
           <Button variant="ghost" disabled>
             Ghost
@@ -202,6 +210,33 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
             <Icon name="collapse" />
           </IconButton>
         </Row>
+      </Section>
+
+      {/* NEVER RACKED UNTIL 2026-08-14, and it is the only primitive in `components/ui` that had
+          not been. What one render found: a hand-rolled 44px bordered circle with its own focus ring
+          and a scale-shrink press — three decisions the system had each since made differently,
+          preserved intact in the one component nothing had ever looked at. Not a considered
+          deviation; just the pre-consolidation copy, carried across from a build that had already
+          replaced it. It now IS an IconButton, so it agrees with its neighbour above by
+          construction rather than by matching classes. See theme-toggle.tsx for the three answers. */}
+      <Section
+        title="ThemeToggle"
+        note="An IconButton with a mode-dependent mark. It toggles the real theme, so in `both` mode use the header chips to switch and this to look at the control."
+      >
+        <Row label="default">
+          <ThemeToggle />
+        </Row>
+        <Row label="beside IconButton">
+          <IconButton aria-label="Collapse">
+            <Icon name="collapse" />
+          </IconButton>
+          <ThemeToggle />
+        </Row>
+        <Note>
+          The adjacency is the check, and it is why this section exists at this width: these two are
+          the same control class, so at rest they must both be bare glyphs, hover to the same chip,
+          and press to the same inset. Any daylight between them is a defect in one of the two.
+        </Note>
       </Section>
 
       <Section
@@ -246,7 +281,10 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
         </div>
       </Section>
 
-      <Section title="Textarea">
+      <Section
+        title="Textarea"
+        note="The same states as Input, because these are one object at two heights. Any state Input renders and this does not is a place the pair can drift unnoticed, which is how it acquired three separate divergences last time."
+      >
         <Row label="empty">
           <Textarea placeholder="Why this trade was excluded" />
         </Row>
@@ -256,6 +294,12 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
         <Row label="disabled">
           <Textarea defaultValue="Locked" disabled />
         </Row>
+        {/* The error state was missing while Input had one — the exact asymmetry this section's
+            note warns about, found by reading the two side by side. */}
+        <div>
+          <Textarea defaultValue="Cash History does not overlap these fills." aria-invalid />
+          <p className="text-small text-neg mt-2">{errorText}</p>
+        </div>
       </Section>
 
       <Section title="Switch" note="A setting, not a form control: it names itself and states what happens.">
@@ -326,9 +370,38 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
         </Note>
       </Section>
 
-      <Section title="CodeInput" note="Six digits, one field per digit, paste-aware.">
-        <CodeInput value={code} onChange={setCode} />
-        <Note>Type or paste a six digit code.</Note>
+      <Section
+        title="CodeInput"
+        note="Six digits, one real field under six drawn boxes, paste-aware. It keeps `--color-field` at rest where Input and Textarea do not: there is no placeholder and no label inside these, so the outline is the only thing saying a control is here."
+      >
+        {/* `w-72` (288px) RATHER THAN LETTING IT FILL THE RACK, because that is roughly the
+            sign-in card's real content box (279px at 375, 288px above it). These boxes size by
+            growing into their row, so shown at rack width they would render wider than they can
+            ever be in production and the 48px cap would never engage. A rack that shows a control
+            at a width it never has is not showing the control.
+
+            `invalid` and `disabled` are real props that nothing rendered until 2026-08-14. The
+            disabled one matters most: this is the component whose disabled state once left a
+            trader typing into six boxes that could not receive it. */}
+        <Row label="live">
+          <div className="w-72">
+            <CodeInput value={code} onChange={setCode} />
+          </div>
+        </Row>
+        <Row label="invalid">
+          <div className="w-72">
+            <CodeInput value="123456" onChange={() => {}} invalid />
+          </div>
+        </Row>
+        <Row label="disabled">
+          <div className="w-72">
+            <CodeInput value="1234" onChange={() => {}} disabled />
+          </div>
+        </Row>
+        <Note>
+          Type or paste a six digit code into the live one. The active box draws its own ring
+          because the field underneath is transparent and the global outline would land on nothing.
+        </Note>
       </Section>
 
       {/* ── THE NAV ROW DECISION, both candidates rendered rather than described ─────────────
@@ -395,7 +468,10 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
           {Array.from({ length: 400 }, (_, i) => (
             <div
               key={i}
-              className="border-border text-small flex items-center justify-between border-b px-4 py-2 last:border-b-0"
+              /* `rule`, the divider weight. These 400 rows were the bulk of the 438-border census
+                 that found one token doing three jobs, and every one of them was drawn at the
+                 weight of a card's edge. */
+              className="border-rule text-small flex items-center justify-between border-b px-4 py-2 last:border-b-0"
             >
               <span className="truncate">Row {i + 1}</span>
               <span className="num text-muted shrink-0">SAMPLE</span>
@@ -431,6 +507,48 @@ const GROUNDS = [
   ['surface-2', 'bg-surface-2'],
   ['hover', 'bg-hover'],
   ['band', 'bg-band'],
+] as const;
+
+/* EVERY LINE THIS SYSTEM CAN DRAW, AND THE JOB THAT SETS ITS FLOOR.
+ *
+ * The `Contrast` table below proves SC 1.4.3 — ink on ground. Nothing proved SC 1.4.11 — the
+ * NON-TEXT contrast of a control's own edge — and that omission is why a census of this build found
+ * every single border in the rack painted at one value (`--color-border`, 1.30:1 on a white card in
+ * light, 1.40:1 in dark) while `--color-rule` had zero call sites and `--color-border-strong` had
+ * one. A ramp that exists only in the token file is not a ramp.
+ *
+ * THE FLOOR IS SET BY THE JOB, NOT BY THE TOKEN, which is the whole point of this column:
+ *
+ *   divider   separates siblings inside a container       decoration, WCAG exempts it, no floor
+ *   edge      bounds an object, or rests under a          not required information, no floor
+ *             LABELLED control (a secondary button)
+ *   hover     firms an edge up under the pointer          no floor: you already found the control
+ *   control   IS the control — the only thing saying      SC 1.4.11, 3:1
+ *             one is there (a field, a focus ring,
+ *             an invalid state, a switch track)
+ *
+ * So `rule` at 1.09 is CORRECT, `border` under a labelled button at 1.30 is CORRECT, and `border`
+ * on an input at 1.30 is a defect. One number, three verdicts, and the same table has to be able to
+ * say all three. Read the `job` column before you read the number.
+ *
+ * The first pass got this wrong in the direction that looks safe: it read "interactive" as the
+ * category and put the secondary button on the 3:1 edge, which is a floor that does not reach it
+ * and which took its hover from a 1.47x step to 2.94x. A rule over-applied is still a rule broken.
+ */
+const EDGES = [
+  ['border', 'border-border', 'edge', 0],
+  ['rule', 'border-rule', 'divider', 0],
+  ['chart-axis', 'border-[var(--chart-axis)]', 'divider', 0],
+  ['border-strong', 'border-border-strong', 'hover', 0],
+  /* BACK IN THE TABLE, because it is now measurable. This row is what caught the parser bug: it
+     was reported at 1.09:1 in dark, which is what an oklab lightness looks like when it is read as
+     a red channel. Composited properly it is 2.20, and the two modes agree. */
+  ['accent/40', 'border-accent/40', 'edge', 0],
+  ['accent-hover', 'border-accent-hover', 'hover', 0],
+  ['field', 'border-field', 'control', 3],
+  ['accent', 'border-accent', 'control', 3],
+  ['neg', 'border-neg', 'control', 3],
+  ['switch-off', 'border-[var(--switch-off)]', 'control', 3],
 ] as const;
 
 const INKS = [
@@ -534,6 +652,51 @@ function TokenProofs() {
           same ink by design, so those two rows matching is correct, not a bug.
         </Note>
       </Section>
+
+      <Section
+        title="Edges"
+        note="The same proof for lines instead of ink, and the floor comes from the job. A divider is decoration and WCAG exempts it, so faint is the design. A labelled button is identified by its label, so its edge is chrome and carries no floor either. Only a line that IS the control (a field's outline, a focus ring, a switch track) has to clear 3:1, and only those rows are marked."
+      >
+        <div className="scroll-thin overflow-x-auto">
+          <table className="text-small w-full border-collapse">
+            <thead>
+              <tr>
+                {/* `w-px` on the two label columns, or `w-full` splits eight columns evenly and
+                    the five grounds - the part being measured - get squeezed to a third of the
+                    table each side of the rack's split view. A width of 1px on a table cell is the
+                    idiom for "shrink to your content". */}
+                <th className="text-caption text-muted w-px p-2 text-left">line</th>
+                <th className="text-caption text-muted w-px p-2 text-left">job</th>
+                {GROUNDS.map(([g]) => (
+                  <th key={g} className="text-caption text-muted p-2 text-left">
+                    {g}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {EDGES.map(([edge, edgeCls, job, floor]) => (
+                <tr key={edge}>
+                  <td className="text-caption text-muted w-px p-2 whitespace-nowrap">{edge}</td>
+                  <td className="text-caption text-muted w-px p-2 whitespace-nowrap">{job}</td>
+                  {GROUNDS.map(([g, groundCls]) => (
+                    <EdgeCell key={g} groundCls={groundCls} edgeCls={edgeCls} floor={floor} />
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <Note>
+          The swatch is unfilled on purpose, so the number is the edge against the ground it sits
+          on rather than against a fill that happens to be lighter. A control carrying its own
+          `surface` fill has to clear the floor against both, and `surface` is a column here.
+          `switch-off` is a FILL rather than a line and is drawn as one here anyway: the track
+          carries no edge, so the fill is that control&rsquo;s boundary and the same 3:1 lands on it.
+          A switch keeps its floor where a button gives its back, because a switch has no label
+          inside it to do the identifying.
+        </Note>
+      </Section>
     </>
   );
 }
@@ -590,6 +753,84 @@ function ContrastCell({
   );
 }
 
+/* THE SAME SELF-MEASURING TRICK AS `ContrastCell`, ON THE BORDER INSTEAD OF THE INK.
+ *
+ * It reads `borderTopColor` off the rendered swatch and the painted background off the cell around
+ * it, so an alpha (`accent/40`), a mode, or a token that never reached the browser all show up as
+ * the number rather than as a comment claiming otherwise. `--color-rule` was inlined instead of
+ * emitted once already; that failure is invisible to every check except this one.
+ *
+ * IT COMPOSITES ON A CANVAS RATHER THAN PARSING THE COLOUR STRING, and that is a correction rather
+ * than a flourish. The first version did `str.match(/[\d.]+/g).slice(0,3)` for the channels and
+ * `[3]` for alpha, which is fine for `rgb()` and `rgba()` and silently catastrophic for anything
+ * else. Tailwind emits `border-accent/40` as a `color-mix`, and `getComputedStyle` hands that back
+ * as `oklab(0.476125 -0.079402 0.0116068 / 0.4)` — so the parser read an oklab LIGHTNESS of 0.476
+ * as a red channel of 0.476/255 and reported the accent as near-black. The table said the outline
+ * button's edge measured 1.09:1 in dark; it measures 2.20. A proof that reports a wrong number is
+ * worse than no proof, which this file already learned once when the contrast table printed a
+ * placeholder — same lesson, second surface.
+ * Painting ground-then-edge into a 1x1 canvas and reading the pixel back gets the true composite
+ * for ANY colour syntax, alpha included, with no parsing at all. The browser does the conversion.
+ *
+ * `floor` of 0 means the line has no floor to fail — a divider, an object's edge and a hover state
+ * are all outside SC 1.4.11, and marking them would train the eye to ignore the marks that matter.
+ */
+function EdgeCell({
+  groundCls,
+  edgeCls,
+  floor,
+}: {
+  groundCls: string;
+  edgeCls: string;
+  floor: number;
+}) {
+  const ref = useRef<HTMLTableCellElement>(null);
+  const [ratio, setRatio] = useState<number | null>(null);
+
+  useEffect(() => {
+    const cell = ref.current;
+    const swatch = cell?.querySelector('div');
+    if (!cell || !swatch) return;
+    const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+    if (!ctx) return;
+    // Paint ground, then edge on top, then read the pixel. A translucent edge is painted OVER the
+    // ground, so the honest number is the composite the eye gets, and letting the browser do the
+    // conversion is what makes any colour syntax (rgb, oklab, color-mix) come out right.
+    const paint = (over: string, under: string) => {
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = under;
+      ctx.fillRect(0, 0, 1, 1);
+      ctx.fillStyle = over;
+      ctx.fillRect(0, 0, 1, 1);
+      const d = ctx.getImageData(0, 0, 1, 1).data;
+      return [d[0], d[1], d[2]];
+    };
+    const lum = (c: number[]) => {
+      const [r, g, b] = c.map((n) => {
+        const x = n / 255;
+        return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const groundStr = getComputedStyle(cell).backgroundColor;
+    const ground = paint(groundStr, groundStr);
+    const edge = paint(getComputedStyle(swatch).borderTopColor, groundStr);
+    const x = lum(edge);
+    const y = lum(ground);
+    setRatio((Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05));
+  }, [groundCls, edgeCls]);
+
+  const fail = floor > 0 && ratio !== null && ratio < floor;
+  return (
+    <td ref={ref} className={cn(groundCls, 'p-2 whitespace-nowrap')}>
+      <div className={cn(edgeCls, 'mb-1 h-5 w-10 rounded-[var(--radius-xs)] border')} />
+      <span className={cn('num text-micro', fail ? 'text-neg' : 'text-muted')}>
+        {ratio === null ? '' : `${ratio.toFixed(2)}${fail ? ' FAIL' : ''}`}
+      </span>
+    </td>
+  );
+}
+
 // ── the rack's own furniture ─────────────────────────────────────────────────────────────────
 
 function Section({
@@ -623,10 +864,15 @@ function Note({ children }: { children: React.ReactNode }) {
   return <p className="text-caption text-muted max-w-prose">{children}</p>;
 }
 
+/* `role="group"` + `aria-label` rather than a bare span beside some buttons. Three unlabelled
+   toggle groups in one header is a reasonable thing for a review tool to get right, given the rack
+   exists to check exactly this class of thing in everything else. */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-caption text-muted">{label}</span>
+    <div role="group" aria-label={label} className="flex items-center gap-2">
+      <span className="text-caption text-muted" aria-hidden>
+        {label}
+      </span>
       <div className="flex gap-1">{children}</div>
     </div>
   );
@@ -642,9 +888,13 @@ function Chip({
   children: React.ReactNode;
 }) {
   return (
+    /* `aria-pressed`, because the selected state is carried by a ground change and nothing else —
+       a screen reader had no way to know which theme, width or density was active. Same spelling
+       `Switch` already uses for the same reason. */
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={on}
       className={cn(
         'text-caption focus-visible:ring-accent rounded-sm px-2 py-1 focus-visible:ring-2 focus-visible:outline-none',
         on ? 'bg-surface-2 text-text' : 'text-muted hover:text-text',
@@ -655,4 +905,8 @@ function Chip({
   );
 }
 
-export { ThemeToggle };
+/* THE RE-EXPORT THAT HID A MISSING SECTION. This file carried `export { ThemeToggle }` at the
+   bottom and imported the component at the top, but never rendered it - and the re-export is what
+   made the import count as used, so no lint rule ever fired. A primitive was absent from the rack
+   and the one signal that would have said so had been silenced by a line nothing consumed (nothing
+   imports from a page module; checked). Removed 2026-08-14, and the component is racked above. */

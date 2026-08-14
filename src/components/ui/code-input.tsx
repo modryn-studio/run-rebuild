@@ -72,7 +72,16 @@ export function CodeInput({
 
   return (
     <div
-      className="relative"
+      /* `w-full` IS LOAD-BEARING (2026-08-14). The boxes below are `flex-1 min-w-0 max-w-12`, i.e.
+         they claim their width by GROWING into the row rather than by declaring one. That works
+         only if this root has a width to give them. Dropped into any shrink-to-fit parent - a flex
+         item, an inline-block, a table cell - it sizes to its content, its content is six boxes
+         with `min-w-0`, and the whole control collapses to six vertical slivers. No error, no
+         warning, and it still accepts input.
+         Found by putting it in the rack beside its own disabled and invalid states, inside the
+         generic `Row` helper (a flex container), which is exactly the shape a real call site would
+         reach for. Fixed here rather than at the call site: the next one would hit it too. */
+      className="relative w-full"
       // Clicking anywhere on the boxes focuses the real field underneath.
       onClick={() => ref.current?.focus()}
     >
@@ -111,11 +120,16 @@ export function CodeInput({
                 // field are the same height everywhere in the product.
                 'tabular-nums flex h-12 min-w-0 max-w-12 flex-1 items-center justify-center rounded-[var(--radius-sm)] border text-h2 transition-colors',
                 disabled && 'opacity-50',
+                /* `field` AT REST, NOT `border` (Luke, 2026-08-14: "the outline of the code boxes on
+                   the login screen are hard to see"). Measured, they were: #e4e1de on the white
+                   sign-in card is 1.30:1, and these boxes have no fill and no label - the outline is
+                   the ONLY thing saying a control is here, which is the textbook case SC 1.4.11
+                   covers. Same move as `Input`; see globals.css's four-jobs note. */
                 invalid
                   ? 'border-neg text-neg'
                   : isActive
                     ? 'border-accent text-text'
-                    : 'border-border text-text'
+                    : 'border-field text-text'
               )}
             >
               {value[i] ?? ''}

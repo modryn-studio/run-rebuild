@@ -70,20 +70,85 @@ their live theme object, both modes, not eyedropped), with Run's own hues carved
 | `--color-surface-2` | `#ebe8e5` | a recessed slot inside a card, never raised |
 | `--color-hover` | `#fbfaf8` | a row lighting up *on* a card |
 | `--color-band` | `#f6f5f3` | the ground for a band inside a card — a day header in the tape |
-| `--color-border` | `#e4e1de` | default |
-| `--color-border-strong` | `#bebbb8` | an input, a control that must be found |
+| `--color-border` | `#e4e1de` | the **edge** that bounds an object, and a **labelled** control's rest edge |
+| `--color-rule` | `#f6f5f3` | a **divider** between siblings inside a container |
+| `--color-border-strong` | `#bebbb8` | the subtle **hover** firm-up under the pointer |
+| `--color-field` | `#848280` | a **field's** edge, where the outline *is* the control |
 | `--color-text` | `#22201d` | primary ink — warm near-black, never `#000` |
-| `--color-muted` | `#777573` | secondary, 4.60:1 on the page |
+| `--color-muted` | `#696765` | secondary, darkened 2026-08-13 to clear 4.5 on **every** ground |
 | `--color-accent` | `#1f6b57` | deep pine — **the one accent** |
-| `--color-pos` / `--color-neg` | `#2f7d54` / `#a84a3c` | terracotta is the earned gravity hue |
-| `--color-warn` | `#b8863b` | a status hue, **not** a second accent |
+| `--color-pos` / `--color-neg` | `#2b754e` / `#a84a3c` | terracotta is the earned gravity hue |
+| `--color-warn` | `#85612a` | a status hue, **not** a second accent |
 
-Dark mode is fully specified (`.dark` block, line 309) and is **not** the light values inverted
-— scrims, shadows and the pressed ground each have their own per-mode literals, with the
-reasoning recorded for each.
+Dark mode is fully specified (`.dark` block) and is **not** the light values inverted — scrims,
+shadows and the pressed ground each have their own per-mode literals, with the reasoning
+recorded for each.
 
 **Directly relevant to our spec:** `--color-band` exists specifically for a day header in the
 tape. That is the session header in our Trades wireframe, already solved.
+
+#### The border vocabulary: four jobs, four tokens, and the floor comes from the job
+
+Settled 2026-08-14, after a census found **438 painted borders and every one of them
+`--color-border`** — 39 structural edges, 399 row dividers, and every control in the product.
+`--color-rule` had zero call sites; `--color-border-strong` had one, a button's hover. Both
+weights had been argued out in `globals.css` and neither was ever deployed.
+
+| Job | What it does | WCAG | Token |
+|---|---|---|---|
+| **divider** | separates siblings *inside* one container | decoration, **exempt** — no floor | `--color-rule` |
+| **edge** | *bounds* an object (card, popover, menu, tooltip, page-level rule), or rests under a **labelled** control | not required information, **exempt** — no floor | `--color-border` |
+| **hover** | firms an edge up under the pointer | no floor — see below | `--color-border-strong` |
+| **field** | *is* the control: the only thing saying one is there | **SC 1.4.11, 3:1** | `--color-field` |
+
+The floor is set by the job, never by the token. A divider at 1.09:1 is *correct*, a labelled
+button's edge at 1.30:1 is *correct*, and an input at 1.30:1 is a defect. One number, three
+verdicts.
+
+**The line inside "control" is whether the edge carries the identification.** SC 1.4.11 asks 3:1
+of the visual information *required* to identify a component. A button with a visible text label
+is identified by its label, so its edge is chrome. A field has no label inside it and a fill that
+is its own card's colour, so the outline is the whole statement — which is the case the standard
+actually names. **A hover can never carry a floor**, because a hover state is only reachable once
+you have already found the control.
+
+The first pass got this wrong in the direction that looks safe: it read "interactive" as the
+category, moved `Button secondary` onto the 3:1 edge, and took its rest-to-hover step from 1.47×
+to 2.94× — loud, against the "hover is the border and nothing else, and it is subtle" that
+`.lift-rest` argues for in the same file. Reverted. A rule over-applied is still a rule broken.
+
+Where it landed, all measured, all live in the rack's **Edges** proof:
+
+- **`CodeInput`** takes `--color-field` at rest — `#848280` / `#888680`, 3.14 / 3.12 worst case.
+  3:1 against a white card caps luminance at 0.30, which **is** a mid grey; a hairline on white
+  cannot be both faint and compliant. The two modes land on nearly one value because a line clearing
+  3:1 against near-white *and* near-black has nowhere else to go.
+- **`Input` and `Textarea`** keep `border` → `focus:accent`, unchanged from v2. They took the field
+  edge for half a day and came back: *"the border should be subtle and more pronounced on click,
+  active state."* The gesture is the point — 1.30:1 → 6.37:1 is a **4.9×** jump that reads as an
+  arrival, and a 3.83 resting edge flattens it to 1.7×, a colour change rather than an event.
+  **The split is by whether anything inside the control identifies it, not by component type:**
+  these always carry a placeholder or label, a code box is six empty squares. That is a real trade
+  against 1.4.11's canonical example and it is recorded as one in `input.tsx`.
+  **No hover on either** — v2 has none, and a hover is unreachable by keyboard and by touch, so the
+  two states worth having are resting and active.
+- **`Button secondary` and `.lift-rest`** keep `border` → `border-strong`, unchanged from v2.
+- **`Button outline` keeps `accent/40` → `accent`**, unchanged from v2. A pass on 2026-08-14 removed
+  the alpha on the claim that it composited to 2.85:1 in light and **1.09:1** in dark. Both numbers
+  were wrong, from one cause: Tailwind emits an alpha as `color-mix`, `getComputedStyle` returns
+  `oklab(0.476125 -0.079402 0.0116068 / 0.4)`, and the audit script read the first three numbers in
+  that string as RGB channels — an oklab *lightness* of 0.476 became a red channel of 0.476/255.
+  Re-measured by compositing on a canvas: **1.83 / 1.87 / 1.78** light and **2.20 / 2.15 / 1.91**
+  dark. The modes agree and the rest edge is quiet in both, which is this variant's whole design.
+  No floor reaches it either way. The rack's `Edges` proof now composites rather than parses.
+- **`--switch-off`** `#b5b1a9 → #85827c` light, `#4a4f57 → #888680` dark. The track carries no edge,
+  so its **fill** is the control's boundary, and a switch has no label inside it to identify it
+  instead — so it keeps the floor where the button gives its back. The old dark value was a cool
+  slate in a warm-neutral palette, left over from the pre-Monarch ink and the only uncommented
+  token in that block.
+
+The rack proved ink on ground (SC 1.4.3) and nothing proved lines (SC 1.4.11), which is how one
+value came to do three jobs without anything complaining. It proves both now.
 
 ### ✅ Type — covered, and it's a system rather than a set of numbers
 
@@ -106,7 +171,7 @@ control is a circle, a labelled one is a `--radius-sm` rectangle. Measured off t
 
 And the 2026-07-31 correction: **raised surfaces are a fill and a shadow, not a hairline.** The
 hairline survives *inside* those objects as row dividers, which is where "flat + hairline" was
-doing real work.
+doing real work — at the divider weight, `--color-rule`, per the border vocabulary above.
 
 ### ✅ Motion — covered
 
@@ -175,6 +240,46 @@ Listed here so phase 5 doesn't invent them ad hoc.
 
 No single route rendering every component in every state, both modes. Worth building; it is the
 fastest bug-finder available and dark mode makes it twice as valuable.
+
+> **Built in S3c** as `/kitchen-sink`, and the phase-3 guess above was low. What it has found, each
+> invisible to types, lint and review:
+>
+> - **`text-figure` in `rem` inside a px ramp**, `Textarea` on Tailwind's default `text-sm`, and a
+>   dark band/hover collision — its first run.
+> - **`--color-muted` failing AA on the ground it renders on most**, the day the contrast table
+>   started computing its ratios instead of printing `Aa 0.00`. A proof that asserts a number it has
+>   never measured is worse than no proof.
+> - **438 painted borders, all one token** (2026-08-14), found by the `Edges` proof added for
+>   SC 1.4.11 — see the border vocabulary above. The ink table had existed for months; nothing
+>   measured a *line* until then.
+> - **`ThemeToggle`, the one primitive never racked** (2026-08-14) — a hand-rolled 44px bordered
+>   circle with its own focus ring and a `scale` press, i.e. three decisions the system had since
+>   made differently, preserved intact because nothing had ever rendered it beside its neighbour.
+>   It is an `IconButton` now, so it agrees by construction. Two separate dead references were what
+>   hid it: the rack imported and re-exported it without rendering it (the re-export made the import
+>   count as used, so no lint rule fired), and `/login` imported it without rendering it under a
+>   comment claiming `layout.tsx` rendered one globally — which stopped being true in S3b, leaving
+>   the cold-landing screen with no way to change mode.
+>
+> - **Two scrollbars, one of them unthemed** (2026-08-14). `LoadingMark`'s `sr-only` label is
+>   `position: absolute` and had no positioned ancestor, so its containing block was the *initial*
+>   containing block — the document. An absolutely positioned box anchored to the document is not
+>   clipped by any ancestor's `overflow`, so a 1px invisible screen-reader label escaped the rack's
+>   `h-dvh overflow-hidden` shell and came to rest 4181px down, giving the page a full-height native
+>   scrollbar beside the pane's own. `.scroll-thin` themes the bars we own and always did (it is
+>   byte-identical to v2's); it cannot reach one the browser draws, which is why the stray bar was
+>   also the one that ignored dark mode. Fixed with `relative` on the wrapper — **any `sr-only`
+>   needs a positioned ancestor.** `color-scheme` is now set on `<html>`/`.dark` as the backstop.
+> - **A proof reporting a wrong number** (2026-08-14). The `Edges` table parsed colour strings with
+>   `match(/[\d.]+/g)`, which is correct for `rgb()` and silently catastrophic for the `oklab()` that
+>   `getComputedStyle` returns for any Tailwind alpha. It reported `border-accent/40` at 1.09:1 in
+>   dark; the real figure is 2.20, and that bad number was the stated reason for a change to
+>   `Button outline` that has since been reverted. It composites on a canvas now. Second time this
+>   file has learned that a proof asserting an unmeasured number is worse than no proof.
+>
+> **The lesson the entry above did not anticipate:** the rack is a gate, not a gallery. A component
+> that is not in it has not been looked at, and "has not been looked at" is where divergence lives —
+> not in the components people review every day.
 
 ---
 

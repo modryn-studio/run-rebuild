@@ -36,10 +36,34 @@ const variantClasses: Record<ButtonVariant, string> = {
    * there is no quieter ink to move them to. Opacity is the only lever they have. */
   primary:
     'bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-hover active:shadow-[var(--shadow-press)] disabled:bg-surface-2 disabled:text-muted disabled:shadow-none disabled:opacity-100',
+  /* THE EDGE PAIR IS `border` -> `border-strong`, AND IT WENT AWAY FOR HALF A DAY (2026-08-14).
+   * The border pass moved this to a 3:1 field edge on the reading that an interactive control owes
+   * SC 1.4.11 3:1. It does not: 1.4.11 asks that of the visual information REQUIRED to identify a
+   * component, and this button has a visible text label doing that job, so its edge is chrome.
+   * `Input` and `CodeInput` keep the strong edge because they have no label and no fill of their
+   * own - there the outline IS the control. Reverted to exactly the pair this shipped with
+   * (Luke: "i like run-trading@v2's border because it's more subtle. did you change them because of
+   * a major issue?" - no).
+   * The rest-to-hover step is 1.47x, which is the "subtle" the note above is describing; pointing
+   * the hover at a compliant value made it 2.94x and read as the whole button lighting up. */
   secondary:
     'border-border bg-surface text-text border shadow-[var(--shadow-sm)] hover:border-border-strong active:bg-[var(--pressed-bg)] active:shadow-[var(--shadow-press)] disabled:bg-surface-2 disabled:text-muted disabled:shadow-none disabled:opacity-100',
-  // The quiet, always-accent-colored outline (a header "add" control, a secondary CTA beside a
-  // primary one) - distinct from `secondary`, whose edge only firms up on hover.
+  /* The quiet, always-accent-colored outline (a header "add" control, a secondary CTA beside a
+   * primary one) - distinct from `secondary`, whose edge only firms up on hover.
+   *
+   * THE ALPHA STAYS, AND THE PASS THAT REMOVED IT WAS WRONG ON ITS FACTS (2026-08-14). It was
+   * replaced with a solid accent on the claim that `accent/40` composited to 2.85:1 in light and
+   * 1.09:1 in dark - "one token, two modes, two completely different results". Both numbers were
+   * wrong, and from the same cause: Tailwind emits an alpha like this as `color-mix`, which
+   * `getComputedStyle` returns as `oklab(0.476 -0.079 0.012 / 0.4)`, and the audit script read the
+   * first three numbers in that string as if they were RGB channels. It measured an oklab lightness
+   * of 0.476 as the red channel and reported near-black. Re-measured by compositing on a canvas
+   * instead of parsing the string: 1.83 / 1.87 / 1.78 in light and 2.20 / 2.15 / 1.91 in dark. The
+   * two modes agree, and the rest edge is quiet in both, which is the whole design of this variant.
+   * No floor reaches it either way - the label identifies the control, so 1.4.11 does not bind.
+   * Luke, 2026-08-14: "it is supposed to be subtle and then have the current border on hover only."
+   * Restored to exactly the pair v2 ships. The rack's `Edges` proof now composites rather than
+   * parses, so this row can be read instead of guessed at. */
   outline:
     'border border-accent/40 text-accent hover:border-accent active:shadow-[var(--shadow-press)] disabled:opacity-50',
   ghost:

@@ -183,7 +183,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
 
-          <div className="border-border shrink-0 border-t px-3 py-2">
+          {/* `rule`, not `border` (2026-08-14): a group rule inside the rail separates siblings, so
+              it is a divider and takes the divider weight. `border` here drew it at the weight of
+              the card edge, which is the census failure globals.css records. */}
+          <div className="border-rule shrink-0 border-t px-3 py-2">
             <NavRow href="/settings" label="Settings" icon="settings" pathname={pathname} />
           </div>
         </div>
