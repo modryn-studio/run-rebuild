@@ -459,6 +459,14 @@ the served stylesheet, not the rendered page.
 
 ### S4 — Add account + the three-file ingest ⭐ *the biggest slice*
 
+> 📖 **Read [`psychology.md` §5](psychology.md#5-accuracy-is-the-retention-argument) before the
+> intake UX.** Perceived measurement inaccuracy was the #4 reason people abandoned a tracker (36%),
+> correlated −.44 with usefulness, and was tied to **permanent** rather than temporary abandonment —
+> so the reconcile doctrine is the anti-churn argument, not only the correctness one. And the top two
+> causes were loss of intrinsic motivation (52%) and **routine disruption** (43%), which is the case
+> against every gram of manual logging this slice could introduce. The ostrich effect compounds it:
+> the trader must upload the tape of their worst session to get the read about it.
+
 Sub-sliced, because this is where correctness is won or lost:
 
 **`S1` delivered the pure, disk-side half of this slice. Everything touching the database is
@@ -480,6 +488,12 @@ untouched, and that is exactly the seam:**
 
 Session headers carrying net/count/win rate, read-only rows, filtered-set digest, visible
 quarantine with S9b's two actions, provenance line.
+
+> 📖 **[`psychology.md` §6](psychology.md#6-what-to-steal)** — Monarch's four properties govern every
+> string on this page: each clause about a *trade* and never the person, specificity in place of
+> evaluation, comparison only to the trader's own prior period, ending on a position rather than a
+> grade. A quarantine row is the sharpest test of it — it reports a fact about a record, not a
+> verdict about a trader.
 
 ### S6 — Accounts ⭐
 
@@ -520,10 +534,41 @@ it happened once and no floor would have passed it.
 is a phase 2 decision and it is Luke's. Until it is made, `S7` cannot be specified, and nothing
 downstream of it should be built on the assumption that either shape won.
 
+> 📖 **[`psychology.md`](psychology.md) is input to the blocking decision itself, not to the build.**
+> Read it **before** choosing pattern-or-reading, because it argues both sides:
+>
+> - **Against the pattern:** repeating an unfixed pattern with a *rising cumulative cost* is the
+>   brooding profile — passive, abstract, consequence-focused ([§9 P3](psychology.md#9-open-questions)).
+>   And History's claim *"did it get better?"* cannot be evidenced as specified: regression to the
+>   mean and survivorship both inflate it ([§8](psychology.md#8-the-measurement-run-is-not-yet-taking)).
+> - **For the pattern:** History is also the ostrich mitigation — a trader who avoids for eight days
+>   picks up a *thread* rather than a pile of missed dailies. The reading shape has no persistent
+>   claim, so that protection disappears with it.
+>
+> Three things must land **in the spec when S7 unblocks**, not be discovered during it:
+>
+> 1. **The control group is a one-way door.** The engine surfaces several candidate patterns and
+>   names one. *Track the unnamed candidates too, and never show them* — a within-subject control,
+>   same trader, same period, same market. Unnamed candidates cannot be reconstructed retroactively:
+>   if the first read does not capture them, that evidence never exists
+>   ([§8](psychology.md#8-the-measurement-run-is-not-yet-taking)).
+> 2. **The trader authors the if-then, never Run** — the largest effect in the literature (d=0.65)
+>   and the safest legal posture, arrived at independently
+>   ([§2](psychology.md#2-the-if-then-and-why-two-briefs-collided-into-one-answer)).
+> 3. **The fence is retrospective vs prospective**, not descriptive vs prescriptive. Watch for the
+>   present-tense bridge — *"…9 lost. You're at three losses now"* — which is the most likely
+>   accidental crossing in the product ([§3](psychology.md#3-the-fence-is-retrospective-not-descriptive)).
+
 ### S8 — Today
 
 Monarch's widget contract applied unchanged. Last because every widget links to a page that
 must already exist.
+
+> 📖 **The re-entry rule lands here, and it is now a `CLAUDE.md` doctrine line: no state may
+> represent absence.** Today is the surface most likely to break it, because a landing page is where
+> "you haven't imported in 9 days" wants to live. It reopens where the trader left it — no backlog,
+> no catch-up, no gap counted. The trader who has been away is the one this page is worth most to.
+> [`psychology.md` §6](psychology.md#6-what-to-steal).
 
 ### S9 — Polish
 

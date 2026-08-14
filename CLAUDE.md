@@ -98,6 +98,10 @@ Each is load-bearing on the product's one claim: **never show a number you canno
   to the trade.
 - **An excluded or quarantined trade stays visible and countable.** An exclusion may never silently
   shrink the record.
+- **No state may represent absence.** No "you haven't imported in 9 days", no backlog, no catch-up,
+  no streak — every surface reopens where it was left. Free now, unretrofittable once Today, Trades
+  and Read each hold an idea of "current". Investors check **9.5% less the day after a loss**, so the
+  trader who has been away is the one the read is worth most to (`docs/psychology.md`).
 
 ---
 
