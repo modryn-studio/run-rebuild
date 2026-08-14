@@ -146,7 +146,13 @@
      `muted` and the active row alone is full ink (the measured why is in app-shell.tsx).
      NOT for the marketing/auth header links, which are deliberately secondary to the hero and stay
      text-body-lg + muted. This token means primary wayfinding, not "any link in a header". */
-  --text-nav: 16px;          --text-nav--line-height: 24px;          --text-nav--font-weight: 500;   --text-nav--letter-spacing: -0.01em;
+  /* WEIGHT DROPPED 500 -> 400, 2026-08-13, and the colour rule with it. Measured against the
+     reference live: every one of their nav rows is 16/400 in FULL INK, and only the active row's
+     ground changes. The 500 + muted-inactive rule came from the previous build, which had
+     diverged from the reference without anyone noticing, and was tuned against a twelve-row
+     sidebar rather than Run's four. Four rows do not need ink, weight and ground all saying the
+     same thing. Tracking stays: it holds 16px beside the wordmark. */
+  --text-nav: 16px;          --text-nav--line-height: 24px;          --text-nav--font-weight: 400;   --text-nav--letter-spacing: -0.01em;
   --text-title: 18px;        --text-title--line-height: 24px;         --text-title--font-weight: 500; --text-title--letter-spacing: -0.01em;
   --text-h2: 24px;           --text-h2--line-height: 30px;            --text-h2--font-weight: 500;    --text-h2--letter-spacing: -0.01em;
   /* MONEY / STAT NUMERALS. Not a display step - it never set in the serif and it is not a heading

@@ -222,11 +222,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* Inactive rows are `muted`; the active row alone is full ink on a recessed ground.
+/* EVERY ROW IS FULL INK AT 400. The active row is distinguished by its GROUND ALONE.
  *
- * `design-system.md` flags this as the one thing to re-examine rather than adopt: the rule was
- * tuned against a sidebar with a dozen rows, and four rows in a 224px column is a much emptier
- * panel. Left as specified so the review gate has the real thing to look at.
+ * Settled 2026-08-13 (Luke) after both candidates were rendered in the rack and the reference was
+ * measured live rather than assumed. What the measurement found is that the previous build had
+ * NOT copied the reference here, and this build inherited the divergence believing it had:
+ *
+ *   reference       inactive 16/400 FULL INK    active 16/400 + surface-2
+ *   previous build  inactive 16/500 muted       active 16/500 + surface-2
+ *
+ * `design-system.md` had already flagged the muted/500 rule as the one thing to re-examine rather
+ * than adopt, because it was tuned against a twelve-row sidebar and Run has four. Four rows do not
+ * need ink, weight AND ground all saying the same thing; the ground says it on its own, and the
+ * sidebar stops competing with the content it points at.
+ *
+ * HOVER STILL MOVES, because a row has to answer the pointer — it takes the ground, not the ink.
  */
 function NavRow({
   href,
@@ -246,8 +256,8 @@ function NavRow({
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'text-nav focus-visible:ring-accent flex min-h-11 items-center gap-3 rounded-sm px-3 focus-visible:ring-2 focus-visible:outline-none md:min-h-9',
-        active ? 'bg-surface-2 text-text' : 'text-muted hover:text-text hover:bg-surface-2',
+        'text-nav text-text focus-visible:ring-accent flex min-h-11 items-center gap-3 rounded-sm px-3 font-normal focus-visible:ring-2 focus-visible:outline-none md:min-h-9',
+        active ? 'bg-surface-2' : 'hover:bg-surface-2',
       )}
     >
       <Icon name={icon} className="shrink-0" />

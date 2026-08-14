@@ -38,16 +38,27 @@ const variantClasses: Record<ButtonVariant, string> = {
     'text-muted hover:text-text hover:bg-[var(--pressed-bg)] active:bg-[var(--pressed-bg)] active:text-text active:shadow-[var(--shadow-press)] disabled:opacity-50',
 };
 
-// Sizes reflect the app's real button scale, not an invented one: sm = a compact header control,
-// md = a modal/inline primary action, lg = a full-width hero CTA. Text sizes are the locked
-// type-scale roles (text-body / text-body-lg), never a hand-picked size.
+/* Sizes reflect the app's real button scale: sm = a compact header control, md = the standard
+ * action, lg = a full-width CTA. Text sizes are locked type-scale roles, never hand-picked.
+ *
+ * HEIGHTS ARE EXPLICIT, NOT PADDING PLUS LINE-HEIGHT, and that is the fix rather than the style.
+ * Derived from padding, `md` and `lg` BOTH CAME OUT AT 48px — two named sizes rendering one
+ * height, which no call site could have detected and which the rack showed the moment all three
+ * sat in a row. A stated height cannot silently equal its neighbour.
+ *
+ * 36px FOR `md` IS THE MEASURED REFERENCE, not a preference. Read live 2026-08-13:
+ *   Monarch's labelled button   39px, 7.5px/12px padding, 16px/400, 8px radius
+ *   the previous build          36px, both flavours ("Refresh" 12px/500, "Add account" 14px/500)
+ * The old `md` at 48px was a third taller than either, which is why the app read heavier than the
+ * thing it is derived from.
+ *
+ * `lg` STAYS 48 and that is deliberate: it is the full-width CTA, it is what the import flow
+ * already hand-sets, and it matches the Input primitive so a stacked field-and-button pair agrees.
+ */
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'px-4 py-2 text-body',
-  md: 'px-6 py-3 text-body-lg',
-  // min-h-12 (48px), not py-3.5: 3.5 is a banned half-step, and 48px is already the app's de-facto
-  // full-width CTA height (import-method-modal, file-upload-step both hand-set min-h-12). Now one
-  // height for one control class, and it matches the Input primitive so stacked pairs agree.
-  lg: 'px-6 py-3 min-h-12 text-body-lg',
+  sm: 'h-8 px-3 text-small',
+  md: 'h-9 px-4 text-body',
+  lg: 'h-12 px-6 text-body-lg',
 };
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

@@ -343,8 +343,8 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
           one thing to re-examine, not adopt", because it was tuned against a twelve-row sidebar and
           Run has four. Four rows are below. */}
       <Section
-        title="Nav row A: the reference"
-        note="Every row full ink at 400. The active row is distinguished by its ground alone. Quieter, and it stops the sidebar competing with the content it points at."
+        title="Nav row: the reference, and what ships"
+        note="ADOPTED 2026-08-13. Every row full ink at 400; the active row is distinguished by its ground alone, so the sidebar stops competing with the content it points at."
       >
         <div className="bg-bg w-56 rounded-[var(--radius)] p-3">
           {NAV_DEMO.map((r) => (
@@ -362,8 +362,8 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
       </Section>
 
       <Section
-        title="Nav row B: this build and the previous one"
-        note="Inactive muted at 500, active full ink at 500, plus the same ground. Louder hierarchy: the active row is doing three things at once."
+        title="Nav row: what it replaced"
+        note="Kept only as the comparison. Inactive muted at 500, active full ink at 500, plus the same ground: three signals where one does the job. This is what the previous build shipped."
       >
         <div className="bg-bg w-56 rounded-[var(--radius)] p-3">
           {NAV_DEMO.map((r) => (
