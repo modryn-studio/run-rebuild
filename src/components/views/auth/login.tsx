@@ -251,7 +251,10 @@ export function Login() {
       <main className="flex flex-1 items-center justify-center px-6 py-16">
         <div className="w-full max-w-sm">
           <h1 className="text-display text-center text-balance">{site.name}</h1>
-          <p className="text-body-lg text-muted mt-4 text-center text-pretty">{site.description}</p>
+          {/* THE PRODUCT'S OWN SENTENCE, and it was `muted` — the highest-stakes instance of prose set in
+              the ink meant for a property of the thing beside it. This is what a visitor reads to
+              learn what Run is, on the one screen they land on cold. Full strength (2026-08-14). */}
+          <p className="text-body-lg mt-4 text-center text-pretty">{site.description}</p>
 
           {/* The card frame stays mounted across states - only its contents swap - so a successful
               send reads as "the card you just used answered you", not as a page reset. */}
@@ -334,6 +337,12 @@ export function Login() {
                 </form>
 
                 {/* PROJECT TODO: these two need real pages before this is public. */}
+                {/* THE ONE STATED EXCEPTION TO THE INK RULE (Luke, 2026-08-14: "leave it muted").
+                    By the rule in globals.css this is prose and would take full ink. Consent
+                    boilerplate is prose nobody chose to read, and setting it at the same strength as
+                    the sentence that explains the product would have it competing with the CTA it
+                    sits under. The exception is this string, not the category: an explanation that
+                    happens to be legal still reads as prose. */}
                 <p className="text-small text-muted mt-6 text-center">
                   By continuing you agree to our Terms and Privacy Policy.
                 </p>
@@ -378,7 +387,8 @@ function CodePanel({
   return (
     <div className="text-center">
       <p className="text-title">Check your email</p>
-      <p className="text-body text-muted mt-2">
+      {/* Guidance: read, not scanned. */}
+      <p className="text-body mt-2">
         We sent a 6-digit code to {email}. It expires in 15 minutes.
       </p>
 

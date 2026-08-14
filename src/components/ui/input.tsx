@@ -58,7 +58,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <input
       ref={ref}
       className={cn(
-        'border-border bg-surface text-text placeholder:text-faint focus:border-accent aria-invalid:border-neg h-12 w-full rounded-[var(--radius-sm)] border px-4 py-3 text-body-lg transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+        'border-border bg-surface text-text placeholder:text-muted focus:border-accent aria-invalid:border-neg h-12 w-full rounded-[var(--radius-sm)] border px-4 py-3 text-body-lg transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
         className
       )}
       {...props}

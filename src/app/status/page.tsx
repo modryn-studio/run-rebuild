@@ -51,7 +51,7 @@ export default async function StatusPage() {
         <ThemeToggle />
       </div>
       <h1 className="text-h2">Status</h1>
-      <p className="text-small text-muted mt-1">
+      <p className="text-small mt-1">
         The walking skeleton. One query, read at request time.
       </p>
 
@@ -60,7 +60,7 @@ export default async function StatusPage() {
         {reachable ? (
           <>
             <p className="text-figure mt-1 tabular-nums">{instruments}</p>
-            <p className="text-small text-muted mt-3">
+            <p className="text-small mt-3">
               <span className="num">contract_spec</span> is seeded narrow, from the
               exchange&rsquo;s own published specs, and grows only when a real import quarantines
               something. An unknown symbol quarantines rather than falling back to a guess, and
@@ -73,7 +73,7 @@ export default async function StatusPage() {
                 "we could not ask", and inventing the difference is the failure this product is
                 built against. */}
             <p className="text-figure text-neg mt-1">Unknown</p>
-            <p className="text-small text-muted mt-3">
+            <p className="text-small mt-3">
               The database did not answer, so this is not a count of zero, it is no count at all.
               The app is serving and the build below is live.
             </p>

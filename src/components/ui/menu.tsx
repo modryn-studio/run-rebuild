@@ -143,7 +143,7 @@ export function Menu<T extends string>({
         <Icon
           name="chevron"
           size={14}
-          className={cn('text-faint shrink-0 transition-transform', open && 'rotate-180')}
+          className={cn('text-muted shrink-0 transition-transform', open && 'rotate-180')}
         />
       </button>
 

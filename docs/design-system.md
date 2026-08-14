@@ -87,6 +87,47 @@ recorded for each.
 **Directly relevant to our spec:** `--color-band` exists specifically for a day header in the
 tape. That is the session header in our Trades wireframe, already solved.
 
+#### Which of the two inks: a question about the string's job
+
+Settled 2026-08-14. Luke: *"Metadata attached to an object — a date on a task row, a count, a
+timestamp. Nobody reads these as prose; they're properties of the thing next to them. Muted is
+right. Prose meant to be read — explanations, guidance, documentation. This should be full-strength
+ink."*
+
+| Job | What it is | Token |
+|---|---|---|
+| **metadata** | a *property* of the object beside it, scanned not read: a date, a count, a timestamp, a column header, a unit, an eyebrow, a resting control's ink | `--color-muted` |
+| **prose** | anything meant to be *read* as sentences: an explanation, guidance, an empty state, a description, a page's own copy | `--color-text` |
+
+**A usage rule, not a token** — both values already exist, and nothing was added.
+
+It was systemic and worst in the rack, where **thirty** explanatory passages — the entire argument a
+reviewer is there to read — were painted in the ink reserved for properties. The tell was already in
+the markup: both prose helpers carried `max-w-prose` and then set themselves `muted`, so the code
+named the job correctly and coloured it wrong. `Note` compounded it at `--text-caption`, an **11px**
+label step carrying `letter-spacing: 0.02em`; those are the longest passages on the page.
+
+Outside the rack the highest-stakes instance was the product's own tagline on `/login`, plus
+`/status`'s four explanatory lines and `/admin`'s five.
+
+**This costs nothing in hierarchy** because hierarchy below body is already carried by size and
+weight (see Type). A 24px `h2` and a 12px note are separated by the ramp, not by the ink — muted was
+never doing that work, it was only making sentences harder to read.
+
+**`--color-faint` is retired.** It was an alias of `muted` kept on the reasoning that "~40 call sites
+use it"; that count was the old build's, and a census of this one found **four** — two placeholders,
+a menu chevron, a tooltip shortcut, every one of them `muted`'s job. A token whose value equals
+another's and whose name describes an *intensity* rather than a *job* is a second name for one
+thing, which is the same failure as one name doing three jobs approached from the other side. If a
+placeholder ever earns its own value it gets `--color-placeholder`, named for what it is.
+
+**One stated exception:** the consent line on `/login` stays muted. It is prose nobody chose to
+read, and at full strength it competes with the CTA above it. The exception is that string, not the
+category.
+
+Proved in the rack's **Ink roles** specimen — a metadata line and a prose line in one card, so the
+rule is reviewable rather than remembered.
+
 #### The border vocabulary: four jobs, four tokens, and the floor comes from the job
 
 Settled 2026-08-14, after a census found **438 painted borders and every one of them

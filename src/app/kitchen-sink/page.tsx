@@ -551,10 +551,13 @@ const EDGES = [
   ['switch-off', 'border-[var(--switch-off)]', 'control', 3],
 ] as const;
 
+/* `faint` IS GONE FROM THIS TABLE because the token is gone (2026-08-14). It was an alias of
+   `muted` with four call sites, and a second name for one value is the same failure as one name
+   doing three jobs. Two ink tiers, and which one a string takes is now a question about its JOB -
+   see the `Ink roles` proof below. */
 const INKS = [
   ['text', 'text-text'],
   ['muted', 'text-muted'],
-  ['faint', 'text-faint'],
   ['accent', 'text-accent'],
   ['pos', 'text-pos'],
   ['neg', 'text-neg'],
@@ -650,6 +653,35 @@ function TokenProofs() {
           so this cannot drift from what it describes. Read it by eye FIRST: anything that
           disappears is a failure regardless of what the number says. `faint` and `muted` are the
           same ink by design, so those two rows matching is correct, not a bug.
+        </Note>
+      </Section>
+
+      <Section
+        title="Ink roles"
+        note="Two tiers, and which one a string takes is a question about its job rather than its importance. The Contrast table above proves an ink is legible; nothing proved it was in the right role, which is how thirty explanatory passages in this rack came to be set in the ink reserved for properties."
+      >
+        {/* `max-w-md`, because a specimen has to be legible as the thing it describes. Full-bleed,
+            the right-aligned metadata sat 900px from the name it is a property of and off the edge
+            of the pane in `both` mode - so the one comparison this section exists to make was the
+            one thing you could not see. It is also the honest width: these appear in the product as
+            a row inside a card, never as a 1280px band. */}
+        <div className={cn(cardSurface, 'max-w-md p-6')}>
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="text-body-lg">Continental ES</span>
+            {/* METADATA: a property of the row it sits on. Scanned, never read as a sentence. */}
+            <span className="num text-small text-muted">7 trades · 14 Aug</span>
+          </div>
+          {/* PROSE: an explanation. Meant to be read, so full-strength ink at a size from the ramp. */}
+          <p className="text-small mt-3 max-w-prose">
+            Fees resolved to the cent against Cash History, so this net is the broker&rsquo;s number
+            and not ours. Nothing here is derived from the commission column.
+          </p>
+        </div>
+        <Note>
+          Read the two together: the date and count recede because they are properties of the name
+          beside them, and the paragraph does not, because someone has to read it. If the paragraph
+          looks heavy, the fix is a smaller step on the type ramp, never a quieter ink. Muted was
+          never carrying hierarchy here; it was only making sentences harder to read.
         </Note>
       </Section>
 
@@ -845,7 +877,13 @@ function Section({
   return (
     <section className="border-border border-t pt-8">
       <h2 className="text-h2">{title}</h2>
-      {note ? <p className="text-small text-muted mt-1 max-w-prose">{note}</p> : null}
+      {/* FULL-STRENGTH INK, NOT `muted` (2026-08-14). This is the argument a reviewer is here to
+          read, and it was set in the ink reserved for a property of the object beside it. The tell
+          was already in this line: `max-w-prose` names the job correctly and the colour contradicted
+          it. Twenty-one of these plus nine `Note`s, all muted, made the rack the worst instance of
+          the inversion in the codebase. Nothing competes with the 24px h2 above, because hierarchy
+          here is carried by size — see the ink note in globals.css. */}
+      {note ? <p className="text-small mt-1 max-w-prose">{note}</p> : null}
       <div className="mt-6 space-y-6">{children}</div>
     </section>
   );
@@ -860,8 +898,14 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
+/* TWO CHANGES, AND THE SECOND IS THE ONE NOBODY WOULD HAVE CAUGHT (2026-08-14). Full-strength ink
+   for the reason stated on `Section` above. And `text-small` rather than `text-caption`: caption is
+   11px with `letter-spacing: 0.02em`, which is a LABEL step - tracked out slightly so a short string
+   in caps or a column header reads as a tag. These are the longest passages in the rack, some of
+   them several sentences, and they were set at 11px on a label's letter-spacing. Wrong tier and
+   wrong size, from the same habit of treating explanation as chrome. */
 function Note({ children }: { children: React.ReactNode }) {
-  return <p className="text-caption text-muted max-w-prose">{children}</p>;
+  return <p className="text-small max-w-prose">{children}</p>;
 }
 
 /* `role="group"` + `aria-label` rather than a bare span beside some buttons. Three unlabelled

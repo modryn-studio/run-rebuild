@@ -126,9 +126,35 @@
      The fix is not a darker `faint`. Their ramp has no stop between gray11 and gray12 that clears
      4.5 while still reading as QUIETER than `muted`, so a third legible tier cannot exist inside
      this palette. They ship two tiers for that reason. So do we now.
-     `faint` stays as a NAME because ~40 call sites use it and the distinction may come back as
-     weight or size rather than colour; it resolves to the same ink as `muted` until then. Hierarchy
-     below body is carried by SIZE (12 vs 14) and weight, which is where it should have been. */
+     `--color-faint` IS GONE (2026-08-14). It was kept as a name on the reasoning that "~40 call
+     sites use it and the distinction may come back as weight or size rather than colour" - but that
+     count was the OLD build's. A census of this one found FOUR: two placeholders, a menu chevron and
+     a tooltip shortcut, every one of them `muted`'s job. A token whose value equals another's and
+     whose name describes an INTENSITY rather than a JOB is a second name for one thing, which is
+     the same failure as one name doing three jobs, arrived at from the other side. If a placeholder
+     ever earns its own value it gets `--color-placeholder`, named for what it is.
+     Hierarchy below body is carried by SIZE (12 vs 14) and weight, which is where it should have
+     been - and that is what makes the ink rule below affordable. */
+  /* ── WHICH OF THE TWO INKS, AND IT IS A QUESTION ABOUT THE STRING'S JOB (2026-08-14) ──────────
+     Luke: "metadata attached to an object - a date on a task row, a count, a timestamp. Nobody
+     reads these as prose; they're properties of the thing next to them. Muted is right. Prose meant
+     to be read - explanations, guidance, documentation. This should be full-strength ink."
+
+       muted   a PROPERTY of the object beside it, scanned rather than read: a date, a count, a
+               timestamp, a column header, a unit, an eyebrow, a resting control's ink
+       text    anything meant to be READ as sentences: an explanation, a piece of guidance, an
+               empty state, a description, a page's own prose
+
+     The failure this corrects was systemic and worst in the rack, where THIRTY explanatory
+     passages - the entire argument a reviewer is there to read - were set in the ink reserved for
+     properties. The tell was already in the markup: both prose helpers carried `max-w-prose` and
+     then painted themselves `muted`, so the code named the job correctly and coloured it wrong.
+     Outside the rack the highest-stakes instance was the product's own tagline on /login.
+
+     WHY THIS COSTS NOTHING: hierarchy below body is already carried by size and weight (see above),
+     so prose at full strength does not compete with a heading - the 24px h2 and the 12px note are
+     separated by the ramp, not by the ink. Muted was never doing that work; it was only making
+     sentences harder to read. And it is a usage rule, not a token: both values already exist. */
   /* DARKENED 2026-08-13, #777573 -> #696765, and the old comment named the wrong ground. It said
      "4.60:1 on the page"; 4.60 was the value on the CARD, and on the page it measured 4.21 - under
      the 4.5 floor, on the ground this ink sits on most. On `surface-2` it was 3.76.
@@ -140,7 +166,6 @@
      which the proof caught immediately.
      Hue and saturation are unchanged; only lightness moved, by 10.5%. */
   --color-muted: #696765;       /* their content.secondary, darkened to clear AA on every ground */
-  --color-faint: #696765;       /* alias - see above */
   /* ── The carve-out: Run's own three hues, unchanged ────────────────────────────────────────
      Their brand is #ff692d and every one of these would have been a Radix stock value. Pine is the
      product's one accent (Rams, validated cold twice); pos/neg carry more than a colour role -
@@ -461,7 +486,6 @@
      the card, in the direction that compresses contrast for this mode's ink. 6.99 / 6.33 / 4.52 /
      5.71 now. */
   --color-muted: #a6a4a0;       /* their content.secondary, lifted to clear AA on every ground */
-  --color-faint: #a6a4a0;       /* alias of muted - see the light note */
   --color-accent: #56b79b;
   --color-accent-hover: #47a189;
   --chart-axis: #3b3a37;

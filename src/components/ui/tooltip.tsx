@@ -140,7 +140,7 @@ export function Tooltip({
         className={`border-border bg-surface text-small text-text pointer-events-none absolute top-full z-50 mt-1.5 flex w-max max-w-72 items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-1.5 leading-snug shadow-[var(--shadow-card)] transition-opacity group-hover/tooltip:opacity-100 group-hover/tooltip:delay-500 group-has-[:focus-visible]/tooltip:opacity-100 ${x} ${tapped ? 'opacity-100' : 'opacity-0'}`}
       >
         {label}
-        {shortcut ? <span className="text-faint">{shortcut}</span> : null}
+        {shortcut ? <span className="text-muted">{shortcut}</span> : null}
       </span>
     </span>
   );

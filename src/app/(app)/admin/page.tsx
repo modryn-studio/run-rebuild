@@ -118,7 +118,7 @@ export default async function AdminPage() {
       <PageHeader title="Admin" />
 
       <div className={PAGE_COLUMN}>
-        <p className="text-small text-muted mb-10">
+        <p className="text-small mb-10">
           All-time. Signed in as {admin.email}, showing clocks in {trader.displayTimezone}{' '}
           {trader.displayTimezoneSetByUser ? '(your choice)' : '(detected)'}.
         </p>
@@ -132,7 +132,7 @@ export default async function AdminPage() {
 
         <section className={cn(CARD, 'mb-10 p-6')}>
           <h2 className="text-title mb-1">Funnel</h2>
-          <p className="text-small text-muted mb-4">Unique visitors per step.</p>
+          <p className="text-small mb-4">Unique visitors per step.</p>
           <Row label="Saw login" value={s.funnel.sawLogin} />
           <Row
             label="Started signup"
@@ -144,7 +144,7 @@ export default async function AdminPage() {
             value={s.funnel.signedUp}
             hint={pct(s.funnel.signedUp, s.funnel.startedSignup)}
           />
-          <p className="text-caption text-muted mt-4">
+          <p className="text-small mt-4">
             Steps read zero until their screens exist and are instrumented. Add product steps here
             as you add events: see src/lib/analytics.ts.
           </p>
@@ -181,7 +181,7 @@ export default async function AdminPage() {
 
         <section className={cn(CARD, 'p-6')}>
           <h2 className="text-title mb-1">Recent activity</h2>
-          <p className="text-small text-muted mb-4">Last 50 tracked events.</p>
+          <p className="text-small mb-4">Last 50 tracked events.</p>
           {s.recent.length === 0 ? (
             <Empty />
           ) : (
@@ -232,5 +232,7 @@ function Row({ label, value, hint }: { label: string; value: number | string; hi
 }
 
 function Empty() {
-  return <p className="text-small text-muted">Nothing yet.</p>;
+  /* An empty state REPLACES the data rather than describing it, so it is the thing being read,
+     not a property of something beside it. Full ink (2026-08-14). */
+  return <p className="text-small">Nothing yet.</p>;
 }

@@ -18,7 +18,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
        *
        * IT HAD DRIFTED THREE WAYS, all invisible until they sat side by side in the rack:
        *   bg-transparent           against Input's `bg-surface`, so it vanished on a card
-       *   placeholder:text-muted   against Input's `text-faint`
+       *   placeholder:text-muted   against Input's `text-faint` (that token was retired 2026-08-14;
+       *                            both are `muted` now, which is what `faint` always resolved to)
        *   focus ring + no border   against Input's border-only focus
        *
        * And `text-sm`, which is TAILWIND'S DEFAULT SCALE, not a token in this system. The lint
@@ -32,7 +33,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
        * recorded in that file rather than duplicated here. No hover, same as Input and same as v2.
        */
       className={cn(
-        'border-border bg-surface text-text placeholder:text-faint focus:border-accent aria-invalid:border-neg min-h-24 w-full resize-none rounded-[var(--radius-sm)] border px-4 py-3 text-body-lg transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+        'border-border bg-surface text-text placeholder:text-muted focus:border-accent aria-invalid:border-neg min-h-24 w-full resize-none rounded-[var(--radius-sm)] border px-4 py-3 text-body-lg transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
         className
       )}
       {...props}
