@@ -406,9 +406,56 @@ session header row, account row, summary rail, widget, quarantine notice, read c
 them here rather than inside the first page that needs them is what stops a second version
 appearing in the second page.
 
-Dev-only, out of the production build and the sitemap, and **no fixture that could be mistaken
+~~Dev-only, out of the production build and the sitemap~~, and **no fixture that could be mistaken
 for a real read**. It is the enforcement mechanism for this phase's definition of done, so it
 has to exist before the definition means anything.
+
+**✅ CLOSED 2026-08-13.** Scoped to **the rack and the token proofs** (Luke's call): 12 primitives
+in every state, three control axes, five token proofs, both modes side by side. `tsc` and `eslint`
+clean, all three earlier gates still pass.
+
+**IT SHIPS TO PRODUCTION, reversing the "dev-only" line above** (Luke, 2026-08-13). The rack's job
+is review, and *"works on mobile"* means a deployed build on a real phone — a route that only
+exists on localhost cannot be opened on the device it is meant to be judged on. Unlinked and
+`noindex` like the rest of the app.
+
+#### What it found in its first two days, which is the entire argument for it
+
+None of these were reachable by looking at a component on its own:
+
+| Found | Was |
+|---|---|
+| `text-ink` in the shell | **no such token.** Rendered the right colour BY COINCIDENCE, inheriting `body`. `bg-ink/20` emitted nothing, so the mobile scrim was fully transparent |
+| `Button` `md` and `lg` | **both 48px** — two named sizes, one height, invisible to every call site |
+| `Textarea` | drifted from `Input` three ways, including `text-sm` — Tailwind's default scale, which the token lint rule cannot catch because it is valid Tailwind |
+| The contrast proof | printed the literal string `Aa 0.00`. **Eleven failing cells had been sitting in it unreadable** |
+| `muted` | 4.21 on the page. Its own comment said "4.60:1 on the page" — that was the value on the *card*. The github #67 audit corrected `faint` and mislabelled this one |
+| `warn` | failed **all five** light grounds, and at 2.64 on `surface-2` missed even the 3:1 floor its red-zone-gauge job needs |
+| `--text-figure`, `--text-display` | the only `rem` steps in a px ramp, so they were the only ones that moved under a browser font-size setting |
+| `--text-hero` | zero call sites, no source behind it. Deleted |
+| A disabled `IconButton` | still lifted on hover and pushed in on press. `:hover` fires on disabled buttons |
+| `Input` `aria-invalid` | **no rule existed.** The rack asserted an error state the component did not have |
+| `Card` interactive hover | named `--shadow-md`, which does not exist, so it emitted Tailwind's stock shadow. In dark, hovering DROPPED the alpha 0.32 → 0.10: pointing at the card made it sink |
+| `Button` focus | suppressed the global outline for accent at 30% alpha, ~2.05:1, on the most-tabbed control |
+| `Button` loading | collapsed 81px → 50px at the moment of the click |
+| The nav row | the previous build had diverged from the reference and this one inherited it, believing it was the reference's |
+
+**Every ink now clears 4.5 on every ground in both modes**, verified on the rendered page.
+
+**Deferred, and each has a named home rather than a "later":**
+
+- The **seven Run compositions** — they depend on data shapes from `S5`–`S8`, and the read card is
+  governed by the blocked `S7` decision. Each arrives with its slice, which the standing rule
+  already requires.
+- The **timing harness** — it exists to tune the import panel's rhythm, and that panel lands in
+  `S4`. Building it now would give it nothing to replay.
+- **Empty as a designed state**, and error states beyond `Input`.
+- **Mobile** — desktop first, by Luke's call. `design-system.md` carries the deferral.
+
+**One process note worth keeping.** `globals.css` changes did not reach the browser twice, through
+a dev-server restart and a cache-busted fetch. The fix both times was `rm -rf .next` **and** a
+restart. If a token edit appears to do nothing, that is the first thing to try — and verify against
+the served stylesheet, not the rendered page.
 
 ### S4 — Add account + the three-file ingest ⭐ *the biggest slice*
 
@@ -492,7 +539,7 @@ they don't share a surface.
 | Wave | Parallel |
 |---|---|
 | 1 | `S0` skeleton · `S1` data layer + read engine · `S2` primitives (mostly folded into `S1`) |
-| 2 | `S3a` auth · `S3b` shell · `S3c` kitchen sink + ported primitives |
+| 2 | ✅ `S3a` auth · ✅ `S3b` shell · ✅ `S3c` kitchen sink + ported primitives |
 | 3 | `S4` alone — everything downstream depends on its shape |
 | 4 | `S5` · `S6` (different pages, same projections) |
 | 5 | `S8` · `S7` **only once the pattern-vs-reading decision is made** |
@@ -519,7 +566,7 @@ they don't share a surface.
 
 ## Phase 5 gate
 
-*Status as of 2026-08-13. `S0`, `S1`, `S2`, `S3a` merged and deployed; `S3b`, `S3c`, `S4`–`S9` open.*
+*Status as of 2026-08-13. `S0`–`S3c` merged; wave 1 and wave 2 complete. `S4`–`S9` open.*
 
 - [x] **`S1` fired or cleared the kill signal, and the result is recorded** — CLEARED. The MNQ→NQ
       multiplier finding, confirmed by Luke as something he did not already know
@@ -527,10 +574,14 @@ they don't share a surface.
 - [x] **Reconciliation matches the broker to the cent on Luke's real export** — $0.00 across two
       independent sets, asserted by `scripts/s1-gate.mts` and re-run on every change since.
 - [~] **Every merged slice is independently demoable** — *partially, and the wording does not fit
-      what got built.* `S0` demos at `/status`. `S1`, `S2` and `S3a` are a library, a data table
-      and an identity resolver; their honest demo is a gate script, not a screen, which is why
+      what got built.* `S0` demos at `/status`, `S3b` at any signed-in page, `S3c` at
+      `/kitchen-sink`. `S1`, `S2` and `S3a` are a library, a data table and an identity resolver; their honest demo is a gate script, not a screen, which is why
       each carries a non-UI done bar instead. **Revisit the wording at the retro** rather than
       pretending a parser is demoable — see the amendment candidates in
       `blueprint-instrumentation.md`.
-- [ ] Kitchen sink renders every component in every state, both modes — `S3c`, not started
+- [~] **Kitchen sink renders every component in every state, both modes** — every PRIMITIVE, yes,
+      in both modes, with a contrast proof that computes rather than asserts. The seven Run
+      compositions are deferred to the slices that own their data shapes, so **this line closes
+      with `S8`, not with `S3c`** — which is the honest reading of a rack that grows as the
+      product does.
 - [ ] The critical path works end to end for a switcher with no prior data — needs `S4`
