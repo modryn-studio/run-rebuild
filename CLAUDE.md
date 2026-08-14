@@ -16,6 +16,7 @@ change. Point agents at the file, never at your memory of it.
 | `docs/build-plan.md` | Slice order `S0`–`S9`, and the definition of done |
 | `docs/design-system.md` | Every visual decision, with the measurement behind it |
 | `docs/wireframes.md` · `docs/problem-brief.md` | Structure · the problem and the kill signal |
+| `docs/psychology.md` | Why the product changes behaviour, what it must never build, and the advice line |
 | `docs/blueprint-instrumentation.md` | Open questions, friction log, retro. **Append friction in the moment** |
 
 **A slice is done when:** it works, handles its error case, handles its empty case, works on mobile,
