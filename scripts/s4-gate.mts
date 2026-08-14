@@ -5,12 +5,19 @@
 // Section 2 is the one that matters. `event` being append-only is doctrine everywhere else in
 // this repo, which means it is a convention a future writer can forget. Here it is a trigger,
 // and the only way to know a trigger works is to try the thing it forbids.
-import { eq, sql } from 'drizzle-orm';
+import { readFileSync } from 'node:fs';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { loadEnv } from './load-env.mts';
 
 loadEnv();
 
 const { db, trader, account, importBatch, event, authUser } = await import('../src/lib/db/index.ts');
+const { parseTradovateFillsCsv } = await import('../src/lib/csv/fills.ts');
+const { parseTradovatePositionHistoryCsv } = await import('../src/lib/csv/position-history.ts');
+const { fillEventValues, roundTripEventValues, resolveRoundTripInstant } = await import(
+  '../src/lib/intake/write.ts'
+);
+const { commitImport, markImportCommitted } = await import('../src/lib/intake/commit.ts');
 
 let failures = 0;
 const check = (label: string, actual: unknown, expected: unknown) => {
@@ -263,6 +270,135 @@ check('4,681 rows (65,534 params) inserts in one statement', underCapOk, true);
 await rejects('5,000 rows (70,000 params) does not', () =>
   db.insert(event).values(bulk(5000, 'over')).onConflictDoNothing(),
 );
+
+
+console.log('\n=== 6. THE WRITE PATH, AGAINST THE REAL EXPORT ===\n');
+
+/* Nothing synthetic here. These are the same four files S1 reconciles to the broker at $0.00, run
+   through the same parsers and into the real database, because a write path that has only ever
+   seen fixtures has not been tested — the interesting failures are all in the shape of real data.
+   Account resolution is step 4, so the fixture account stands in for it. */
+const D = 'C:/Users/Luke/Downloads/';
+const readCsv = (f: string) => readFileSync(D + f).toString();
+
+const fillsText = readCsv('Fills.csv');
+const fills = parseTradovateFillsCsv(fillsText);
+const rtText = readCsv('Position History (9).csv');
+const roundTrips = parseTradovatePositionHistoryCsv(rtText);
+
+const common = {
+  traderId: t.id,
+  accountId: acct.id,
+  source: 'csv' as const,
+};
+
+// Fills first, because a round trip's true instant is resolved FROM them.
+const fillValues = fillEventValues({ ...common, importId: 'placeholder' }, fills);
+const first = await commitImport({
+  traderId: t.id,
+  accountId: acct.id,
+  filename: 'Fills.csv',
+  fileText: fillsText,
+  source: 'tradovate_csv',
+  rowsParsed: fills.length,
+  events: fillValues,
+});
+check('every parsed fill was written the first time', first.rowsWritten, fills.length);
+check('...and rowsParsed is reported separately', first.rowsParsed, fills.length);
+console.log(`        ${fills.length} fills, ${first.rangeStart} to ${first.rangeEnd}`);
+
+// The range is TRADE dates from the one time module, never a formatted instant.
+check('the range is a session date, not a timestamp', /^\d{4}-\d{2}-\d{2}$/.test(first.rangeStart ?? ''), true);
+
+// THE COUNT THAT MATTERS. Same rows, a file the trader renamed, so the file hash differs and the
+// file-level guard lets it through — leaving the ROW-level guard as the only thing standing
+// between a re-upload and a doubled corpus.
+const second = await commitImport({
+  traderId: t.id,
+  accountId: acct.id,
+  filename: 'Fills (1).csv',
+  fileText: fillsText + '\n', // one byte different, so the file hash does not match
+  source: 'tradovate_csv',
+  rowsParsed: fills.length,
+  events: fillValues,
+});
+check('re-importing the same trades writes ZERO rows', second.rowsWritten, 0);
+check('...while still reporting what it parsed', second.rowsParsed, fills.length);
+
+/* And the corpus did not grow. Scoped to the two imports above rather than counting every fill on
+   the account: sections 2-5 wrote their own synthetic fills, and a count that includes them would
+   pass or fail for reasons that have nothing to do with the write path. */
+const [{ n: fillCount }] = await db
+  .select({ n: sql<number>`count(*)::int` })
+  .from(event)
+  .where(
+    and(
+      eq(event.type, 'fill'),
+      inArray(event.importId, [first.importId, second.importId])
+    )
+  );
+check('the log holds exactly one copy of each fill', fillCount, fills.length);
+
+console.log('\n=== 7. A ROUND TRIP TAKES ITS INSTANT FROM ITS FILLS ===\n');
+
+// Position History carries local wall-clock with no zone. The fills carry UTC. Resolving from the
+// fills is what stops an evening trade landing on the wrong trade date.
+const fillInstants = new Map<string, Date>();
+for (const f of fills) if (f.externalFillId) fillInstants.set(f.externalFillId, f.filledAt);
+
+const resolved = roundTrips.map((rt) => ({ rt, ...resolveRoundTripInstant(rt, fillInstants) }));
+const bySource = resolved.reduce<Record<string, number>>((acc, r) => {
+  acc[r.timeSource] = (acc[r.timeSource] ?? 0) + 1;
+  return acc;
+}, {});
+console.log(`        time sources: ${JSON.stringify(bySource)}`);
+check('every round trip resolved from its fills, not a fallback', bySource.fills_utc, roundTrips.length);
+
+const rtValues = roundTripEventValues(
+  { ...common, importId: 'placeholder' },
+  resolved.map(({ rt, at, timeSource }) => ({ rt, occurredAt: at, timeSource }))
+);
+const rtImport = await commitImport({
+  traderId: t.id,
+  accountId: acct.id,
+  filename: 'Position History (9).csv',
+  fileText: rtText,
+  source: 'tradovate_csv',
+  rowsParsed: roundTrips.length,
+  events: rtValues,
+});
+check('every round trip was written', rtImport.rowsWritten, roundTrips.length);
+
+// GROSS, and the payload says so. Net is derived at read time because at THIS moment the fees do
+// not exist yet — the log is append-only, so a row written now can never be revised later.
+/* From THIS import, not any round trip on the account: section 4 wrote a synthetic one to prove
+   the dedupe namespace, and an unscoped `limit(1)` picked that instead — which is how a test ends
+   up asserting against its own fixture rather than the thing it is testing. */
+const [oneRt] = await db
+  .select()
+  .from(event)
+  .where(and(eq(event.importId, rtImport.importId), eq(event.type, 'round_trip')))
+  .limit(1);
+check('a round trip stores GROSS and labels it', oneRt?.payload?.pnlBasis, 'gross');
+check('...and records how its instant was resolved', oneRt?.payload?.timeSource, 'fills_utc');
+
+console.log('\n=== 8. THE PROVENANCE ROW IS THE ANSWER TO "WHERE DID THIS COME FROM" ===\n');
+
+const [impRow] = await db.select().from(importBatch).where(eq(importBatch.id, rtImport.importId));
+check('the import starts pending', impRow.status, 'pending');
+check('it names the file', impRow.filename, 'Position History (9).csv');
+check('it carries the trade-date window', impRow.rangeStart, rtImport.rangeStart);
+
+await markImportCommitted(rtImport.importId);
+const [afterCommit] = await db.select().from(importBatch).where(eq(importBatch.id, rtImport.importId));
+check('and only becomes committed when someone says so', afterCommit.status, 'committed');
+
+// Every event traces back to the upload that produced it.
+const [{ n: linked }] = await db
+  .select({ n: sql<number>`count(*)::int` })
+  .from(event)
+  .where(eq(event.importId, rtImport.importId));
+check('every row points at its import', linked, roundTrips.length);
 
 // ── teardown ────────────────────────────────────────────────────────────────────────
 // `event` cannot be deleted by the app, which is the point of section 2 — so the fixture's
