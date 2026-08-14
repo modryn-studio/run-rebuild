@@ -22,6 +22,20 @@
       "when": 1786577197699,
       "tag": "0002_omniscient_inhumans",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786712800180,
+      "tag": "0003_cool_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786712800181,
+      "tag": "0004_event_append_only",
+      "breakpoints": true
     }
   ]
 }

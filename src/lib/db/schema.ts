@@ -9,8 +9,15 @@ import {
   jsonb,
   boolean,
   index,
+  uniqueIndex,
   numeric,
+  integer,
+  bigint,
+  date,
+  check,
+  foreignKey,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ── Better Auth tables. Managed by better-auth via the Drizzle adapter. ──────────────
 // Physical names are auth_-prefixed so `auth_session` can never collide with a domain
@@ -178,3 +185,204 @@ export const trader = pgTable('trader', {
   keyId: uuid('key_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/* ─────────────────────────────────────────────────────────────────────────────────────
+   S4a — THE INGEST TABLES. `account`, `import`, `event`.
+
+   Reviewed against `run-trading@v2` before writing, per Luke. What that build got right is
+   carried over with its reasoning; what it got wrong it says so itself, and those are fixed
+   here rather than inherited.
+   ───────────────────────────────────────────────────────────────────────────────────── */
+
+// ── account — a broker account, owned by a trader ────────────────────────────────────
+//
+// `platform` AND `prop_firm` ARE TWO COLUMNS, and this is the one place run-rebuild
+// deliberately departs from v2. That build called this column `firm` and its own comment
+// admits the mistake: "The PLATFORM, not the prop firm... The name is a known misnomer. Not
+// renamed here because it is half the natural key and every event is already filed under it."
+// A naming error becomes unfixable the moment a corpus is filed under it. This build has no
+// corpus yet, so it gets the right name for free.
+//
+// `external_account_id` IS THE ACCOUNT NAME, NOT THE NUMERIC ID — v2's hardest-won finding
+// here. The name (ELTDENF260623134425853685) is the only key present in ALL SIX Tradovate
+// exports; the numeric id appears in two, so it cannot key a Cash History or Position History
+// row. Keying on the numeric id would have made fees unattachable.
+//
+// THE IDENTITY COLUMNS ARE NULLABLE ON PURPOSE. An import creates this row before anyone has
+// said what kind of account it is, and a half-labelled account still has to hold its fills.
+// `account_type` is the exception: spec.md §3 requires it at creation, because without it Run
+// cannot tell a personal signup from a prop one.
+//
+// CASCADE ON THE TRADER, and note what does NOT cascade: `event`. A trader's mutable children
+// die with them; the immutable log does not, and its erasure is a separate privileged path.
+//
+// DELETION POLICY: THERE ISN'T ONE. An account is never DELETEd. `closed` and `breached` are
+// states, not absences. Any ON DELETE CASCADE reaching this table or below it is a bug.
+export const ACCOUNT_TYPES = ['evaluation', 'funded', 'personal'] as const;
+export const ACCOUNT_STATES = ['active', 'closed', 'breached'] as const;
+
+export const account = pgTable(
+  'account',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    traderId: uuid('trader_id')
+      .notNull()
+      .references(() => trader.id, { onDelete: 'cascade' }),
+    platform: text('platform').notNull(), // 'tradovate'. The platform, never the firm.
+    propFirm: text('prop_firm'), // Apex, Topstep, ... null for a personal account
+    externalAccountId: text('external_account_id').notNull(), // the NAME, see above
+    displayName: text('display_name').notNull(),
+    accountType: text('account_type').notNull(),
+    state: text('state').notNull().default('active'),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check('account_type_check', sql`${t.accountType} in ('evaluation', 'funded', 'personal')`),
+    check('account_state_check', sql`${t.state} in ('active', 'closed', 'breached')`),
+    // The natural key. Two firms can issue the same account name, so platform is part of it.
+    uniqueIndex('account_identity_uq').on(t.traderId, t.platform, t.externalAccountId),
+    index('account_trader_idx').on(t.traderId),
+    index('account_trader_state_idx').on(t.traderId, t.state),
+  ],
+);
+
+// ── import — the provenance object ───────────────────────────────────────────────────
+//
+// ITS OWN TABLE, not a `csv_import` event as in v2. That build recorded provenance as a row in
+// the log, which works for "what happened" and cannot answer "have these exact bytes been seen
+// before" — there is nowhere to put a file hash under a unique constraint, and no status to
+// hold a parse that has not been committed yet.
+//
+// `(account_id, file_hash)` IS UNIQUE, so re-uploading the same file is a no-op enforced by the
+// database rather than by application logic. That is a DIFFERENT guarantee from the row-level
+// dedupe on `event`: this one stops the work, that one stops the rows.
+//
+// NOTHING COMMITS UNTIL status = 'committed'. The flow parses, writes a `pending` row, shows
+// the counts, and only then commits. That is the wireframe's step 3 and the first trust moment
+// in the product.
+//
+// THIS TABLE IS WHY PROVENANCE IS A LOOKUP RATHER THAN A CLAIM. Every figure traces to a row
+// here, which is what lets a trust note say "from your Tradovate export of Aug 11, covering
+// Jun 3 to Aug 8" without anyone having to take it on faith.
+export const IMPORT_SOURCES = ['tradovate_csv', 'tradezella_csv', 'tradovate_oauth'] as const;
+export const IMPORT_STATUSES = ['pending', 'committed', 'rejected'] as const;
+
+export const importBatch = pgTable(
+  'import',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    traderId: uuid('trader_id')
+      .notNull()
+      .references(() => trader.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => account.id),
+    filename: text('filename').notNull(),
+    fileHash: text('file_hash').notNull(), // sha256 of the bytes
+    source: text('source').notNull(),
+    uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
+    rowsParsed: integer('rows_parsed').notNull().default(0),
+    rowsRejected: integer('rows_rejected').notNull().default(0),
+    rangeStart: date('range_start'), // trade dates covered, from the one time module
+    rangeEnd: date('range_end'),
+    status: text('status').notNull().default('pending'),
+  },
+  (t) => [
+    check(
+      'import_source_check',
+      sql`${t.source} in ('tradovate_csv', 'tradezella_csv', 'tradovate_oauth')`,
+    ),
+    check('import_status_check', sql`${t.status} in ('pending', 'committed', 'rejected')`),
+    uniqueIndex('import_file_uq').on(t.accountId, t.fileHash),
+    index('import_trader_idx').on(t.traderId),
+  ],
+);
+
+// ── event — the log. The only immutable table, and the corpus. ───────────────────────
+//
+// Everything else in the data model is a projection over this. `fill`, `round_trip` and `fee`
+// are TYPES here, not tables.
+//
+// `bigint identity`, NOT a uuid, and the reason is behavioural: replay order is signal, and
+// timestamps cannot provide a total order (millisecond ties, and CSV stamps are coarser than
+// that). A monotonic id is the order things were learned in.
+//
+// EVENTS POINT AT THE PERSON, NOT THE ACCOUNT. `trader_id` is required and `account_id` is not,
+// because the corpus is one trader's history across every firm they have ever traded at. That
+// is the cross-firm identity rule, and it is the thing a competitor cannot clone.
+//
+// PROMOTED COLUMNS ARE A PROJECTION OF `payload`, written atomically in the same INSERT. Safe
+// ONLY because this table is immutable: projection and payload can never diverge after write,
+// which would not hold on a mutable table. They exist for INTEGRITY, not speed — P&L is the
+// number everything else rests on, so it gets a typed, constrained column that rejects garbage
+// at write time rather than hiding a bad value inside a blob.
+//
+// MONEY IS bigint CENTS. Never a float. See CLAUDE.md.
+//
+// CORRECTIONS APPEND. A bust or an adjustment writes a NEW row pointing at the original via
+// `corrects_event_id`; the original never mutates. The trigger in the migration makes that a
+// database guarantee rather than a convention.
+//
+// `dedupe_key` IS NAMESPACED BY TYPE — f: fills, p: round trips, o: orders, x: cash — so two
+// entities that happen to share a numeric id can never collide. The partial unique index below
+// plus onConflictDoNothing makes a re-uploaded file a no-op AT THE DATABASE LEVEL, which is the
+// only place it cannot be forgotten.
+export const EVENT_TYPES = ['fill', 'round_trip', 'fee', 'order', 'csv_import'] as const;
+export const EVENT_SOURCES = ['csv', 'api', 'app'] as const;
+
+export const event = pgTable(
+  'event',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+    traderId: uuid('trader_id')
+      .notNull()
+      .references(() => trader.id),
+    accountId: uuid('account_id').references(() => account.id),
+    // Which upload put this row here. Null for events that did not come from a file.
+    importId: uuid('import_id').references(() => importBatch.id),
+    type: text('type').notNull(),
+    payload: jsonb('payload').notNull(),
+    // So a v0 row still replays correctly through v2 extraction code.
+    payloadVersion: integer('payload_version').notNull().default(1),
+    // ON THE EVENT, NOT THE ACCOUNT: the same account ingests via CSV now and API later.
+    source: text('source').notNull(),
+    // Null on raw fills — a single leg has no realised P&L. A fee's is its signed cash delta,
+    // which is what makes net a single sum over round_trip + fee rather than a join.
+    pnlCents: bigint('pnl_cents', { mode: 'number' }),
+    symbol: text('symbol'),
+    qty: integer('qty'),
+    side: text('side'),
+    correctsEventId: bigint('corrects_event_id', { mode: 'number' }),
+    // The real-world instant, always UTC. A fee carries its FILL's instant, never the naive
+    // local string from Cash History: parsing that resolves against the server's zone and files
+    // an evening fee under the previous trade date, so the trade prices at zero fees.
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+    recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),
+    dedupeKey: text('dedupe_key'),
+  },
+  (t) => [
+    check(
+      'event_type_check',
+      sql`${t.type} in ('fill', 'round_trip', 'fee', 'order', 'csv_import')`,
+    ),
+    check('event_source_check', sql`${t.source} in ('csv', 'api', 'app')`),
+    check('event_side_check', sql`${t.side} is null or ${t.side} in ('buy', 'sell')`),
+    foreignKey({
+      columns: [t.correctsEventId],
+      foreignColumns: [t.id],
+      name: 'event_corrects_fk',
+    }),
+    // Partial: skips null keys, which is every event that did not come from a file row.
+    uniqueIndex('event_account_dedupe_uq')
+      .on(t.accountId, t.dedupeKey)
+      .where(sql`${t.dedupeKey} is not null`),
+    index('event_trader_idx').on(t.traderId),
+    index('event_account_idx').on(t.accountId),
+    index('event_type_idx').on(t.type),
+    index('event_import_idx').on(t.importId),
+    // Every read is scoped by account AND window from the first query (CLAUDE.md): free now,
+    // unretrofittable once four surfaces depend on it.
+    index('event_account_occurred_idx').on(t.accountId, t.occurredAt),
+  ],
+);
