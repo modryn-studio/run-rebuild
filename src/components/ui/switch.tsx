@@ -52,9 +52,14 @@ export function Switch({
       type="button"
       onClick={onToggle}
       disabled={disabled}
+      /* DISABLED IS AN INK SWAP, NOT AN OPACITY DROP. `disabled:opacity-50` took the whole row with
+         it, and the note underneath is already `muted` — half of 4.21:1 composites to roughly 1.9:1
+         against the page, which is not text any more. Button `secondary` had already arrived at the
+         considered answer (a real colour change at opacity 1) and this follows it: the control keeps
+         its edges crisp and every string stays legible. */
       aria-pressed={on}
       className={cn(
-        cn(slotSurface, 'flex w-full items-center gap-4 p-4 text-left disabled:cursor-not-allowed disabled:opacity-50 max-sm:min-h-11'),
+        cn(slotSurface, 'flex w-full items-center gap-4 p-4 text-left disabled:cursor-not-allowed disabled:[&_*]:text-muted max-sm:min-h-11'),
         className
       )}
     >

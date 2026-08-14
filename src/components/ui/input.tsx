@@ -5,7 +5,11 @@ type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
 /* The one text-input definition. Repaired 2026-07-21: it previously shipped with no radius (square
  * corners in an app where every surface is --radius/--radius-sm) and a hand-picked `text-sm` instead
- * of a scale role. Height matches Button size="lg" (min-h-12 = 48px) so a stacked input + CTA agree.
+ * of a scale role. Height matches Button size="lg" (48px) so a stacked input + CTA agree.
+ *
+ * `h-12`, NOT `min-h-12`. The pairing above is stated as a guarantee and was not one: content plus
+ * padding plus border computes to 49.33px, so the minimum never bound and the input sat 1.3px
+ * taller than the button it claims to match. A stated height binds; a minimum only hopes.
  *
  * ONE ACTIVE STATE FOR EVERY FIELD IN THE APP (Luke, 2026-07-31 - he caught the Edit modal's Name
  * field lighting differently from the firm search box two screens earlier).
@@ -33,7 +37,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <input
       ref={ref}
       className={cn(
-        'border-border bg-surface text-text placeholder:text-faint focus:border-accent aria-invalid:border-neg min-h-12 w-full rounded-[var(--radius-sm)] border px-4 py-3 text-body-lg transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+        'border-border bg-surface text-text placeholder:text-faint focus:border-accent aria-invalid:border-neg h-12 w-full rounded-[var(--radius-sm)] border px-4 py-3 text-body-lg transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-50',
         className
       )}
       {...props}

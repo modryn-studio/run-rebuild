@@ -300,9 +300,14 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
         <Card interactive className="p-6">
           <p className="text-body">Interactive: hover and press.</p>
         </Card>
-        <div className={cn(slotSurface, 'p-6')}>
-          <p className="text-body">Recessed slot, never raised.</p>
-        </div>
+        {/* NESTED IN A CARD, because that is the only place it is judgeable. Shown directly on the
+            page it measured LIGHTER than its ground in both modes and read as raised, which is the
+            opposite of its job: a recess in the sheet, not an object on it. */}
+        <Card className="p-4">
+          <div className={cn(slotSurface, 'p-6')}>
+            <p className="text-body">Recessed slot, never raised. Shown inside a card, where it belongs.</p>
+          </div>
+        </Card>
       </Section>
 
       <Section title="Spinner · LoadingMark · Wordmark">

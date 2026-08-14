@@ -174,7 +174,13 @@
      being the hierarchy variable - SIZE takes over. Hence: weight baked at 500 (never `font-light`,
      which is the serif spec's residue and the one thing that would make this read as generic
      consumer-marketing), and tracking pulled tighter to hold the larger x-height together. */
-  --text-display: 2rem;   --text-display--line-height: 2.2rem;  --text-display--font-weight: 500; --text-display--letter-spacing: -0.025em;
+  /* px SINCE 2026-08-13, WAS 2rem/2.2rem - the last rem step in a px ramp, and the same drift
+     `--text-figure` was corrected for the same day. Its line-height computed to 35.2px, the only
+     fractional value in the scale. The consequence is behavioural rather than cosmetic: a rem step
+     among px steps is the ONLY one that responds to a browser font-size setting, so the ramp's
+     proportions came apart under font scaling. 32/36 keeps the size and lands the leading on the
+     4px grid. */
+  --text-display: 32px;   --text-display--line-height: 36px;    --text-display--font-weight: 500; --text-display--letter-spacing: -0.025em;
   /* `--text-hero` (2.5rem/40px) DELETED 2026-08-13. Zero call sites in the app, and the reference
      this system is derived from tops out at 24px on a real screen - so a 40px step had neither a
      consumer nor a source. A ramp step nothing uses is not free: it is one more decision a future

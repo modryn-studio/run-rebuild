@@ -85,15 +85,40 @@ export function Button({
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
+      /* FOCUS IS THE GLOBAL RULE, not a local ring. This carried
+       * `focus-visible:ring-accent/30 focus-visible:ring-2 focus-visible:outline-none`, which
+       * suppressed the app-wide `:focus-visible` outline and replaced it with the accent at 30%
+       * alpha and no offset — measured at roughly 2.05:1 against its own ground, on the most
+       * common control in the product. IconButton and the Menu trigger kept the global 2px solid
+       * accent, so a labelled button and an icon button in one header showed two different focus
+       * treatments and the weaker one was on the button people actually tab to.
+       *
+       * `truncate` because the label has nowhere to go. Measured at every width, a long label
+       * pushed this to 1008px and never reflowed — 2.9x its container at 375. A button that
+       * overflows breaks the layout around it; one that truncates is ugly and contained. Labels
+       * here are short by design, so this is the failure mode, not the normal path. */
       className={cn(
-        'rounded-[var(--radius-sm)] focus-visible:ring-accent/30 inline-flex items-center justify-center gap-2 font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow] duration-100 focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed',
+        'rounded-[var(--radius-sm)] inline-flex items-center justify-center gap-2 truncate font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow] duration-100 disabled:cursor-not-allowed',
         variantClasses[variant],
         sizeClasses[size],
         className
       )}
       {...props}
     >
-      {loading ? <Spinner /> : children}
+      {/* THE LABEL KEEPS ITS WIDTH WHILE LOADING. Swapping children outright collapsed the button
+          from 81px to 50px at the exact moment of the click, shifting every control beside it in a
+          right-aligned footer. `Menu` already reserves its trigger width for the same reason, so
+          this is the system's existing answer rather than a new one. */}
+      {loading ? (
+        <span className="relative inline-flex items-center">
+          <span className="invisible">{children}</span>
+          <span className="absolute inset-0 grid place-items-center">
+            <Spinner />
+          </span>
+        </span>
+      ) : (
+        children
+      )}
     </button>
   );
 }
