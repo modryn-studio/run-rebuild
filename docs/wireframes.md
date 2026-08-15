@@ -111,30 +111,50 @@ with per-group totals → summary rail.
 │       ⓘ This is recorded per connection. It changes nothing you see —    │
 │         Run needs it to keep firm accounts and personal accounts honest. │
 │                                                                          │
-│   2 ─ Upload all three Tradovate exports                                 │
+│   2 ─ Upload your Tradovate exports                                      │
 │       ┌────────────────────────────────────────────────────────────┐     │
 │       │  ✓ Fills              fills_2026-08-11.csv    412 rows      │     │
 │       │  ✓ Position History   positions_2026-08-11.csv 187 rows     │     │
 │       │  ○ Cash History       required — carries your real fees     │     │
+│       │  ○ Orders             required — tells a stop from a choice │     │
+│       │  ○ Account Balance    optional — checks our net against     │     │
+│       │                       the broker's own daily statement      │     │
 │       │                                                            │     │
 │       │              Drop files here, or browse                    │     │
 │       └────────────────────────────────────────────────────────────┘     │
-│       ⓘ All three are required. Tradovate bills fees on four separate    │
-│         lines and only Cash History carries them — without it your P&L   │
-│         would read about twice as good as it was.                        │
-│       ▸ How to export all three from Tradovate  (inline steps)           │
+│       ⓘ The first four are required. Tradovate bills fees on four        │
+│         separate lines and only Cash History carries them — without it   │
+│         your P&L would read about twice as good as it was.               │
+│       ▸ How to export them from Tradovate       (inline steps)           │
 │       ▸ Coming from TradeZella?                 (inline steps)           │
 │                                                                          │
 │   3 ─ Confirm before anything is saved                                   │
 │       ┌────────────────────────────────────────────────────────────┐     │
 │       │  187 trades · Jun 3 – Aug 8, 2026                          │     │
-│       │  All three files cover the same dates.                     │     │
+│       │  Every file covers the same dates.                         │     │
 │       │  Fees resolved on 187 of 187 trades.                       │     │
+│       │  Net matches the broker's statement on all 24 days.        │     │
 │       │  0 rejected · 0 already saved                              │     │
 │       │                                          [Import 187]      │     │
 │       └────────────────────────────────────────────────────────────┘     │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
+
+**The file count was wrong here until 2026-08-15**, and it had been wrong since `S4a`–`S4c`
+landed. This said *"all three"* and listed three rows, which is what a screen built against it
+would have shipped: three checkboxes for five files, with the two missing ones unrepresentable
+rather than merely unstyled. Corrected as a standalone change, before `S4e` began, because
+nothing about how the screen gets built changes what it should say.
+
+**Orders is required** (`spec.md` §S1). Without it, three of eight cancels on the reference tape
+are the platform's own OCO siblings — a bracket's protective leg auto-cancelling when its target
+fills — and a read that cannot tell reports them as decisions the trader made. That is an
+accusation, aimed at the thing a disciplined trader is most defensive about.
+
+**Account Balance History is the fifth and it is optional**, because it is a different kind of
+file: the broker's own daily statement, parsed and deliberately never ingested as events. It is
+the only independent witness to NET, and it earns its own confirm line — the other checks prove
+the rows line up and the pairing is right, and neither of them can see whether the cost is.
 
 **Nothing commits until step 3.** The counts, range, overlap check and fee-resolution count are
 all shown *before* the write. This is the first trust moment in the product and it happens
@@ -146,12 +166,12 @@ fee lines and the Fills export carries only the first — measured at 42% of tru
 import, it is a P&L that reads about twice as good as it was, which is the exact failure this
 product exists to attack. So it is named, not silently defaulted.
 
-**The three failure states this step must express** (spec S1, architecture §1):
+**Three failure states, sketched** (spec S1, architecture §1). These are shapes, not the copy:
 
 ```
    ✗  Your files cover different dates.
       Fills: Jun 3 – Aug 8.  Cash History: Aug 1 – Aug 8.
-      Re-export all three over the same range.        [Choose files]
+      Re-export them over the same range.             [Choose files]
 
    ✗  None of your fees matched a trade.
       Cash History covers Aug 1 – Aug 8, your trades are Jun 3 – Jul 20.
@@ -164,6 +184,17 @@ product exists to attack. So it is named, not silently defaulted.
 The third is not an error — but it is a **different outcome from a successful import**, and it
 must say so. Otherwise an upload that writes nothing looks exactly like one that writes
 everything (`#79`, which happened three times on real data).
+
+**There are thirteen preflight codes, and this sketch is deliberately not the copy for them.**
+Three shapes are drawn because three shapes is what the layout must accommodate: a blocking
+refusal, a blocking refusal that names a second file, and a success that wrote nothing. The other
+ten are not missing from this document, they are *not this document's job* — a finding carries a
+code plus its numbers precisely so the screen can shape a sentence around what fits, and whether
+the number leads or trails, whether it is one row or twelve, whether it belongs inline under a
+file or in a full notice, are questions only the built component can answer. Writing all thirteen
+here first would make a second copy of one truth, authored at a different time from the one that
+ships, which is the drift the `S4` postcheck kept finding. **The copy lives with the
+finding-notice component.** This stays a structural sketch.
 
 **Empty state:** *"Upload your Tradovate export to get started."* with the export steps inline
 — not in a help article (P9).
