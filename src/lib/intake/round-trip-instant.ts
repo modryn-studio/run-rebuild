@@ -1,4 +1,8 @@
-// When a round trip happened, and how sure we are.
+// When a zoneless row actually happened, and how sure we are.
+//
+// Two of the four exports carry no timezone at all - Position History and Orders - so neither can
+// become an instant without borrowing one. Both borrow the same way: from the FILLS they reference,
+// which are the only rows in the batch carrying real UTC. One module, because it is one job.
 //
 // PURE, AND THAT IS THE REASON THIS FILE EXISTS SEPARATELY. This lived in `write.ts` until
 // 2026-08-15, which was the natural home right up to the moment the reconciliation needed it:
@@ -16,6 +20,7 @@
 // answer, which is the property that makes the reconciliation meaningful in the first place: the
 // receipt must test what the write path actually stores, not a second derivation of it.
 import type { ParsedRoundTrip } from '@/lib/csv/position-history';
+import type { ParsedOrder } from '@/lib/csv/orders';
 
 /** Which source answered for a round trip's instant. Recorded on the payload rather than being
  *  silently equivalent, because "we know" and "we guessed" must not read the same later. */
@@ -55,5 +60,35 @@ export function resolveRoundTripInstant(
 
   // Deliberately last, and deliberately labelled: an ingest-time instant is not when the trade
   // happened, and anything bucketing on it is reporting the upload rather than the trading.
+  return { at: new Date(), timeSource: 'ingest_time' };
+}
+
+/* AN ORDER'S INSTANT, by the same rule and with a sharper edge to it.
+ *
+ * Orders carry `placedAtLocal` and nothing else — no UTC column exists in that export at all. But
+ * an order that FILLED is referenced by a fill, and that fill carries real UTC, so a filled order
+ * can be dated exactly.
+ *
+ * AN UNFILLED ORDER CANNOT BE, and that is most of them: a cancelled stop, a rejected entry, a
+ * working limit that never traded. There is genuinely no zone anywhere for those, so the local
+ * clock is the only source and `position_local` is the honest label. That label is the whole
+ * point — a later reader can tell an order dated from its own fill from one dated by parsing a
+ * zoneless string, rather than trusting both equally.
+ *
+ * WHY THIS MATTERS MORE FOR ORDERS THAN IT LOOKS. Orders are in the corpus because they are the
+ * only record of a stop being placed, moved or cancelled, which is the difference between a trade
+ * the trader closed and one the platform closed for them. Putting a cancel on the wrong session
+ * date attributes a decision to the wrong day.
+ */
+export function resolveOrderInstant(
+  order: ParsedOrder,
+  fillInstantByOrderId: Map<string, Date>
+): { at: Date; timeSource: TimeSource } {
+  const fromFill = order.externalOrderId ? fillInstantByOrderId.get(order.externalOrderId) : undefined;
+  if (fromFill) return { at: fromFill, timeSource: 'fills_utc' };
+
+  const local = order.filledAtLocal ?? order.placedAtLocal;
+  if (local) return { at: local, timeSource: 'position_local' };
+
   return { at: new Date(), timeSource: 'ingest_time' };
 }
