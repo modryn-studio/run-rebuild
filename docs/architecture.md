@@ -158,6 +158,7 @@ over this.**
 | `id` | **bigint identity** | no | **Not a uuid.** Monotonic total order — replay order is behavioral signal, and timestamps can't provide it (ms ties; CSV stamps are coarse) |
 | `trader_id` | uuid | no | Events point at the **person**, not the account. The cross-firm identity rule |
 | `account_id` | uuid | yes | null for events not tied to one account |
+| `import_id` | uuid | yes | **ADDED to this table 2026-08-14 (S4a).** → `import`. Which upload put this row here; null for events that did not come from a file. The column was already assumed by the index table in §6 (`event (import_id)` — *"provenance, reconciliation"*) and was simply never declared here, so the two halves of this document disagreed. The code followed the index, which is the half that was right: without it, no row can name the file it came from and the `import` table's whole purpose is unreachable |
 | `type` | text CHECK | no | `fill` · `round_trip` · `fee` · `order` · `csv_import` · … TS union is source of truth; CHECK stops typo-fragmentation of the corpus |
 | `payload` | jsonb | no | full-fidelity raw detail. Never lose detail |
 | `payload_version` | int | no | so a v0 row replays correctly through v2 extraction code |

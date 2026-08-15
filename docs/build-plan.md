@@ -480,7 +480,11 @@ untouched, and that is exactly the seam:**
   counts are shown"*, which is UI
 - **S4c** — ✅ **CLOSED 2026-08-14.** `lib/intake/preflight.ts`. Per-round-trip range overlap
   (`#74`), non-empty fee resolution (`#75`), rows-actually-written from the write path (`#79`),
-  plus fee plausibility already asserted in the tape from `S1`
+  and fee plausibility (`#78`). **That fourth one was corrected on 2026-08-15**, during the docs
+  pass before `S4e`: it existed, but only in `lib/desk/tape.ts`, which is the READ path. `spec.md`
+  says plausibility "belongs at ingest, in code", and it is right — a read that flags a number is
+  flagging one already written to an append-only log, where it cannot be corrected. The tape keeps
+  its copy on purpose; a read should not trust its input either
 - **S4d** — ✅ **CLOSED 2026-08-14.** `lib/intake/accounts.ts` (`#59`/`#80`)
 - **S4e** — ⏸ **the UI, deferred by Luke.** Type step, drop zone, determinate progress with a
   minimum-visible floor. **The slice does not close until this lands**, and it is where the timing

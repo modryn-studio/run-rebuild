@@ -471,6 +471,19 @@ check('...naming the cause', noFeeMatch.findings.some((f) => f.code === 'fees_un
 const feesAlone = preflight({ fills: [], roundTrips: [], fees: realFees });
 check('fees uploaded alone are NOT blamed for having no fills', feesAlone.ok, true);
 
+/* The fourth loud failure, and the spec is explicit that it belongs HERE rather than in the read:
+   "plausibility belongs at ingest, in code". Measured on a 50x column shift, one model run in
+   three built a confident breakeven rule on the corrupted number without questioning it. */
+const inflated = realFees.map((f) => ({ ...f, deltaCents: f.deltaCents * 50 }));
+const implausible = preflight({ fills, roundTrips, fees: inflated });
+check('a 50x fee corruption is refused at INGEST', implausible.ok, false);
+const feeFinding = implausible.findings.find((f) => f.code === 'fees_implausible');
+check('...and states the figure', typeof feeFinding?.detail.perContractCents, 'number');
+console.log(`        real fees: ${clean.findings.length === 0 ? 'plausible' : 'FLAGGED'} · corrupted: $${((feeFinding?.detail.perContractCents ?? 0) / 100).toFixed(2)}/contract`);
+
+// And the REAL fees are not flagged, which matters as much: a false refusal blocks a good import.
+check('the real export is not flagged as implausible', clean.findings.some((f) => f.code === 'fees_implausible'), false);
+
 // Every finding is reported in one pass, so a trader fixing one problem does not then meet another.
 const doublyBroken = preflight({ fills, roundTrips: partiallyOrphaned, fees: shiftedFees });
 check('two problems are reported together, not one at a time', doublyBroken.findings.length, 2);

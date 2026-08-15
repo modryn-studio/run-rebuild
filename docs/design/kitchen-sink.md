@@ -55,7 +55,10 @@ visit never shows you.
 **Primitives** (ported from `v3` at build time)
 `Button` (primary / secondary / ghost, sm / md / lg) · `Input` · `Textarea` · `Switch` ·
 `Menu` · `Card` · `IconButton` · `Spinner` · `LoadingMark` · `Tooltip` · `Wordmark` ·
-`CodeInput` · the full `Icons` set at one stroke weight
+`CodeInput` · the icon set at one stroke weight — **`lucide-react` through a single `Icon`
+wrapper, not v3's owned set** (Luke, 2026-08-13; `CLAUDE.md` names the library and the phase 3
+line here implied the other choice). The wrapper is the point: lucide defaults to `strokeWidth: 2`
+and this system is built for 1.5, so one file pins it and two icons at the same size cannot disagree
 
 **Run compositions** (from the phase 2 wireframes — these don't exist yet and this is where they
 get built once)
@@ -126,8 +129,11 @@ experience.
 
 ## Build rules
 
-- **Not shipped to production.** Dev-only route, excluded from the production build and from any
-  sitemap.
+- ~~**Not shipped to production.** Dev-only route, excluded from the production build.~~
+  **REVERSED 2026-08-13 (Luke). IT SHIPS.** The rack's job is review, and *"works on mobile"* means
+  a deployed build on a real phone — a route that exists only on localhost cannot be opened on the
+  device it is meant to be judged on. It stays **unlinked and `noindex`** like the rest of the app,
+  and out of the sitemap, which is what the original rule was actually protecting.
 - **No fixtures that imply real data.** Placeholder values are obviously synthetic — never a
   plausible P&L figure that could be screenshotted and mistaken for a real read.
 - **A component is not done until it appears here in every state.** This is the concrete meaning

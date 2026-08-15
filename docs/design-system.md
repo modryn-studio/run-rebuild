@@ -339,6 +339,16 @@ on screen, and exactly the kind of check the review gate exists for.
 look at. Measured in place: inactive `#777573` light / `#989691` dark, active row full ink on
 `surface-2`. Still open for the review gate.
 
+**The gate ran and closed it (S3c, 2026-08-13), and the answer was not the one this section was
+watching for.** Four rows in an empty column read fine. What the rack caught instead was that both
+of those measured values were **below the contrast floor** — `#989691` sat at 3.85 on `surface-2`,
+and dark's worst case is the one nobody checks because dark "looks softer" by design. They are now
+`#696765` light / `#a6a4a0` dark, solved with headroom rather than to exactly 4.50, because a
+value solved to the floor rounds *under* it in the browser. `pos` and `neg` failed the same way and
+were lifted with them. **The measurement above is kept as written**: it is the record of what the
+rows actually were when the question was asked, and the point of this section is that putting it on
+screen is what produced the finding — just not the finding it expected.
+
 ---
 
 ## ⚠️ Mobile — DEFERRED, not solved (Luke, 2026-08-13)

@@ -25,7 +25,8 @@ export type PreflightCode =
   | 'accounts_differ'
   | 'rows_unnamed'
   | 'round_trips_unmatched'
-  | 'fees_unmatched';
+  | 'fees_unmatched'
+  | 'fees_implausible';
 
 export interface PreflightFinding {
   code: PreflightCode;
@@ -39,6 +40,8 @@ export interface PreflightFinding {
     otherRange?: string | null;
     fillAccounts?: string[];
     otherAccounts?: string[];
+    /** Cents per contract per round turn, for `fees_implausible`. */
+    perContractCents?: number;
   };
 }
 
@@ -78,6 +81,11 @@ function localRange(dates: (Date | null)[]): string | null {
   const iso = valid.map((d) => d.toISOString().slice(0, 10)).sort();
   return iso[0] === iso[iso.length - 1] ? iso[0] : `${iso[0]} to ${iso[iso.length - 1]}`;
 }
+
+/** $20 per contract. See the note at the check itself. Kept in step with
+ *  `FEE_SANITY_CEILING_CENTS` in `lib/desk/tape.ts` — two bounds on one question that disagree
+ *  would be worse than one in the wrong place. */
+const FEE_CEILING_PER_CONTRACT_CENTS = 2_000;
 
 const namesOf = (rows: { accountName: string | null }[]): string[] => [
   ...new Set(rows.map((r) => r.accountName).filter((n): n is string => !!n)),
@@ -206,6 +214,36 @@ export function preflight({ fills, roundTrips, fees }: PreflightInput): Prefligh
         otherRange: localRange(fees.map((f) => f.occurredAtLocal)),
       },
     });
+  }
+
+  /* FEE PLAUSIBILITY AT INGEST, WHICH IS WHERE `spec.md` §S1 says it belongs.
+   *
+   * It already existed in `lib/desk/tape.ts` — but that is the READ path, and by the time a read
+   * flags a number the corrupted fees are already in an append-only log that cannot be corrected.
+   * The spec is explicit that this check belongs "at ingest, in code", and the doc review on
+   * 2026-08-14 found it living one layer too late. The tape keeps its copy: a corpus can also be
+   * corrupted by an API that has not been written yet, and the read should never trust its input.
+   *
+   * WHY IT CANNOT BE LEFT TO THE READ, measured: with fees inflated roughly fiftyfold by a column
+   * shift, ONE MODEL RUN IN THREE built a confident 45-point breakeven rule on the corrupted
+   * number and never questioned it. It invented nothing — it faithfully reported what it was
+   * handed. A one-in-three miss is not a prompting problem.
+   *
+   * DELIBERATELY GENEROUS. A real futures commission is single-digit dollars per contract round
+   * turn, so $20 is far above any retail or prop schedule. This catches a broken export, it does
+   * not police anyone's pricing. Same ceiling as the tape's, and the two are meant to agree. */
+  const contracts = fills.reduce((n, f) => n + Math.abs(f.qty), 0);
+  const feeCents = fees.reduce((n, f) => n + Math.abs(f.deltaCents), 0);
+  if (contracts > 0 && feeCents > 0) {
+    // Per contract per SIDE doubled is a round turn, which is how a commission schedule is quoted.
+    const perContractCents = Math.round(feeCents / contracts);
+    if (perContractCents > FEE_CEILING_PER_CONTRACT_CENTS) {
+      findings.push({
+        code: 'fees_implausible',
+        blocking: true,
+        detail: { perContractCents, total: fees.length },
+      });
+    }
   }
 
   return {
