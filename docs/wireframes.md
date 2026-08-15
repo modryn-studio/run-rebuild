@@ -106,12 +106,7 @@ with per-group totals → summary rail.
 │  Add account                                                    [Cancel] │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
-│   1 ─ Which account is this?                                             │
-│       ( ) Funded     ( ) Evaluation     ( ) Personal                     │
-│       ⓘ This is recorded per connection. It changes nothing you see —    │
-│         Run needs it to keep firm accounts and personal accounts honest. │
-│                                                                          │
-│   2 ─ Upload your Tradovate exports                                      │
+│   1 ─ Upload your Tradovate exports                                      │
 │       ┌────────────────────────────────────────────────────────────┐     │
 │       │  ✓ Fills              fills_2026-08-11.csv    412 rows      │     │
 │       │  ✓ Position History   positions_2026-08-11.csv 187 rows     │     │
@@ -128,15 +123,30 @@ with per-group totals → summary rail.
 │       ▸ How to export them from Tradovate       (inline steps)           │
 │       ▸ Coming from TradeZella?                 (inline steps)           │
 │                                                                          │
-│   3 ─ Confirm before anything is saved                                   │
+│                                                     [Continue]           │
+│                                                                          │
+│   2 ─ Building your record          (the panel replaces the picker)      │
 │       ┌────────────────────────────────────────────────────────────┐     │
-│       │  187 trades · Jun 3 – Aug 8, 2026                          │     │
-│       │  Every file covers the same dates.                         │     │
-│       │  Fees resolved on 187 of 187 trades.                       │     │
-│       │  Net matches the broker's statement on all 24 days.        │     │
-│       │  0 rejected · 0 already saved                              │     │
-│       │                                          [Import 187]      │     │
+│       │  ✓ Fills               412 read · 412 saved                 │     │
+│       │  ✓ Position History    187 read · 187 saved                 │     │
+│       │  ✓ Cash History        2,448 read · 2,448 saved             │     │
+│       │  ◐ Orders              reading…                             │     │
 │       └────────────────────────────────────────────────────────────┘     │
+│                                                                          │
+│   3 ─ Your record is in.               187 trades saved.   [Done]        │
+└──────────────────────────────────────────────────────────────────────────┘
+
+        ...then, once the rows exist and we know how many accounts arrived:
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Which account is this?                                         [X]      │
+├──────────────────────────────────────────────────────────────────────────┤
+│   FTDFYL100183704873                    ← stated as fact, not asked      │
+│                                                                          │
+│   Evaluation    Sim funded    Personal   ← the only unknowable thing     │
+│                                                                          │
+│   Firm:  Tradeify  [Change]              ← pre-filled from the prefix    │
+│          ☐ Apply to the other 4 accounts under this login                │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -156,9 +166,37 @@ file: the broker's own daily statement, parsed and deliberately never ingested a
 the only independent witness to NET, and it earns its own confirm line — the other checks prove
 the rows line up and the pairing is right, and neither of them can see whether the cost is.
 
-**Nothing commits until step 3.** The counts, range, overlap check and fee-resolution count are
-all shown *before* the write. This is the first trust moment in the product and it happens
-before a single figure is displayed.
+**RESTRUCTURED 2026-08-15 (Luke), and the change is the ORDER of the questions.** This drew a
+pre-upload form asking the account type, then a confirm gate before the write. Both are now gone,
+and `spec.md` §S1's two matching criteria were amended in the same change.
+
+**You cannot ask what kind of account it is before the upload**, and the reason is not preference.
+`docs/docs from run-trading/prop-firm-identity.md` §2.3, verified against twelve real export files
+from two firms: the number of accounts inside an export is **unknown until it is parsed**, and a
+copy-trader's export contains many. A form asking "Funded / Evaluation / Personal" up front is
+asking one question when the honest answer might be eleven. Phase is also **not derivable, ever** —
+a funded account and an evaluation produce byte-identical files — so it has to be asked, just not
+first.
+
+So the row lands **unlabelled**, real, holding real fills, and gets named after. That is a normal
+state rather than a defect, and it is why `account.account_type` is nullable. It is also the better
+product: Run's promise is that it pays attention, so once a file lands it should **state what it
+found** and let the trader correct it, never open with an interrogation.
+
+**Asked once per prefix, not once per account.** Every prop firm issues its own Tradovate login and
+every account under it shares the account-name prefix, so a copy-trader importing eleven accounts
+across two firms answers the firm question **twice**. Phase stays per account: a trader farming five
+evaluations can have exactly one promoted, and spreading that would be Run inventing a fact.
+
+**And the prefix is recall, never inference.** `ELTDENF…` is TradeDay, not Elite Trader Funding;
+`FTDFYL…` is Tradeify and decodes to nothing by eye. On a sample of two, one confident-looking guess
+was wrong and the other was unreadable. A prefix is pre-filled only because a real trader confirmed
+a real account from that firm, which is what makes each trader's answer shorten the next one's
+intake.
+
+**What did NOT change is when the checking happens.** Every preflight check still runs before the
+write, and `commitImport` refuses a result that failed, so a number that cannot be reconciled is
+never stored. The trader is no longer asked to approve the counts; they are told what happened.
 
 **Why the third file gets its own line and its own sentence.** Tradovate charges four separate
 fee lines and the Fills export carries only the first — measured at 42% of true cost. On a real
