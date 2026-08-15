@@ -24,10 +24,23 @@ import type { ParsedOrder } from '@/lib/csv/orders';
 export type IntakeSource = 'csv' | 'api';
 
 export const fillDedupeKey = (f: ParsedFill): string | null => {
-  // The fill id when the export gave one, else the order id. An order can produce several
-  // fills, so this is a weaker key — but a stable weak key beats no key at all.
-  const id = f.externalFillId ?? f.externalOrderId;
-  return id ? `f:${id}` : null;
+  if (f.externalFillId) return `f:${f.externalFillId}`;
+
+  /* THE ORDER-ID FALLBACK NEEDS MORE THAN THE ORDER ID, and "a stable weak key beats no key at
+   * all" — what this comment used to say — had it exactly backwards.
+   *
+   * One order filling in three partials produced three events with the identical `f:<orderId>`.
+   * The partial unique index on `(account_id, dedupe_key)` then does what it is asked: Postgres
+   * skips the duplicates under `onConflictDoNothing`, so TWO REAL EXECUTIONS ARE DROPPED, in
+   * silence, and `rowsWritten` reports 1 where the parser produced 3 — indistinguishable from a
+   * legitimate re-import. A null key would have inserted all three. So the weak key was not
+   * weaker than no key, it was worse: it deleted data no key would have kept.
+   *
+   * The instant, side, quantity and price make the leg distinct while staying stable across two
+   * exports of the same trade, which is the only property the key actually needs. */
+  if (!f.externalOrderId) return null;
+  const leg = [f.filledAt.toISOString(), f.side, f.qty, f.priceMicros].join('|');
+  return `f:${f.externalOrderId}:${leg}`;
 };
 export const roundTripDedupeKey = (rt: ParsedRoundTrip): string | null =>
   rt.pairId ? `p:${rt.pairId}` : null;

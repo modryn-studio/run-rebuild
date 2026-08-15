@@ -16,7 +16,13 @@ export function findColumn(headers: string[], aliases: readonly string[]): strin
 // MONEY as integer cents. Tolerates $, commas, and accounting-negative parens like "$(132.50)".
 // Only for money — a QUOTE goes through toMicros below.
 export function toCents(raw: string): number {
-  return Math.round(scalar(raw) * 100);
+  const v = scalar(raw) * 100;
+  /* SYMMETRIC, because `Math.round` is not. `Math.round(-0.5)` is `-0` while `Math.round(0.5)` is
+     `1`, so a half-cent rounds toward zero on losses and away from zero on gains — a bias that
+     runs in the flattering direction on exactly the number this product refuses to flatter. Only
+     reachable if a source ever emits three-decimal money, which is why it is cheap to just fix. */
+  const cents = Math.sign(v) * Math.round(Math.abs(v));
+  return cents === 0 ? 0 : cents; // normalise -0, which JSON and Object.is both treat as distinct
 }
 
 // A QUOTE, at micro-unit precision (x 1e6). NOT cents, and the name says so on purpose.
@@ -44,9 +50,26 @@ export function toMicros(raw: string): number {
 }
 
 function scalar(raw: string): number {
-  const cleaned = raw.replace(/[$,]/g, '').trim();
+  const cleaned = (raw ?? '').replace(/[$,]/g, '').trim();
+
+  /* A BLANK CELL IS UNKNOWN, NEVER ZERO, and it reached here as zero until 2026-08-15.
+     `Number('')` is `0`, and `0` is finite, so the guard below never saw it. That is the bug
+     CLAUDE.md means by "no state may represent absence", in the worst place it could land: a blank
+     `Total Realized PNL` became "the broker says you made nothing" and was then used as the
+     authority in the only receipt that can block an import. `"-"` and `"N/A"` already threw; the
+     empty string was the one spelling of missing that did not. */
+  if (cleaned === '' || cleaned === '()') throw new Error('Blank numeric value (unknown, not zero)');
+
+  /* PLAIN DECIMAL ONLY. `Number()` also accepts `0x10` (→ 16), `1.2e3`, and `Infinity`, none of
+     which any broker export emits — so accepting them can only ever turn corrupt input into a
+     confident number. Comma stripping above means European "1.234,56" would otherwise read as
+     123 cents rather than failing, which is the same loss dressed as a value. */
+  const body = cleaned.replace(/[()]/g, '');
+  if (!/^[+-]?(\d+(\.\d*)?|\.\d+)$/.test(body)) {
+    throw new Error(`Unparseable numeric value: "${raw}"`);
+  }
   const negative = /^\(.*\)$/.test(cleaned);
-  const n = Number(cleaned.replace(/[()]/g, ''));
+  const n = Number(body);
   if (!Number.isFinite(n)) throw new Error(`Unparseable numeric value: "${raw}"`);
   return negative ? -n : n;
 }

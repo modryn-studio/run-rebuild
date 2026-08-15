@@ -24,7 +24,11 @@ import type { ParsedFill } from '@/lib/csv/fills';
 import type { ParsedRoundTrip } from '@/lib/csv/position-history';
 import type { ParsedFee } from '@/lib/csv/cash-history';
 import type { ParsedOrder, OrderType } from '@/lib/csv/orders';
-import { allocateFees, type NetPnlRow } from '@/lib/fees/allocate';
+import {
+  allocateFees,
+  FEE_CEILING_PER_CONTRACT_ROUND_TURN_CENTS,
+  type NetPnlRow,
+} from '@/lib/fees/allocate';
 import { PRICE_SCALE } from '@/lib/csv/shared';
 import { sessionDateFor, displayClock, SESSION_BOUNDARY_ZONE } from '@/lib/time/session';
 
@@ -538,11 +542,12 @@ export function derivePointValueCents(
   return { byRoot, quarantined };
 }
 
-// A real futures commission is single-digit dollars per contract round turn. Twenty is far
-// above any plausible retail or prop schedule, so anything past it is a broken export, not an
-// expensive broker. Deliberately generous: this exists to catch a column shift, not to police
-// pricing.
-const FEE_SANITY_CEILING_CENTS = 2_000;
+// IMPORTED, NOT REDECLARED, since 2026-08-15. This was a second `2_000` under a different name,
+// with a comment claiming it matched the one in `intake/preflight.ts`. It did not: preflight
+// divided by fill quantity rather than round-trip quantity, so it blocked at an effective $40
+// while this blocked at $20, and a corrupted export between the two reached the log. The shared
+// constant carries the full note.
+const FEE_SANITY_CEILING_CENTS = FEE_CEILING_PER_CONTRACT_ROUND_TURN_CENTS;
 
 // ── cancel classification ──
 

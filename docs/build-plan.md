@@ -523,6 +523,55 @@ untouched, and that is exactly the seam:**
   round trip in the gate, which makes that fixture load-bearing rather than decorative. The first
   real evening trader to import is the first real test.
 
+  **`S4g` — the postcheck, 2026-08-15, and it found more than the docs pass did.** Three review
+  agents against the S4 backend with fresh context. Everything below shipped green: the gate passed
+  at 81 assertions with every one of these live. It now runs **119**, and the new section 9c exists
+  only to provoke them, because a fix with no test is a fix that regresses.
+
+  The three that mattered:
+
+  - **`fees_implausible` blocked at twice the ceiling it advertised.** It divided by FILL quantity,
+    and every contract appears in an entry fill and an exit fill: measured, 1,768 against 884, a
+    ratio of exactly 2.000. So ingest blocked above $40 per round turn while `tape.ts` blocked
+    above $20 on the same file, and anything between the two reached the append-only log to be
+    caught only by the read — the exact ordering the check was moved to ingest to prevent. Both now
+    import one constant from `lib/fees/allocate.ts`. The constant was never what drifted.
+  - **The third receipt refused the copy-trader outright.** Account Balance History carries one row
+    per account per day; the comparison keyed on date alone while our side pooled every account.
+    Measured on the real export split across two: 20 of 24 days "mismatched", the whole −$3,774.86
+    double-counted, import **blocked** — the case `accounts.ts` says the account model exists for.
+  - **Dropping the first or last trading day was completely invisible.** The window came from our
+    own days, so a statement day outside it was skipped in silence: −$563.50 across 7 round trips,
+    `ok: true`, zero findings. Only interior gaps were caught, and the edges are exactly where a
+    truncated export loses rows.
+
+  And the rest, each now provoked in the gate: **Cash History was not actually required** (no fee
+  rows meant no opinion, so net silently equalled gross); **partial fee coverage** was unreported,
+  the same bug this slice already condemned on the round-trip side; **a round trip needed only one
+  of its two fills**, so a missing exit inherited the entry's instant *labelled as authoritative*;
+  **a blank money cell parsed as `0`** because `Number('')` is `0` and `0` is finite, which made a
+  blank `Total Realized PNL` read as "the broker says you made nothing"; **an unreadable statement
+  parsed to `[]`** and silently disabled the only receipt that can block; **an empty upload returned
+  `ok: true`**; **a Fills export without `_timestamp` fell back to a local column** and resolved
+  every instant in the server's zone; and **one order filling in three partials collapsed to one
+  dedupe key**, so two real executions were dropped by `onConflictDoNothing` and counted as a
+  re-import.
+
+  Two structural changes came out of it rather than one-line fixes:
+
+  - **`commitImport` now requires the `PreflightResult` and throws on a failing one.** Every check
+    in this slice was advisory — S4e could have called the write path directly and put an unchecked
+    import into a log with no repair. The same argument the append-only trigger exists for.
+  - **`scripts/*.mts` are inside `tsc` now**, and `preflight` is pure again. The gate was outside
+    typechecking entirely, so a renamed field would not have failed the build — it would have failed
+    at runtime inside a `check()` that compares with `String()`, where `undefined === undefined`
+    passes. And `statement.ts` had quietly made `preflight` server-only by importing a value from
+    `write.ts`; `resolveRoundTripInstant` moved to its own pure module.
+
+  Filed rather than fixed, because each is its own piece of work: scale (#4), import recovery and
+  the S4e route's ceilings (#5), the `TRUNCATE` hole in the append-only trigger (#6), and the
+  remaining loose numeric coercions (#7).
+
   **That fee-plausibility one was corrected on 2026-08-15 too**, during the docs
   pass before `S4e`: it existed, but only in `lib/desk/tape.ts`, which is the READ path. `spec.md`
   says plausibility "belongs at ingest, in code", and it is right — a read that flags a number is

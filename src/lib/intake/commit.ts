@@ -1,8 +1,10 @@
 import 'server-only';
 import { createHash } from 'node:crypto';
 import { db, event, importBatch } from '@/lib/db';
+import { IMPORT_SOURCES } from '@/lib/db/schema';
 import { sessionDateFor } from '@/lib/time/session';
 import type { EventValues } from './write';
+import type { PreflightResult } from './preflight';
 
 /* THE WRITE PATH. One import, one atomic batch, and a count that is the truth.
  *
@@ -10,16 +12,29 @@ import type { EventValues } from './write';
  * It takes finished event values and puts them in the log.
  */
 
-/* 1,000 ROWS PER STATEMENT, and the ceiling is measured rather than assumed.
+/* 1,000 ROWS PER STATEMENT, and the ceiling is measured rather than assumed — but the arithmetic
+ * that used to be written here was wrong twice over, and the gate agreed with it for the wrong
+ * reason. Corrected 2026-08-15 against drizzle's own `toSQL()`.
  *
- * Postgres caps a statement at 65,535 bind parameters. `event` binds 14 columns per row, so the
- * arithmetic predicts 65535/14 = 4,681 rows — and `scripts/s4-gate.mts` §5 brackets it: 4,681
- * inserts, 5,000 does not.
+ * IT SAID: "Postgres caps a statement at 65,535 bind parameters. `event` binds 14 columns per row,
+ * so 65535/14 = 4,681 rows", and the gate brackets exactly 4,681 / 5,000.
+ *
+ * BOTH HALVES WERE WRONG. `event` has 15 insertable columns, not 14. And drizzle only binds
+ * columns whose value is not `undefined` — the rest emit a literal `default` and cost no
+ * parameter — so the gate's own fixture binds 7 per row and the production fill shape binds 11.
+ * Measured: 4,681 gate rows is 32,767 parameters, not 65,534.
+ *
+ * SO THE REAL CEILING IS 32,767, the signed int16 max, and 4,681 lands on it by coincidence:
+ * 65535/14 and 32767.5/7 are the same number. The gate had been reading the right boundary off a
+ * calculation that did not describe it.
+ *
+ * What that changes: at 11 bound columns the true safe maximum is 32767/11 = 2,978 rows, so 1,000
+ * carries 3x headroom rather than the 4.7x the old note implied. Still safe. The comment was the
+ * dangerous part, because it is what the next person reads before raising the chunk to 4,000.
  *
  * THE ERROR NEVER SAYS SO. Neon's http driver reports a generic "Database request failed" on both
  * sides of the boundary, so anyone hitting this in production would have no clue what the limit
- * was. 1,000 is comfortably under it and is a round number that survives someone adding a column
- * to `event` without re-deriving anything. */
+ * was. */
 const INSERT_CHUNK = 1000;
 
 function chunk<T>(items: T[], size: number): T[][] {
@@ -40,12 +55,27 @@ export interface CommitArgs {
   accountId: string;
   filename: string;
   fileText: string;
-  source: 'tradovate_csv' | 'tradezella_csv' | 'tradovate_oauth';
+  /** DERIVED from the schema's own list, never re-typed. Three copies of one enum (the const
+   *  array, the CHECK constraint, and a hand-written union here) meant adding a source widened
+   *  neither the signature nor the build. */
+  source: (typeof IMPORT_SOURCES)[number];
   /** Rows the parser produced. Kept separate from what the database accepts — see below. */
   rowsParsed: number;
   rowsRejected?: number;
   /** Finished event values. `importId` is filled in here, so callers pass a placeholder. */
   events: Omit<EventValues, 'importId'>[];
+  /**
+   * THE PREFLIGHT RESULT, REQUIRED, and it is required because every other guarantee in this file
+   * is a convention the caller can forget.
+   *
+   * `preflight` is the whole of the loud-failure design and nothing structurally obliged anyone to
+   * run it: the route S4e builds could have called `commitImport` directly and written an
+   * unchecked import to an append-only log. The same reasoning the append-only TRIGGER exists for
+   * applies here — "everything else in the doctrine is a convention a future writer can forget;
+   * this is the only one that cannot be" — so the check becomes part of the type instead of part
+   * of the etiquette. Passing a failing result throws below rather than writing.
+   */
+  preflight: PreflightResult;
 }
 
 export interface CommitResult {
@@ -79,6 +109,14 @@ export interface CommitResult {
  * zero is precisely the kind of confident-wrong number the product is built against.
  */
 export async function commitImport(args: CommitArgs): Promise<CommitResult> {
+  /* THE GUARD IS HERE AND NOT IN THE CALLER, on purpose. A blocking finding means the numbers this
+     import would write cannot be reconciled, and `event` is append-only: there is no later repair.
+     Refusing at the write is the only place the refusal is unskippable. */
+  if (!args.preflight.ok) {
+    const blocking = args.preflight.findings.filter((f) => f.blocking).map((f) => f.code);
+    throw new Error(`Refusing to commit an import that failed preflight: ${blocking.join(', ')}`);
+  }
+
   const importId = crypto.randomUUID();
   const values = args.events.map((e) => ({ ...e, importId }));
 

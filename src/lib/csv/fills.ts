@@ -50,7 +50,21 @@ const ALIASES = {
   side: ['b/s', 'buy/sell', 'side'],
   qty: ['quantity', 'filled qty', 'filledqty', 'qty filled', '_qty'],
   price: ['price', 'avg fill price', 'avgprice', '_price'],
-  time: ['_timestamp', 'fill time', 'timestamp', 'date'], // _timestamp is UTC — prefer it
+  /* `_timestamp` AND NOTHING ELSE, because it is the only column in the export that carries a zone.
+     This list used to read `['_timestamp', 'fill time', 'timestamp', 'date']`, and both fallbacks
+     were wrong in the same silent way:
+       - `timestamp` IS the local wall-clock column aliased just below, so a file without
+         `_timestamp` handed a zoneless string to `parseTimestamp`, which resolves it in the
+         SERVER's zone — right on a Chicago laptop, five hours out on Vercel, and a different
+         `session_date` for anything after 18:30 local.
+       - `date` is worse: date-only, no time at all, so every fill became midnight somewhere.
+     Position History already proves Tradovate's human-facing columns carry no zone, which is the
+     entire reason round trips resolve their instant from fills in the first place. A guessed
+     offset here would corrupt `filledAt`, `session_date` and the statement receipt at once, so an
+     export without `_timestamp` is refused loudly instead. If a real variant turns up carrying UTC
+     under another name, that error is how we find out — rather than by a day of trading landing on
+     the wrong date. */
+  time: ['_timestamp'],
   // The LOCAL wall-clock column, kept separately from `time`. Not an instant: its only job is
   // to key this fill to its Cash History fee rows, which carry the same local string.
   localTime: ['timestamp'],
@@ -87,6 +101,19 @@ export function parseTradovateFillsCsv(csvText: string): ParsedFill[] {
     brokerAccountId: findColumn(headers, ALIASES.brokerAccountId),
     localTime: findColumn(headers, ALIASES.localTime),
   };
+
+  /* THE UTC COLUMN MUST NOT BE THE LOCAL ONE. Everything downstream treats `filledAt` as a real
+     instant: round trips resolve their close from it (Position History carries no zone at all),
+     `session_date` derives from that, and the statement receipt compares the result against the
+     broker's own trade date. A local string standing in for UTC corrupts all three at once, in the
+     server's zone, with no error anywhere. */
+  if (col.time === undefined || col.time === col.localTime) {
+    throw new Error(
+      `Fills CSV has no UTC timestamp column. Every instant would be resolved in the server's ` +
+        `timezone, which silently moves trades across the session boundary. Re-export with ` +
+        `"_timestamp" included. Found headers: ${headers.join(', ')}`
+    );
+  }
 
   const required = ['symbol', 'side', 'qty', 'price', 'time'] as const;
   const missing = required.filter((k) => col[k] === undefined);

@@ -159,7 +159,11 @@ Vercel AI SDK v7 · Neon + Drizzle · Better Auth (emailed code + Google) · nod
 docs/               the phase artifacts. spec.md and architecture.md are LOCKED
 src/app/            App Router — admin/, api/auth/, api/track/, login/, status/
 src/components/ui/  primitives ported from run-trading@v3, against these exact tokens
-src/lib/            auth · db · env · route-logger · notify · track · analytics · cn · next-path · ai
+src/lib/csv/        one parser per Tradovate export. Detected by header signature, never filename
+src/lib/intake/     preflight · write · commit · accounts · statement. Everything before a row lands
+src/lib/desk/       the tape: finished figures for the read. Never computes on a render path
+src/lib/time/       the ONE bucketer. Session date, day, week, month, YTD — all from here
+src/lib/            auth · db · env · route-logger · notify · track · analytics · cn · shell · trader
 drizzle/            migrations. generate + migrate, never push
 ```
 

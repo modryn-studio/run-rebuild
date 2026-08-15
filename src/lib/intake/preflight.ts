@@ -1,7 +1,8 @@
 import type { ParsedFill } from '@/lib/csv/fills';
 import type { ParsedRoundTrip } from '@/lib/csv/position-history';
 import type { ParsedCashRow, ParsedFee } from '@/lib/csv/cash-history';
-import type { ParsedBalanceDay } from '@/lib/csv/account-balance';
+import type { ParsedStatement } from '@/lib/csv/account-balance';
+import { FEE_CEILING_PER_CONTRACT_ROUND_TURN_CENTS } from '@/lib/fees/allocate';
 import { sessionDateFor } from '@/lib/time/session';
 import { reconcileAgainstStatement, type StatementDay } from './statement';
 
@@ -28,9 +29,14 @@ export type PreflightCode =
   | 'rows_unnamed'
   | 'round_trips_unmatched'
   | 'fees_unmatched'
+  | 'fees_empty'
+  | 'fees_partial'
   | 'fees_implausible'
   | 'pnl_unreconciled'
-  | 'statement_unreconciled';
+  | 'statement_unreconciled'
+  | 'statement_uncovered'
+  | 'statement_unreadable'
+  | 'nothing_to_import';
 
 export interface PreflightFinding {
   code: PreflightCode;
@@ -54,6 +60,12 @@ export interface PreflightFinding {
     /** `statement_unreconciled`: the days that disagree, and how many were checked. */
     days?: StatementDay[];
     daysCompared?: number;
+    /** Sum of the MAGNITUDES of the disagreements. See `statement.ts` — a signed sum is $0.00 on
+     *  the misfiled-day failure, which is the one this receipt exists to catch. */
+    absDiffCents?: number;
+    /** `statement_uncovered`: broker days the upload does not account for, and what they are worth. */
+    uncoveredDays?: string[];
+    uncoveredCents?: number;
   };
 }
 
@@ -64,14 +76,23 @@ export interface PreflightResult {
     fills: number;
     roundTrips: number;
     fees: number;
-    /** Round trips that found both their fills. The numerator in "fees resolved on N of M". */
+    /** Round trips that found BOTH their fills, which is now what the check requires. */
     roundTripsMatched: number;
-    /** Fee rows whose bucket key matches a fill in this upload. */
-    feesMatched: number;
+    /** Fee ROWS whose bucket key matches a fill in this upload. */
+    feeRowsMatched: number;
+    /** Distinct fee BUCKETS matched. Roughly a quarter of the row count — Tradovate posts four
+     *  cost lines per execution — so the two are not interchangeable in a sentence. */
+    feeBucketsMatched: number;
     /** Round trips both sources can speak for. The denominator of the reconciliation. */
     reconciledRoundTrips: number;
-    /** Trading days checked against the broker's daily statement. */
+    /** Trade Paired ROWS that reached a round trip. Exposed separately because the gate needs to
+     *  assert both sides: comparing the round-trip count against the paired-row count passes
+     *  unchanged if two rows are dropped and two extra round trips are pulled in. */
+    reconciledPairedRows: number;
+    /** Account-days checked against the broker's daily statement. */
     statementDays: number;
+    /** Fees that reached no fill, so no day could own them. */
+    unbucketedFeeCents: number;
   };
 }
 
@@ -98,10 +119,11 @@ function localRange(dates: (Date | null)[]): string | null {
   return iso[0] === iso[iso.length - 1] ? iso[0] : `${iso[0]} to ${iso[iso.length - 1]}`;
 }
 
-/** $20 per contract. See the note at the check itself. Kept in step with
- *  `FEE_SANITY_CEILING_CENTS` in `lib/desk/tape.ts` — two bounds on one question that disagree
- *  would be worse than one in the wrong place. */
-const FEE_CEILING_PER_CONTRACT_CENTS = 2_000;
+/* The bound now lives in ONE place and both callers import it. The previous version of this
+   comment argued that "two bounds on one question that disagree would be worse than one in the
+   wrong place" and then shipped the second copy anyway, linked to the first only by prose and
+   under a different name, so grepping either one missed the other. They had already drifted 2x —
+   not in the constant, in the denominator. See `FEE_CEILING_PER_CONTRACT_ROUND_TURN_CENTS`. */
 
 const namesOf = (rows: { accountName: string | null }[]): string[] => [
   ...new Set(rows.map((r) => r.accountName).filter((n): n is string => !!n)),
@@ -117,7 +139,7 @@ export interface PreflightInput {
   tradePaired?: ParsedCashRow[];
   /** Account Balance History: the broker's own daily statement. Optional — it is a fifth file,
    *  and absent means no opinion rather than agreement. */
-  statement?: ParsedBalanceDay[];
+  statement?: ParsedStatement;
 }
 
 /**
@@ -131,7 +153,7 @@ export function preflight({
   roundTrips,
   fees,
   tradePaired = [],
-  statement = [],
+  statement = { days: [], unreadableRows: 0, unrecognised: false },
 }: PreflightInput): PreflightResult {
   const findings: PreflightFinding[] = [];
 
@@ -174,10 +196,15 @@ export function preflight({
    * slightly different windows is the likely slip where exporting two fully disjoint ranges takes
    * effort. The count is in the finding because "12 of your 87" is a different problem to a trader
    * than "none of them", and a message that cannot tell them apart sends both to the same remedy. */
-  const unmatched = roundTrips.filter((rt) => {
-    const ids = [rt.buyFillId, rt.sellFillId].filter((id): id is string => !!id);
-    return ids.length === 0 || !ids.some((id) => fillById.has(id));
-  });
+  /* BOTH FILLS, NOT EITHER. `.some` used to be enough, and the cost is not cosmetic:
+     `resolveRoundTripInstant` takes the LATER of whatever fills it can find, so a round trip
+     missing its EXIT fill silently inherits its ENTRY's instant and is labelled `fills_utc`, i.e.
+     authoritatively resolved. An entry at 15:00 CT with the exit lost to a truncated export files
+     the trade a day early, in an append-only log, against a doctrine that says `session_date`
+     derives from `exit_at`. All 360 round trips on the reference export carry both. */
+  const unmatched = roundTrips.filter(
+    (rt) => !rt.buyFillId || !rt.sellFillId || !fillById.has(rt.buyFillId) || !fillById.has(rt.sellFillId)
+  );
   const roundTripsMatched = roundTrips.length - unmatched.length;
 
   if (fills.length > 0 && unmatched.length > 0) {
@@ -231,15 +258,54 @@ export function preflight({
 
   const feeKeys = new Set(fees.map((f) => f.bucketKey).filter((k): k is string => !!k));
   const fillKeys = new Set(fills.map((f) => f.feeBucketKey).filter((k): k is string => !!k));
-  const feesMatched = [...feeKeys].filter((k) => fillKeys.has(k)).length;
+  const feeBucketsMatched = [...feeKeys].filter((k) => fillKeys.has(k)).length;
+  /* ROWS, separately from buckets, because the two differ by 4.5x and the row count is the one a
+     sentence wants. Tradovate posts four cost lines per execution, so on the reference export the
+     buckets read 543 while the rows read 2,448 of 2,448 — a screen rendering "fees resolved on N
+     of M" from the bucket count would report 22% on a file that matched perfectly. */
+  const feeRowsMatched = fees.filter((f) => f.bucketKey && fillKeys.has(f.bucketKey)).length;
 
-  if (feeKeys.size > 0 && fillKeys.size > 0 && feesMatched === 0) {
+  /* CASH HISTORY IS REQUIRED, NOT OPTIONAL — CLAUDE.md says so in those words, and until now
+     nothing enforced it. Zero fee rows skipped the check below entirely and reported no opinion,
+     so an upload of Fills + Position History alone passed clean with net silently equal to gross.
+     On the reference export that understates the loss by $1,934.36 against a $1,840.50 gross:
+     more than the entire loss, in the flattering direction. */
+  if (fills.length > 0 && fees.length === 0) {
+    findings.push({
+      code: 'fees_empty',
+      blocking: true,
+      detail: { total: fills.length, fillRange },
+    });
+  }
+
+  if (feeKeys.size > 0 && fillKeys.size > 0 && feeBucketsMatched === 0) {
     findings.push({
       code: 'fees_unmatched',
       blocking: true,
       detail: {
         total: fees.length,
         fillRange,
+        otherRange: localRange(fees.map((f) => f.occurredAtLocal)),
+      },
+    });
+  }
+
+  /* THE PARTIAL CASE, which is the same bug this file already condemns on the round-trip side
+     ("its guard fired only when NOTHING resolved") and which was left standing on the fee side.
+     Fills across twelve days with Cash History exported over only the last four leaves
+     `feeBucketsMatched > 0`, no finding, and eight days of round trips allocating `feeCents: 0`.
+     Counted on FILLS rather than fees, because it is the fills that end up uncosted. */
+  const uncostedFills = fills.filter((f) => f.feeBucketKey && !feeKeys.has(f.feeBucketKey));
+  // Only when the coverage is genuinely PARTIAL. With nothing matching at all, `fees_unmatched`
+  // above already says so, and two findings for one problem sends the trader looking for two.
+  if (feeBucketsMatched > 0 && uncostedFills.length > 0) {
+    findings.push({
+      code: 'fees_partial',
+      blocking: true,
+      detail: {
+        blocked: uncostedFills.length,
+        total: fills.length,
+        fillRange: utcRange(uncostedFills.map((f) => f.filledAt)),
         otherRange: localRange(fees.map((f) => f.occurredAtLocal)),
       },
     });
@@ -261,12 +327,18 @@ export function preflight({
    * DELIBERATELY GENEROUS. A real futures commission is single-digit dollars per contract round
    * turn, so $20 is far above any retail or prop schedule. This catches a broken export, it does
    * not police anyone's pricing. Same ceiling as the tape's, and the two are meant to agree. */
-  const contracts = fills.reduce((n, f) => n + Math.abs(f.qty), 0);
+  /* THE DENOMINATOR IS ROUND TRIPS, NOT FILLS, and getting that wrong made this check fire at
+     exactly twice the ceiling it advertised. Every contract appears in an entry fill AND an exit
+     fill, so summing fill quantity double-counts: measured on the reference export, fill-qty is
+     1,768 against a round-trip qty of 884 — a ratio of exactly 2.000. The threshold therefore
+     blocked above $40 per round turn here while `tape.ts` blocked above $20 on the same file, so
+     a corrupted export landing between the two passed ingest and was caught only by the read —
+     which is precisely the ordering this check was moved here to prevent. */
+  const contracts = roundTrips.reduce((n, rt) => n + Math.abs(rt.qty), 0);
   const feeCents = fees.reduce((n, f) => n + Math.abs(f.deltaCents), 0);
   if (contracts > 0 && feeCents > 0) {
-    // Per contract per SIDE doubled is a round turn, which is how a commission schedule is quoted.
     const perContractCents = Math.round(feeCents / contracts);
-    if (perContractCents > FEE_CEILING_PER_CONTRACT_CENTS) {
+    if (perContractCents > FEE_CEILING_PER_CONTRACT_ROUND_TURN_CENTS) {
       findings.push({
         code: 'fees_implausible',
         blocking: true,
@@ -314,18 +386,31 @@ export function preflight({
       .map((f) => f.externalFillId)
       .filter((id): id is string => !!id)
   );
-  const compared = roundTrips.filter(
-    (rt) =>
-      (rt.buyFillId && closingFillIds.has(rt.buyFillId)) ||
-      (rt.sellFillId && closingFillIds.has(rt.sellFillId))
-  );
+  /* THE CLOSING FILL, not either one, and the comment above already said so while the code did
+     not. A reversal — flipping long to short in one execution — makes a single fill the EXIT of
+     one round trip and the ENTRY of the next. Matching on either leg therefore drags the second
+     round trip into the comparison on the strength of the first one's cash row, so a Cash History
+     window a little narrower at the end sums two round trips against one paired row and reports a
+     mismatch that is not one. That is the same false failure the symmetry below exists to kill. */
+  const closingFillOf = (rt: ParsedRoundTrip): string | null => {
+    const buy = rt.buyFillId ? fillById.get(rt.buyFillId) : undefined;
+    const sell = rt.sellFillId ? fillById.get(rt.sellFillId) : undefined;
+    if (!buy) return sell?.externalFillId ?? null;
+    if (!sell) return buy.externalFillId ?? null;
+    return (sell.filledAt >= buy.filledAt ? sell : buy).externalFillId ?? null;
+  };
+  const compared = roundTrips.filter((rt) => {
+    const closing = closingFillOf(rt);
+    return closing !== null && closingFillIds.has(closing);
+  });
   // The other half of the symmetry: only rows that actually reached one of those round trips.
   const reachedBuckets = new Set(
-    compared.flatMap((rt) =>
-      [rt.buyFillId, rt.sellFillId]
-        .map((id) => (id ? fillById.get(id)?.feeBucketKey : null))
-        .filter((k): k is string => !!k && pairedBuckets.has(k))
-    )
+    compared
+      .map((rt) => {
+        const closing = closingFillOf(rt);
+        return closing ? fillById.get(closing)?.feeBucketKey : null;
+      })
+      .filter((k): k is string => !!k && pairedBuckets.has(k))
   );
   const comparedPaired = tradePaired.filter((p) => p.bucketKey && reachedBuckets.has(p.bucketKey));
 
@@ -360,7 +445,7 @@ export function preflight({
    * a day is missing or misfiled — re-export the window and it resolves. It is also the failure
    * that must never reach a corpus, because a wrong day survives every later correction: the log
    * is append-only, and `session_date` is what every read groups by. */
-  const stmt = reconcileAgainstStatement({ fills, roundTrips, fees, statement });
+  const stmt = reconcileAgainstStatement({ fills, roundTrips, fees, statement: statement.days });
   if (stmt.mismatched.length > 0) {
     findings.push({
       code: 'statement_unreconciled',
@@ -368,9 +453,68 @@ export function preflight({
       detail: {
         days: stmt.mismatched,
         daysCompared: stmt.compared.length,
-        diffCents: stmt.totalDiffCents,
+        absDiffCents: stmt.absDiffCents,
       },
     });
+  }
+
+  /* THE STATEMENT WAS THERE AND NOTHING LINED UP. Blocking, because there is no reading of this
+     that is fine: either the two exports cover different periods, or our session dates are wrong
+     by enough to miss every one of the broker's. Before this existed, `mismatched.length > 0` was
+     the only test, and an EMPTY comparison produced an empty mismatch list — so "no witness at
+     all" and "the witness agrees" returned the identical `ok: true`. */
+  if (stmt.noOverlap) {
+    findings.push({
+      code: 'statement_unreconciled',
+      blocking: true,
+      detail: { daysCompared: 0, uncoveredDays: stmt.outsideWindow, total: statement.days.length },
+    });
+  }
+
+  /* DAYS THE BROKER REPORTS AND THE UPLOAD DOES NOT COVER, worth real money.
+   *
+   * This was the widest hole in the first version, and it was invisible: the window came from our
+   * own days, so any statement day outside it was skipped in silence. Measured — drop the LAST
+   * trading day from Position History and Cash History and $563.50 across 7 round trips vanishes
+   * with `ok: true` and no findings at all. Drop the first: $163.70, same silence. Only interior
+   * gaps were caught, and the edges are exactly where a truncated export loses rows.
+   *
+   * NOT BLOCKING, and this is the judgement call. The statement has its own date picker, so a
+   * trader who exports "all history" for it against a ten-day fills file is in a legitimate and
+   * common state that looks identical in the data to a truncated export — there is no way to tell
+   * them apart, and refusing would strand a good corpus. Zero-value days are dropped as noise
+   * (weekends, funding days); a day the broker posted money on is named, counted and priced. */
+  const uncovered = stmt.outsideWindow.filter((d) =>
+    statement.days.some((row) => row.tradeDate === d && row.netRealizedCents !== 0)
+  );
+  if (!stmt.noOverlap && uncovered.length > 0) {
+    const uncoveredCents = statement.days
+      .filter((row) => uncovered.includes(row.tradeDate))
+      .reduce((n, row) => n + row.netRealizedCents, 0);
+    findings.push({
+      code: 'statement_uncovered',
+      blocking: false,
+      detail: { uncoveredDays: uncovered, uncoveredCents, total: statement.days.length },
+    });
+  }
+
+  /* A STATEMENT THAT COULD NOT BE READ IS NOT A STATEMENT THAT AGREES. An unrecognisable file used
+     to parse to `[]`, which the reconciliation correctly reported as "no opinion" — silently
+     disabling the only receipt that can block, on an upload the trader believes is fully checked. */
+  if (statement.unrecognised) {
+    findings.push({ code: 'statement_unreadable', blocking: true, detail: { blocked: statement.unreadableRows } });
+  } else if (statement.unreadableRows > 0) {
+    findings.push({
+      code: 'statement_unreadable',
+      blocking: true,
+      detail: { blocked: statement.unreadableRows, total: statement.unreadableRows + statement.days.length },
+    });
+  }
+
+  /* NOTHING AT ALL. An upload with no rows of any kind returned `ok: true` with no findings, so a
+     caller would go on to commit zero events and report a successful import of nothing. */
+  if (fills.length === 0 && roundTrips.length === 0 && fees.length === 0) {
+    findings.push({ code: 'nothing_to_import', blocking: true, detail: { total: 0 } });
   }
 
   return {
@@ -381,9 +525,12 @@ export function preflight({
       roundTrips: roundTrips.length,
       fees: fees.length,
       roundTripsMatched,
-      feesMatched,
+      feeRowsMatched,
+      feeBucketsMatched,
       reconciledRoundTrips: compared.length,
+      reconciledPairedRows: comparedPaired.length,
       statementDays: stmt.compared.length,
+      unbucketedFeeCents: stmt.unbucketedFeeCents,
     },
   };
 }

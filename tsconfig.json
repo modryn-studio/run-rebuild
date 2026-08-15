@@ -10,6 +10,13 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    // The `scripts/*.mts` gates import source with an explicit `.ts` extension, which is what tsx
+    // needs to resolve them. Safe here because `noEmit` is on: nothing is compiled, so nothing
+    // ships a path Node cannot resolve. Without it, adding `**/*.mts` to `include` below is
+    // impossible — and until 2026-08-15 the gates were outside typechecking entirely, so a
+    // renamed field on `PreflightResult` would not fail the build. It would fail at runtime,
+    // inside a `check()` that compares with `String()`, where `undefined === undefined` passes.
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -35,6 +42,7 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    "**/*.mts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],

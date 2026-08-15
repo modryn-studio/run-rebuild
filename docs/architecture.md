@@ -854,6 +854,32 @@ Two, and they need Luke's sign-off since `spec.md` is locked at `p2-gate`:
 2. **§S3's "fees and commissions per fill"** is the wrong shape. Fees resolve per round trip via
    an exact split; per-fill fee display would be a fabrication.
 
+**Both of those still hold. The count in the first one does not — appended 2026-08-15 (S4), and
+left in place above rather than rewritten, because the phase 4 gate below records what was true
+when it was signed off and history is not a thing to edit.**
+
+The intake is now **four files required** — Fills, Position History, Cash History, **Orders**
+(`spec.md` §S1: without it, three of eight cancels on the reference tape are the platform's own OCO
+siblings, and a read that cannot tell reports them as decisions) — **plus a fifth, optional**:
+Account Balance History, which is parsed and deliberately **never ingested as events**. It is a
+witness against the record built from the other four, and writing it in would make it agree with
+itself by construction.
+
+**And "three loud failure modes" is now six**, which is the more interesting drift. Three of the
+additions check the NUMBERS rather than the shape of the rows, and nothing in the original three
+could have:
+
+| finding | what it proves | blocking |
+|---|---|---|
+| `fills_empty` `accounts_differ` `rows_unnamed` `round_trips_unmatched` `fees_unmatched` | the rows line up | yes |
+| `fees_implausible` | the fees are a commission, not a column shift | yes |
+| `pnl_unreconciled` | Cash History and Position History agree on **gross** | no — no remedy exists |
+| `statement_unreconciled` | the broker's daily statement agrees on **net**, per day | yes |
+
+The last one is the one this document should have asked for and did not. Fees exceeded the gross
+loss on the reference export, so every check above it can pass while the number a prop account
+lives or dies on is wrong by more than the entire loss.
+
 ---
 
 ## Phase 4 gate

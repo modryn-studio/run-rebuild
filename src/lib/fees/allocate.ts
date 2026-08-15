@@ -16,6 +16,28 @@
 // shared.ts `feeBucket`. When several fills share one bucket the rate comes from the bucket's
 // own totals (fees / qty), which is still exact because the rate is per contract.
 
+/**
+ * The bound on a believable commission: $20 per contract per ROUND TURN.
+ *
+ * ONE COPY, imported by both callers. It used to be two — `FEE_CEILING_PER_CONTRACT_CENTS` in
+ * `intake/preflight.ts` and `FEE_SANITY_CEILING_CENTS` in `desk/tape.ts` — with each file's
+ * comment asserting the two agreed, under different names, so a grep for either one missed the
+ * other. They did not agree: preflight divided by FILL quantity, which double-counts because
+ * every contract appears in an entry fill and an exit fill, so it blocked at an effective $40
+ * while the tape blocked at $20. The constant was never the thing that drifted. The denominator
+ * was, and a shared constant with two denominators is not a shared bound.
+ *
+ * DELIBERATELY GENEROUS. A real futures commission is single-digit dollars per contract round
+ * turn, so this sits far above any retail or prop schedule: it catches a broken export, it does
+ * not police anyone's pricing.
+ *
+ * BOTH ENDS STILL CHECK, on purpose. Ingest is where it belongs (`spec.md` §S1: "plausibility
+ * belongs at ingest, in code") because a read that flags a number is flagging one already written
+ * to an append-only log. The tape keeps its own call because a corpus can also arrive through an
+ * API that does not exist yet, and a read should not trust its input either.
+ */
+export const FEE_CEILING_PER_CONTRACT_ROUND_TURN_CENTS = 2_000;
+
 export interface RoundTripNet {
   eventId: number;
   grossCents: number;
