@@ -21,6 +21,9 @@ const { commitImport, markImportCommitted } = await import('../src/lib/intake/co
 const { preflight } = await import('../src/lib/intake/preflight.ts');
 const { groupByAccount, resolveAccount } = await import('../src/lib/intake/accounts.ts');
 const { parseCashHistory } = await import('../src/lib/csv/cash-history.ts');
+const { parseAccountBalanceHistory } = await import('../src/lib/csv/account-balance.ts');
+const { reconcileAgainstStatement } = await import('../src/lib/intake/statement.ts');
+const { sessionDateFor } = await import('../src/lib/time/session.ts');
 
 let failures = 0;
 const check = (label: string, actual: unknown, expected: unknown) => {
@@ -423,7 +426,8 @@ const realPaired = realCash.tradePaired;
 
 // The clean case first. If this ever goes false the guards are miscalibrated, and a false refusal
 // costs more than a missed one: it blocks a trader whose files are fine.
-const clean = preflight({ fills, roundTrips, fees: realFees, tradePaired: realPaired });
+const statement = parseAccountBalanceHistory(readCsv('Account Balance History.csv'));
+const clean = preflight({ fills, roundTrips, fees: realFees, tradePaired: realPaired, statement });
 check('the real export passes every check', clean.ok, true);
 check('...with no findings at all', clean.findings.length, 0);
 console.log(
@@ -489,6 +493,9 @@ check('the real export is not flagged as implausible', clean.findings.some((f) =
 /* THE RECONCILIATION. Two files, produced by different parts of Tradovate, stating the same
    quantity. Agreement to the cent is the whole basis for showing the number at all. */
 const usd = (c: number) => `$${(c / 100).toFixed(2)}`;
+const usdShort = (c: number) => `${c < 0 ? '-' : '+'}$${Math.abs(c / 100).toFixed(2)}`;
+// The raw reconciliation, for the fields preflight folds away (window, undated fees).
+const realStmt = reconcileAgainstStatement({ fills, roundTrips, fees: realFees, statement });
 check('the real export RECONCILES', clean.findings.some((f) => f.code === 'pnl_unreconciled'), false);
 /* IT ABSTAINS ON 3 OF 360, AND THE THREE ARE WORTH NOTHING — measured 2026-08-15, and this is
    the assertion that matters rather than "all 360". Tradovate posts a Trade Paired cash row only
@@ -523,6 +530,53 @@ check('a WIDER cash window is not a mismatch', wider.findings.some((f) => f.code
 const noCash = preflight({ fills, roundTrips, fees: realFees });
 check('no Trade Paired rows means no opinion', noCash.findings.some((f) => f.code === 'pnl_unreconciled'), false);
 check('...and says so in the count', noCash.counts.reconciledRoundTrips, 0);
+
+console.log("\n=== 9b. THE THIRD RECEIPT — NET, PER DAY, AGAINST THE BROKER'S STATEMENT ===\n");
+
+/* Receipts 1 and 2 check structure and GROSS. This one checks COST, which on this export is the
+   bigger number: fees exceeded the gross loss. Nothing else in the pipeline can fail this way. */
+check('the real export reconciles NET, per day', clean.findings.some((f) => f.code === 'statement_unreconciled'), false);
+check('...across every trading day in the window', clean.counts.statementDays, 12);
+check('...and no fee went undated', realStmt.unbucketedFeeCents, 0);
+console.log(`        12 days, ${roundTrips.length} round trips, $0.00 difference`);
+
+// The funding day precedes the first trade, so it is outside the window and gets no opinion.
+check('a statement day outside the window is not a mismatch', realStmt.outsideWindow.join(','), '2026-07-07');
+
+// A single cent on a single day. If this passes, the per-day comparison is decorative.
+const bentDay = statement.map((d, i) => (i === 5 ? { ...d, netRealizedCents: d.netRealizedCents + 1 } : d));
+const bent = preflight({ fills, roundTrips, fees: realFees, tradePaired: realPaired, statement: bentDay });
+check('one cent on one day is caught', bent.ok, false);
+check('...and it names the day, not just a total', bent.findings.find((f) => f.code === 'statement_unreconciled')?.detail.days?.length, 1);
+
+/* THE BOUNDARY, AND THIS FIXTURE IS THE ONLY PLACE IT IS TESTED.
+ *
+ * Measured 2026-08-15: the real export has ZERO fills at or after 17:00 Chicago — all 612 land
+ * between 08:00 and 14:59. So the $0.00 above would survive setting SESSION_BOUNDARY_HOUR to 18,
+ * or the zone to New York. It proves the arithmetic and nothing about the boundary.
+ *
+ * So: move one day's trading into the evening session, past the 17:00 roll, and leave the
+ * statement saying what the broker said. Those trades now belong to the NEXT session date. Two
+ * days must go wrong in equal and opposite directions — and the total must stay exact, which is
+ * the entire reason this receipt is per-day rather than a sum. */
+/* +10h, not +8h: the fills run 08:00-14:59 CT, so eight hours leaves the earliest ones at 16:00,
+   still short of the roll, and the day would only half move. Ten puts every one of them past
+   17:00 and into the next session — the latest lands at 00:59, which the 17:00->17:00 session
+   files under the same date as the 18:00 one, as it should. */
+const EVENING_SHIFT_MS = 10 * 60 * 60 * 1000;
+/* A MIDDLE day, and getting this wrong the first time is the point of writing it down: the last
+   trading day spills onto a date the statement does not cover, so only ONE day breaks and the
+   equal-and-opposite pair — the thing that proves a total would have missed it — never appears. */
+const target = '2026-07-14';
+const shifted = fills.map((f) =>
+  sessionDateFor(f.filledAt) === target ? { ...f, filledAt: new Date(f.filledAt.getTime() + EVENING_SHIFT_MS) } : f
+);
+const rolled = preflight({ fills: shifted, roundTrips, fees: realFees, tradePaired: realPaired, statement });
+const rolledFinding = rolled.findings.find((f) => f.code === 'statement_unreconciled');
+check('an evening roll misfiles the day, and is CAUGHT', rolled.ok, false);
+check('...as two days wrong, not one', rolledFinding?.detail.days?.length, 2);
+check('...in equal and opposite directions', rolledFinding?.detail.diffCents, 0);
+console.log(`        a total would have read $0.00 and passed; the days read ${rolledFinding?.detail.days?.map((d) => usdShort(d.diffCents)).join(' and ')}`);
 
 // Every finding is reported in one pass, so a trader fixing one problem does not then meet another.
 const doublyBroken = preflight({ fills, roundTrips: partiallyOrphaned, fees: shiftedFees });

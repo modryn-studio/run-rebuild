@@ -161,8 +161,11 @@ failure, and every fix moved a derivation *into* code rather than into a prompt.
 
 - Parse the four CSVs from disk — no DB, no auth. `Orders` is required (`spec.md` §S1)
 - Round trips from Position History; fees by the exact per-contract-per-side split
-- Reconcile against Account Balance History **to the cent** — ~~the ported tape already does this at
-  $0.00 across two independent sets~~. **NOT TRUE, corrected 2026-08-15.** The $0.00 is real, but it
+- Reconcile against Account Balance History **to the cent** — ✅ **BUILT 2026-08-15**, as the third
+  receipt: `lib/csv/account-balance.ts` + `lib/intake/statement.ts`, surfaced as
+  `statement_unreconciled`. **12 trading days, 360 round trips, $0.00.** Per day, never on the
+  total — see below for why that is the whole design. ~~the ported tape already does this at
+  $0.00 across two independent sets~~ was **NOT TRUE when written, corrected 2026-08-15.** The $0.00 is real, but it
   is a RECON MEASUREMENT (`spec.md` §S1), not a check that runs. `lib/desk/tape.ts` names
   reconciliation three times, every one of them a comment explaining why it matters. `v2` did not
   build it either, so there is nothing to port. Account Balance History is still detect-only in
@@ -498,6 +501,27 @@ untouched, and that is exactly the seam:**
   round-trip side but summed every Trade Paired row against it, so a wider Cash History window
   reads as a mismatch. Both sides now scope through one intersection. It warns rather than blocks,
   because unlike the others it has no remedy a trader could act on.
+
+  **`S4f` — the THIRD receipt, added 2026-08-15, and the one that checks the number that matters.**
+  Receipts 1 and 2 check structure and *gross*. Account Balance History is the broker's own daily
+  statement and its `Total Realized PNL` is **net**, which on the reference export is the larger
+  quantity: fees (−$1,934.36) exceeded the gross loss (−$1,840.50). A build can pair every trade,
+  reconcile gross to the cent, and still be wrong by more than the entire loss.
+
+  **Per day, never on the total.** `Trade Date` is Tradovate's own session-date assignment, so a
+  per-day comparison puts it beside Run's 17:00 `America/Chicago` derivation. Misfile an evening
+  trade and the total stays exact while two days go wrong in equal and opposite directions — the
+  gate provokes exactly that and reads `+$986.60` and `−$986.60` where a total reads `$0.00` and
+  passes. **Blocking**, unlike the gross receipt, because a misfiled day *has* a remedy (re-export)
+  and must never reach the corpus: the log is append-only and `session_date` is what every read
+  groups by.
+
+  **What it does not prove, and this is worth knowing before trusting it.** The reference export
+  has **zero fills at or after 17:00 Chicago** — all 612 land between 08:00 and 14:59. So the
+  $0.00 is real arithmetic and says nothing about the boundary: set the hour to 18, or the zone to
+  New York, and all 12 days still reconcile. The boundary is exercised by a synthetic evening
+  round trip in the gate, which makes that fixture load-bearing rather than decorative. The first
+  real evening trader to import is the first real test.
 
   **That fee-plausibility one was corrected on 2026-08-15 too**, during the docs
   pass before `S4e`: it existed, but only in `lib/desk/tape.ts`, which is the READ path. `spec.md`

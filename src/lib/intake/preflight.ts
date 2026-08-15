@@ -1,7 +1,9 @@
 import type { ParsedFill } from '@/lib/csv/fills';
 import type { ParsedRoundTrip } from '@/lib/csv/position-history';
 import type { ParsedCashRow, ParsedFee } from '@/lib/csv/cash-history';
+import type { ParsedBalanceDay } from '@/lib/csv/account-balance';
 import { sessionDateFor } from '@/lib/time/session';
+import { reconcileAgainstStatement, type StatementDay } from './statement';
 
 /* THE LOUD FAILURES. Everything here runs BEFORE a single row is written.
  *
@@ -27,7 +29,8 @@ export type PreflightCode =
   | 'round_trips_unmatched'
   | 'fees_unmatched'
   | 'fees_implausible'
-  | 'pnl_unreconciled';
+  | 'pnl_unreconciled'
+  | 'statement_unreconciled';
 
 export interface PreflightFinding {
   code: PreflightCode;
@@ -48,6 +51,9 @@ export interface PreflightFinding {
     ourCents?: number;
     diffCents?: number;
     comparedRoundTrips?: number;
+    /** `statement_unreconciled`: the days that disagree, and how many were checked. */
+    days?: StatementDay[];
+    daysCompared?: number;
   };
 }
 
@@ -64,6 +70,8 @@ export interface PreflightResult {
     feesMatched: number;
     /** Round trips both sources can speak for. The denominator of the reconciliation. */
     reconciledRoundTrips: number;
+    /** Trading days checked against the broker's daily statement. */
+    statementDays: number;
   };
 }
 
@@ -107,6 +115,9 @@ export interface PreflightInput {
    *  witness to the number Position History reports. Optional because an upload can arrive without
    *  Cash History; absent means "no opinion", which is not the same as agreement. */
   tradePaired?: ParsedCashRow[];
+  /** Account Balance History: the broker's own daily statement. Optional — it is a fifth file,
+   *  and absent means no opinion rather than agreement. */
+  statement?: ParsedBalanceDay[];
 }
 
 /**
@@ -120,6 +131,7 @@ export function preflight({
   roundTrips,
   fees,
   tradePaired = [],
+  statement = [],
 }: PreflightInput): PreflightResult {
   const findings: PreflightFinding[] = [];
 
@@ -335,6 +347,32 @@ export function preflight({
     }
   }
 
+  /* THE THIRD RECEIPT — our NET, per day, against the broker's own statement. See `statement.ts`
+   * for the arithmetic and for what this does and does not prove.
+   *
+   * The other two receipts check structure and gross. This is the only one that checks COST, and
+   * on the reference export cost is the larger number: fees (-$1,934.36) exceeded the gross loss
+   * (-$1,840.50). A build can pair every trade correctly, reconcile gross to the cent, and still
+   * be wrong by more than the entire loss.
+   *
+   * BLOCKING, unlike `pnl_unreconciled`, and the difference is that this one has a remedy. A gross
+   * mismatch is a cent of drift with nothing a trader can do about it. A statement mismatch means
+   * a day is missing or misfiled — re-export the window and it resolves. It is also the failure
+   * that must never reach a corpus, because a wrong day survives every later correction: the log
+   * is append-only, and `session_date` is what every read groups by. */
+  const stmt = reconcileAgainstStatement({ fills, roundTrips, fees, statement });
+  if (stmt.mismatched.length > 0) {
+    findings.push({
+      code: 'statement_unreconciled',
+      blocking: true,
+      detail: {
+        days: stmt.mismatched,
+        daysCompared: stmt.compared.length,
+        diffCents: stmt.totalDiffCents,
+      },
+    });
+  }
+
   return {
     ok: findings.every((f) => !f.blocking),
     findings,
@@ -345,6 +383,7 @@ export function preflight({
       roundTripsMatched,
       feesMatched,
       reconciledRoundTrips: compared.length,
+      statementDays: stmt.compared.length,
     },
   };
 }
