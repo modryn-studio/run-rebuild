@@ -229,10 +229,41 @@ export const account = pgTable(
       .notNull()
       .references(() => trader.id, { onDelete: 'cascade' }),
     platform: text('platform').notNull(), // 'tradovate'. The platform, never the firm.
-    propFirm: text('prop_firm'), // Apex, Topstep, ... null for a personal account
     externalAccountId: text('external_account_id').notNull(), // the NAME, see above
+    /* Tradovate's numeric account id ("56963172"), when an export carries one. Nullable on
+       purpose: it appears in only two of the six export types, so it is a second identifier and
+       never the key. Parsed since S1 and stored from S4e. */
+    brokerAccountId: text('broker_account_id'),
     displayName: text('display_name').notNull(),
-    accountType: text('account_type').notNull(),
+
+    /* ── The identity Tradovate does not carry. `docs/docs from run-trading/prop-firm-identity.md`.
+     *
+     * NULLABLE, ALL OF THEM, AND THAT IS THE DESIGN (2026-08-15, S4e). Verified across all six
+     * export types from two different firms: the prop firm's name appears in NONE of them, and
+     * OAuth returns the same account object, so this is not a gap the live socket closes later.
+     *
+     * `account_type` was NOT NULL until S4e and it could not stay that way. An import creates this
+     * row before anyone has said what it is — and it cannot be asked first, because the number of
+     * accounts inside an export is unknown until it is parsed and a copy-trader's export holds
+     * many. Phase is also not derivable, ever: a funded account and an evaluation produce
+     * byte-identical files. So an unlabelled account is a NORMAL STATE, holding real fills, named
+     * afterwards. A default here would be Run inventing a fact about somebody's money.
+     *
+     * The CHECK below still constrains the three real values — `null in (...)` is NULL in
+     * Postgres and a CHECK passes on NULL, so nullable and constrained are not in tension. */
+    accountType: text('account_type'),
+    propFirm: text('prop_firm'), // "Tradeify", "TradeDay". Null for personal, and null is normal.
+    /* How we came to believe the firm. `stated` = the trader said so on THIS account, and those
+       rows are what grow `CONFIRMED_PREFIXES`. `detected` = recalled from a prefix confirmed on
+       somebody else's account, which is weaker and is always overwritten by the trader's answer. */
+    firmSource: text('firm_source'),
+    /* Whole dollars, not cents, and the exception is deliberate: prop accounts are sold in round
+       SKUs (50000, 100000, 150000). This is a product size, not money that gets arithmetic done to
+       it, so the integer-cents rule that governs P&L does not apply. */
+    sizeDollars: integer('size_dollars'),
+    /* The firm's own product name when the trader knows it ("Growth", "Select", "Lightning").
+       Free text on purpose: every firm names its SKUs differently and the list changes monthly. */
+    productName: text('product_name'),
     state: text('state').notNull().default('active'),
     closedAt: timestamp('closed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
