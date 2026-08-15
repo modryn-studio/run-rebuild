@@ -161,8 +161,14 @@ failure, and every fix moved a derivation *into* code rather than into a prompt.
 
 - Parse the four CSVs from disk — no DB, no auth. `Orders` is required (`spec.md` §S1)
 - Round trips from Position History; fees by the exact per-contract-per-side split
-- Reconcile against Account Balance History **to the cent** — the ported tape already does this at
-  $0.00 across two independent sets
+- Reconcile against Account Balance History **to the cent** — ~~the ported tape already does this at
+  $0.00 across two independent sets~~. **NOT TRUE, corrected 2026-08-15.** The $0.00 is real, but it
+  is a RECON MEASUREMENT (`spec.md` §S1), not a check that runs. `lib/desk/tape.ts` names
+  reconciliation three times, every one of them a comment explaining why it matters. `v2` did not
+  build it either, so there is nothing to port. Account Balance History is still detect-only in
+  `lib/csv/shared.ts` — the type is recognised and no parser exists. **This is the open one.** It is
+  also the more valuable of the two, because it is the only check that validates NET: the Trade
+  Paired reconciliation below proves the pairing, and says nothing about whether the fees are right
 - Derive point value per `symbol_root`; **agreement at n≥2, never a median** (`architecture.md`)
 - Resolve direction, outcome, exit mechanism and cancel cause in code
 - Assert fee plausibility in code, not in the read
@@ -480,7 +486,20 @@ untouched, and that is exactly the seam:**
   counts are shown"*, which is UI
 - **S4c** — ✅ **CLOSED 2026-08-14.** `lib/intake/preflight.ts`. Per-round-trip range overlap
   (`#74`), non-empty fee resolution (`#75`), rows-actually-written from the write path (`#79`),
-  and fee plausibility (`#78`). **That fourth one was corrected on 2026-08-15**, during the docs
+  fee plausibility (`#78`), and — added 2026-08-15 — **the P&L reconciliation itself** (`#76`).
+  That last one is the check the whole product rests on and it was missing: `tradePaired` was parsed
+  back in `S1` under a comment reading *"used to reconcile"*, and then read by nothing in the repo.
+  Cash History's Trade Paired rows and Position History's `P/L` are two independent Tradovate
+  exports stating one quantity; comparing them is the only thing in the pipeline that looks at the
+  P&L figure rather than the shape of the rows. **On the real export: 357 of 360 round trips agree
+  to the cent.** The three it abstains on are scratch trades worth exactly $0.00 — Tradovate posts
+  no cash row when no cash moved — and asserting full coverage would have asserted a falsehood
+  about the broker's own file. **Fixed one bug in v2's version on the way past:** it scoped the
+  round-trip side but summed every Trade Paired row against it, so a wider Cash History window
+  reads as a mismatch. Both sides now scope through one intersection. It warns rather than blocks,
+  because unlike the others it has no remedy a trader could act on.
+
+  **That fee-plausibility one was corrected on 2026-08-15 too**, during the docs
   pass before `S4e`: it existed, but only in `lib/desk/tape.ts`, which is the READ path. `spec.md`
   says plausibility "belongs at ingest, in code", and it is right — a read that flags a number is
   flagging one already written to an append-only log, where it cannot be corrected. The tape keeps

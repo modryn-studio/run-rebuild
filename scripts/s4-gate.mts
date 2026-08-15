@@ -417,11 +417,13 @@ console.log('\n=== 9. THE LOUD FAILURES, EACH ONE PROVOKED ===\n');
    REAL export and breaks it in the specific way the check exists to catch, so the assertion is
    that it fires — and, just as importantly, that it does NOT fire on the clean file. */
 const feesText = readCsv('Cash History.csv');
-const realFees = parseCashHistory(feesText).fees;
+const realCash = parseCashHistory(feesText);
+const realFees = realCash.fees;
+const realPaired = realCash.tradePaired;
 
 // The clean case first. If this ever goes false the guards are miscalibrated, and a false refusal
 // costs more than a missed one: it blocks a trader whose files are fine.
-const clean = preflight({ fills, roundTrips, fees: realFees });
+const clean = preflight({ fills, roundTrips, fees: realFees, tradePaired: realPaired });
 check('the real export passes every check', clean.ok, true);
 check('...with no findings at all', clean.findings.length, 0);
 console.log(
@@ -483,6 +485,44 @@ console.log(`        real fees: ${clean.findings.length === 0 ? 'plausible' : 'F
 
 // And the REAL fees are not flagged, which matters as much: a false refusal blocks a good import.
 check('the real export is not flagged as implausible', clean.findings.some((f) => f.code === 'fees_implausible'), false);
+
+/* THE RECONCILIATION. Two files, produced by different parts of Tradovate, stating the same
+   quantity. Agreement to the cent is the whole basis for showing the number at all. */
+const usd = (c: number) => `$${(c / 100).toFixed(2)}`;
+check('the real export RECONCILES', clean.findings.some((f) => f.code === 'pnl_unreconciled'), false);
+/* IT ABSTAINS ON 3 OF 360, AND THE THREE ARE WORTH NOTHING — measured 2026-08-15, and this is
+   the assertion that matters rather than "all 360". Tradovate posts a Trade Paired cash row only
+   when cash actually moved, so a SCRATCH TRADE (in and out at the same price, P&L exactly zero)
+   has no row to reconcile against. All three unreached round trips are scratches. Asserting
+   full coverage would have been asserting a falsehood about the broker's own file; asserting the
+   gap is worthless is what actually protects the number. Every one of the 357 rows IS used, so
+   nothing is silently dropped on the cash side either. */
+const unreconciledValue = roundTrips.length - clean.counts.reconciledRoundTrips;
+check('it abstains on exactly the scratch trades', unreconciledValue, 3);
+check('...and every Trade Paired row was used', clean.counts.reconciledRoundTrips, realPaired.length);
+console.log(`        ${clean.counts.reconciledRoundTrips}/${roundTrips.length} reconciled; the ${unreconciledValue} unreached are $0.00 scratches`);
+
+// One cent moved on ONE row. If this passes, the check is decorative.
+const offByOne = realPaired.map((p, i) => (i === 0 ? { ...p, deltaCents: p.deltaCents + 1 } : p));
+const drifted = preflight({ fills, roundTrips, fees: realFees, tradePaired: offByOne });
+const rec = drifted.findings.find((f) => f.code === 'pnl_unreconciled');
+check('a ONE CENT disagreement is caught', rec !== undefined, true);
+check('...and states both sources', usd(rec?.detail.diffCents ?? 0), '$0.01');
+check('...and does not block the import', drifted.ok, true);
+
+/* SYMMETRY, which is where v2 was wrong: it summed every Trade Paired row against a scoped
+   round-trip sum, so a wider Cash History window reads as disagreement when nothing disagrees. */
+const widerCash = [
+  ...realPaired,
+  { ...realPaired[0], bucketKey: 'NOT-IN-THIS-UPLOAD', deltaCents: -999_999 },
+];
+const wider = preflight({ fills, roundTrips, fees: realFees, tradePaired: widerCash });
+check('a WIDER cash window is not a mismatch', wider.findings.some((f) => f.code === 'pnl_unreconciled'), false);
+
+// No Cash History is NO OPINION, never a silent pass and never a false zero.
+const noCash = preflight({ fills, roundTrips, fees: realFees });
+check('no Trade Paired rows means no opinion', noCash.findings.some((f) => f.code === 'pnl_unreconciled'), false);
+check('...and says so in the count', noCash.counts.reconciledRoundTrips, 0);
 
 // Every finding is reported in one pass, so a trader fixing one problem does not then meet another.
 const doublyBroken = preflight({ fills, roundTrips: partiallyOrphaned, fees: shiftedFees });

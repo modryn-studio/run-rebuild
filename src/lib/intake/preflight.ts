@@ -1,6 +1,6 @@
 import type { ParsedFill } from '@/lib/csv/fills';
 import type { ParsedRoundTrip } from '@/lib/csv/position-history';
-import type { ParsedFee } from '@/lib/csv/cash-history';
+import type { ParsedCashRow, ParsedFee } from '@/lib/csv/cash-history';
 import { sessionDateFor } from '@/lib/time/session';
 
 /* THE LOUD FAILURES. Everything here runs BEFORE a single row is written.
@@ -26,7 +26,8 @@ export type PreflightCode =
   | 'rows_unnamed'
   | 'round_trips_unmatched'
   | 'fees_unmatched'
-  | 'fees_implausible';
+  | 'fees_implausible'
+  | 'pnl_unreconciled';
 
 export interface PreflightFinding {
   code: PreflightCode;
@@ -42,6 +43,11 @@ export interface PreflightFinding {
     otherAccounts?: string[];
     /** Cents per contract per round turn, for `fees_implausible`. */
     perContractCents?: number;
+    /** `pnl_unreconciled`: what each independent source says, and the gap between them. */
+    brokerCents?: number;
+    ourCents?: number;
+    diffCents?: number;
+    comparedRoundTrips?: number;
   };
 }
 
@@ -56,6 +62,8 @@ export interface PreflightResult {
     roundTripsMatched: number;
     /** Fee rows whose bucket key matches a fill in this upload. */
     feesMatched: number;
+    /** Round trips both sources can speak for. The denominator of the reconciliation. */
+    reconciledRoundTrips: number;
   };
 }
 
@@ -95,6 +103,10 @@ export interface PreflightInput {
   fills: ParsedFill[];
   roundTrips: ParsedRoundTrip[];
   fees: ParsedFee[];
+  /** Cash History's "Trade Paired" rows: the broker's OWN realised P&L, and the only independent
+   *  witness to the number Position History reports. Optional because an upload can arrive without
+   *  Cash History; absent means "no opinion", which is not the same as agreement. */
+  tradePaired?: ParsedCashRow[];
 }
 
 /**
@@ -103,7 +115,12 @@ export interface PreflightInput {
  * Returns every finding rather than the first, because a trader who re-exports to fix one problem
  * should not then discover a second. One trip to the files, one list of what is wrong.
  */
-export function preflight({ fills, roundTrips, fees }: PreflightInput): PreflightResult {
+export function preflight({
+  fills,
+  roundTrips,
+  fees,
+  tradePaired = [],
+}: PreflightInput): PreflightResult {
   const findings: PreflightFinding[] = [];
 
   const fillById = new Map<string, ParsedFill>();
@@ -246,6 +263,78 @@ export function preflight({ fills, roundTrips, fees }: PreflightInput): Prefligh
     }
   }
 
+  /* THE RECONCILIATION ITSELF, and the reason this file exists at all.
+   *
+   * Every other check here is STRUCTURAL: are the rows named, do the windows overlap, did the fees
+   * find their trades. None of them look at the P&L figure. This one does, and it is the only
+   * check that can answer the product's one claim — "our numbers are the broker's numbers" —
+   * because it is the only place two INDEPENDENT sources state the same quantity.
+   *
+   * Cash History's "Trade Paired" rows are the broker's own realised P&L, posted to the account.
+   * Position History's `P/L` column is the broker's own pairing of entries to exits. They are
+   * produced by different parts of Tradovate and exported as different files. If they agree to the
+   * cent, the number can be shown. If they do not, something is wrong with the export, the parse,
+   * or an assumption — and which one hardly matters, because none of them permit showing the
+   * figure. `tradePaired` was parsed from S1 with a comment saying "used to reconcile" and then
+   * read by nothing at all until 2026-08-15.
+   *
+   * SCOPED THROUGH ONE INTERSECTION, BOTH SIDES. A Trade Paired row reaches its round trip the same
+   * way a fee does: the raw (local timestamp, contract) bucket it shares with the CLOSING fill. A
+   * row is compared only if it reaches a round trip, and a round trip only if a row reaches it.
+   *
+   * v2 scoped only the round-trip half and summed every Trade Paired row against it. That is a
+   * false failure waiting for the first trader who exports a wider Cash History window than
+   * Position History — which is the easy slip, since the two exports have separate date pickers.
+   * Symmetry is what makes "they disagree" mean disagreement rather than a window mismatch.
+   *
+   * A WARNING, NOT A BLOCK, and this is the one judgement call in the file. The other blocking
+   * findings each have a remedy the trader can act on (re-export, widen the window). A cent of
+   * disagreement does not, and refusing the import would strand a corpus that is almost certainly
+   * fine over a rounding artefact nobody has seen yet. It is loud, it is counted, and the import
+   * carries it. Revisit once there is a real one in the wild — the same call v2 made, for the
+   * same reason, and the only one of its decisions here worth keeping unchanged. */
+  const pairedBuckets = new Set(
+    tradePaired.map((p) => p.bucketKey).filter((k): k is string => !!k)
+  );
+  const closingFillIds = new Set(
+    fills
+      .filter((f) => f.feeBucketKey && pairedBuckets.has(f.feeBucketKey))
+      .map((f) => f.externalFillId)
+      .filter((id): id is string => !!id)
+  );
+  const compared = roundTrips.filter(
+    (rt) =>
+      (rt.buyFillId && closingFillIds.has(rt.buyFillId)) ||
+      (rt.sellFillId && closingFillIds.has(rt.sellFillId))
+  );
+  // The other half of the symmetry: only rows that actually reached one of those round trips.
+  const reachedBuckets = new Set(
+    compared.flatMap((rt) =>
+      [rt.buyFillId, rt.sellFillId]
+        .map((id) => (id ? fillById.get(id)?.feeBucketKey : null))
+        .filter((k): k is string => !!k && pairedBuckets.has(k))
+    )
+  );
+  const comparedPaired = tradePaired.filter((p) => p.bucketKey && reachedBuckets.has(p.bucketKey));
+
+  if (compared.length > 0 && comparedPaired.length > 0) {
+    const brokerCents = comparedPaired.reduce((n, p) => n + p.deltaCents, 0);
+    const ourCents = compared.reduce((n, rt) => n + rt.pnlCentsGross, 0);
+    if (brokerCents !== ourCents) {
+      findings.push({
+        code: 'pnl_unreconciled',
+        blocking: false,
+        detail: {
+          brokerCents,
+          ourCents,
+          diffCents: brokerCents - ourCents,
+          comparedRoundTrips: compared.length,
+          total: roundTrips.length,
+        },
+      });
+    }
+  }
+
   return {
     ok: findings.every((f) => !f.blocking),
     findings,
@@ -255,6 +344,7 @@ export function preflight({ fills, roundTrips, fees }: PreflightInput): Prefligh
       fees: fees.length,
       roundTripsMatched,
       feesMatched,
+      reconciledRoundTrips: compared.length,
     },
   };
 }
