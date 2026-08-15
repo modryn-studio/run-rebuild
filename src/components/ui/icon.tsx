@@ -41,6 +41,14 @@ import {
   ChevronDown,
   Moon,
   Sun,
+  Upload,
+  FileSpreadsheet,
+  Files,
+  Circle,
+  RefreshCw,
+  ArrowLeft,
+  Plus,
+  TriangleAlert,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -73,6 +81,20 @@ const MARKS = {
   chevron: ChevronDown,
   moon: Moon,
   sun: Sun,
+
+  /* ── the intake flow (S4e) ────────────────────────────────────────────────────────────────
+   * `unmet` is a hollow circle rather than an empty checkbox on purpose: a checkbox is a control
+   * the trader can operate, and these rows are a report on which files have arrived. Offering
+   * something that looks pressable and is not is worse than a plain dot.
+   * `sync` is the Auto-sync door, dark until the vendor creds land. */
+  upload: Upload,
+  file: FileSpreadsheet,
+  files: Files,
+  unmet: Circle,
+  sync: RefreshCw,
+  back: ArrowLeft,
+  add: Plus,
+  warn: TriangleAlert,
 } satisfies Record<string, LucideIcon>;
 
 export function Icon({
