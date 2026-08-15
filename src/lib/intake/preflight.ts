@@ -23,6 +23,7 @@ import { sessionDateFor } from '@/lib/time/session';
 export type PreflightCode =
   | 'fills_empty'
   | 'accounts_differ'
+  | 'rows_unnamed'
   | 'round_trips_unmatched'
   | 'fees_unmatched';
 
@@ -169,6 +170,28 @@ export function preflight({ fills, roundTrips, fees }: PreflightInput): Prefligh
    *
    * ONLY WHEN THERE ARE FILLS THAT COULD MATCH. Fees uploaded with no fills is a different
    * situation entirely, and refusing there would blame the wrong file. */
+  /* ROWS THAT NAME NO ACCOUNT ARE REFUSED, not swept into a default.
+   *
+   * The previous build routed them to a per-trader fallback so an odd export still landed
+   * somewhere — and its own comment admits the cost: every real Tradovate export names its
+   * account, so the fallback only ever created a junk `default-<traderId>` row that then appeared
+   * in the roster as a phantom account. Verified here on the real ten-day set: 612 fills, 360
+   * round trips, 2,448 cash rows and 1,009 orders, every single one named.
+   *
+   * So an unnamed row means the file is not what it claims to be, and quietly filing somebody's
+   * money under an invented account is the kind of silent absence this product forbids. */
+  const unnamed =
+    fills.filter((f) => !f.accountName).length +
+    roundTrips.filter((r) => !r.accountName).length +
+    fees.filter((f) => !f.accountName).length;
+  if (unnamed > 0) {
+    findings.push({
+      code: 'rows_unnamed',
+      blocking: true,
+      detail: { blocked: unnamed, total: fills.length + roundTrips.length + fees.length },
+    });
+  }
+
   const feeKeys = new Set(fees.map((f) => f.bucketKey).filter((k): k is string => !!k));
   const fillKeys = new Set(fills.map((f) => f.feeBucketKey).filter((k): k is string => !!k));
   const feesMatched = [...feeKeys].filter((k) => fillKeys.has(k)).length;

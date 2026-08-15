@@ -19,6 +19,7 @@ const { fillEventValues, roundTripEventValues, resolveRoundTripInstant } = await
 );
 const { commitImport, markImportCommitted } = await import('../src/lib/intake/commit.ts');
 const { preflight } = await import('../src/lib/intake/preflight.ts');
+const { groupByAccount, resolveAccount } = await import('../src/lib/intake/accounts.ts');
 const { parseCashHistory } = await import('../src/lib/csv/cash-history.ts');
 
 let failures = 0;
@@ -74,6 +75,7 @@ async function teardown() {
       DELETE FROM "event"  WHERE trader_id = tid;
       DELETE FROM "import" WHERE trader_id = tid;
       DELETE FROM "account" WHERE trader_id = tid;
+      DELETE FROM trader WHERE id = tid;
     END $$;
   `);
   await db.delete(authUser).where(eq(authUser.id, FIXTURE));
@@ -483,6 +485,97 @@ const [{ n: afterPreflight }] = await db
   .from(event)
   .where(eq(event.traderId, t.id));
 check('the preflight wrote nothing', afterPreflight, eventCountBeforePreflight);
+
+
+console.log('\n=== 11. ACCOUNT RESOLUTION — THE COPY-TRADER INVARIANT ===\n');
+
+/* THE FAILURE THIS PREVENTS is not a crash, it is a plausible number. A copy-trader runs one
+   strategy across five accounts; if their rows pool into one bucket, a single 1-lot position reads
+   as a 5-lot, and every figure derived from position size is wrong in an append-only log. */
+
+// The real export names exactly one account, in every one of its four files.
+const realName = 'FTDFYL100183704873';
+const grouped = groupByAccount(fills);
+check('the real export names exactly one account', grouped.groups.length, 1);
+check('...and it is the account NAME, not a numeric id', grouped.groups[0]?.accountName, realName);
+check('no row went unnamed', grouped.unnamed.length, 0);
+
+// A copy-trader's file: the same trades split across three accounts.
+const spread = fills.map((f, i) => ({ ...f, accountName: `COPYTRADER-${i % 3}` }));
+const spreadGroups = groupByAccount(spread);
+check('three accounts in one file group into three', spreadGroups.groups.length, 3);
+check(
+  '...and every row is accounted for',
+  spreadGroups.groups.reduce((n, g) => n + g.rows.length, 0),
+  fills.length
+);
+
+console.log('\n=== 12. RESOLVE CREATES ONCE, THEN FINDS ===\n');
+
+const firstResolve = await resolveAccount({
+  traderId: t.id,
+  externalAccountId: realName,
+  accountType: 'funded',
+  propFirm: 'Tradeify',
+});
+const secondResolve = await resolveAccount({
+  traderId: t.id,
+  externalAccountId: realName,
+  accountType: 'funded',
+});
+check('resolving twice returns the same account', firstResolve, secondResolve);
+
+const [made] = await db.select().from(account).where(eq(account.id, firstResolve));
+check('the display name defaults to the broker name', made.displayName, realName);
+check('the account type is what the flow asked for', made.accountType, 'funded');
+check('the prop firm is recorded', made.propFirm, 'Tradeify');
+check('the platform is the platform, never the firm', made.platform, 'tradovate');
+
+/* CONCURRENT RESOLUTION IS THE REAL CASE, not an edge one: four files arrive together and each
+   resolves its own accounts. Two callers see nothing, both insert, and the unique index fails one
+   — so `onConflictDoNothing` plus a re-read is what stops an import dying on a race with itself. */
+const racers = await Promise.all(
+  Array.from({ length: 5 }, () =>
+    resolveAccount({ traderId: t.id, externalAccountId: 'RACE-0001', accountType: 'personal' })
+  )
+);
+check('five concurrent resolves agree on one id', new Set(racers).size, 1);
+const raceRows = await db
+  .select()
+  .from(account)
+  .where(and(eq(account.traderId, t.id), eq(account.externalAccountId, 'RACE-0001')));
+check('...and created exactly one row', raceRows.length, 1);
+
+/* SCOPED BY TRADER. Two traders importing the same account name is legitimate — a shared demo
+   account, or one person testing two logins — and without the scope the second one's trades would
+   land on the first one's row, which is somebody else's trading history. */
+const OTHER = 's4-gate-other-trader';
+await db.delete(authUser).where(eq(authUser.id, OTHER));
+await db.insert(authUser).values({ id: OTHER, email: 's4-other@fixture.invalid', emailVerified: false });
+const [t2] = await db
+  .insert(trader)
+  .values({ authUserId: OTHER, displayTimezone: 'UTC' })
+  .returning();
+const otherId = await resolveAccount({
+  traderId: t2.id,
+  externalAccountId: realName, // the SAME name
+  accountType: 'personal',
+});
+check('the same account name under another trader is a different row', otherId === firstResolve, false);
+await db.delete(account).where(eq(account.traderId, t2.id));
+await db.delete(authUser).where(eq(authUser.id, OTHER));
+
+console.log('\n=== 13. A ROW THAT NAMES NO ACCOUNT IS REFUSED ===\n');
+
+/* The previous build swept these into a per-trader default so an odd export still landed
+   somewhere, and its own comment admits the cost: a junk `default-<traderId>` row that then showed
+   up in the roster as a phantom account. Every real export names its account, so an unnamed row
+   means the file is not what it claims to be. */
+const anonymised = fills.map((f) => ({ ...f, accountName: null }));
+const unnamedResult = preflight({ fills: anonymised, roundTrips: [], fees: [] });
+check('unnamed rows are refused', unnamedResult.ok, false);
+check('...naming the cause', unnamedResult.findings[0]?.code, 'rows_unnamed');
+check('...and counting them', unnamedResult.findings[0]?.detail.blocked, fills.length);
 
 // ── teardown ────────────────────────────────────────────────────────────────────────
 // `event` cannot be deleted by the app, which is the point of section 2 — so the fixture's
