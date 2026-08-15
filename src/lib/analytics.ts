@@ -75,4 +75,16 @@ export const analytics = {
   loginViewed: () => send('login_viewed'),
   signupStarted: (method: 'google' | 'email') => send('signup_started', { method }),
   welcomeViewed: () => send('welcome_viewed'),
+
+  /* THE INTAKE FUNNEL (S4e). Started and completed are separate events rather than one with a
+     status, because the gap between them is the number that matters: an upload that starts and
+     never finishes is the failure this product exists to not have, and it is invisible if the only
+     event fires at the end. `files` is a count, never a filename — a filename is the trader's own
+     data and analytics is not where it belongs. */
+  uploadStarted: (files: number) => send('upload_started', { files }),
+  /** `imported` is rows the DATABASE accepted, so a re-upload legitimately reports 0. */
+  uploadCompleted: (files: number, imported: number) =>
+    send('upload_completed', { files, imported }),
+  /** The preflight CODE, never its message. A code survives a copy rewrite; prose does not. */
+  uploadFailed: (code: string) => send('upload_failed', { code }),
 };

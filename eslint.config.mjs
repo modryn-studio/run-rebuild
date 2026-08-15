@@ -61,6 +61,14 @@ export default [
             'lift-press',
             // Menu's open animation.
             'pop-in',
+            // The tick that draws itself in on a completed intake step. globals.css:820, with its
+            // own note in the reduced-motion block explaining why it is exempt there.
+            'check-draw',
+            // The intake progress list. Defined ONLY in the reduced-motion block (globals.css:877),
+            // which is the whole point of it: the travel is applied by Tailwind utilities on the
+            // element, and this class exists solely as the hook that cancels it. S3c wrote the rule
+            // before the panel it describes existed.
+            'steps-track',
             // The app pane's scrollbar: `scrollbar-width: thin` plus a thumb from the border
             // token. Standard properties only, never `::-webkit-scrollbar` — the two do not
             // compose, so carrying both means maintaining two descriptions of one bar.
