@@ -472,17 +472,71 @@ Sub-sliced, because this is where correctness is won or lost:
 **`S1` delivered the pure, disk-side half of this slice. Everything touching the database is
 untouched, and that is exactly the seam:**
 
-- **S4a** — `event` log, dedupe key, 1,000-row chunked writes, `import` provenance rows.
-  **Nothing delivered.** All of it is persistence
+- **S4a** — ✅ **CLOSED 2026-08-14.** `account`, `import` and `event` (`drizzle/0003`), plus the
+  append-only trigger (`drizzle/0004`, hand-written — `drizzle-kit` diffs the schema and knows
+  nothing about triggers, so it would neither create this nor drop it)
 - **S4b** — ✅ **delivered.** Four parsers, detected by header signature rather than filename, with
   dedupe, in `lib/csv/`. `Orders` included. What remains here is only *"nothing commits until
-  counts are shown"*, which is UI and a write path
-- **S4c** — the loud failures: per-round-trip range overlap (`#74`), non-empty fee resolution
-  (`#75`), rows-actually-written returned by the write path (`#79`).
-  ✅ **The fourth is delivered** — fee plausibility is asserted in the tape and the gate proves a
-  47× corruption trips it. The other three are write-path work
-- **S4d** — account resolution *inside* the flow (`#59`/`#80`)
-- **S4e** — the UI: type step, drop zone, determinate progress with a minimum-visible floor
+  counts are shown"*, which is UI
+- **S4c** — ✅ **CLOSED 2026-08-14.** `lib/intake/preflight.ts`. Per-round-trip range overlap
+  (`#74`), non-empty fee resolution (`#75`), rows-actually-written from the write path (`#79`),
+  plus fee plausibility already asserted in the tape from `S1`
+- **S4d** — ✅ **CLOSED 2026-08-14.** `lib/intake/accounts.ts` (`#59`/`#80`)
+- **S4e** — ⏸ **the UI, deferred by Luke.** Type step, drop zone, determinate progress with a
+  minimum-visible floor. **The slice does not close until this lands**, and it is where the timing
+  harness `S3c` deferred finally gets a sequence to replay
+
+**`scripts/s4-gate.mts` — 68 assertions, re-runnable, run against the real ten-day export**, not
+fixtures. `tsc` and `eslint` clean; `S1`, `S2` and `S3a` gates all still pass.
+
+#### What the backend actually guarantees now
+
+- **`event` is append-only and the DATABASE enforces it.** A trigger refuses `UPDATE` and `DELETE`
+  unless `run.privileged` is set for the transaction. Everything else in the doctrine is a
+  convention a future writer can forget; this is the only one that cannot be
+- **A re-upload is a no-op twice over, at two different levels.** `(account_id, file_hash)` stops
+  the *work*; the partial unique index on `(account_id, dedupe_key)` stops the *rows*. The second
+  is what catches the same trade arriving inside a different file
+- **The write path returns rows the database ACCEPTED**, never rows attempted — "imported 187" when
+  the real answer is zero is precisely the confident-wrong number this product exists to refuse
+- **Nothing is filed under a default account.** Every event goes under the account named in the row
+
+#### Ported from `run-trading@v2`, and what was deliberately left behind
+
+Each of the four steps was reviewed against that build before being written (Luke's call, and it
+paid for itself every time).
+
+| Taken | Why |
+|---|---|
+| The append-only trigger | The one piece of that ingest worth having verbatim |
+| Dedupe keys namespaced by type (`f:` `p:` `x:` `o:`) | Tradovate ids are unique only within their own export, so a fill and a round trip can share a number |
+| A round trip's instant resolved from its FILLS | Position History carries local wall-clock with no zone. The LATER of the two fills is the close, which is what `session_date` derives from |
+| Keying an account on its NAME | The only identifier in all four exports; the numeric id is in two |
+| `onConflictDoNothing` + re-read on account resolve | Four files arriving together makes the race the normal case, not an edge one |
+
+| Left behind | Why |
+|---|---|
+| `firm` as the platform column | v2's own comment calls it *"a known misnomer… not renamed because every event is already filed under it."* A naming error becomes unfixable once a corpus sits on it, and this build had none |
+| Provenance as a `csv_import` event | It cannot answer *"have these exact bytes been seen before"* — nowhere to hang a file hash under a unique constraint, and no status for a parse that has not been committed. `import` is its own table |
+| Guards that query the database | v2's uploader took one file at a time. This flow takes all four, so the checks are pure and run genuinely before anything commits |
+| Thrown `Error(message)` | Welds a check to its copy: a screen cannot re-word it and a test on prose breaks when the prose improves. Findings are a code plus its numbers |
+| The `pending:` adoption path | A mechanism with no caller — that build had a hand-add flow, this one creates the account from the import. Its four conditions are earned and worth re-reading if a hand-add flow lands |
+| The fallback default account | v2 admits it produced a junk `default-<traderId>` row that showed up in the roster as a phantom account. Every real export names its account, so an unnamed row is now a blocking finding |
+
+#### Three things measurement taught that reading would not have
+
+- **The privileged erasure path must be ONE statement on `neon-http`.** `set_config(…, true)` is
+  transaction-local and this driver has no interactive transactions, so a `set_config` call followed
+  by a `DELETE` call loses the flag in between and the trigger correctly refuses. A `DO` block
+  shares the transaction. **The two-call version reads correctly and does not work**
+- **The chunk ceiling is exactly where the arithmetic says, and the error never admits it.** `event`
+  binds 14 columns, so 65535/14 predicts 4,681 rows. Measured: 4,681 inserts, 5,000 does not — and
+  Neon reports a generic *"Database request failed"* on both sides, so the cause is knowable only
+  from where the boundary falls. The gate brackets it rather than asserting one side, since
+  "6,000 fails" is also true of a broken connection
+- **A gate that writes real rows needs an idempotent teardown**, and `event` refusing `DELETE` is
+  what makes that non-obvious: one failed run left events behind that then blocked the next run's
+  setup
 
 ### S5 — Trades ⭐ *the record*
 
@@ -585,7 +639,7 @@ they don't share a surface.
 |---|---|
 | 1 | `S0` skeleton · `S1` data layer + read engine · `S2` primitives (mostly folded into `S1`) |
 | 2 | ✅ `S3a` auth · ✅ `S3b` shell · ✅ `S3c` kitchen sink + ported primitives |
-| 3 | `S4` alone — everything downstream depends on its shape |
+| 3 | `S4` alone — everything downstream depends on its shape. **Backend closed 2026-08-14; `S4e` (the UI) is what remains** |
 | 4 | `S5` · `S6` (different pages, same projections) |
 | 5 | `S8` · `S7` **only once the pattern-vs-reading decision is made** |
 
@@ -611,7 +665,8 @@ they don't share a surface.
 
 ## Phase 5 gate
 
-*Status as of 2026-08-13. `S0`–`S3c` merged; wave 1 and wave 2 complete. `S4`–`S9` open.*
+*Status as of 2026-08-14. `S0`–`S3c` merged; waves 1 and 2 complete. **`S4`'s backend (`S4a`–`S4d`) is
+closed; `S4e`, the UI, is what keeps the slice open.** `S5`–`S9` untouched.*
 
 - [x] **`S1` fired or cleared the kill signal, and the result is recorded** — CLEARED. The MNQ→NQ
       multiplier finding, confirmed by Luke as something he did not already know
