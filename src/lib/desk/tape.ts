@@ -217,7 +217,7 @@ export interface Tape {
 
 /** What kind of account this is. Recorded per connection at the moment it is added
  *  (docs/architecture.md §1) — never inferred from the export, which does not carry it. */
-export type AccountType = 'evaluation' | 'funded' | 'personal';
+export type AccountType = 'evaluation' | 'sim_funded' | 'personal';
 
 export interface TapeInput {
   fills: ParsedFill[];

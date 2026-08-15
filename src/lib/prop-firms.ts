@@ -214,20 +214,16 @@ export function isPersonalFirm(propFirm: string | null): boolean {
   return propFirm === PERSONAL_FIRM;
 }
 
-/* THE TRADER-FACING NAME FOR EACH ACCOUNT TYPE, and the middle one is the reason this map exists.
+/* THE TRADER-FACING NAME FOR EACH ACCOUNT TYPE.
  *
- * v2 stored the key `sim_funded` and its comment is worth keeping verbatim: the account is funded
- * by the firm and traded in SIMULATION, the firms themselves use the longer term, and calling it
- * "Funded" would quietly claim the trader is trading real money.
- *
- * This build stores `funded` — it is in `spec.md` §S1 and in the `account_type` CHECK, and renaming
- * a stored value across a locked spec to fix a display string would be the tail wagging the dog.
- * So the honesty lives HERE, where it belongs: the column is the key, this is what a trader reads.
- * Nothing may print an account type without going through this map.
+ * The stored key is `sim_funded` too (see `ACCOUNT_TYPES` in `db/schema.ts` for why the longer word
+ * is the honest one), so this map is a thin one today. It still exists, and everything still goes
+ * through it: a stored key is a machine token and a label is a sentence fragment, and the day one of
+ * them needs to change without the other, a map is the difference between an edit and a migration.
  */
 export const ACCOUNT_TYPE_LABELS = {
   evaluation: 'Evaluation',
-  funded: 'Sim Funded',
+  sim_funded: 'Sim Funded',
   personal: 'Personal',
 } as const;
 

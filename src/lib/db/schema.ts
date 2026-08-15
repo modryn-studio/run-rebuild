@@ -218,7 +218,17 @@ export const trader = pgTable('trader', {
 //
 // DELETION POLICY: THERE ISN'T ONE. An account is never DELETEd. `closed` and `breached` are
 // states, not absences. Any ON DELETE CASCADE reaching this table or below it is a bug.
-export const ACCOUNT_TYPES = ['evaluation', 'funded', 'personal'] as const;
+/* `sim_funded`, NOT `funded`, and the longer word is the honest one (Luke, 2026-08-15).
+ *
+ * A prop "funded" account is funded by the FIRM and traded in SIMULATION. The firms themselves use
+ * the longer term. Storing `funded` and printing "Funded" quietly claims the trader is trading real
+ * money, which is exactly the kind of flattering imprecision this product exists to refuse — and it
+ * would sit one column away from `personal`, which IS real money, in the same enum.
+ *
+ * Renamed at S4e rather than papered over in a label map, because no row carried the value yet.
+ * That window does not reopen: after the first real import this is a data migration across an
+ * append-only corpus instead of a one-line CHECK change. */
+export const ACCOUNT_TYPES = ['evaluation', 'sim_funded', 'personal'] as const;
 export const ACCOUNT_STATES = ['active', 'closed', 'breached'] as const;
 
 export const account = pgTable(
@@ -269,7 +279,7 @@ export const account = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    check('account_type_check', sql`${t.accountType} in ('evaluation', 'funded', 'personal')`),
+    check('account_type_check', sql`${t.accountType} in ('evaluation', 'sim_funded', 'personal')`),
     check('account_state_check', sql`${t.state} in ('active', 'closed', 'breached')`),
     // The natural key. Two firms can issue the same account name, so platform is part of it.
     uniqueIndex('account_identity_uq').on(t.traderId, t.platform, t.externalAccountId),

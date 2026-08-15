@@ -104,7 +104,7 @@ Two things this changes, and both are cheap now and expensive later:
 1. **No copy may promise that Run preserves data "after your firm wipes your blown account."**
    That is true for prop and false for personal accounts, and it is the highest-stakes
    misleading string in the product.
-2. **A connection must record its account type** (evaluation / funded / personal). Without it
+2. **A connection must record its account type** (evaluation / sim funded / personal). Without it
    Run cannot tell a personal signup from a prop one, and the whole point of admitting the
    segment is learning what it does.
 
@@ -302,7 +302,7 @@ Acceptance criteria:
 - `THE SYSTEM SHALL require all four Tradovate exports — Fills, Position History, Cash History and Orders — before committing an import`
 - `THE SYSTEM SHALL resolve, in code and before any model sees the tape, a trade's direction, its outcome, what closed it, and whether a cancel was the trader's decision or the platform's OCO sibling` — every one of these was a measured wrong read when left to inference
 - `THE SYSTEM SHALL accept a Tradovate CSV export and create or update an account from it`
-- ~~`THE SYSTEM SHALL record each connection's account type — evaluation, funded, or personal — at the time it is added`~~ → **AMENDED 2026-08-15 (Luke), `S4e`.** `THE SYSTEM SHALL record each account's type — evaluation, funded, or personal — and SHALL ask for it after the import that created the account, never before`
+- ~~`THE SYSTEM SHALL record each connection's account type — evaluation, funded, or personal — at the time it is added`~~ → **AMENDED 2026-08-15 (Luke), `S4e`.** `THE SYSTEM SHALL record each account's type — evaluation, sim funded, or personal — and SHALL ask for it after the import that created the account, never before`
 - ~~`WHEN a file is uploaded, THE SYSTEM SHALL report the count parsed, the date range covered, and the count rejected, before committing anything`~~ → **AMENDED 2026-08-15 (Luke), `S4e`.** `WHEN a file is uploaded, THE SYSTEM SHALL report the count parsed, the count actually written, and the date range covered, as each file lands and again on completion`
 - `IF a file is not a recognised export, THEN THE SYSTEM SHALL name what it expected and SHALL NOT partially ingest it`
 

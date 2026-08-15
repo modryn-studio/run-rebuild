@@ -149,7 +149,7 @@ await rejects('the natural key (trader, platform, external id) is unique', () =>
     platform: 'tradovate',
     externalAccountId: 'GATEFIXTURE0001',
     displayName: 'duplicate',
-    accountType: 'funded',
+    accountType: 'sim_funded',
   }),
 );
 
@@ -860,19 +860,19 @@ console.log('\n=== 12. RESOLVE CREATES ONCE, THEN FINDS ===\n');
 const firstResolve = await resolveAccount({
   traderId: t.id,
   externalAccountId: realName,
-  accountType: 'funded',
+  accountType: 'sim_funded',
   propFirm: 'Tradeify',
 });
 const secondResolve = await resolveAccount({
   traderId: t.id,
   externalAccountId: realName,
-  accountType: 'funded',
+  accountType: 'sim_funded',
 });
 check('resolving twice returns the same account', firstResolve, secondResolve);
 
 const [made] = await db.select().from(account).where(eq(account.id, firstResolve));
 check('the display name defaults to the broker name', made.displayName, realName);
-check('the account type is what the flow asked for', made.accountType, 'funded');
+check('the account type is what the flow asked for', made.accountType, 'sim_funded');
 check('the prop firm is recorded', made.propFirm, 'Tradeify');
 check('the platform is the platform, never the firm', made.platform, 'tradovate');
 
