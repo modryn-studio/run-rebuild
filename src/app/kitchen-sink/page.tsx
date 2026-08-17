@@ -28,7 +28,7 @@ import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { Card, cardSurface, slotSurface } from '@/components/ui/card';
 import { IconButton } from '@/components/ui/icon-button';
-import { Icon } from '@/components/ui/icon';
+import { Icon, ICON_NAMES, type IconName } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -42,6 +42,19 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { ProgressPanel, type Step } from '@/components/views/accounts/progress-panel';
 import { FindingNotice } from '@/components/views/accounts/finding-notice';
 import type { PreflightFinding } from '@/lib/intake/preflight';
+
+// ── icon groups, checked against the real wrapper ──────────────────────────────────────────
+// Curated ORDER for two rows that read as sets — the shell's own nav/chrome marks, then the
+// intake's. Anything in ICON_NAMES but not listed in either becomes UNPLACED_ICONS below, which
+// the Icon section renders as a visible note rather than dropping silently.
+const SHELL_ICONS: IconName[] = [
+  'today', 'accounts', 'trades', 'read', 'settings',
+  'collapse', 'expand', 'menu', 'close', 'check', 'chevron', 'moon', 'sun',
+];
+const INTAKE_ICONS: IconName[] = ['upload', 'file', 'files', 'unmet', 'back', 'add', 'warn'];
+const UNPLACED_ICONS: IconName[] = ICON_NAMES.filter(
+  (n) => !SHELL_ICONS.includes(n) && !INTAKE_ICONS.includes(n)
+);
 
 // ── the bad-day fixtures ────────────────────────────────────────────────────────────────────
 // Deliberately hostile, because the friendly version of each is what every demo already shows.
@@ -407,18 +420,32 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
 
       <Section
         title="Icon"
-        note="Every mark at the system stroke of 1.5. Lucide ships 2, which reads chunky against a 14px body face and a hairline border. One wrapper, one number, so two icons at the same size can never disagree."
+        note="EVERY NAME IN THE MAP, and that is a claim this section checks rather than states: IconNames below is Object.keys on the real MARKS object, so a name added to the wrapper and never shown here is now impossible. Missing exactly that (the eight S4e names present in the map but absent from this row) was the finding that started this pass (2026-08-15). Every mark at the system stroke of 1.5; Lucide ships 2, which reads chunky against a 14px body face and a hairline border."
       >
-        <Row label="16px (default)">
-          {(['today', 'accounts', 'trades', 'read', 'settings', 'collapse', 'expand', 'menu', 'close', 'check', 'chevron', 'moon', 'sun'] as const).map(
-            (n) => (
-              <span key={n} className="text-muted flex flex-col items-center gap-1">
-                <Icon name={n} />
-                <span className="text-micro">{n}</span>
-              </span>
-            ),
-          )}
+        <Row label="shell">
+          {SHELL_ICONS.map((n) => (
+            <span key={n} className="text-muted flex flex-col items-center gap-1">
+              <Icon name={n} />
+              <span className="text-micro">{n}</span>
+            </span>
+          ))}
         </Row>
+        <Row label="intake (S4e)">
+          {INTAKE_ICONS.map((n) => (
+            <span key={n} className="text-muted flex flex-col items-center gap-1">
+              <Icon name={n} />
+              <span className="text-micro">{n}</span>
+            </span>
+          ))}
+        </Row>
+        {UNPLACED_ICONS.length > 0 && (
+          <Note>
+            {UNPLACED_ICONS.length} name{UNPLACED_ICONS.length === 1 ? '' : 's'} in the wrapper this
+            section does not yet know how to group: {UNPLACED_ICONS.join(', ')}. Add it to SHELL_ICONS
+            or INTAKE_ICONS above, or start a third row: never leave it here, this line existing at
+            all is the thing to fix.
+          </Note>
+        )}
         <Row label="scale">
           <Icon name="today" size={13} />
           <Icon name="today" size={16} />
