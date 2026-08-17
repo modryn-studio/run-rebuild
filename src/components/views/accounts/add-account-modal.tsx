@@ -51,12 +51,21 @@ export function AddAccountModal({
   onClose,
   closing,
   connected,
+  dryRun = false,
 }: {
   onClose: () => void;
   closing?: boolean;
   /** How many broker logins are already connected. Counts LOGINS rather than accounts, because a
    *  firm issues one Tradovate login and a copy-trader runs many accounts under it. */
   connected: number;
+  /* DEMO ONLY, AND THIS IS THE FIX FOR A REAL BUG (2026-08-15). `/kitchen-sink/demo`'s "doors" scene
+   * mounted this component directly with no way to reach `FileUploadStep`'s `dryRun` — so clicking
+   * through Import trades from that scene landed on the REAL upload step, which posts to
+   * `/api/csv-import` for real. That is the exact v2 mistake this codebase's own comments warn
+   * about: "the rule is the property, not the patch — if a form mounted here can reach the network,
+   * this file is lying." It was not a hypothetical; it was reachable from the page whose header
+   * claims nothing here writes to the database. Never passed by app code. */
+  dryRun?: boolean;
 }) {
   const router = useRouter();
   const [view, setView] = useState<View>('doors');
@@ -89,6 +98,7 @@ export function AddAccountModal({
     <ModalShell onDismiss={dismiss} busy={busy} closing={closing}>
       {view === 'upload' ? (
         <FileUploadStep
+          dryRun={dryRun}
           source={TRADOVATE}
           onBack={() => setView('doors')}
           onClose={close}

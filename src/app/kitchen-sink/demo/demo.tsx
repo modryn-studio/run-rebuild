@@ -206,7 +206,7 @@ export function AddAccountDemo() {
           : 'Closed. Pick a scene to mount it again.'}
       </p>
 
-      {scene === 'doors' && <AddAccountModal key={nonce} onClose={close} connected={0} />}
+      {scene === 'doors' && <AddAccountModal key={nonce} onClose={close} connected={0} dryRun />}
 
       {scene === 'upload' && (
         <ModalShell key={nonce} onDismiss={close}>
