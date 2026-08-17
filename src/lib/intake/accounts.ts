@@ -52,12 +52,23 @@ export interface ResolveAccountArgs {
   traderId: string;
   /** The account NAME from the export, e.g. `FTDFYL100183704873`. */
   externalAccountId: string;
-  /** Required at creation (`spec.md` §3): without it Run cannot tell a personal signup from a
-   *  prop one, and admitting the segment at all would be pointless. The flow asks for it in step
-   *  1 before a file is even chosen, which is why it can be required here. */
-  accountType: AccountType;
+  /* OPTIONAL, AND IT WAS REQUIRED UNTIL 2026-08-15 (S4e). The old note here said "the flow asks
+     for it in step 1 before a file is even chosen, which is why it can be required" — and that
+     flow is exactly what could not be built. An export names an unknown number of accounts until
+     it is parsed, so a question asked before the upload asks once when the answer might be
+     eleven; and phase is not derivable from the files at all, since a funded account and an
+     evaluation produce byte-identical exports.
+     See `docs/docs from run-trading/prop-firm-identity.md` §2.3. Undefined means UNLABELLED, which
+     is a normal state for a row that just arrived carrying real fills, and the labelling step
+     names it afterwards. Never defaulted: a guess here is Run inventing a fact about somebody's
+     money, and it lands in a row every later surface reads as true. */
+  accountType?: AccountType | null;
   platform?: string;
+  /** The firm, when it is known. Null is the normal answer — Tradovate carries it nowhere. */
   propFirm?: string | null;
+  /** How the firm was arrived at. `detected` for a prefix recalled from another trader's
+   *  confirmed account; `stated` only when this trader said so about THIS account. */
+  firmSource?: 'stated' | 'detected' | null;
   /** Defaults to the account name. An override, never a requirement. */
   displayName?: string;
 }
@@ -109,8 +120,9 @@ export async function resolveAccount(args: ResolveAccountArgs): Promise<string> 
       // The raw broker name until a human renames it. Better than a generated label: it is what
       // the trader sees in Tradovate, so the two surfaces agree on day one.
       displayName: args.displayName ?? externalAccountId,
-      accountType: args.accountType,
+      accountType: args.accountType ?? null,
       propFirm: args.propFirm ?? null,
+      firmSource: args.firmSource ?? null,
     })
     .onConflictDoNothing()
     .returning({ id: account.id });

@@ -104,7 +104,7 @@ Two things this changes, and both are cheap now and expensive later:
 1. **No copy may promise that Run preserves data "after your firm wipes your blown account."**
    That is true for prop and false for personal accounts, and it is the highest-stakes
    misleading string in the product.
-2. **A connection must record its account type** (evaluation / funded / personal). Without it
+2. **A connection must record its account type** (evaluation / sim funded / personal). Without it
    Run cannot tell a personal signup from a prop one, and the whole point of admitting the
    segment is learning what it does.
 
@@ -302,9 +302,37 @@ Acceptance criteria:
 - `THE SYSTEM SHALL require all four Tradovate exports — Fills, Position History, Cash History and Orders — before committing an import`
 - `THE SYSTEM SHALL resolve, in code and before any model sees the tape, a trade's direction, its outcome, what closed it, and whether a cancel was the trader's decision or the platform's OCO sibling` — every one of these was a measured wrong read when left to inference
 - `THE SYSTEM SHALL accept a Tradovate CSV export and create or update an account from it`
-- `THE SYSTEM SHALL record each connection's account type — evaluation, funded, or personal — at the time it is added`
-- `WHEN a file is uploaded, THE SYSTEM SHALL report the count parsed, the date range covered, and the count rejected, before committing anything`
+- ~~`THE SYSTEM SHALL record each connection's account type — evaluation, funded, or personal — at the time it is added`~~ → **AMENDED 2026-08-15 (Luke), `S4e`.** `THE SYSTEM SHALL record each account's type — evaluation, sim funded, or personal — and SHALL ask for it after the import that created the account, never before`
+- ~~`WHEN a file is uploaded, THE SYSTEM SHALL report the count parsed, the date range covered, and the count rejected, before committing anything`~~ → **AMENDED 2026-08-15 (Luke), `S4e`.** `WHEN a file is uploaded, THE SYSTEM SHALL report the count parsed, the count actually written, and the date range covered, as each file lands and again on completion`
 - `IF a file is not a recognised export, THEN THE SYSTEM SHALL name what it expected and SHALL NOT partially ingest it`
+
+**Why those two were amended, and what did NOT change.** Both were written at `p2-gate`, before
+`run-trading@v2`'s intake had been read closely. `docs/docs from run-trading/prop-firm-identity.md`
+§2.3 is the finding that overturns the first, and it is verified against twelve real export files
+from two firms:
+
+> You cannot ask for firm/size/phase before an upload. The number of accounts inside an export is
+> unknown until it is parsed, and a copy-trader's export contains many. So capture is a
+> **post-ingest confirm step** ("here is what I found, correct me"), never a pre-ingest form.
+
+Phase is **not derivable, ever** — a funded account and an evaluation produce byte-identical files —
+so it has to be asked. And it cannot be asked first, because until the parse runs nobody knows
+whether the answer is needed once or eleven times. **An unlabelled account is therefore a normal
+state**, not a defect: the row lands real, holding real fills, and gets named after. That is also
+the better product, and the reason is not convenience — Run's promise is that it pays attention, so
+after a file lands it should state what it found rather than open with a form.
+
+The second follows from the first: with no pre-ingest form there is no pre-ingest panel to hang a
+confirm gate on, and the counts arrive as the stream lands instead.
+
+**What did not change is the part that matters.** Every check still runs BEFORE the write —
+`lib/intake/preflight.ts` is server-side and pure, and `commitImport` refuses a `PreflightResult`
+that failed, so an import that cannot be reconciled is never stored. The trader is no longer asked
+to approve the numbers; they are told what happened. `#79` is unaffected: "imported 187" when the
+real answer is zero was always about reporting rows the database ACCEPTED, and that guarantee lives
+in the write path, not in a confirm screen.
+
+
 - `IF the same file is uploaded twice, THEN THE SYSTEM SHALL detect the overlap and SHALL NOT double-count any fill`
 - `THE SYSTEM SHALL NOT display a raw HTTP status code or parser exception to a user`
 
@@ -585,7 +613,9 @@ accessibility markup of Monarch's Accounts and Transactions pages (chrome-devtoo
 2026-08-11) rather than inferred from screenshots.
 
 - `Accounts` ✅ — hero metric selector, groups carrying their own totals, freshness on every row
-- `Add account (CSV)` ✅ — nothing commits until the count/range/rejects are confirmed
+- `Add account (CSV)` ✅ — every check runs before the write, and the counts reported are rows the
+  database accepted (amended 2026-08-15 with §S1's criteria; it read *"nothing commits until the
+  count/range/rejects are confirmed"*, which described a confirm gate that `S4e` does not build)
 - `Trades` ✅ — session headers carrying net/count/win rate, filtered-set digest, read-only rows
 - `Read` ✅ — daily, a page not a modal, one pattern, plus the History tab
 - `Today` ✅ — Monarch's widget contract applied unchanged

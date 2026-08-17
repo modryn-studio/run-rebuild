@@ -24,6 +24,8 @@ const { parseCashHistory } = await import('../src/lib/csv/cash-history.ts');
 const { parseAccountBalanceHistory } = await import('../src/lib/csv/account-balance.ts');
 const { reconcileAgainstStatement } = await import('../src/lib/intake/statement.ts');
 const { sessionDateFor } = await import('../src/lib/time/session.ts');
+const { resolveOrderInstant } = await import('../src/lib/intake/round-trip-instant.ts');
+const { parseTradovateOrdersCsv } = await import('../src/lib/csv/orders.ts');
 
 /* `payload` is `jsonb`, so drizzle types it `unknown` — correct, because nothing can promise the
    shape of a column the database will accept anything into. The gate is exactly the place that
@@ -149,7 +151,7 @@ await rejects('the natural key (trader, platform, external id) is unique', () =>
     platform: 'tradovate',
     externalAccountId: 'GATEFIXTURE0001',
     displayName: 'duplicate',
-    accountType: 'funded',
+    accountType: 'sim_funded',
   }),
 );
 
@@ -484,6 +486,7 @@ const realPaired = realCash.tradePaired;
 
 // The clean case first. If this ever goes false the guards are miscalibrated, and a false refusal
 // costs more than a missed one: it blocks a trader whose files are fine.
+const orders = parseTradovateOrdersCsv(readCsv('Orders (10).csv'));
 const statement = parseAccountBalanceHistory(readCsv('Account Balance History.csv'));
 check('the statement parses cleanly, no rows dropped', statement.unreadableRows, 0);
 check('...and is recognised', statement.unrecognised, false);
@@ -820,6 +823,61 @@ const [ghost] = await db
 check('...and wrote no import row at all', Number(ghost?.n ?? -1), 0);
 
 
+console.log('\n=== 9e. AN ORDER BORROWS ITS FILL\'S UTC, OR SAYS IT COULD NOT (S4e) ===\n');
+
+/* Orders carry `placedAtLocal` and nothing else — that export has no timezone column at all. A
+   filled order is referenced by a fill, and fills are the only rows in the batch carrying real UTC,
+   so a filled order can be dated exactly. An unfilled one cannot, and most of them are unfilled:
+   a cancelled stop, a rejected entry, a working limit that never traded.
+
+   This matters more than it looks. Orders are in the corpus because they are the only record of a
+   stop being placed, moved or cancelled, which is the difference between a trade the trader closed
+   and one the platform closed for them. Putting a cancel on the wrong session date attributes a
+   decision to the wrong day. */
+const orderInstantIndex = new Map<string, Date>();
+for (const f of fills) {
+  if (!f.externalOrderId) continue;
+  const seen = orderInstantIndex.get(f.externalOrderId);
+  if (!seen || f.filledAt < seen) orderInstantIndex.set(f.externalOrderId, f.filledAt);
+}
+
+const filledOrder = orders.find((o) => o.externalOrderId && orderInstantIndex.has(o.externalOrderId));
+check('the reference export has orders that filled', filledOrder !== undefined, true);
+if (filledOrder) {
+  const r = resolveOrderInstant(filledOrder, orderInstantIndex);
+  check('a filled order is dated from its fill, exactly', r.timeSource, 'fills_utc');
+  check(
+    '...and it is the fill instant, not the local string',
+    r.at.getTime(),
+    orderInstantIndex.get(filledOrder.externalOrderId!)!.getTime()
+  );
+}
+
+// The EARLIEST fill wins: a scaled entry fills in several parts and the order was placed before the
+// first of them, so the first fill is the closest real instant the batch holds. The last would date
+// the order by when it finished filling.
+const scaled = [...orderInstantIndex.entries()].find(([id]) => fills.filter((f) => f.externalOrderId === id).length > 1);
+if (scaled) {
+  const parts = fills.filter((f) => f.externalOrderId === scaled[0]).map((f) => f.filledAt.getTime());
+  check('a scaled order takes its EARLIEST fill', scaled[1].getTime(), Math.min(...parts));
+}
+
+// An order that never filled has no UTC anywhere, and the label is what makes that legible later.
+const unfilled = orders.find((o) => !o.externalOrderId || !orderInstantIndex.has(o.externalOrderId));
+check('the reference export has orders that never filled', unfilled !== undefined, true);
+if (unfilled) {
+  const r = resolveOrderInstant(unfilled, orderInstantIndex);
+  check('an unfilled order falls back to local, and SAYS so', r.timeSource, 'position_local');
+}
+
+const orphan = { ...orders[0], externalOrderId: null, placedAtLocal: null, filledAtLocal: null };
+check(
+  'an order with no time at all is labelled ingest_time, never dressed as resolved',
+  resolveOrderInstant(orphan, orderInstantIndex).timeSource,
+  'ingest_time'
+);
+
+
 console.log('\n=== 10. AND NOTHING WAS WRITTEN BY ANY OF THAT ===\n');
 
 // The whole point of a preflight is that it runs before the log is touched. If any of the checks
@@ -860,19 +918,19 @@ console.log('\n=== 12. RESOLVE CREATES ONCE, THEN FINDS ===\n');
 const firstResolve = await resolveAccount({
   traderId: t.id,
   externalAccountId: realName,
-  accountType: 'funded',
+  accountType: 'sim_funded',
   propFirm: 'Tradeify',
 });
 const secondResolve = await resolveAccount({
   traderId: t.id,
   externalAccountId: realName,
-  accountType: 'funded',
+  accountType: 'sim_funded',
 });
 check('resolving twice returns the same account', firstResolve, secondResolve);
 
 const [made] = await db.select().from(account).where(eq(account.id, firstResolve));
 check('the display name defaults to the broker name', made.displayName, realName);
-check('the account type is what the flow asked for', made.accountType, 'funded');
+check('the account type is what the flow asked for', made.accountType, 'sim_funded');
 check('the prop firm is recorded', made.propFirm, 'Tradeify');
 check('the platform is the platform, never the firm', made.platform, 'tradovate');
 

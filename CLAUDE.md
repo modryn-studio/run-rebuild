@@ -138,8 +138,11 @@ Each is a bug that shipped or a session that got burned.
   and takes `npm run lint` down with it.
 - **Tailwind v4 has no config file.** `@theme` in `src/app/globals.css` — never `:root`, never
   `tailwind.config.*`.
-- **One icon set.** `lucide-react`. Never inline an `<svg>`, never generate a UI icon. Stroke
-  weights drifted 50% across a codebase before this rule.
+- **One icon set, one wrapper.** `src/components/ui/icon.tsx`. Hand-drawn is the default, ported
+  verbatim from `run-trading@v2`; `lucide-react` is the stated fallback for the few names v2 never
+  drew (`read`, `expand`, `warn`). Both obey the same wrapper: `viewBox 0 0 24 24`, stroke 1.5,
+  round cap/join. Never inline an `<svg>`, never generate a UI icon elsewhere — stroke weights
+  drifted 50% across a codebase before this rule, in both builds independently.
 - **API routes use `createRouteLogger`** from `@/lib/route-logger` — never raw `console.log`.
 - **Env vars go in `src/lib/env.ts`** (zod, fail-fast) or they fail at request time instead of boot.
 - **An emailed code, not a magic link.** A link signs in whichever device opens it.

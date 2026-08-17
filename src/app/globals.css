@@ -445,6 +445,12 @@
   --mark-5: #5c478f;  /* iris    */
   --mark-6: #743e7c;  /* orchid  */
   --mark-7: #833862;  /* rose    */
+  /* A THIRD-PARTY MARK'S OWN TILE, not a Run surface, so it does not move with the theme. A
+     connected broker or firm ships one logo file that assumes a light ground (Tradovate's does);
+     sitting it on `--color-surface-2` in dark would put a light-only asset on a dark chip and it
+     would read as a rendering bug. Same value in both modes on purpose - this is the one place
+     that IS the point of `@theme static` rather than an oversight of it. */
+  --color-logo-tile: #fdfcf9;
 }
 
 /* Dark mode — a warm-matched counterpart, accent lifted for legibility. Toggled via

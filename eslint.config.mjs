@@ -61,6 +61,21 @@ export default [
             'lift-press',
             // Menu's open animation.
             'pop-in',
+            // The confirming gesture on a selected chip. globals.css:754, and already in the
+            // reduced-motion block. Belongs to the TRADER's choice, never to system progress.
+            'select-pop',
+            // The inline text link: accent ink, underline on hover. A hand-written rule at
+            // globals.css:606 rather than a token, because it is a two-property recipe rather than
+            // a scale value.
+            'text-link',
+            // The tick that draws itself in on a completed intake step. globals.css:820, with its
+            // own note in the reduced-motion block explaining why it is exempt there.
+            'check-draw',
+            // The intake progress list. Defined ONLY in the reduced-motion block (globals.css:877),
+            // which is the whole point of it: the travel is applied by Tailwind utilities on the
+            // element, and this class exists solely as the hook that cancels it. S3c wrote the rule
+            // before the panel it describes existed.
+            'steps-track',
             // The app pane's scrollbar: `scrollbar-width: thin` plus a thumb from the border
             // token. Standard properties only, never `::-webkit-scrollbar` — the two do not
             // compose, so carrying both means maintaining two descriptions of one bar.

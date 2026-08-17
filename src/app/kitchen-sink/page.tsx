@@ -23,12 +23,12 @@
  * never a plausible P&L figure that could be screenshotted and read as a real trade.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { Card, cardSurface, slotSurface } from '@/components/ui/card';
 import { IconButton } from '@/components/ui/icon-button';
-import { Icon } from '@/components/ui/icon';
+import { Icon, ICON_NAMES, type IconName } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -39,6 +39,23 @@ import { LoadingMark } from '@/components/ui/loading-mark';
 import { Wordmark } from '@/components/ui/wordmark';
 import { CodeInput } from '@/components/ui/code-input';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { V2_ICON_GROUPS } from './v2-icons';
+import { ProgressPanel, type Step } from '@/components/views/accounts/progress-panel';
+import { FindingNotice } from '@/components/views/accounts/finding-notice';
+import type { PreflightFinding } from '@/lib/intake/preflight';
+
+// ── icon groups, checked against the real wrapper ──────────────────────────────────────────
+// Curated ORDER for two rows that read as sets — the shell's own nav/chrome marks, then the
+// intake's. Anything in ICON_NAMES but not listed in either becomes UNPLACED_ICONS below, which
+// the Icon section renders as a visible note rather than dropping silently.
+const SHELL_ICONS: IconName[] = [
+  'today', 'accounts', 'trades', 'read', 'settings',
+  'collapse', 'expand', 'menu', 'close', 'check', 'chevron', 'moon', 'sun',
+];
+const INTAKE_ICONS: IconName[] = ['upload', 'file', 'files', 'unmet', 'back', 'add', 'warn'];
+const UNPLACED_ICONS: IconName[] = ICON_NAMES.filter(
+  (n) => !SHELL_ICONS.includes(n) && !INTAKE_ICONS.includes(n)
+);
 
 // ── the bad-day fixtures ────────────────────────────────────────────────────────────────────
 // Deliberately hostile, because the friendly version of each is what every demo already shows.
@@ -64,6 +81,151 @@ export default function KitchenSinkPage() {
   return <Rack />;
 }
 
+
+/* ── FINDING THINGS IN HERE ───────────────────────────────────────────────────────────────────
+ *
+ * Twenty-five sections in one column is a scroll, not a rack. Added 2026-08-15 when the intake's
+ * four sections pushed it past the point where you could find anything (Luke: "it's become very
+ * large and i need organization").
+ *
+ * WHAT TOP DESIGN-SYSTEM SITES ACTUALLY DO, and it is the same three things everywhere — Storybook,
+ * Radix, Polaris, Carbon: a PERSISTENT GROUPED NAV, the current item MARKED, and the content in one
+ * scrolling column. That is the whole pattern. What they add beyond it (per-component routes, a
+ * search index, versioned docs, MDX) is infrastructure that pays for itself at hundreds of
+ * components and dozens of contributors, and buys nothing at twenty-five and one.
+ *
+ * SO: NO ROUTER, NO SEARCH BOX. A search field over twenty-five items you can see at once is a
+ * control that exists to look busy — the same reasoning that keeps a search out of the broker
+ * picker. And a route per section would break the one property this page is FOR: side-by-side
+ * adjacency is what catches three components disagreeing about a radius, and you cannot compare
+ * across a navigation.
+ *
+ * GROUPED BY WHAT A THING IS, not by which file it lives in. `Nav row` and `The overlong list` are
+ * compositions rather than primitives; the ramps and contrast tables are proofs rather than
+ * components. Those are different questions and they were interleaved.
+ */
+
+const slug = (title: string) =>
+  title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+const GROUPS: { group: string; titles: string[] }[] = [
+  { group: 'Controls', titles: ['Button', 'IconButton', 'ThemeToggle', 'Switch', 'Menu'] },
+  { group: 'Inputs', titles: ['Input', 'Textarea', 'CodeInput'] },
+  { group: 'Marks and feedback', titles: ['Icon', 'Tooltip', 'Spinner · LoadingMark · Wordmark'] },
+  { group: 'Surfaces', titles: ['Card'] },
+  {
+    group: 'Compositions',
+    titles: ['Nav row: the reference, and what ships', 'Nav row: what it replaced', 'The overlong list'],
+  },
+  {
+    group: 'Intake (S4e)',
+    titles: [
+      'Intake · progress panel',
+      'Intake · the thirteen refusals',
+      'Intake · required-file checklist',
+      'Intake · staged file rows',
+    ],
+  },
+  {
+    group: 'Tokens and proofs',
+    titles: ['Type ramp', 'Spacing ramp', 'Ground stack', 'Elevation', 'Contrast', 'Ink roles', 'Edges'],
+  },
+  { group: 'Reference', titles: ["v2's icon set"] },
+];
+
+/* ONLY THE FIRST PANE CARRIES THE ANCHOR IDS. In `both` mode every section renders twice, and two
+ * elements with one id is a broken document — `getElementById` would return the light one and the
+ * observer would watch a duplicate. The two panes scroll TOGETHER in one container at the same
+ * vertical offsets, so anchoring the first also aligns the second. */
+const AnchorCtx = createContext(true);
+
+/** The rail. Sticky, its own scroll, and it never scrolls the page — only the content column. */
+function SectionNav({
+  scrollRef,
+}: {
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const [active, setActive] = useState<string | null>(null);
+
+  /* SCROLL-SPY ON THE CONTAINER, not the window: the rack scrolls an inner element (it matches the
+     app shell, so the document itself never moves) and an observer with no `root` would watch the
+     viewport and never fire. */
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root) return;
+    const targets = [...root.querySelectorAll('section[id]')];
+    if (targets.length === 0) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        // The topmost intersecting section wins, so scrolling up marks the one you arrived at
+        // rather than whichever fired last.
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) setActive(visible[0].target.id);
+      },
+      // A band near the top: a section counts as current once its heading reaches the upper third.
+      { root, rootMargin: '0px 0px -66% 0px', threshold: 0 }
+    );
+    targets.forEach((t) => io.observe(t));
+    return () => io.disconnect();
+  }, [scrollRef]);
+
+  return (
+    <nav
+      aria-label="Sections"
+      /* `pr-4` beyond the item padding: common practice on a persistent rail (Storybook, Radix,
+         GitHub docs) is a visible gutter between the divider and the content it separates, not
+         just internal item padding. The content side gets its own matching pl-8 below — the two
+         together read as one gap rather than "content pinned to a line". */
+      className="scroll-thin border-border hidden w-56 shrink-0 overflow-y-auto border-r py-6 pr-4 pl-3 lg:block"
+    >
+      {GROUPS.map(({ group, titles }) => (
+        <div key={group} className="mb-5">
+          <p className="text-micro text-muted px-2 pb-1.5 uppercase">{group}</p>
+          <ul>
+            {titles.map((t) => {
+              const id = slug(t);
+              const on = active === id;
+              return (
+                <li key={t}>
+                  <button
+                    onClick={() => {
+                      const el = scrollRef.current?.querySelector(`#${id}`);
+                      el?.scrollIntoView({ block: 'start' });
+                    }}
+                    aria-current={on ? 'true' : undefined}
+                    className={cn(
+                      'text-small w-full truncate rounded-[var(--radius-sm)] px-2 py-1 text-left transition-colors',
+                      on ? 'bg-hover text-text font-medium' : 'text-muted hover:text-text'
+                    )}
+                  >
+                    {t}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+
+      {/* The rack shows the pieces; the demo shows the FLOW. Two different questions, and the one
+          this page cannot answer deserves a door rather than a mention. */}
+      <a
+        href="/kitchen-sink/demo"
+        className="border-border text-small hover:bg-hover mt-2 flex items-center gap-2 rounded-[var(--radius-sm)] border px-2 py-1.5 transition-colors"
+      >
+        <Icon name="upload" size={14} className="text-muted shrink-0" />
+        Add account, live
+      </a>
+    </nav>
+  );
+}
+
 function Rack() {
   const [theme, setTheme] = useState<ThemeMode>('light');
   const [width, setWidth] = useState<Width>(1280);
@@ -71,6 +233,9 @@ function Rack() {
 
   const text = density === 'long' ? LONG : SHORT;
   const errorText = density === 'long' ? ERROR_LONG : ERROR_SHORT;
+
+  /* The scroll container, handed to the rail so its observer watches the right element. */
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   return (
     /* h-dvh + an internal scroll region, matching the app shell. The rack sits OUTSIDE the
@@ -112,9 +277,23 @@ function Rack() {
       {/* SIDE BY SIDE IS THE MODE THAT FINDS BUGS. This system's dark values are per-mode
           literals, not inversions — scrims, shadows and pressed grounds each have their own
           value, so each can be wrong in exactly one mode. Nobody finds that by using the app. */}
-      <div className={cn('scroll-thin flex min-h-0 flex-1 overflow-y-auto', theme === 'both' ? 'divide-border divide-x' : '')}>
-        {(theme === 'both' ? (['light', 'dark'] as const) : ([theme] as const)).map((mode) => (
-          <div key={mode} className={cn('min-w-0 flex-1', mode === 'dark' && 'dark')}>
+      <div className="flex min-h-0 flex-1">
+        <SectionNav scrollRef={scrollRef} />
+        <div
+          ref={scrollRef}
+          /* `pl-8`, on the SCROLL CONTAINER, never on the width-simulated column inside it. That
+             inner column's own `px-4` is the thing under test at each width step — it stands in
+             for a real page's own gutter, and padding added there would misreport what 375px
+             actually looks like. This padding lives one level out, so it only ever adds distance
+             from the rail; the simulated widths stay exact. */
+          className={cn(
+            'scroll-thin flex min-h-0 flex-1 overflow-y-auto pl-8',
+            theme === 'both' ? 'divide-border divide-x' : ''
+          )}
+        >
+        {(theme === 'both' ? (['light', 'dark'] as const) : ([theme] as const)).map((mode, paneIndex) => (
+          <AnchorCtx.Provider key={mode} value={paneIndex === 0}>
+          <div className={cn('min-w-0 flex-1', mode === 'dark' && 'dark')}>
             <div className="bg-bg text-text min-h-full">
               <div className="scroll-thin mx-auto overflow-x-auto" style={{ maxWidth: width }}>
                 <div className="space-y-12 px-4 py-10" style={{ width }}>
@@ -128,7 +307,9 @@ function Rack() {
               </div>
             </div>
           </div>
+          </AnchorCtx.Provider>
         ))}
+        </div>
       </div>
     </div>
   );
@@ -241,18 +422,32 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
 
       <Section
         title="Icon"
-        note="Every mark at the system stroke of 1.5. Lucide ships 2, which reads chunky against a 14px body face and a hairline border. One wrapper, one number, so two icons at the same size can never disagree."
+        note="EVERY NAME IN THE MAP, and that is a claim this section checks rather than states: IconNames below is Object.keys on the real MARKS object, so a name added to the wrapper and never shown here is now impossible. What draws each one changed under this section without the check needing to (2026-08-15): 17 of these 20 are now v2's own hand-drawn marks, direct-swapped in; three (read, expand, warn) stay on lucide-react because v2 draws nothing for them. Every mark at the system stroke of 1.5 either way. See icon.tsx for which three and why."
       >
-        <Row label="16px (default)">
-          {(['today', 'accounts', 'trades', 'read', 'settings', 'collapse', 'expand', 'menu', 'close', 'check', 'chevron', 'moon', 'sun'] as const).map(
-            (n) => (
-              <span key={n} className="text-muted flex flex-col items-center gap-1">
-                <Icon name={n} />
-                <span className="text-micro">{n}</span>
-              </span>
-            ),
-          )}
+        <Row label="shell">
+          {SHELL_ICONS.map((n) => (
+            <span key={n} className="text-muted flex flex-col items-center gap-1">
+              <Icon name={n} />
+              <span className="text-micro">{n}</span>
+            </span>
+          ))}
         </Row>
+        <Row label="intake (S4e)">
+          {INTAKE_ICONS.map((n) => (
+            <span key={n} className="text-muted flex flex-col items-center gap-1">
+              <Icon name={n} />
+              <span className="text-micro">{n}</span>
+            </span>
+          ))}
+        </Row>
+        {UNPLACED_ICONS.length > 0 && (
+          <Note>
+            {UNPLACED_ICONS.length} name{UNPLACED_ICONS.length === 1 ? '' : 's'} in the wrapper this
+            section does not yet know how to group: {UNPLACED_ICONS.join(', ')}. Add it to SHELL_ICONS
+            or INTAKE_ICONS above, or start a third row: never leave it here, this line existing at
+            all is the thing to fix.
+          </Note>
+        )}
         <Row label="scale">
           <Icon name="today" size={13} />
           <Icon name="today" size={16} />
@@ -729,7 +924,279 @@ function TokenProofs() {
           inside it to do the identifying.
         </Note>
       </Section>
+
+      {/* ── S4e: THE INTAKE ─────────────────────────────────────────────────────────────────
+          Added 2026-08-15. The rack is where a component is reviewed, so one that is not in it has
+          not been looked at — and the intake's states are unusually hard to reach by hand: a
+          failure needs a deliberately broken export, and thirteen of them need thirteen. */}
+      <Section
+        title="Intake · progress panel"
+        note="Every state the real panel can be in. The live one arrives from the server's NDJSON stream as each file lands; nothing here advances on a timer, and nothing here is on a timer either."
+      >
+        <Row label="running">
+          <RackPanel steps={PANEL_RUNNING} />
+        </Row>
+        <Row label="failed">
+          <RackPanel steps={PANEL_FAILED} />
+        </Row>
+        <Row label="done">
+          <RackPanel steps={PANEL_DONE} />
+        </Row>
+        <Note>
+          Failure is distinguished by SHAPE, not only colour: a cross mirrors the tick exactly, so
+          the two terminal states read as opposites at a glance. A tinted disc with a dot in it
+          would be the active bullet recoloured, and terracotta against pine is precisely the
+          confusable pair. The detail line renders only on failure, because on success five labels
+          each with a number under them read as a busy list.
+        </Note>
+      </Section>
+
+      <Section
+        title="Intake · the thirteen refusals"
+        note="Every PreflightCode, with its real detail object. This is the only surface these ever reach: there is no confirm panel in the flow, so a refusal has exactly one place to be read."
+      >
+        <div className="flex flex-col gap-5">
+          {RACK_FINDINGS.map((f) => (
+            <div key={f.code} className="flex flex-col gap-1.5">
+              <code className="num text-micro text-muted">{f.code}</code>
+              <FindingNotice finding={f} />
+            </div>
+          ))}
+        </div>
+        <Note>
+          Two of these are warnings rather than refusals (<code className="num">pnl_unreconciled</code>{' '}
+          and <code className="num">statement_uncovered</code>) and they carry no alert mark, so the
+          distinction is shape as well as ink. Read them as a set: every line has to say what is
+          wrong and then what to do, and any line that leaves a trader with no action will send them
+          back to retry the identical upload.
+        </Note>
+      </Section>
+
+      <Section
+        title="Intake · required-file checklist"
+        note="Four required, and the optional fifth deliberately absent. A checklist that lists optional things reads as a wall of things you are failing to provide."
+      >
+        <Row label="none">
+          <RackReqs met={[]} />
+        </Row>
+        <Row label="partial">
+          <RackReqs met={['fills', 'position_history']} />
+        </Row>
+        <Row label="all">
+          <RackReqs met={['fills', 'position_history', 'cash_history', 'orders']} />
+        </Row>
+      </Section>
+
+      <Section
+        title="Intake · staged file rows"
+        note="What a dropped file looks like once its type is read from its header. The unrecognised row is the one worth looking at: it is named back to the trader rather than silently dropped."
+      >
+        <div className="flex max-w-md flex-col gap-2">
+          <RackFileRow name="Fills.csv" type="Fills" />
+          <RackFileRow name="Cash History.csv" type="Cash History" />
+          <RackFileRow name={LONG_FILENAME} type="Position History" />
+          <RackFileRow name="screenshot-2026-08-15.csv" type={null} />
+        </div>
+        <Note>
+          The long name truncates from the right and keeps its type chip and its remove control,
+          because those are the two things the row exists for. A file the detector does not
+          recognise says so in <code className="num">neg</code> rather than being refused at the
+          drop zone: the trader chose it, so it is named and left for them to remove.
+        </Note>
+      </Section>
+
+      <Section
+        title="v2's icon set"
+        note="run-trading@v2's complete 34-icon set. 17 of these are now ALSO the live marks in this build's own Icon section above: direct-swapped in, not approximated, because the geometry already matched exactly. The other 17 are shown here anyway, because this file stays a complete, standalone copy of v2's set rather than shrinking to only what got adopted. Grouped in v2's own file order, not a taxonomy invented for this page."
+      >
+        {V2_ICON_GROUPS.map(({ label, icons }) => (
+          <Row key={label} label={label}>
+            {icons.map(([name, V2Mark]) => (
+              <span key={name} className="text-muted flex flex-col items-center gap-1">
+                <V2Mark size={16} />
+                <span className="text-micro">{name}</span>
+              </span>
+            ))}
+          </Row>
+        ))}
+        <Note>
+          Every icon here is its own small component, copied in v2&apos;s own shape rather than
+          reduced to a generic path-string table, so this file stays a straightforward `git diff`
+          against the source instead of a re-derivation nothing else can check.
+        </Note>
+      </Section>
     </>
+  );
+}
+
+/* ── S4e INTAKE FIXTURES AND HARNESSES ───────────────────────────────────────────────────────
+ *
+ * NO FIXTURE HERE COULD BE MISTAKEN FOR REAL DATA, which is the rack's standing rule and matters
+ * more in this section than anywhere else: these render money figures and day counts, and a
+ * screenshot of a plausible one would read as a real trader's real loss. Every number below is
+ * obviously synthetic (7s and 3s, round hundreds) and no account name is a real Tradovate name.
+ */
+
+const LONG_FILENAME =
+  'Position History (9) copy final FINAL v3 exported 2026-08-15 from the reports tab.csv';
+
+const PANEL_RUNNING: Step[] = [
+  { id: 'read', label: 'Reading your files', state: 'done' },
+  { id: 'fills', label: 'Saving your fills', state: 'done' },
+  { id: 'position_history', label: 'Saving your trades', state: 'active' },
+  { id: 'cash_history', label: 'Saving your fees', state: 'pending' },
+  { id: 'orders', label: 'Saving your orders', state: 'pending' },
+];
+
+const PANEL_FAILED: Step[] = [
+  { id: 'read', label: 'Reading your files', state: 'done' },
+  { id: 'fills', label: 'Saving your fills', state: 'done' },
+  {
+    id: 'position_history',
+    label: 'Saving your trades',
+    state: 'failed',
+    detail: 'Needs your Fills export too',
+  },
+  { id: 'cash_history', label: 'Saving your fees', state: 'pending' },
+];
+
+const PANEL_DONE: Step[] = [
+  { id: 'read', label: 'Reading your files', state: 'done' },
+  { id: 'fills', label: 'Saving your fills', state: 'done' },
+  { id: 'position_history', label: 'Saving your trades', state: 'done' },
+  { id: 'cash_history', label: 'Saving your fees', state: 'done' },
+];
+
+/* Every code, with a detail object shaped exactly like the real one — the copy reads numbers out of
+ * these, so a fixture missing a field would render a sentence the real finding never produces. */
+const RACK_FINDINGS: PreflightFinding[] = [
+  { code: 'nothing_to_import', blocking: true, detail: { total: 0 } },
+  { code: 'fills_empty', blocking: true, detail: { total: 77, otherRange: 'Mar 3 to Mar 7' } },
+  {
+    code: 'accounts_differ',
+    blocking: true,
+    detail: { fillAccounts: ['DEMOACCT0000001', 'DEMOACCT0000002'], total: 2 },
+  },
+  { code: 'rows_unnamed', blocking: true, detail: { blocked: 33, total: 777 } },
+  {
+    code: 'round_trips_unmatched',
+    blocking: true,
+    detail: { blocked: 7, total: 77, fillRange: 'Mar 3 to Mar 7', otherRange: 'Mar 3 to Mar 9' },
+  },
+  {
+    code: 'fees_unmatched',
+    blocking: true,
+    detail: { total: 333, fillRange: 'Mar 3 to Mar 7', otherRange: 'Apr 1 to Apr 7' },
+  },
+  { code: 'fees_empty', blocking: true, detail: { total: 777, fillRange: 'Mar 3 to Mar 7' } },
+  {
+    code: 'fees_partial',
+    blocking: true,
+    detail: { blocked: 300, total: 777, fillRange: 'Mar 3 to Mar 5', otherRange: 'Mar 6 to Mar 7' },
+  },
+  { code: 'fees_implausible', blocking: true, detail: { perContractCents: 7_700, total: 333 } },
+  {
+    code: 'pnl_unreconciled',
+    blocking: false,
+    detail: { brokerCents: -70_000, ourCents: -69_700, diffCents: -300, comparedRoundTrips: 77 },
+  },
+  {
+    code: 'statement_unreconciled',
+    blocking: true,
+    detail: {
+      daysCompared: 7,
+      absDiffCents: 60_000,
+      days: [
+        {
+          accountName: null,
+          sessionDate: '2026-03-03',
+          brokerCents: -30_000,
+          ourCents: 0,
+          ourGrossCents: 0,
+          ourFeeCents: 0,
+          diffCents: -30_000,
+          roundTrips: 0,
+        },
+        {
+          accountName: null,
+          sessionDate: '2026-03-04',
+          brokerCents: 0,
+          ourCents: 30_000,
+          ourGrossCents: 30_000,
+          ourFeeCents: 0,
+          diffCents: -30_000,
+          roundTrips: 7,
+        },
+      ],
+    },
+  },
+  {
+    code: 'statement_uncovered',
+    blocking: false,
+    detail: { uncoveredDays: ['2026-03-01', '2026-03-02'], uncoveredCents: -70_000, total: 7 },
+  },
+  { code: 'statement_unreadable', blocking: true, detail: { blocked: 3, total: 7 } },
+];
+
+/** The panel at a fixed width, so three of them stack without each setting its own. */
+function RackPanel({ steps }: { steps: Step[] }) {
+  return (
+    <div className={cn(cardSurface, 'w-full max-w-md overflow-hidden')}>
+      <ProgressPanel
+        from={<Icon name="files" size={26} className="text-muted" />}
+        to={<Wordmark className="text-[13px]" />}
+        steps={steps}
+      />
+    </div>
+  );
+}
+
+/* The checklist, rebuilt here rather than imported, and that is a deliberate exception to the
+   rack's usual rule. `Req` is a private helper inside `file-upload-step.tsx` — exporting it purely
+   so this page could render it would widen that module's surface for the benefit of a review page,
+   which is the tail wagging the dog. Four rows of two icons is not a component worth sharing. */
+function RackReqs({ met }: { met: string[] }) {
+  const REQS = [
+    ['fills', 'Fills'],
+    ['position_history', 'Position History'],
+    ['cash_history', 'Cash History'],
+    ['orders', 'Orders'],
+  ] as const;
+  return (
+    <div className="text-caption flex flex-wrap items-center gap-x-3 gap-y-1">
+      {REQS.map(([key, label]) => {
+        const has = met.includes(key);
+        return (
+          <span
+            key={key}
+            className="flex items-center gap-1"
+            style={{ color: has ? 'var(--color-accent)' : 'var(--color-muted)' }}
+          >
+            <Icon name={has ? 'check' : 'unmet'} size={13} />
+            {label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/** A staged file row. Same reasoning as `RackReqs`: it is markup, not a component. */
+function RackFileRow({ name, type }: { name: string; type: string | null }) {
+  return (
+    <div className="border-border bg-surface flex items-center gap-2 rounded-[var(--radius-sm)] border px-3 py-2">
+      <Icon name="file" size={15} className="text-muted shrink-0" />
+      <span className="text-body text-text min-w-0 flex-1 truncate">{name}</span>
+      <span
+        className="text-caption shrink-0"
+        style={{ color: type ? 'var(--color-muted)' : 'var(--color-neg)' }}
+      >
+        {type ?? 'Not recognised'}
+      </span>
+      <span className="text-muted shrink-0">
+        <Icon name="close" size={14} />
+      </span>
+    </div>
   );
 }
 
@@ -874,8 +1341,10 @@ function Section({
   note?: string;
   children: React.ReactNode;
 }) {
+  const anchored = useContext(AnchorCtx);
   return (
-    <section className="border-border border-t pt-8">
+    /* `scroll-mt` so a jumped-to heading clears the sticky header rather than hiding under it. */
+    <section id={anchored ? slug(title) : undefined} className="border-border scroll-mt-6 border-t pt-8">
       <h2 className="text-h2">{title}</h2>
       {/* FULL-STRENGTH INK, NOT `muted` (2026-08-14). This is the argument a reviewer is here to
           read, and it was set in the ink reserved for a property of the object beside it. The tell
