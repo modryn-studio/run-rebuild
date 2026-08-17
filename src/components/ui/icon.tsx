@@ -41,7 +41,7 @@ import {
   ChevronDown,
   Moon,
   Sun,
-  Upload,
+  FileUp,
   FileSpreadsheet,
   Files,
   Circle,
@@ -82,6 +82,14 @@ const MARKS = {
   sun: Sun,
 
   /* ── the intake flow (S4e) ────────────────────────────────────────────────────────────────
+   * `upload` IS `FileUp`, NOT LUCIDE'S `Upload` (2026-08-15, Luke: "i want it to use the same
+   * icon as run-trading@v2 uses"). v2 draws its own hand-made mark for this — a file silhouette
+   * with an arrow inside it, used identically for the Import-trades door AND the drop zone, so
+   * one glyph carries one meaning everywhere in its intake. This build cannot copy that SVG
+   * outright: CLAUDE.md's scar tissue is explicit that a half-lucide, half-hand-drawn set is how
+   * a codebase's stroke weights drift 50% before anyone notices. `FileUp` is lucide's own
+   * file-plus-arrow, the same family v2's is drawn in, so the swap keeps the one-set rule and
+   * still reads as "a file coming in" rather than the generic tray-and-arrow `Upload` used to.
    * `unmet` is a hollow circle rather than an empty checkbox on purpose: a checkbox is a control
    * the trader can operate, and these rows are a report on which files have arrived. Offering
    * something that looks pressable and is not is worse than a plain dot.
@@ -94,7 +102,7 @@ const MARKS = {
    * sites (2026-08-15): zero references anywhere outside this file. Removed rather than kept
    * "for later" — an icon nothing draws is exactly the one-off this wrapper exists to prevent, and
    * the day a sync affordance is real, it earns its entry then. */
-  upload: Upload,
+  upload: FileUp,
   file: FileSpreadsheet,
   files: Files,
   unmet: Circle,
