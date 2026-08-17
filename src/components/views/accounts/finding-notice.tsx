@@ -31,6 +31,11 @@ const usd = (cents: number | undefined) => {
   return `${v < 0 ? '-' : ''}$${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+/* "7 of your 77 trades", never "7 trades of 77". Rule 2 above asks for the number to be named and
+   the first draft of every one of these put the noun in the wrong half of the sentence — which only
+   became visible reading all thirteen side by side in the rack. */
+const outOf = (n: number, total: number, one: string, many = `${one}s`) =>
+  `${n.toLocaleString()} of your ${total.toLocaleString()} ${total === 1 ? one : many}`;
 
 /** A headline and the action under it. Two fields rather than one paragraph, because the headline
  *  is what a trader reads at a glance and the second line is what they act on. */
@@ -76,7 +81,7 @@ export function findingCopy(f: PreflightFinding): FindingCopy {
     case 'rows_unnamed':
       return {
         title: 'Some rows do not name an account.',
-        detail: `${plural(d.blocked ?? 0, 'row')} of ${(d.total ?? 0).toLocaleString()} have no account on them. Re-export from the Reports tab.`,
+        detail: `${outOf(d.blocked ?? 0, d.total ?? 0, 'row')} have no account on them. Re-export from the Reports tab.`,
       };
 
     /* The windows do not line up. The count matters: a handful is a slightly different range, all
@@ -84,7 +89,7 @@ export function findingCopy(f: PreflightFinding): FindingCopy {
     case 'round_trips_unmatched':
       return {
         title: 'Some trades have no matching fills.',
-        detail: `${plural(d.blocked ?? 0, 'trade')} of ${(d.total ?? 0).toLocaleString()} cannot be matched${
+        detail: `${outOf(d.blocked ?? 0, d.total ?? 0, 'trade')} cannot be matched${
           d.fillRange && d.otherRange ? `. Your fills cover ${d.fillRange}, these cover ${d.otherRange}` : ''
         }. Re-export both over the same range.`,
       };
@@ -96,7 +101,9 @@ export function findingCopy(f: PreflightFinding): FindingCopy {
       return {
         title: 'None of your fees matched a trade.',
         detail: `Importing now would report your P&L before costs${
-          d.otherRange ? `. Your fees cover ${d.otherRange}, your trades do not` : ''
+          d.otherRange && d.fillRange
+            ? `. Your fees cover ${d.otherRange}, your trades are ${d.fillRange}`
+            : ''
         }. Re-export Cash History over the same range.`,
       };
 
@@ -113,7 +120,7 @@ export function findingCopy(f: PreflightFinding): FindingCopy {
     case 'fees_partial':
       return {
         title: 'Your fees only cover part of these trades.',
-        detail: `${plural(d.blocked ?? 0, 'fill')} of ${(d.total ?? 0).toLocaleString()} have no fees against them, so those trades would read before costs. Re-export Cash History over the full range.`,
+        detail: `${outOf(d.blocked ?? 0, d.total ?? 0, 'fill')} have no fees against them, so those trades would read before costs. Re-export Cash History over the full range.`,
       };
 
     /* A number, stated, because the whole point of this check is that the figure is absurd and
@@ -129,7 +136,7 @@ export function findingCopy(f: PreflightFinding): FindingCopy {
     case 'pnl_unreconciled':
       return {
         title: 'Two of your files disagree on P&L.',
-        detail: `Cash History says ${usd(d.brokerCents)} and Position History says ${usd(d.ourCents)} across ${plural(d.comparedRoundTrips ?? 0, 'trade')}, a gap of ${usd(d.diffCents)}. Imported, and worth a look.`,
+        detail: `Cash History says ${usd(d.brokerCents)} and Position History says ${usd(d.ourCents)} across ${plural(d.comparedRoundTrips ?? 0, 'trade')}, off by ${usd(Math.abs(d.diffCents ?? 0))}. Imported, and worth a look.`,
       };
 
     /* THE THIRD RECEIPT. Blocking, because unlike the gross mismatch this one has a remedy and

@@ -61,6 +61,10 @@ export default [
             'lift-press',
             // Menu's open animation.
             'pop-in',
+            // The inline text link: accent ink, underline on hover. A hand-written rule at
+            // globals.css:606 rather than a token, because it is a two-property recipe rather than
+            // a scale value.
+            'text-link',
             // The tick that draws itself in on a completed intake step. globals.css:820, with its
             // own note in the reduced-motion block explaining why it is exempt there.
             'check-draw',

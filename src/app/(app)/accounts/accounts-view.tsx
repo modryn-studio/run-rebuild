@@ -43,7 +43,12 @@ export function AccountsView({ accounts, connected }: { accounts: RosterAccount[
   return (
     <>
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-h1">Accounts</h1>
+        {/* `text-h2`, matching `shell/page-header.tsx`, which sets its own h1 to the same step. There
+            is no `text-h1` in the scale: it goes h2 (24px) then display (32px), and inventing one
+            here rendered this heading UNSTYLED — a class with no token behind it emits nothing.
+            Caught by the token lint rule rather than by looking, which is the third time in this
+            slice. The page title step is a system decision and it was already made. */}
+        <h1 className="text-h2">Accounts</h1>
         <Button size="sm" onClick={() => setOpen(true)}>
           <Icon name="add" size={15} />
           Add account
