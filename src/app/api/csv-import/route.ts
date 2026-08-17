@@ -10,6 +10,7 @@ import { parseAccountBalanceHistory } from '@/lib/csv/account-balance';
 import { preflight, type PreflightFinding } from '@/lib/intake/preflight';
 import { resolveAccountsFor } from '@/lib/intake/accounts';
 import { commitImport, markImportCommitted } from '@/lib/intake/commit';
+import { projectAccount } from '@/lib/trades/project';
 import {
   fillEventValues,
   roundTripEventValues,
@@ -250,6 +251,20 @@ export async function POST(req: Request): Promise<Response> {
             preflight: checks,
           });
           await markImportCommitted(result.importId);
+
+          /* ── PROJECT, BEFORE THE TRADER IS TOLD THEY ARE DONE ───────────────────────────
+             The corpus is committed above; this is what makes it READABLE. `trade` and `session`
+             are what every S5 surface draws from, so an import that committed without projecting
+             would report "187 imported" over a Trades page showing nothing.
+
+             AFTER the commit and INSIDE the stream, deliberately. It is not part of the atomic
+             write — a projection is rebuildable and a failure here loses nothing — but it is part
+             of the wait, because `done` is the moment the trader goes looking for their record.
+
+             THE WHOLE ACCOUNT, not just this import's rows: fee rates come from the fills and fees
+             in the set, so a windowed pass would charge a round trip whose entry fill sits outside
+             it only half its fees. See `projectAccount`. */
+          await projectAccount(importedTrader, accountId);
 
           /* ── REPORT PER FILE ────────────────────────────────────────────────────────────
              The panel wants one event per file as it lands. The write is a single atomic batch, so

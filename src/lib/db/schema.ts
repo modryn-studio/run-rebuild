@@ -16,6 +16,7 @@ import {
   date,
   check,
   foreignKey,
+  primaryKey,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -425,5 +426,136 @@ export const event = pgTable(
     // Every read is scoped by account AND window from the first query (CLAUDE.md): free now,
     // unretrofittable once four surfaces depend on it.
     index('event_account_occurred_idx').on(t.accountId, t.occurredAt),
+  ],
+);
+
+// ── trade — a round trip, DERIVED. The projection every read path draws from. ─────────
+//
+// `architecture.md` §"`trade` — a round trip, derived" specifies this table; read that before
+// changing a column here. What follows is why it is a TABLE rather than a view or a query.
+//
+// NOTHING READS `event.payload` ON A RENDER PATH (CLAUDE.md), and this table is what makes that
+// affordable rather than aspirational. `event` promotes `symbol`, `qty`, `pnl_cents` and
+// `occurred_at`; a tape row also needs entry and exit prices, a direction and a fee — all of
+// which live inside the jsonb. `run-trading@v2` read them straight out of the payload on the
+// render path and measured the bill in its own comments: a 9,530ms page load and a 1.1MB
+// payload, which then needed a whole index-and-paging subsystem to work around.
+//
+// A PROJECTION, WHICH MEANS IT IS DISPOSABLE. Every row here is rebuildable by replaying `event`,
+// so this table may be dropped and regenerated at any time and nothing is lost. That is what
+// licenses storing derived values (`fee_cents`, `direction`, `session_date`) that an append-only
+// log could never revise — see `src/lib/trades/project.ts`.
+export const TRADE_STATES = ['ok', 'quarantined', 'excluded'] as const;
+export type TradeState = (typeof TRADE_STATES)[number];
+export const TRADE_DIRECTIONS = ['long', 'short'] as const;
+export type TradeDirection = (typeof TRADE_DIRECTIONS)[number];
+
+export const trade = pgTable(
+  'trade',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    traderId: uuid('trader_id')
+      .notNull()
+      .references(() => trader.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => account.id, { onDelete: 'cascade' }),
+    /* THE ROUND-TRIP EVENT THIS PROJECTS, and the idempotency key for re-projection. One trade per
+       event, so re-running the projector over a window updates rows instead of duplicating them. */
+    eventId: bigint('event_id', { mode: 'number' }).notNull(),
+    symbolRoot: text('symbol_root').notNull(), // "MNQ" — the product, never the contract month
+    contract: text('contract'), // "MNQU6" — what the trader's own platform shows them
+
+    /* ENTRY AND EXIT ARE A SEQUENCE, NOT A SIDE, and getting that wrong shipped once. Tradovate's
+       payload carries buy/sell PRICES; a short OPENS on the sell, so mapping buy→entry is right
+       for a long and exactly backwards for a short. Luke, 2026-08-01: "it says it was a short and
+       i made money.. entry at 30,134.25 and exit at 30,147.50. how can that be?" — it could not,
+       and every winning short read as a loser that made money. Resolved once, here, at projection
+       time, so `entry_price` means what it says everywhere it is read. */
+    entryAt: timestamp('entry_at', { withTimezone: true }).notNull(),
+    exitAt: timestamp('exit_at', { withTimezone: true }).notNull(),
+    /* Derived from `exit_at` via `lib/time/session` and PERSISTED, because every grouping in the
+       product keys off it and recomputing a zone-and-calendar value per query is both slow and a
+       place for two code paths to disagree. A trade belongs to the session it was REALISED in. */
+    sessionDate: date('session_date').notNull(),
+    qty: integer('qty').notNull(),
+    /* Null is honest. Direction is "did you buy first or sell first", so with either timestamp
+       missing there is no answer — and an unknown direction beats a guessed one on a row whose
+       whole content is what happened. Never derived from price ordering: that silently guesses on
+       a scratch trade, where P&L is zero and the two prices are equal. */
+    direction: text('direction'),
+    /* A QUOTE, NOT MONEY — `numeric(19,6)`, not cents. 6E quotes at 1.08500; stored as cents it
+       becomes 109 and a real 1.08500→1.08600 winner prints identical entry and exit beside a
+       profit. Money is integer cents; quotes are not money. */
+    entryPrice: numeric('entry_price', { precision: 19, scale: 6 }).notNull(),
+    exitPrice: numeric('exit_price', { precision: 19, scale: 6 }).notNull(),
+    grossPnlCents: bigint('gross_pnl_cents', { mode: 'number' }).notNull(),
+    /* NEGATIVE, and 0 when no Cash History covers this trade. `net` is NOT a column: it is
+       `gross + fee` at render, so the two halves can never disagree with each other.
+       Stored despite `architecture.md`'s "net is derived" rule because that rule binds `event`,
+       where fees genuinely do not exist yet when a round trip is written. This is a projection,
+       rebuilt after the import commits, so the fees DO exist — and the projector re-projects the
+       whole affected window on every import, which is what keeps this from going stale when Cash
+       History arrives in a later upload. */
+    feeCents: bigint('fee_cents', { mode: 'number' }).notNull().default(0),
+
+    /* `ok` IS THE ONLY STATE THAT FEEDS A COMPUTED FIGURE, and the other two stay visible and
+       countable — an exclusion may never silently shrink the record (spec S3, S9b). */
+    state: text('state').notNull().default('ok'),
+    quarantineReason: text('quarantine_reason'),
+    exclusionReason: text('exclusion_reason'), // the trader's own words, S9b
+    projectedAt: timestamp('projected_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check('trade_state_check', sql`${t.state} in ('ok', 'quarantined', 'excluded')`),
+    check(
+      'trade_direction_check',
+      sql`${t.direction} is null or ${t.direction} in ('long', 'short')`,
+    ),
+    // One trade per round-trip event. This is what makes re-projection an upsert rather than a
+    // duplicate, so the projector can be re-run over any window as often as it likes.
+    uniqueIndex('trade_event_uq').on(t.eventId),
+    // The two reads this table exists for: group a session, and window a range. Both scoped by
+    // account from the first query (CLAUDE.md).
+    index('trade_account_session_idx').on(t.accountId, t.sessionDate),
+    index('trade_account_exit_idx').on(t.accountId, t.exitAt),
+    index('trade_trader_session_idx').on(t.traderId, t.sessionDate),
+    index('trade_state_idx').on(t.state),
+  ],
+);
+
+// ── session — the trading day, materialised ──────────────────────────────────────────
+//
+// KEYED ON THE TRADER, NOT THE ACCOUNT (`architecture.md`). A trader may work several accounts in
+// one session and the wedge is about THEIR day; per-account rollups are a filter over `trade`,
+// not a second table.
+//
+// A SESSION WITH NO TRADES STILL EXISTS. Gaps and "you don't trade Mondays" need the absence to
+// be a row rather than a missing key — but note this table never manufactures one: a day is
+// written when it is inside the corpus's own range, so an empty row means "you were away", not
+// "we have no data".
+export const tradingSession = pgTable(
+  'session',
+  {
+    traderId: uuid('trader_id')
+      .notNull()
+      .references(() => trader.id, { onDelete: 'cascade' }),
+    sessionDate: date('session_date').notNull(),
+    /* Both stored, because a session header states net AND the fee component, and deriving one
+       from the other on a render path is the join this table exists to avoid. */
+    netPnlCents: bigint('net_pnl_cents', { mode: 'number' }).notNull().default(0),
+    feesCents: bigint('fees_cents', { mode: 'number' }).notNull().default(0),
+    tradeCount: integer('trade_count').notNull().default(0),
+    winCount: integer('win_count').notNull().default(0),
+    firstTradeAt: timestamp('first_trade_at', { withTimezone: true }),
+    lastTradeAt: timestamp('last_trade_at', { withTimezone: true }),
+    projectedAt: timestamp('projected_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // A REAL COMPOSITE PK, as `architecture.md` specifies, not a unique index standing in for one.
+    // Same guarantee either way; this is the identity of a row here, and saying so in the schema
+    // keeps the code and the locked doc from disagreeing about something neither would notice.
+    primaryKey({ columns: [t.traderId, t.sessionDate] }),
+    index('session_trader_idx').on(t.traderId),
   ],
 );
