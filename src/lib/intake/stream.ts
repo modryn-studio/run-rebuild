@@ -16,7 +16,9 @@
  */
 import type { PreflightFinding } from './preflight';
 
-/** Emitted once per file, in the order the server ingested them (fills first). */
+/** Emitted once per file TYPE, in the order the server ingested them (fills first) — files of the
+ *  same type are parsed into one aggregate array before reporting, so two Fills exports staged
+ *  together produce a single event covering both, not two. */
 export interface ImportFileEvent {
   type: 'file';
   fileType: string;

@@ -21,6 +21,7 @@
 
 import { useRef, useState, type DragEvent, type Dispatch, type SetStateAction } from 'react';
 import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
 import { Icon } from '@/components/ui/icon';
 import { detectTradovateFileType, type TradovateFileType } from '@/lib/csv/shared';
 import { ModalHeader, RunMark, ImportComplete, SourceMark, type Source } from './shared';
@@ -275,13 +276,12 @@ export function FileUploadStep({
                     >
                       {f.type ? (TYPE_LABELS[f.type] ?? f.type) : 'Not recognised'}
                     </span>
-                    <button
-                      onClick={() => remove(i)}
-                      aria-label={`Remove ${f.file.name}`}
-                      className="text-muted hover:text-text shrink-0 transition"
-                    >
+                    {/* `IconButton`, not a hand-rolled control, so this compact row's dismiss gets
+                        the same invisible 44px hit area as every other icon-only control in the
+                        product rather than the ~14px the icon alone measures. */}
+                    <IconButton onClick={() => remove(i)} aria-label={`Remove ${f.file.name}`}>
                       <Icon name="close" size={14} />
-                    </button>
+                    </IconButton>
                   </li>
                 );
               })}

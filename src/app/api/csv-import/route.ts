@@ -174,9 +174,13 @@ export async function POST(req: Request): Promise<Response> {
           }
           const accountId = [...accountIds.values()][0];
           if (!accountId) {
-            refuse('No account named in these files.', [
-              { code: 'rows_unnamed', blocking: true, detail: { blocked: fills.length } },
-            ]);
+            /* Only reachable with zero Fills AND zero round trips AND at least one fee row — every
+               other empty combination is already caught above (`fills_empty` needs round trips,
+               `nothing_to_import` needs every count at zero). `rows_unnamed`'s copy is about ROWS
+               THAT EXIST but carry no account name; here no fills exist to name one at all, so
+               reusing that code would report "0 of your 0 rows" instead of the real problem. No
+               findings, so `ImportRefused` falls back to this plain message. */
+            refuse('No account named in these files.', []);
             return;
           }
 

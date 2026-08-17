@@ -21,7 +21,7 @@
  * account names and therefore the adoption path `resolveAccount` currently omits on purpose.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ModalShell, ModalBody } from './modal-shell';
 import { ModalHeader, type Source } from './shared';
@@ -79,6 +79,20 @@ export function AddAccountModal({
   const close = useCallback(() => {
     if (!busy) onClose();
   }, [busy, onClose]);
+
+  /* `ModalShell`'s own dismiss guard only reaches Escape and the backdrop, both in-app. A refresh,
+     a Back gesture, or closing the tab bypass it entirely — the write still lands (the corpus
+     commit does not depend on this tab staying open), but the trader gets no warning before the
+     progress panel they are watching just disappears. The browser's own confirmation is the one
+     tool that reaches outside the app to cover those. */
+  useEffect(() => {
+    if (!busy) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [busy]);
 
   // Escape and the backdrop dismiss the TOP layer only: a sub-view steps back to the doors, the
   // doors close the modal. The shell asks; this decides.
@@ -170,7 +184,7 @@ function BrokerRow({ connected }: { connected: number }) {
           one: a single asset has to survive both themes. */}
       <span
         className="border-border flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border"
-        style={{ background: '#fdfcf9' }}
+        style={{ background: 'var(--color-logo-tile)' }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- a static local mark, not content */}
         <img src={TRADOVATE.mark} alt="" className="h-full w-full object-contain" />

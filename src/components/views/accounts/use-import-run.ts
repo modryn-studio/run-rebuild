@@ -192,16 +192,14 @@ export function useImportRun(options?: { dryRun?: boolean }): Run {
         return { imported: 777, parsed: 777, accounts: ['DEMOACCT0000001'], warnings: [] };
       }
 
-      /* ONE STEP PER TYPE, but the server emits one event PER FILE, and two Fills exports from
-         different days is a supported upload. Counting how many of each type went out means a
-         type's step stays active until every file of that type has landed, and its count is the
-         sum. Without this the list ran ahead of the work: two fills events advanced the live row
-         twice, so "Saving your trades" showed as finished while Position History was untouched. */
-      const expected = new Map<string, number>();
-      for (const t of fileTypes) expected.set(t, (expected.get(t) ?? 0) + 1);
-      const arrived = new Map<string, number>();
-      const importedSoFar = new Map<string, number>();
-
+      /* ONE STEP PER TYPE, AND THE SERVER EMITS ONE EVENT PER TYPE TOO, not per file: `route.ts`
+         parses every file of a type into one aggregate array before it ever reaches the reporting
+         loop, so two Fills exports from different days (a supported upload) produce a single
+         `fills` event covering both. An earlier version of this hook counted staged FILES and
+         waited for that many events per type, which is the server's `stream.ts` contract as
+         documented but not as built — the step for a duplicated type never received its second
+         event and sat active forever. Matching what the server actually sends needs no counting
+         at all: the one event that arrives for a type IS that type done. */
       let current = buildSteps(fileTypes);
       setSteps(current);
       setError(null);
@@ -273,18 +271,10 @@ export function useImportRun(options?: { dryRun?: boolean }): Run {
 
         for await (const ev of readImportStream(res.body)) {
           if (ev.type === 'file') {
-            const seen = (arrived.get(ev.fileType) ?? 0) + 1;
-            arrived.set(ev.fileType, seen);
-            const total = (importedSoFar.get(ev.fileType) ?? 0) + ev.imported;
-            importedSoFar.set(ev.fileType, total);
-
-            // Hold the row open until every file of this type has landed.
-            if (seen < (expected.get(ev.fileType) ?? 1)) continue;
-
             const unit = UNIT[ev.fileType] ?? 'rows';
             /* The count is what the DATABASE took, not what the file held. On a re-upload that is
                legitimately 0, and saying so is the point. */
-            const detail = total === 0 ? 'Already saved' : `${total.toLocaleString()} ${unit}`;
+            const detail = ev.imported === 0 ? 'Already saved' : `${ev.imported.toLocaleString()} ${unit}`;
             await waitForMinVisible(ev.fileType);
             if (mark(ev.fileType, { state: 'done', detail })) activateNext();
           } else if (ev.type === 'done') {

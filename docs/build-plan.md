@@ -578,9 +578,15 @@ untouched, and that is exactly the seam:**
   flagging one already written to an append-only log, where it cannot be corrected. The tape keeps
   its copy on purpose; a read should not trust its input either
 - **S4d** — ✅ **CLOSED 2026-08-14.** `lib/intake/accounts.ts` (`#59`/`#80`)
-- **S4e** — ⏸ **the UI, deferred by Luke.** Type step, drop zone, determinate progress with a
-  minimum-visible floor. **The slice does not close until this lands**, and it is where the timing
-  harness `S3c` deferred finally gets a sequence to replay
+- **S4e** — 🔶 **in progress, on `worktree-s4e-intake`.** Ported v2's actual flow rather than the
+  plan drafted before it (Luke, 2026-08-15: "if i approved a confirm step, that was my mistake... i
+  do not want to change the flow the v2 has") — two doors (Brokers, disabled; Import trades), a
+  drop zone with header-detected file typing, determinate progress with a minimum-visible floor,
+  and an unlabelled account as a normal state rather than a pre-upload type question. The refusal
+  screen replaces the progress panel outright on failure rather than squeezing findings under it
+  (measured: 34px → 234px at the same viewport). Remaining before it closes: the mobile pass, the
+  design-system token scan, merge, deploy. **"Add manually" is explicitly NOT part of this slice**
+  — see the S6 note below.
 
 **`scripts/s4-gate.mts` — 68 assertions, re-runnable, run against the real ten-day export**, not
 fixtures. `tsc` and `eslint` clean; `S1`, `S2` and `S3a` gates all still pass.
@@ -649,6 +655,21 @@ quarantine with S9b's two actions, provenance line.
 
 Hero metric selector, groups by state with own totals, **freshness stamp on every row**,
 `CLOSED` as a permanent group, summary rail.
+
+**"Add manually" lands after this slice, not inside `S4e` (Luke, 2026-08-17).** `S4e`'s modal ships
+two doors only — Brokers and Import trades — and that omission is deliberate
+(`add-account-modal.tsx`'s header comment, and the S4e line above). The mechanism itself is cheap:
+`run-trading@v2`'s `resolveAccount` adoption path (`current-trader.ts`) is a single `UPDATE` guarded
+on `id + traderId + firm + externalAccountId LIKE 'pending:%'`, and the schema already carries the
+columns it needs (`brokerAccountId`, `firmSource`, added ahead of time in `S4e`). What it does not
+have anywhere to stand on is a launch surface: v2's adoption path is trustworthy only because the
+import is launched *from that specific account's own page* — that context is the signal that the
+file belongs to it, not an inference. `run-rebuild` has no per-account page until this slice builds
+one; the current `/accounts` is a documented throwaway that `S6` replaces wholesale
+(`accounts-view.tsx`). Building manual-add before `S6` means either standing up a real per-account
+page early, out of order, or launching the adopt action from the global modal with none of the
+context v2's fix depended on. `S6`'s own page is where "Add manually" becomes a door with something
+to stand on.
 
 ### S7 — Read ⭐ *the wedge* — ⛔ **BLOCKED, and not on engineering** ([#2](https://github.com/modryn-studio/run-rebuild/issues/2))
 
