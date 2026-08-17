@@ -163,7 +163,11 @@ function SectionNav({
   return (
     <nav
       aria-label="Sections"
-      className="scroll-thin border-border hidden w-56 shrink-0 overflow-y-auto border-r px-3 py-6 lg:block"
+      /* `pr-4` beyond the item padding: common practice on a persistent rail (Storybook, Radix,
+         GitHub docs) is a visible gutter between the divider and the content it separates, not
+         just internal item padding. The content side gets its own matching pl-8 below — the two
+         together read as one gap rather than "content pinned to a line". */
+      className="scroll-thin border-border hidden w-56 shrink-0 overflow-y-auto border-r py-6 pr-4 pl-3 lg:block"
     >
       {GROUPS.map(({ group, titles }) => (
         <div key={group} className="mb-5">
@@ -262,7 +266,15 @@ function Rack() {
         <SectionNav scrollRef={scrollRef} />
         <div
           ref={scrollRef}
-          className={cn('scroll-thin flex min-h-0 flex-1 overflow-y-auto', theme === 'both' ? 'divide-border divide-x' : '')}
+          /* `pl-8`, on the SCROLL CONTAINER, never on the width-simulated column inside it. That
+             inner column's own `px-4` is the thing under test at each width step — it stands in
+             for a real page's own gutter, and padding added there would misreport what 375px
+             actually looks like. This padding lives one level out, so it only ever adds distance
+             from the rail; the simulated widths stay exact. */
+          className={cn(
+            'scroll-thin flex min-h-0 flex-1 overflow-y-auto pl-8',
+            theme === 'both' ? 'divide-border divide-x' : ''
+          )}
         >
         {(theme === 'both' ? (['light', 'dark'] as const) : ([theme] as const)).map((mode, paneIndex) => (
           <AnchorCtx.Provider key={mode} value={paneIndex === 0}>
