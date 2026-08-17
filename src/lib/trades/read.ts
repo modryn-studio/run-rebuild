@@ -2,6 +2,7 @@ import 'server-only';
 import { and, asc, desc, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm';
 import { db, trade, account } from '@/lib/db';
 import type { TradeState } from '@/lib/db';
+import { firmLogoSrc } from '@/lib/prop-firms';
 import type { TradesFilter } from './filter';
 import { isResultFiltered } from './filter';
 
@@ -29,6 +30,9 @@ export interface TapeRow {
   id: string;
   accountId: string;
   accountName: string;
+  /** The firm's mark, resolved here so the row does not have to know how logos are addressed.
+   *  Null when the account is unlabelled, which is a normal state until the labelling step lands. */
+  firmLogo: string | null;
   symbolRoot: string;
   contract: string | null;
   direction: 'long' | 'short' | null;
@@ -141,6 +145,7 @@ export async function getTape(
       id: trade.id,
       accountId: trade.accountId,
       accountName: account.displayName,
+      propFirm: account.propFirm,
       symbolRoot: trade.symbolRoot,
       contract: trade.contract,
       direction: trade.direction,
@@ -172,7 +177,14 @@ export async function getTape(
   const groups = new Map<string, TapeRow[]>();
   for (const r of rows) {
     const net = r.grossCents + r.feeCents;
-    const row: TapeRow = { ...r, netCents: net };
+    // The firm's mark is resolved HERE, from a pure lookup, so the row component never has to know
+    // how logo files are named or which extension each firm's happens to be on disk.
+    const { propFirm, ...rest } = r;
+    const row: TapeRow = {
+      ...rest,
+      netCents: net,
+      firmLogo: propFirm ? firmLogoSrc(propFirm) : null,
+    };
     const bucket = groups.get(r.sessionDate);
     if (bucket) bucket.push(row);
     else groups.set(r.sessionDate, [row]);

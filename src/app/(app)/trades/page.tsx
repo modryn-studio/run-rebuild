@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTrader } from '@/lib/trader';
-import { PageHeader } from '@/components/shell/page-header';
+import { HeaderSlot } from '@/components/shell/header-slot';
 import { WithSummaryRail } from '@/components/shell/summary-rail';
 import { TradesTape } from '@/components/views/trades/trades-tape';
 import { TradesRail } from '@/components/views/trades/trades-rail';
@@ -50,12 +50,11 @@ export default async function TradesPage({
 
   return (
     <>
-      <PageHeader
-        title="Trades"
-        actions={
-          <TradesControls filter={filter} products={facets.products} accounts={facets.accounts} />
-        }
-      />
+      {/* INTO THE SHELL'S OWN BAND, not a second one under it. The shell already prints "Trades"
+          from the route, so this page contributes only its controls. */}
+      <HeaderSlot>
+        <TradesControls filter={filter} products={facets.products} accounts={facets.accounts} />
+      </HeaderSlot>
 
       <WithSummaryRail
         rail={

@@ -35,7 +35,11 @@ import { cn } from '@/lib/cn';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { site } from '@/config/site';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { IconButton } from '@/components/ui/icon-button';
+import { Tooltip } from '@/components/ui/tooltip';
+import { Wordmark } from '@/components/ui/wordmark';
 import { DetectTimezone } from '@/components/detect-timezone';
+import { HEADER_SLOT_ID, HEADER_TITLE_SLOT_ID } from '@/components/shell/header-slot';
 import {
   SHELL_HEADER_H,
   SIDEBAR_W,
@@ -62,6 +66,19 @@ const NAV = [
   { label: 'Trades', href: '/trades', icon: 'trades' },
   { label: 'Read', href: '/read', icon: 'read' },
 ] as const;
+
+/* WHAT NAMES THE SCREEN, from the route rather than from the page.
+ *
+ * Longest match wins, so a future `/trades/<id>` still reads "Trades" rather than falling through
+ * to nothing. A route outside NAV returns null and the band's left side stays empty for
+ * `HEADER_TITLE_SLOT_ID` to fill — that is the drill-down case, where what belongs there is a trail
+ * and not a title. */
+function routeTitle(pathname: string): string | null {
+  const hit = [...NAV]
+    .filter((n) => pathname === n.href || pathname.startsWith(`${n.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0];
+  return hit?.label ?? null;
+}
 
 const isOverlay = () =>
   typeof window !== 'undefined' && window.matchMedia(SIDEBAR_OVERLAY_QUERY).matches;
@@ -160,19 +177,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className="flex shrink-0 items-center justify-between px-4"
             style={{ height: SHELL_HEADER_H }}
           >
-            <Link href="/" className="text-title font-serif">
-              {site.name}
+            <Link href="/">
+              <Wordmark />
             </Link>
-            <button
-              type="button"
-              onClick={toggle}
-              aria-label="Collapse navigation"
-              title="Collapse navigation  ["
-              className="text-muted hover:text-text hover:bg-surface-2 focus-visible:ring-accent grid size-11 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none md:size-8"
-            >
-              <Icon name="close" className="md:hidden" />
-              <Icon name="collapse" className="hidden md:block" />
-            </button>
+            {/* THE PRIMITIVES THIS REPO ALREADY OWNS, which the shell was hand-rolling past.
+                `icon-button.tsx`'s own note settles the shape and names this exact control: "A
+                CIRCLE SINCE 2026-08-01, and it is a rule rather than a preference: shape follows the
+                control's CONTENT... It also settles what Luke asked: the sidebar toggle now matches
+                the wordmark beside it." It did not — the shell drew a `rounded-sm` rectangle with a
+                flat hover fill, so the one control that rule was written for was the one control not
+                obeying it.
+                `Tooltip` for the same reason: a native `title` waits a second, is unstyled, and is
+                the only hint in the product that is not the app's own raised object. Teaching the
+                key is what that component exists for. */}
+            <Tooltip label="Collapse" shortcut="[">
+              <IconButton onClick={toggle} aria-label="Collapse navigation">
+                {/* Two marks, one job. Below `md` the panel is a modal overlay and this is its
+                    explicit dismiss, so it reads as a close; above it, it is a collapse. */}
+                <Icon name="close" size={16} className="md:hidden" />
+                <Icon name="collapse" size={16} className="hidden md:block" />
+              </IconButton>
+            </Tooltip>
           </div>
 
           {/* scroll-thin: the platform default is a 15px grey slab that reads as chrome beside
@@ -195,27 +220,43 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* min-w-0 is what lets the pane shrink instead of forcing the flex row wider than the
           viewport — without it a wide table pushes the whole shell into a horizontal scroll. */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <div
-          className="flex shrink-0 items-center gap-2 px-4"
+        {/* ONE BAND, CARRYING THE PAGE'S IDENTITY AND ITS CONTROLS.
+            It used to carry only the Open control and the theme toggle, which forced any page
+            wanting a title to build a SECOND 64px band underneath — a near-empty strip above a real
+            one. `header-slot.tsx` has the full argument and the quote that named it. */}
+        <header
+          className="relative flex shrink-0 items-center gap-2 px-4"
           style={{ height: SHELL_HEADER_H }}
         >
           {/* The Open control: only while the sidebar is hidden, and adjacent to where it will
               appear. Same 64px band as the sidebar's own header row. */}
           {collapsed && (
-            <button
-              type="button"
-              onClick={toggle}
-              aria-label="Open navigation"
-              title="Open navigation  ["
-              className="text-muted hover:text-text hover:bg-surface-2 focus-visible:ring-accent grid size-11 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none md:size-8"
-            >
-              <Icon name="collapse" />
-            </button>
+            <Tooltip label="Open" shortcut="[">
+              <IconButton onClick={toggle} aria-label="Open navigation">
+                {/* The collapse mark, mirrored: pointing right says "put this away", pointing left
+                    says "bring it back", so one drawn mark describes both directions of one
+                    action rather than the set gaining a second glyph for the reverse. */}
+                <Icon name="collapse" size={16} className="rotate-180" />
+              </IconButton>
+            </Tooltip>
           )}
-          <div className="ml-auto">
-            <ThemeToggle />
-          </div>
-        </div>
+
+          {/* DERIVED FROM THE ROUTE, SYNCHRONOUSLY, and that is why the title does not come through
+              the portal: the thing that names the screen must never be a frame late.
+              CENTRED ON A PHONE, static from `sm`. A 375px band cannot hold a left title, the open
+              control and two filters without the title winning space it does not need — centring it
+              lets the controls keep the edges. `pointer-events-none` while centred so it cannot
+              swallow a tap meant for a control underneath it. */}
+          <h1 className="text-title text-text pointer-events-none absolute left-1/2 max-w-[50%] -translate-x-1/2 truncate font-medium sm:pointer-events-auto sm:static sm:max-w-none sm:min-w-0 sm:translate-x-0">
+            {routeTitle(pathname)}
+          </h1>
+          {/* The other end of the band, for routes outside NAV: a trail rather than a title, and
+              that is page knowledge. Empty and zero-width until a page portals into it. */}
+          <div id={HEADER_TITLE_SLOT_ID} className="flex min-w-0 items-center" />
+
+          <div id={HEADER_SLOT_ID} className="ml-auto flex shrink-0 items-center gap-2" />
+          <ThemeToggle />
+        </header>
 
         {/* min-h-0 is what lets a flex child actually shrink and scroll; without it the pane
             grows to its content and the document scrolls again. */}

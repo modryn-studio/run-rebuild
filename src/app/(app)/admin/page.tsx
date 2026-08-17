@@ -4,7 +4,7 @@ import { desc, eq, sql } from 'drizzle-orm';
 import { db, analyticsEvent, authUser } from '@/lib/db';
 import { getAdmin } from '@/lib/require-admin';
 import { requireTrader } from '@/lib/trader';
-import { PageHeader } from '@/components/shell/page-header';
+import { HeaderSlot } from '@/components/shell/header-slot';
 import { PAGE_COLUMN } from '@/lib/shell';
 import { cn } from '@/lib/cn';
 
@@ -115,7 +115,11 @@ export default async function AdminPage() {
     // The indent is only correct when the gutter is on a WRAPPER the cards sit in. Caught by
     // measuring the rendered page, never by tsc — which is why the shell is checked in a browser.
     <>
-      <PageHeader title="Admin" />
+      {/* THE TITLE SLOT, not the controls one: `/admin` is not a NAV destination, so the shell
+          cannot derive its name from the route and that end of the band would otherwise be empty. */}
+      <HeaderSlot slot="title">
+        <h1 className="text-title text-text truncate font-medium">Admin</h1>
+      </HeaderSlot>
 
       <div className={PAGE_COLUMN}>
         <p className="text-small mb-10">

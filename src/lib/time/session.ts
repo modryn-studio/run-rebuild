@@ -113,6 +113,46 @@ export function displayClock(instantUtc: Date, displayTimezone: string): string 
   }).format(instantUtc);
 }
 
+/* A TAPE ROW'S CLOCK: `9:28 AM`, in the trader's own display zone.
+ *
+ * TWELVE-HOUR, and it is not a style preference. This renders beside a product name in a row a
+ * trader scans, and `displayClock`'s `HH:MM:SS` carries a seconds field nothing on the tape needs
+ * plus a 24-hour reading most US futures traders do not think in. Ported from `run-trading@v2`,
+ * whose rows read `9:28 AM`.
+ *
+ * SAME ZONE RULE AS EVERY OTHER CLOCK HERE. `display_timezone` decides how an instant is WRITTEN;
+ * it never decides which session it belongs to. That is `sessionDateFor`'s job and it must not
+ * reach this function's input. */
+export function displayTime(instantUtc: Date, displayTimezone: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: displayTimezone,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(instantUtc);
+}
+
+/* A SESSION BAND'S DATE: `Friday, August 7, 2026`.
+ *
+ * THE WEEKDAY IS NOT DECORATION FOR THIS AUDIENCE. "You don't trade Mondays" and every weekday
+ * pattern the read might name are questions about which day of the week a session was, and a date
+ * without one makes the trader compute it from a number.
+ *
+ * TAKES A SESSION DATE, NOT AN INSTANT, and formats it in UTC on purpose. A session date is a plain
+ * calendar string that already went through the bucketer; turning it into a local instant to format
+ * it would re-introduce the zone this value exists to have settled, and near midnight that shifts
+ * the printed day by one. */
+export function displaySessionDate(sessionDate: string): string {
+  const [y, m, d] = sessionDate.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC',
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(Date.UTC(y, m - 1, d)));
+}
+
 // ── THE COARSER BUCKETS — week, month, year to date ──────────────────────────────────────
 // S2, 2026-08-12. `architecture.md` §4 names day, week, month and year-to-date as belonging to
 // this module; until now only the session date existed, which is the half that would have made

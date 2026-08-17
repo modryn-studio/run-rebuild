@@ -21,6 +21,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
+import { HeaderSlot, HeaderControl } from '@/components/shell/header-slot';
 import { useModalClose } from '@/components/views/accounts/modal-shell';
 import { AddAccountModal } from '@/components/views/accounts/add-account-modal';
 import { accountRowTitle, ACCOUNT_TYPE_LABELS, type AccountTypeKey } from '@/lib/prop-firms';
@@ -42,24 +43,21 @@ export function AccountsView({ accounts, connected }: { accounts: RosterAccount[
 
   return (
     <>
-      <div className="flex items-center justify-between gap-4">
-        {/* `text-h2`, matching `shell/page-header.tsx`, which sets its own h1 to the same step. There
-            is no `text-h1` in the scale: it goes h2 (24px) then display (32px), and inventing one
-            here rendered this heading UNSTYLED — a class with no token behind it emits nothing.
-            Caught by the token lint rule rather than by looking, which is the third time in this
-            slice. The page title step is a system decision and it was already made. */}
-        <h1 className="text-h2">Accounts</h1>
-        <Button size="sm" onClick={() => setOpen(true)}>
+      {/* NO TITLE HERE ANY MORE. The shell prints "Accounts" from the route, so a heading on the
+          page would print it twice — which is what the second header band did before `S5c` moved
+          the controls up into the shell's own. Only the action travels. */}
+      <HeaderSlot>
+        <HeaderControl onClick={() => setOpen(true)}>
           <Icon name="add" size={15} />
           Add account
-        </Button>
-      </div>
+        </HeaderControl>
+      </HeaderSlot>
 
       {accounts.length === 0 ? (
         /* THE EMPTY STATE NAMES THE NEXT ACTION IN THE TRADER'S OWN WORDS (P9), never "no data".
            It is also the first screen a new trader sees, so it says what the product wants from
            them rather than describing its own emptiness. */
-        <div className="border-border mt-8 rounded-[var(--radius)] border border-dashed px-6 py-14 text-center">
+        <div className="border-border rounded-[var(--radius)] border border-dashed px-6 py-14 text-center">
           <p className="text-body-lg text-text">Upload your Tradovate exports to get started.</p>
           <p className="text-body text-muted mx-auto mt-2 max-w-sm">
             Fills, Position History, Cash History and Orders. They are all in the same Reports tab.
@@ -69,7 +67,7 @@ export function AccountsView({ accounts, connected }: { accounts: RosterAccount[
           </Button>
         </div>
       ) : (
-        <ul className="mt-8 flex flex-col gap-2">
+        <ul className="flex flex-col gap-2">
           {accounts.map((a) => (
             <li
               key={a.id}

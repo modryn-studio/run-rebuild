@@ -1100,7 +1100,10 @@ const row = (
 ): TapeRow => ({
   id,
   accountId: 'demo',
-  accountName: 'DEMOACCT0000007',
+  accountName: 'Tradeify 50K (...0007)',
+  // A real firm mark, because the row's account cell is one of the things being reviewed here and
+  // an unlabelled account renders the half of it without a logo.
+  firmLogo: '/firms/tradeify.jpeg',
   symbolRoot: 'MNQ',
   contract: 'MNQZ7',
   direction: 'long',

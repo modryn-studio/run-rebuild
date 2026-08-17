@@ -25,26 +25,13 @@ import { Icon } from '@/components/ui/icon';
 import { cn } from '@/lib/cn';
 import { fmtMoney } from '@/lib/format';
 import { productName, productRoot, markHue } from '@/lib/instruments';
-import { displayClock } from '@/lib/time/session';
+import { displayTime, displaySessionDate } from '@/lib/time/session';
 import type { SessionGroup, TapeRow } from '@/lib/trades/read';
 import { TradeDrawer } from './trade-drawer';
 
 /** `+` on a gain, the minus `fmtMoney` already carries on a loss. A tape is a sequence of outcomes
  *  and an unsigned figure makes the reader do the comparison the sign is there to do for them. */
 const signed = (cents: number): string => (cents > 0 ? `+${fmtMoney(cents)}` : fmtMoney(cents));
-
-/** "Aug 8, 2026". The session date is a plain calendar string, so it is formatted as one rather
- *  than parsed into an instant — turning it into a `Date` would re-introduce a zone this value
- *  deliberately does not have. */
-function longDate(sessionDate: string): string {
-  const [y, m, d] = sessionDate.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', {
-    timeZone: 'UTC',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
 
 export function TradesTape({
   sessions,
@@ -62,12 +49,26 @@ export function TradesTape({
   const [open, setOpen] = useState<TapeRow | null>(null);
   const drawn = sessions.reduce((n, s) => n + s.trades.length, 0);
 
+  /* `@container` so a column can be gated on the CARD's width rather than the viewport's: the rail
+     opening changes this card by 304px and nothing about the window says so.
+     `overflow-clip`, not `hidden` — it clips without creating a scroll container, which is what
+     lets the header and the bands inside it stay sticky. */
   return (
-    <Card className="overflow-hidden">
-      <div className="border-rule flex min-h-15 items-center justify-between gap-3 border-b px-5">
+    <Card className="@container overflow-clip">
+      {/* STICKY, so the count and the tape's identity survive the scroll. The two masking spans are
+          the craft detail that makes it work: a sticky header inside a rounded card lets rows show
+          through the corner radius as they pass under it, so one span paints the page ground behind
+          the corner and the other paints the card's own ground back over it with the radius. */}
+      <div className="border-rule bg-surface sticky top-0 z-20 flex min-h-15 items-center gap-3 border-b px-5 py-2">
+        <span aria-hidden className="bg-bg pointer-events-none absolute inset-x-0 top-0 h-3" />
+        <span
+          aria-hidden
+          className="bg-surface pointer-events-none absolute inset-x-0 top-0 h-3 rounded-t-[var(--radius)]"
+        />
         <span className="text-title text-text font-medium">Trades</span>
-        <span className="text-body text-muted tabular-nums">
-          {total.toLocaleString('en-US')}
+        {/* THE NOUN, not a bare number. "360" beside a title reads as an id as easily as a count. */}
+        <span className="text-body text-muted ml-auto tabular-nums">
+          {total.toLocaleString('en-US')} {total === 1 ? 'trade' : 'trades'}
         </span>
       </div>
 
@@ -85,7 +86,9 @@ export function TradesTape({
                 `top-15` matches the header's own `min-h-15`, so the band comes to rest exactly
                 beneath it rather than overlapping. */}
             <div className="bg-band sticky top-15 z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-2">
-              <span className="text-body text-muted font-medium">{longDate(s.sessionDate)}</span>
+              <span className="text-body text-muted font-medium">
+                {displaySessionDate(s.sessionDate)}
+              </span>
               <span className="text-body text-muted flex items-center gap-3 font-medium tabular-nums">
                 <span>{signed(s.netCents)}</span>
                 <span>
@@ -143,14 +146,21 @@ function Row({
       className="group hover:bg-hover flex min-h-13 w-full items-center gap-4 px-5 py-2 text-left transition-colors"
     >
       {/* THE INSTRUMENT, and the first of the two flexible columns. `min-w-0` on both is what stops
-          either from pushing the figures off their shared right edge. */}
-      <div className="flex min-w-0 flex-[2] items-center gap-3">
+          either from pushing the figures off their shared right edge.
+          AN EQUAL CLAIM ON THE SLACK, not a 2:1 one. Measured at 1440 with the rail and sidebar
+          open, which leaves the tape 689px: a 2:1 split handed this column 230px to render a name
+          needing 131, while the account beside it truncated to "FTDFYL..." inside 115. A column
+          cannot hoard space it has no content for while its neighbour is cutting the digits that
+          identify the row. `flex-1` on both distributes what is left evenly instead. */}
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <InstrumentMark symbol={contract} />
         <div className="min-w-0">
           <p className="text-body-lg text-text truncate">{name ?? contract}</p>
-          {/* The phone's version of the two columns to its right: one line on a desktop, two here. */}
+          {/* The phone's version of the two columns to its right: one line on a desktop, two here.
+              Reads "2 short", the way a trader says a position, rather than "short 2". */}
           <p className="text-body text-muted truncate sm:hidden">
-            {t.direction ? `${t.direction} ${t.qty}` : `${t.qty}`} · {displayClock(t.entryAt, zone).slice(0, 5)}
+            {t.qty}
+            {t.direction ? ` ${t.direction}` : ''} · {displayTime(t.entryAt, zone)}
           </p>
         </div>
       </div>
@@ -160,14 +170,14 @@ function Row({
           measures what that cost: at 1280px with the rail open the tape is 692px, the fixed columns
           take 632, and the instrument name collapses to 60px so every product on the page truncates.
           A cross-account tape may not squeeze out its own subject to keep a column still. */}
-      <span className="text-body text-muted hidden min-w-0 flex-1 items-baseline sm:flex">
-        <AccountName name={t.accountName} />
+      <span className="text-body text-muted hidden min-w-0 flex-1 items-center gap-1.5 sm:flex">
+        <AccountName name={t.accountName} logo={t.firmLogo} />
       </span>
 
       {/* WHEN IT WAS TAKEN, not when it closed, and it has to be the key the list is sorted by or
-          the order reads as random. */}
-      <span className="text-body text-muted hidden w-14 shrink-0 tabular-nums sm:block">
-        {displayClock(t.entryAt, zone).slice(0, 5)}
+          the order reads as random. `w-20` because "12:28 PM" needs the room "08:54" did not. */}
+      <span className="text-body text-muted hidden w-20 shrink-0 tabular-nums sm:block">
+        {displayTime(t.entryAt, zone)}
       </span>
 
       {/* THE RESULT, WITH ITS RIGHT EDGE PINNED. `min-w`, not `w`: it holds every figure a retail
@@ -205,23 +215,48 @@ function Row({
   );
 }
 
-/* THE DIGITS NEVER TRUNCATE, THE REST DOES.
+/* WHICH ACCOUNT: the firm's mark, its name, and the four digits that identify the row.
  *
- * A plain `truncate` eats a string from the RIGHT, which on `FTDFYL100183704873` cuts exactly the
- * tail that says WHICH account — and for a copy-trader running one strategy across twelve of them,
- * that tail is the only part of the name they are reading. Rendered live at 1440px it read
- * "FTDFYL10018370…", which is the same prefix on every account the firm ever issued.
+ * THE DIGITS NEVER TRUNCATE, THE FIRM DOES. A plain `truncate` eats from the RIGHT, which cuts
+ * exactly the tail that says WHICH account — and for a copy-trader running one strategy across
+ * twelve of them, that tail is the only part they are reading. Seen live at 1440px before the fix:
+ * "FTDFYL10018370…", which is the same prefix on every account that firm ever issued. So the tail
+ * is its own `shrink-0` span and the head takes the squeeze.
  *
- * So the tail is its own `shrink-0` span and the head takes the squeeze. `run-trading@v2` learned
- * this on a firm name plus a bracketed tail; the shape here is one long token, and the rule is the
- * same one. A short name has no tail worth protecting and truncates whole. */
-function AccountName({ name }: { name: string }) {
+ * NOT `accountLast4`, WHICH IS A DIFFERENT JOB and reaching for it here shipped a real defect for
+ * one render: that helper COMPOSES a bracketed suffix for a firm name ("Tradeify 50K" + " (...4873)"),
+ * so using it to SPLIT an id made the head `name.slice(0, len - 9)` and the row read
+ * "FTDFYL100 (...4873)" — the middle digits dropped by arithmetic rather than by truncation, which
+ * is a wrong string rather than a shortened one. Splitting the name itself cannot do that: every
+ * character is still rendered, and the browser decides what fits.
+ *
+ * THE LOGO IS ON A PERMANENTLY LIGHT TILE, the same `--color-logo-tile` the Add-account modal uses:
+ * a firm ships one asset that assumes a light ground, so theming the tile would put a light-only
+ * mark on a dark chip. */
+function AccountName({ name, logo }: { name: string; logo: string | null }) {
   const TAIL = 4;
-  if (name.length <= 8) return <span className="truncate">{name}</span>;
+  const long = name.length > 8;
+  const head = long ? name.slice(0, -TAIL) : name;
+  const tail = long ? name.slice(-TAIL) : '';
   return (
     <>
-      <span className="truncate">{name.slice(0, -TAIL)}</span>
-      <span className="shrink-0">{name.slice(-TAIL)}</span>
+      {logo && (
+        <span
+          className="border-border flex size-[18px] shrink-0 items-center justify-center overflow-hidden rounded-full border"
+          style={{ background: 'var(--color-logo-tile)' }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- a static local mark, not content */}
+          <img src={logo} alt="" aria-hidden className="h-full w-full object-contain" />
+        </span>
+      )}
+      {/* HEAD AND TAIL IN THEIR OWN GAPLESS BOX. They are two halves of ONE token, and the row's
+          `gap-1.5` (which exists to space the logo off the name) was landing between them too:
+          "FTDFYL10018370 4873", which reads as two fields rather than one truncated id. The gap
+          belongs between the mark and the name, nowhere else. */}
+      <span className="flex min-w-0">
+        <span className="truncate">{head}</span>
+        {tail && <span className="shrink-0">{tail}</span>}
+      </span>
     </>
   );
 }
@@ -234,10 +269,14 @@ function InstrumentMark({ symbol }: { symbol: string }) {
   const hue = markHue(root);
   return (
     <span
-      className="text-caption grid size-8 shrink-0 place-items-center rounded-full font-medium"
+      aria-hidden
+      /* MIXED WITH `surface`, NOT `transparent`. The tint is a wash of the hue over the ground it
+         sits on, and mixing into transparency makes it translucent instead — which lets the row's
+         hover ground show through and changes the mark's colour when the pointer arrives. */
+      className="text-caption grid size-7 shrink-0 place-items-center rounded-full font-medium tabular-nums tracking-[-0.01em]"
       style={{
         color: `var(--mark-${hue})`,
-        background: `color-mix(in srgb, var(--mark-${hue}) var(--mark-tint), transparent)`,
+        background: `color-mix(in srgb, var(--mark-${hue}) var(--mark-tint), var(--color-surface))`,
       }}
     >
       {root.slice(0, 3)}

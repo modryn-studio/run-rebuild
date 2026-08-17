@@ -2,6 +2,7 @@ import { and, count, eq, sql } from 'drizzle-orm';
 import { db, account, event } from '@/lib/db';
 import { requireTrader } from '@/lib/trader';
 import { AccountsView, type RosterAccount } from './accounts-view';
+import { PAGE_COLUMN } from '@/lib/shell';
 
 /* The accounts roster. `S4e` builds the minimum that makes the intake testable; `S6` is the real
  * page. See the note at the top of `accounts-view.tsx`.
@@ -42,5 +43,13 @@ export default async function AccountsPage() {
      rail turns on — there is no way to connect one yet, and the row that shows this is dark. */
   const connected = 0;
 
-  return <AccountsView accounts={accounts} connected={connected} />;
+  /* THE GUTTER, which this page never had. `PAGE_COLUMN` is the shell's one horizontal rhythm and
+     `/accounts` was rendering flush to the pane edge — invisible while the only thing on it was a
+     title and a button, obvious the moment `S5c` put the roster beside `/trades`. Imported from
+     `@/lib/shell` rather than through a client module: see that file's note on why. */
+  return (
+    <div className={PAGE_COLUMN}>
+      <AccountsView accounts={accounts} connected={connected} />
+    </div>
+  );
 }

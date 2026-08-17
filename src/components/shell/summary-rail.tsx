@@ -104,6 +104,13 @@ export function WithSummaryRail({
 
       <aside
         className={cn(
+          /* STICKY AND SELF-START above `lg`. A digest of what you are looking at is worth nothing
+             once you have scrolled past it, and a tape is the one surface here people scroll a long
+             way down. `self-start` is what makes it work at all: a grid item stretches to the row's
+             height by default, so a sticky child with nothing left to travel in never moves.
+             ORDER-LAST BELOW `lg`, where the layout is one column: the tape is the subject and the
+             summary is a comment on it, so on a phone the comment goes after. */
+          'max-lg:order-last lg:sticky lg:top-0 lg:self-start',
           'overflow-hidden',
           ready && 'lg:transition-[width] lg:duration-200 lg:ease-out',
           // cn(), never a template string: `lg:w-76` and `lg:w-0` are the same utility group
