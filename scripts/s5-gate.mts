@@ -31,6 +31,8 @@ const { commitImport, markImportCommitted } = await import('../src/lib/intake/co
 const { preflight } = await import('../src/lib/intake/preflight.ts');
 const { projectAccount } = await import('../src/lib/trades/project.ts');
 const { sessionDateFor } = await import('../src/lib/time/session.ts');
+const { getDigest, getTape, getFacets, getExcluded } = await import('../src/lib/trades/read.ts');
+const { EMPTY_FILTER, rangeWindow } = await import('../src/lib/trades/filter.ts');
 
 let failures = 0;
 const check = (label: string, actual: unknown, expected: unknown) => {
@@ -329,6 +331,141 @@ const [stillThere] = await db
   .from(trade)
   .where(and(eq(trade.traderId, t.id), eq(trade.state, 'excluded')));
 check('...while staying visible and countable on the tape', stillThere.n, 1);
+
+console.log('\n=== 9. THE READ LAYER — S5b ===\n');
+
+// Undo section 8's exclusion so the read layer is measured against the whole corpus.
+await db.update(trade).set({ state: 'ok', exclusionReason: null }).where(eq(trade.id, victim.id));
+await projectAccount(t.id, acct.id);
+
+const ALL = { ...EMPTY_FILTER };
+const OPEN = { from: null, to: null };
+
+const digest = await getDigest(t.id, ALL, OPEN);
+check('the digest counts every trade', digest.trades, totals.rows);
+check('...and its net is gross plus fees', digest.netCents, totals.gross + totals.fees);
+check('...and it knows fees were imported', digest.hasFees, true);
+ok('...and it spans more than one session', digest.sessions > 1, `${digest.sessions} sessions`);
+check('...and first/last day bracket the corpus', digest.firstDay !== null && digest.lastDay !== null, true);
+
+/* A SCRATCH IS NEITHER, and this reports whether the real corpus actually contains one rather than
+   asserting a number: the column exists because subtraction would be wrong even once. */
+const scratches = digest.trades - digest.wins - digest.losses;
+console.log(`  (wins ${digest.wins}, losses ${digest.losses}, scratches ${scratches})`);
+check('wins + losses + scratches accounts for every trade', digest.wins + digest.losses + scratches, digest.trades);
+const decided = digest.wins + digest.losses;
+check(
+  'the win rate is over DECIDED trades, not over all of them',
+  digest.winRatePct,
+  Math.round((digest.wins / decided) * 100)
+);
+
+/* PROVEN, NOT MERELY GUARDED. This export happens to contain no scratch, so the rule above would
+   otherwise ship untested on the one corpus available. So one is MADE — a trade whose fees exactly
+   cancel its gross, which is the realistic way a scratch occurs — and the arithmetic is asserted
+   against it. Written straight to the projection and then re-projected away, since the projector
+   would recompute the real fee. */
+/* TEN OF THEM, not one, and the count is the point. A single scratch in 360 trades moves the
+   rounded rate by less than a percentage point, so asserting on one would pass whether the code
+   subtracted or counted. Ten is also the realistic shape: a scalper scratches regularly, which is
+   exactly the trader this failure would mislead.
+
+   Selected on NET, not gross. A trade can be gross-positive and net-negative once fees land — most
+   of this tape is — so picking on gross would move rows out of the LOSSES and prove nothing about
+   the win side. Fees are set to exactly cancel the gross, which is how a real scratch occurs. */
+const SCRATCHED = 10;
+await db.execute(sql`
+  update "trade" set fee_cents = -gross_pnl_cents
+  where id in (
+    select id from "trade"
+    where trader_id = ${t.id}::uuid and gross_pnl_cents + fee_cents > 0
+    limit ${SCRATCHED}
+  )
+`);
+
+const withScratch = await getDigest(t.id, ALL, OPEN);
+check('a scratch is counted as neither a win', withScratch.wins, digest.wins - SCRATCHED);
+check('...nor a loss', withScratch.losses, digest.losses);
+check('...and it still counts as a trade', withScratch.trades, digest.trades);
+
+const truth = Math.round(((digest.wins - SCRATCHED) / (digest.wins - SCRATCHED + digest.losses)) * 100);
+check('...and the win rate is over the decided trades only', withScratch.winRatePct, truth);
+
+/* THE BUG THIS PREVENTS, STATED AS A NUMBER. Deriving losses by subtraction calls every scratch a
+   loss, which inflates the denominator and reports a rate LOWER than the truth. */
+const bySubtraction = Math.round(((digest.wins - SCRATCHED) / withScratch.trades) * 100);
+ok(
+  '...where subtracting would have understated it',
+  bySubtraction < withScratch.winRatePct!,
+  `subtraction gives ${bySubtraction}%, the truth is ${withScratch.winRatePct}%`
+);
+await projectAccount(t.id, acct.id); // put the real fees back
+
+/* THE DIGEST IS OVER THE FILTERED SET, NOT THE PAGE. `getTape` is capped; the digest must not be,
+   and this is the assertion that catches a summary quietly built from a page. */
+const tape = await getTape(t.id, ALL, OPEN, { limit: 10 });
+const drawn = tape.reduce((n, g) => n + g.trades.length, 0);
+check('the tape honours its limit', drawn, 10);
+check('...and the digest still counts everything', (await getDigest(t.id, ALL, OPEN)).trades, totals.rows);
+
+/* ...AND SO DOES A SESSION HEADER. A capped page can truncate a session, and a header built from
+   the rows in hand would state a total for trades it cannot see. */
+const truncated = tape.find((g) => g.tradeCount > g.trades.length);
+ok(
+  'a session header totals the whole session, not the rows drawn',
+  truncated !== undefined,
+  'no session was truncated by the limit, so this was not exercised'
+);
+
+console.log('\n=== 10. NARROWING IS APPLIED IN SQL, AND CHANGES THE DIGEST ===\n');
+
+const [firstProduct] = (await getFacets(t.id)).products;
+const byProduct = await getDigest(t.id, { ...ALL, products: [firstProduct] }, OPEN);
+ok('a product filter narrows the digest', byProduct.trades < digest.trades, '');
+ok('...and it is not empty', byProduct.trades > 0, '');
+
+const facets = await getFacets(t.id);
+ok('the facets offer the products actually traded', facets.products.length > 1, facets.products.join(','));
+check('...and the account that holds them', facets.accounts.length, 1);
+
+/* THE FOUR FIGURES THAT GO NULL UNDER A RESULT FILTER. Luke found this in the previous build: they
+   do not become narrow, they become untrue. */
+const winsOnly = await getDigest(t.id, { ...ALL, results: ['win'] }, OPEN);
+check('a wins-only digest counts only wins', winsOnly.trades, digest.wins);
+check('...and refuses to print a win rate', winsOnly.winRatePct, null);
+check('...and refuses to print the best session', winsOnly.bestSessionCents, null);
+check('...and refuses to print the worst session', winsOnly.worstSessionCents, null);
+ok('...while still stating a true net for what is on screen', winsOnly.netCents > 0, `${winsOnly.netCents}`);
+
+/* BOTH TOKENS IS NOT "EVERYTHING" — it is every DECIDED trade, which is the honest reading when a
+   scratch is neither. */
+const bothTokens = await getDigest(t.id, { ...ALL, results: ['win', 'loss'] }, OPEN);
+check('win+loss selects the decided trades', bothTokens.trades, decided);
+
+console.log('\n=== 11. THE WINDOW CUTS ON SESSION DATE ===\n');
+
+const mid = digest.lastDay!;
+const oneDay = await getDigest(t.id, ALL, { from: mid, to: mid });
+ok('a one-day window is a real subset', oneDay.trades > 0 && oneDay.trades < digest.trades, `${oneDay.trades}`);
+check('...and it holds exactly one session', oneDay.sessions, 1);
+
+const rangeAll = rangeWindow({ range: 'all', from: null, to: null }, mid);
+check('the default range windows nothing', `${rangeAll.from},${rangeAll.to}`, 'null,null');
+const custom = rangeWindow({ range: 'last7', from: '2026-01-01', to: null }, mid);
+check('a custom from OVERRIDES the range', custom.from, '2026-01-01');
+
+console.log('\n=== 12. A QUARANTINED TRADE STAYS ON THE TAPE AND OUT OF THE FIGURES ===\n');
+
+await db.update(trade).set({ state: 'excluded', exclusionReason: 'Left out.' }).where(eq(trade.id, victim.id));
+const afterExcl = await getDigest(t.id, ALL, OPEN);
+check('an excluded trade leaves the digest', afterExcl.trades, totals.rows - 1);
+
+const tapeAll = await getTape(t.id, ALL, OPEN, { limit: 1000 });
+const onTape = tapeAll.some((g) => g.trades.some((r) => r.id === victim.id));
+check('...and stays visible on the tape', onTape, true);
+
+const counts = await getExcluded(t.id, ALL, OPEN);
+check('...and is counted for the notice', counts.excluded, 1);
 
 // ── teardown ────────────────────────────────────────────────────────────────────────
 await teardown();

@@ -281,7 +281,7 @@ export async function rebuildSessions(traderId: string): Promise<number> {
     db.execute(sql`
       insert into "session" (
         trader_id, session_date, net_pnl_cents, fees_cents,
-        trade_count, win_count, first_trade_at, last_trade_at, projected_at
+        trade_count, win_count, loss_count, first_trade_at, last_trade_at, projected_at
       )
       select
         ${traderId}::uuid,
@@ -292,6 +292,9 @@ export async function rebuildSessions(traderId: string): Promise<number> {
         -- A WIN IS NET, NOT GROSS. Fees decide whether a scratch was really a scratch, and a win
         -- rate computed before costs is the flattering number this product exists to refuse.
         count(*) filter (where ${trade.grossPnlCents} + ${trade.feeCents} > 0),
+        -- COUNTED, NOT SUBTRACTED. An exactly-zero net is neither a win nor a loss, and deriving
+        -- losses as trades-minus-wins would file every scratch as one.
+        count(*) filter (where ${trade.grossPnlCents} + ${trade.feeCents} < 0),
         min(${trade.entryAt}),
         max(${trade.exitAt}),
         now()

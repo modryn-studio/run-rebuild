@@ -444,10 +444,20 @@ stay countable. `ok` is the only state that feeds a computed figure.
 | `trader_id` | uuid | no | |
 | `session_date` | date | no | |
 | `net_pnl_cents` / `fees_cents` | bigint | no | |
-| `trade_count` / `win_count` | int | no | |
+| `trade_count` / `win_count` / `loss_count` | int | no | `loss_count` amended 2026-08-17 — see below |
 | `first_trade_at` / `last_trade_at` | timestamptz | yes | |
 
 PK: `(trader_id, session_date)`
+
+**A SCRATCH IS NEITHER A WIN NOR A LOSS** — `[AMENDED 2026-08-17, S5]`. `win_count` alone cannot
+express a session's win rate, because `trade_count − win_count` is not the loss count: an
+exactly-zero net is rare but real, either a true scratch or fees that precisely ate the gain.
+Deriving losses by subtraction files every one of them as a loss and **understates the win rate on
+the header of the session it happened in**.
+
+So both counts are stored and the rate is `win / (win + loss)`, with scratches visible as the
+remainder. Ported from `run-trading@v2`'s `session-stats.ts`, which states the rule and then needs
+it: its own tape carries rows where fees exactly cancelled the gross.
 
 **Keyed on the trader, not the account.** A trader may work several accounts in one session, and
 the wedge is about *their* day. Per-account rollups are a filter over `trade`, not a second table.

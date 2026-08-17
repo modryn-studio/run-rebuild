@@ -483,7 +483,10 @@ export const trade = pgTable(
        missing there is no answer — and an unknown direction beats a guessed one on a row whose
        whole content is what happened. Never derived from price ordering: that silently guesses on
        a scratch trade, where P&L is zero and the two prices are equal. */
-    direction: text('direction'),
+    /* `$type` so the union reaches every reader. The CHECK below constrains the DATABASE; without
+       this, drizzle types the column `string` and every consumer has to re-narrow what the schema
+       already guarantees. */
+    direction: text('direction').$type<TradeDirection>(),
     /* A QUOTE, NOT MONEY — `numeric(19,6)`, not cents. 6E quotes at 1.08500; stored as cents it
        becomes 109 and a real 1.08500→1.08600 winner prints identical entry and exit beside a
        profit. Money is integer cents; quotes are not money. */
@@ -501,7 +504,7 @@ export const trade = pgTable(
 
     /* `ok` IS THE ONLY STATE THAT FEEDS A COMPUTED FIGURE, and the other two stay visible and
        countable — an exclusion may never silently shrink the record (spec S3, S9b). */
-    state: text('state').notNull().default('ok'),
+    state: text('state').$type<TradeState>().notNull().default('ok'),
     quarantineReason: text('quarantine_reason'),
     exclusionReason: text('exclusion_reason'), // the trader's own words, S9b
     projectedAt: timestamp('projected_at', { withTimezone: true }).notNull().defaultNow(),
@@ -546,7 +549,12 @@ export const tradingSession = pgTable(
     netPnlCents: bigint('net_pnl_cents', { mode: 'number' }).notNull().default(0),
     feesCents: bigint('fees_cents', { mode: 'number' }).notNull().default(0),
     tradeCount: integer('trade_count').notNull().default(0),
+    /* BOTH COUNTS, because `trade_count - win_count` is NOT the loss count. An exactly-zero net is
+       rare but real — a true scratch, or fees that precisely ate the gain — and subtracting files
+       every one of them as a loss, understating the win rate on that session's own header. The
+       rate is `win / (win + loss)`; scratches are the remainder and are neither. */
     winCount: integer('win_count').notNull().default(0),
+    lossCount: integer('loss_count').notNull().default(0),
     firstTradeAt: timestamp('first_trade_at', { withTimezone: true }),
     lastTradeAt: timestamp('last_trade_at', { withTimezone: true }),
     projectedAt: timestamp('projected_at', { withTimezone: true }).notNull().defaultNow(),
