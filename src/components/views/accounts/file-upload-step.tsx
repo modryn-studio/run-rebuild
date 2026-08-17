@@ -24,9 +24,9 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { detectTradovateFileType, type TradovateFileType } from '@/lib/csv/shared';
 import { ModalHeader, RunMark, ImportComplete, SourceMark, type Source } from './shared';
-import { ModalBody, ModalFooter, ModalActions } from './modal-shell';
+import { ModalBody, ModalFooter } from './modal-shell';
 import { ProgressPanel } from './progress-panel';
-import { FindingList } from './finding-notice';
+import { ImportRefused } from './import-refused';
 import { useImportRun, type ImportOutcome } from './use-import-run';
 
 export type Picked = { file: File; type: TradovateFileType | undefined };
@@ -149,58 +149,31 @@ export function FileUploadStep({
       );
     }
 
+    /* A REFUSAL REPLACES THE PANEL, it does not sit under it. The panel is 296px of a 450px dialog
+       and on failure it is reporting history, so leaving it up left the findings 34px to live in.
+       See `import-refused.tsx` for the full measurement and why this is not a second modal. */
+    if (run.phase === 'failed') {
+      return (
+        <ImportRefused
+          findings={run.findings}
+          error={run.error}
+          partiallySaved={run.steps.some((st) => st.state === 'done' && st.id !== 'read')}
+          onBack={run.reset}
+          onRetry={submit}
+        />
+      );
+    }
+
     return (
       <>
         {/* No back arrow and no X while work is in flight. This screen has one exit and it goes
-            forward. On failure the controls below take over. */}
+            forward: a refusal is handled by `ImportRefused` above, which owns its own exits. */}
         <ModalHeader title="Building your record" />
         <ProgressPanel
           from={<Icon name="files" size={26} className="text-muted" />}
           to={<RunMark size={26} />}
           steps={run.steps}
         />
-
-        {run.phase === 'failed' && (
-          <>
-            {/* SCROLLS. A refusal can carry up to four findings plus the "and N others" line, each
-               with a title AND a detail sentence — on a real phone that is taller than the viewport
-               before you count the header and the progress panel above it. Until this was wrapped
-               in `ModalBody`, the dialog's own `overflow-hidden` (`modal-shell.tsx`,
-               `max-h-[85dvh]`) just CLIPPED the excess, silently, with no scrollbar and no way to
-               reach what was cut off — which on a small enough screen was the two buttons below.
-               Caught from a screenshot at 2026-08-15 where a fourth finding's heading was visible
-               and its detail line, and everything under it, was not. */}
-            <ModalBody className="px-6 pb-2">
-              {/* SAYS WHAT SURVIVED BEFORE WHAT TO DO NEXT. A partial import reads as total loss
-                  otherwise, and the trader needs to know a retry cannot double-count. */}
-              {run.steps.some((st) => st.state === 'done' && st.id !== 'read') && (
-                <p className="text-small text-muted mb-3">
-                  Everything ticked above is saved. Trying again will not duplicate it.
-                </p>
-              )}
-              {/* THE THIRTEEN CODES REACH THE TRADER HERE, and this is the only place they do.
-                  With no confirm panel in the flow, a refusal has exactly one surface. */}
-              {run.findings.length > 0 ? (
-                <FindingList findings={run.findings} />
-              ) : (
-                run.error && <p className="text-small text-neg">{run.error}</p>
-              )}
-            </ModalBody>
-            {/* PINNED OUTSIDE THE SCROLL, deliberately, matching `ModalFooter`'s own reasoning
-               elsewhere in this codebase: the one action a screen exists to reach must never
-               scroll away with the content, however long the findings list gets. */}
-            <ModalFooter>
-              <ModalActions>
-                <Button variant="secondary" size="sm" onClick={run.reset}>
-                  Back to files
-                </Button>
-                <Button size="sm" onClick={submit}>
-                  Try again
-                </Button>
-              </ModalActions>
-            </ModalFooter>
-          </>
-        )}
       </>
     );
   }

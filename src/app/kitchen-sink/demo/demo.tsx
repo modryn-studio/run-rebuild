@@ -29,17 +29,9 @@
 import { useState } from 'react';
 import { AddAccountModal } from '@/components/views/accounts/add-account-modal';
 import { FileUploadStep, type Picked } from '@/components/views/accounts/file-upload-step';
-import {
-  ModalShell,
-  ModalBody,
-  ModalFooter,
-  ModalActions,
-} from '@/components/views/accounts/modal-shell';
-import { ImportComplete, ModalHeader, RunMark, type Source } from '@/components/views/accounts/shared';
-import { ProgressPanel, type Step } from '@/components/views/accounts/progress-panel';
-import { FindingList } from '@/components/views/accounts/finding-notice';
-import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
+import { ModalShell } from '@/components/views/accounts/modal-shell';
+import { ImportComplete, type Source } from '@/components/views/accounts/shared';
+import { ImportRefused } from '@/components/views/accounts/import-refused';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import type { PreflightFinding } from '@/lib/intake/preflight';
 
@@ -70,12 +62,6 @@ const DEMO_FINDINGS: PreflightFinding[] = [
   { code: 'fees_implausible', blocking: true, detail: { perContractCents: 7_700, total: 333 } },
 ];
 
-const FAILED_STEPS: Step[] = [
-  { id: 'read', label: 'Reading your files', state: 'done' },
-  { id: 'fills', label: 'Saving your fills', state: 'done' },
-  { id: 'position_history', label: 'Saving your trades', state: 'failed', detail: 'Could not be matched' },
-  { id: 'cash_history', label: 'Saving your fees', state: 'pending' },
-];
 
 type Scene = 'doors' | 'upload' | 'failed' | 'complete' | 'already-saved';
 
@@ -122,44 +108,6 @@ function UploadScene({ onClose }: { onClose: () => void }) {
       onDone={onClose}
       onBusyChange={() => {}}
     />
-  );
-}
-
-/* The refused panel, assembled here rather than driven through a fake failure. Mounting the real
-   `FileUploadStep` and making its dry run fail would mean teaching the hook to lie on purpose,
-   which is a worse thing to own than this composition: the two children below (`ProgressPanel`,
-   `FindingList`) ARE the shipped components, and the arrangement they sit in is four lines. */
-function FailedScene({ onClose }: { onClose: () => void }) {
-  return (
-    <>
-      <ModalHeader title="Building your record" />
-      <ProgressPanel
-        from={<Icon name="files" size={26} className="text-muted" />}
-        to={<RunMark size={26} />}
-        steps={FAILED_STEPS}
-      />
-      {/* SCROLLS, MATCHING THE REAL SCREEN (fixed 2026-08-15, caught from a screenshot of THIS
-          scene: a fourth finding's heading was visible and everything under it, including both
-          buttons, was silently clipped by the dialog's own `overflow-hidden`, with no scrollbar).
-          This composition exists to be a faithful stand-in for `file-upload-step.tsx`'s failed
-          state, so it carries the identical fix rather than a scene-only patch. */}
-      <ModalBody className="px-6 pb-2">
-        <p className="text-small text-muted mb-3">
-          Everything ticked above is saved. Trying again will not duplicate it.
-        </p>
-        <FindingList findings={DEMO_FINDINGS} />
-      </ModalBody>
-      <ModalFooter>
-        <ModalActions>
-          <Button variant="secondary" size="sm" onClick={onClose}>
-            Back to files
-          </Button>
-          <Button size="sm" onClick={onClose}>
-            Try again
-          </Button>
-        </ModalActions>
-      </ModalFooter>
-    </>
   );
 }
 
@@ -223,9 +171,19 @@ export function AddAccountDemo() {
         </ModalShell>
       )}
 
+      {/* THE REAL COMPONENT, not a local composition. This scene used to hand-roll the refusal out
+          of ModalHeader + ProgressPanel + FindingList, and that clone is exactly how the same scroll
+          bug had to be fixed twice on 2026-08-15: once in the shipped screen and once here. Mounting
+          `ImportRefused` means this scene cannot drift from what ships again. */}
       {scene === 'failed' && (
         <ModalShell key={nonce} onDismiss={close}>
-          <FailedScene onClose={close} />
+          <ImportRefused
+            findings={DEMO_FINDINGS}
+            error={null}
+            partiallySaved
+            onBack={close}
+            onRetry={close}
+          />
         </ModalShell>
       )}
 
