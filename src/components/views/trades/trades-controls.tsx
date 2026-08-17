@@ -1,26 +1,30 @@
 'use client';
 
-/* THE TAPE'S TWO QUERY CONTROLS: the date range, and everything else. Plus a Clear that only exists
- * while there is something to clear.
+/* THE TAPE'S QUERY CONTROLS: Clear, Date, Filters. Ported from `run-trading@v2`'s
+ * `sessions-filters.tsx` (2026-08-17, S5c), structure and reasoning intact.
  *
  * THE URL IS THE STATE. A filtered tape is a thing a trader reloads, bookmarks and sends to
- * themselves, and no narrowing here is worth a database row. Every control writes a search param and
- * lets the Server Component re-read it, so the page's figures and its address can never disagree.
+ * themselves, and no narrowing here is worth a database row. Every panel writes search params and
+ * lets the Server Component re-read them, so the figures and the address can never disagree.
  *
- * BOTH PANELS ARE REAL DIALOGS, which is where this departs from `run-trading@v2` on purpose. Its
- * filter panels had no `aria-modal`, no focus move, no trap and no restore (its issue #95), so a
- * keyboard user opened one and stayed on the page behind it. Same treatment as the trade drawer.
+ * A DRAFT, THEN APPLY, and this is the part a simpler version gets wrong. Each panel edits a local
+ * copy and commits on Apply, so a trader can build a multi-part question (this product, that
+ * account, last month) and see the tape move once, rather than watching it re-query after every
+ * click. Escape and an outside click discard the draft.
  *
- * EMPTY MEANS EVERY ONE, everywhere. Nothing selected is the resting state rather than an edge case,
- * so a chip list needs no "All" entry — which would be a second reading of the same field.
+ * DROPPED FROM v2, and both because the data does not exist here rather than for taste: SEARCH,
+ * which searches trade notes (NOT IN V1, issue #10), and the STATUS and PHASE axes, which read
+ * account columns no surface has labelled yet. The panel gains them back when those do.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
+import { HeaderControl } from '@/components/shell/header-slot';
 import { cn } from '@/lib/cn';
 import {
+  DEFAULT_RANGE,
   RANGE_LABEL,
   RANGE_OPTIONS,
   RESULT_TOKENS,
@@ -31,23 +35,27 @@ import {
   type TradesFilter,
 } from '@/lib/trades/filter';
 
-export function TradesControls({
-  filter,
-  products,
-  accounts,
-}: {
-  filter: TradesFilter;
-  /** Every product ever traded, NOT just the ones in range — see `getFacets`. */
-  products: string[];
-  accounts: { id: string; name: string }[];
-}) {
+/** What the Date button says. The window it is showing, or the question when it is showing all. */
+function rangeButtonLabel(f: Pick<TradesFilter, 'range' | 'from' | 'to'>): string {
+  if (f.from && f.to) return `${f.from} to ${f.to}`;
+  if (f.from) return `Since ${f.from}`;
+  if (f.to) return `Up to ${f.to}`;
+  return f.range === DEFAULT_RANGE ? 'Date' : RANGE_LABEL[f.range as Range];
+}
+
+const isCustom = (f: Pick<TradesFilter, 'from' | 'to'>) => Boolean(f.from || f.to);
+/** Whether the date control is narrowing at all — a custom window narrows without touching the
+ *  shortcut, so this is not `range !== DEFAULT_RANGE`. */
+const windowed = (f: Pick<TradesFilter, 'range' | 'from' | 'to'>) =>
+  f.range !== DEFAULT_RANGE || isCustom(f);
+
+/* ONE WRITER FOR THE URL, so no panel has its own idea of how a param is spelled. An empty value
+ * DELETES the key rather than writing `?products=`: a URL a trader might read should not carry the
+ * debris of a filter they turned off. */
+function useParamWriter() {
   const router = useRouter();
   const params = useSearchParams();
-
-  /* ONE WRITER FOR THE URL, so no control has its own idea of how a param is spelled. An empty
-     value DELETES the key rather than writing `?products=`, because a URL a trader might read
-     should not carry the debris of a filter they turned off. */
-  const apply = useCallback(
+  return useCallback(
     (patch: Record<string, string | null>) => {
       const next = new URLSearchParams(params.toString());
       for (const [k, v] of Object.entries(patch)) {
@@ -59,81 +67,245 @@ export function TradesControls({
     },
     [params, router]
   );
+}
 
-  const narrowed = isNarrowed(filter);
-  const count = activeCount(filter);
+/* Open state, an outside-click close and Escape. `onOpen` re-seeds the draft from what is APPLIED,
+ * so re-opening a panel never shows an abandoned edit from last time. */
+function usePopover(onOpen?: () => void) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    // Focus moves INTO the panel. v2 shipped these without it (its #95), so a keyboard user opened
+    // a dialog and stayed on the page behind it.
+    panel.current?.focus();
+    const onDown = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const toggle = () => {
+    if (!open) onOpen?.();
+    setOpen((o) => !o);
+  };
+  return { open, setOpen, toggle, root, panel };
+}
+
+export function TradesControls({
+  filter,
+  products,
+  accounts,
+}: {
+  filter: TradesFilter;
+  /** Every product ever traded, NOT just the ones in range — see `getFacets`. */
+  products: string[];
+  accounts: { id: string; name: string }[];
+}) {
+  const write = useParamWriter();
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <>
       {/* CLEAR COMES FIRST AND ONLY WHEN IT DOES SOMETHING. A permanently visible Clear on an
-          unfiltered page is a control that does nothing, which the postcheck treats as a defect. */}
-      {narrowed && (
-        <Button variant="ghost" size="sm" onClick={() => router.push('/trades', { scroll: false })}>
+          unfiltered page is a control that does nothing. */}
+      {isNarrowed(filter) && (
+        <HeaderControl
+          onClick={() => write({ range: null, from: null, to: null, products: null, results: null, accounts: null })}
+          className="text-muted"
+        >
           Clear
-        </Button>
+        </HeaderControl>
       )}
+      <DatePopover applied={filter} />
+      <FiltersPopover applied={filter} products={products} accounts={accounts} />
+    </>
+  );
+}
 
-      <Popover
-        label={rangeLabel(filter)}
-        active={filter.range !== 'all' || Boolean(filter.from || filter.to)}
-        title="Date range"
-      >
-        {(close) => (
-          <div className="flex w-64 flex-col p-1">
-            {RANGE_OPTIONS.map((r) => (
-              <MenuItem
-                key={r}
-                selected={filter.range === r && !filter.from && !filter.to}
-                onClick={() => {
-                  // A shortcut CLEARS a custom window; the two are one question with one answer.
-                  apply({ range: r, from: null, to: null });
-                  close();
-                }}
-              >
-                {RANGE_LABEL[r]}
-              </MenuItem>
-            ))}
+function DatePopover({ applied }: { applied: TradesFilter }) {
+  const write = useParamWriter();
+  const [draft, setDraft] = useState({ range: applied.range, from: applied.from, to: applied.to });
+  const { open, setOpen, toggle, root, panel } = usePopover(() =>
+    setDraft({ range: applied.range, from: applied.from, to: applied.to })
+  );
 
-            <div className="border-rule my-1 border-t" />
-            {/* EITHER END MAY STAND ALONE. "Everything since March" is a real question and so is
-                "everything up to the day I blew it", so neither input requires the other. */}
-            <div className="flex items-center gap-2 px-2 py-2">
-              <DayInput
-                label="From"
-                value={filter.from}
-                onChange={(v) => apply({ from: v, range: null })}
+  const custom = isCustom(draft);
+  const commit = (next: { range: Range; from: string | null; to: string | null }) => {
+    write({
+      // The default writes NO parameter, so a trader who never touches this has a clean URL.
+      range: next.range === DEFAULT_RANGE ? null : next.range,
+      from: next.from,
+      to: next.to,
+    });
+    setOpen(false);
+  };
+  const dirty = draft.range !== applied.range || draft.from !== applied.from || draft.to !== applied.to;
+
+  return (
+    <div ref={root} className="relative">
+      <HeaderControl onClick={toggle} aria-expanded={open} aria-haspopup="dialog" className="relative">
+        <Icon name="today" size={15} />
+        {rangeButtonLabel(applied)}
+        {/* THE DOT. A trader scans the band for marks, not for which of two labels has changed
+            wording, so a control that is narrowing the tape while looking exactly like one that is
+            not is the control that gets missed. */}
+        {windowed(applied) && (
+          <span aria-hidden className="bg-accent absolute -top-0.5 -right-0.5 size-2 rounded-full" />
+        )}
+      </HeaderControl>
+
+      {open && (
+        <div
+          ref={panel}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Date range"
+          className="border-border bg-surface absolute top-full right-0 z-50 mt-1.5 w-[26rem] overflow-hidden rounded-[var(--radius)] border shadow-[var(--shadow-card)] outline-none"
+        >
+          <div className="flex">
+            {/* THE SHORTCUT RAIL. Picking one CLEARS the custom dates: a shortcut and a custom
+                window are two answers to one question, and leaving both set would make the button's
+                own label lie about what the tape is showing. */}
+            <div className="border-rule w-[8.75rem] shrink-0 border-r p-2">
+              {RANGE_OPTIONS.map((r) => {
+                const on = !custom && draft.range === r;
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setDraft({ range: r, from: null, to: null })}
+                    className={cn(
+                      'text-body hover:bg-hover flex min-h-9 w-full items-center rounded-[var(--radius-sm)] px-2 text-left transition-colors',
+                      on ? 'text-text font-medium' : 'text-muted'
+                    )}
+                  >
+                    {RANGE_LABEL[r]}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* EITHER END MAY STAND ALONE, BUT THEY CANNOT CROSS. Each input bounds the other, so a
+                trader cannot pick an end before the start and get an empty tape with nothing on
+                screen explaining why. Bounding rather than validating: there is no error state to
+                write, because the state cannot be reached. */}
+            <div className="flex-1 p-4">
+              <DateField
+                label="Start date"
+                value={draft.from}
+                max={draft.to}
+                onChange={(v) => setDraft((d) => ({ ...d, from: v }))}
               />
-              <DayInput label="To" value={filter.to} onChange={(v) => apply({ to: v, range: null })} />
+              <div className="mt-4">
+                <DateField
+                  label="End date"
+                  value={draft.to}
+                  min={draft.from}
+                  onChange={(v) => setDraft((d) => ({ ...d, to: v }))}
+                />
+              </div>
             </div>
           </div>
-        )}
-      </Popover>
 
-      <Popover label="Filters" active={count > 0} badge={count} title="Filters">
-        {() => (
-          <div className="flex w-72 flex-col gap-4 p-4">
+          <PanelFooter
+            onClear={() => commit({ range: DEFAULT_RANGE, from: null, to: null })}
+            onCancel={() => setOpen(false)}
+            onApply={() => commit(draft)}
+            clearDisabled={draft.range === DEFAULT_RANGE && !custom}
+            applyDisabled={!dirty}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FiltersPopover({
+  applied,
+  products,
+  accounts,
+}: {
+  applied: TradesFilter;
+  products: string[];
+  accounts: { id: string; name: string }[];
+}) {
+  const write = useParamWriter();
+  const seed = () => ({
+    products: applied.products,
+    results: applied.results,
+    accounts: applied.accounts,
+  });
+  const [draft, setDraft] = useState(seed);
+  const { open, setOpen, toggle, root, panel } = usePopover(() => setDraft(seed()));
+
+  const count = activeCount(applied);
+  const draftCount = draft.products.length + draft.results.length + draft.accounts.length;
+  const dirty =
+    draft.products.join() !== applied.products.join() ||
+    draft.results.join() !== applied.results.join() ||
+    draft.accounts.join() !== applied.accounts.join();
+
+  const commit = (next: typeof draft) => {
+    write({
+      products: next.products.join(',') || null,
+      results: next.results.join(',') || null,
+      accounts: next.accounts.join(',') || null,
+    });
+    setOpen(false);
+  };
+
+  const toggleIn = <T extends string>(key: 'products' | 'results' | 'accounts', v: T) =>
+    setDraft((d) => {
+      const list = d[key] as string[];
+      return { ...d, [key]: list.includes(v) ? list.filter((x) => x !== v) : [...list, v] };
+    });
+
+  return (
+    <div ref={root} className="relative">
+      <HeaderControl onClick={toggle} aria-expanded={open} aria-haspopup="dialog" className="relative">
+        <Icon name="filter" size={15} />
+        Filters
+        {count > 0 && (
+          <span aria-hidden className="bg-accent absolute -top-0.5 -right-0.5 size-2 rounded-full" />
+        )}
+      </HeaderControl>
+
+      {open && (
+        <div
+          ref={panel}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Filters"
+          className="border-border bg-surface absolute top-full right-0 z-50 mt-1.5 w-[22rem] overflow-hidden rounded-[var(--radius)] border shadow-[var(--shadow-card)] outline-none"
+        >
+          <div className="flex max-h-[26rem] flex-col gap-5 overflow-y-auto p-4">
+            {/* A SCRATCH IS NEITHER, so both chips on is not "everything" — it is every DECIDED
+                trade, which is the honest reading of asking for wins and losses. */}
             <Group label="Result">
-              {/* A SCRATCH IS NEITHER, so both chips on is not "everything" — it is every DECIDED
-                  trade, which is the honest reading of asking for wins and losses. */}
               {RESULT_TOKENS.map((r) => (
-                <Chip
-                  key={r}
-                  on={filter.results.includes(r)}
-                  onClick={() => apply({ results: toggle(filter.results, r).join(',') })}
-                >
+                <Chip key={r} on={draft.results.includes(r)} onClick={() => toggleIn('results', r as ResultToken)}>
                   {r === 'win' ? 'Wins' : 'Losses'}
                 </Chip>
               ))}
             </Group>
 
+            {/* PRODUCT, NOT CONTRACT MONTH. `MNQ`, never `MNQU6`: the month is an expiry, not a
+                strategy, and offering contracts turns eight instruments into twenty chips. */}
             {products.length > 1 && (
               <Group label="Product">
                 {products.map((p) => (
-                  <Chip
-                    key={p}
-                    on={filter.products.includes(p)}
-                    onClick={() => apply({ products: toggle(filter.products, p).join(',') })}
-                  >
+                  <Chip key={p} on={draft.products.includes(p)} onClick={() => toggleIn('products', p)}>
                     {p}
                   </Chip>
                 ))}
@@ -143,160 +315,114 @@ export function TradesControls({
             {accounts.length > 1 && (
               <Group label="Account">
                 {accounts.map((a) => (
-                  <Chip
-                    key={a.id}
-                    on={filter.accounts.includes(a.id)}
-                    onClick={() => apply({ accounts: toggle(filter.accounts, a.id).join(',') })}
-                  >
+                  <Chip key={a.id} on={draft.accounts.includes(a.id)} onClick={() => toggleIn('accounts', a.id)}>
                     {a.name}
                   </Chip>
                 ))}
               </Group>
             )}
           </div>
-        )}
-      </Popover>
-    </div>
-  );
-}
 
-const toggle = <T extends string>(list: T[], v: T): T[] =>
-  list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
-
-function rangeLabel(f: TradesFilter): string {
-  if (f.from && f.to) return `${f.from} to ${f.to}`;
-  if (f.from) return `Since ${f.from}`;
-  if (f.to) return `Up to ${f.to}`;
-  return f.range === 'all' ? 'Date' : RANGE_LABEL[f.range as Range];
-}
-
-/* A POPOVER THAT IS A REAL DIALOG: labelled, focus moved in, trapped, restored on close, and
- * dismissed by Escape or an outside click. */
-function Popover({
-  label,
-  title,
-  active,
-  badge,
-  children,
-}: {
-  label: string;
-  title: string;
-  active: boolean;
-  badge?: number;
-  children: (close: () => void) => React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrap = useRef<HTMLDivElement>(null);
-  const panel = useRef<HTMLDivElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
-
-  /* `close` ONLY SETS STATE. It used to focus the trigger too, which reads a ref — and this function
-     is handed to `children()` during render, so the React Compiler correctly refused it. Restoring
-     focus is a side effect of having closed, so it belongs in an effect rather than in the handler
-     that asked for the close. */
-  const close = useCallback(() => setOpen(false), []);
-
-  /* FOCUS GOES BACK TO THE TRIGGER, but only on a real close — `wasOpen` is what stops this
-     stealing focus on mount, when `open` is already false and nothing has been dismissed. */
-  const wasOpen = useRef(false);
-  useEffect(() => {
-    if (wasOpen.current && !open) trigger.current?.focus();
-    wasOpen.current = open;
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    panel.current?.focus();
-    const onDown = (e: MouseEvent) => {
-      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      close();
-      return;
-    }
-    if (e.key !== 'Tab') return;
-    const focusable = panel.current?.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    if (!focusable?.length) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
-    }
-  };
-
-  return (
-    <div ref={wrap} className="relative">
-      <Button
-        ref={trigger}
-        variant="secondary"
-        size="sm"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        data-active={active || undefined}
-      >
-        {label}
-        {badge ? <span className="text-caption tabular-nums">({badge})</span> : null}
-        <Icon name="chevron" size={14} />
-      </Button>
-
-      {open && (
-        <div
-          ref={panel}
-          tabIndex={-1}
-          role="dialog"
-          aria-modal="true"
-          aria-label={title}
-          onKeyDown={onKeyDown}
-          className="bg-surface border-border absolute right-0 z-50 mt-1 rounded-[var(--radius)] border shadow-[var(--shadow-card)] outline-none"
-        >
-          {children(close)}
+          <PanelFooter
+            onClear={() => commit({ products: [], results: [], accounts: [] })}
+            onCancel={() => setOpen(false)}
+            onApply={() => commit(draft)}
+            clearDisabled={draftCount === 0 && count === 0}
+            applyDisabled={!dirty}
+          />
         </div>
       )}
     </div>
   );
 }
 
-function MenuItem({
-  selected,
-  onClick,
-  children,
+/* THE FOOTER BOTH PANELS END WITH: Clear, Cancel, Apply. Three buttons a trader recognises beats
+ * two they have to re-read, which is the call v2 landed on after shipping both shapes.
+ *
+ * CLEAR COMMITS AND CLOSES — it does not stage (Luke, 2026-08-06: "they should not have to click
+ * 'clear' and then 'apply'"). "Clear this" is a complete instruction, and making it a draft edit
+ * turns one intent into two clicks and leaves the panel open over a result already asked for. */
+function PanelFooter({
+  onClear,
+  onCancel,
+  onApply,
+  clearDisabled,
+  applyDisabled,
 }: {
-  selected: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+  onClear: () => void;
+  onCancel: () => void;
+  onApply: () => void;
+  clearDisabled?: boolean;
+  applyDisabled?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'text-body hover:bg-hover flex items-center justify-between rounded-[var(--radius-sm)] px-3 py-2 text-left transition-colors',
-        selected ? 'text-text' : 'text-muted'
-      )}
-    >
-      {children}
-      {selected && <Icon name="check" size={14} className="text-accent" />}
-    </button>
+    <div className="border-rule flex h-14 items-center justify-between gap-3 border-t px-3">
+      <button
+        type="button"
+        disabled={clearDisabled}
+        onClick={onClear}
+        className="text-body text-muted hover:text-text -my-2 py-2 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Clear
+      </button>
+      <div className="flex items-center gap-2">
+        <Button variant="secondary" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button size="sm" disabled={applyDisabled} onClick={onApply}>
+          Apply
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** One labelled date input, with its own Clear — the fastest way back to a one-ended window
+ *  without retyping the other end. */
+function DateField({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: string | null;
+  /** The other end of the window, so the two cannot cross. */
+  min?: string | null;
+  max?: string | null;
+  onChange: (v: string | null) => void;
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-small text-muted font-medium">{label}</p>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="text-small text-muted hover:text-text font-medium transition-colors"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <input
+        type="date"
+        value={value ?? ''}
+        min={min ?? undefined}
+        max={max ?? undefined}
+        onChange={(e) => onChange(e.target.value || null)}
+        className="text-body text-text border-field focus-visible:ring-accent min-h-9 w-full rounded-[var(--radius-sm)] border bg-transparent px-2 focus-visible:ring-2 focus-visible:outline-none"
+      />
+    </div>
   );
 }
 
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-caption text-muted mb-2 uppercase">{label}</p>
+      <p className="text-small text-muted mb-2 font-medium">{label}</p>
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );
@@ -325,27 +451,5 @@ function Chip({
     >
       {children}
     </button>
-  );
-}
-
-function DayInput({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string | null;
-  onChange: (v: string | null) => void;
-}) {
-  return (
-    <label className="flex min-w-0 flex-1 flex-col gap-1">
-      <span className="text-caption text-muted">{label}</span>
-      <input
-        type="date"
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value || null)}
-        className="text-body text-text border-field focus-visible:ring-accent min-h-9 w-full rounded-[var(--radius-sm)] border bg-transparent px-2 focus-visible:ring-2 focus-visible:outline-none"
-      />
-    </label>
   );
 }

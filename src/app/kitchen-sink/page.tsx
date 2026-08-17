@@ -61,8 +61,10 @@ const SHELL_ICONS: IconName[] = [
   'collapse', 'expand', 'menu', 'close', 'check', 'chevron', 'moon', 'sun',
 ];
 const INTAKE_ICONS: IconName[] = ['upload', 'file', 'files', 'unmet', 'back', 'add', 'warn'];
+/** The tape's own marks (S5c). `filter` rides in the Filters control's label. */
+const TAPE_ICONS: IconName[] = ['filter'];
 const UNPLACED_ICONS: IconName[] = ICON_NAMES.filter(
-  (n) => !SHELL_ICONS.includes(n) && !INTAKE_ICONS.includes(n)
+  (n) => !SHELL_ICONS.includes(n) && !INTAKE_ICONS.includes(n) && !TAPE_ICONS.includes(n)
 );
 
 // ── the bad-day fixtures ────────────────────────────────────────────────────────────────────
@@ -450,6 +452,14 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
         </Row>
         <Row label="intake (S4e)">
           {INTAKE_ICONS.map((n) => (
+            <span key={n} className="text-muted flex flex-col items-center gap-1">
+              <Icon name={n} />
+              <span className="text-micro">{n}</span>
+            </span>
+          ))}
+        </Row>
+        <Row label="tape (S5c)">
+          {TAPE_ICONS.map((n) => (
             <span key={n} className="text-muted flex flex-col items-center gap-1">
               <Icon name={n} />
               <span className="text-micro">{n}</span>

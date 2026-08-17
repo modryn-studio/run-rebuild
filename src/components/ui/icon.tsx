@@ -101,6 +101,16 @@ function DrawnPlus(props: DrawnProps) {
     </Drawn>
   );
 }
+/* Three rules of decreasing length: the filter mark, ported verbatim from `run-trading@v2`'s
+ * `icons.tsx`. Drawn rather than borrowed, which is what let the Filters control carry a mark at
+ * all — the house rule is that a UI icon is never generated to fill a gap. */
+function DrawnFilter(props: DrawnProps) {
+  return (
+    <Drawn {...props}>
+      <path d="M3.5 7h17M6.5 12h11M9.5 17h5" />
+    </Drawn>
+  );
+}
 function DrawnSun(props: DrawnProps) {
   return (
     <Drawn {...props}>
@@ -260,6 +270,9 @@ const MARKS = {
   back: DrawnArrowLeft,
   add: DrawnPlus,
   warn: TriangleAlert,
+
+  // ── the tape (S5c) ─────────────────────────────────────────────────────────────────────────
+  filter: DrawnFilter,
 } satisfies Record<string, Glyph | LucideIcon>;
 
 export type IconName = keyof typeof MARKS;
