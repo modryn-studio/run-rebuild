@@ -422,7 +422,7 @@ function Primitives({ text, errorText }: { text: string; errorText: string }) {
 
       <Section
         title="Icon"
-        note="EVERY NAME IN THE MAP, and that is a claim this section checks rather than states: IconNames below is Object.keys on the real MARKS object, so a name added to the wrapper and never shown here is now impossible. Missing exactly that (the eight S4e names present in the map but absent from this row) was the finding that started this pass (2026-08-15). Every mark at the system stroke of 1.5; Lucide ships 2, which reads chunky against a 14px body face and a hairline border."
+        note="EVERY NAME IN THE MAP, and that is a claim this section checks rather than states: IconNames below is Object.keys on the real MARKS object, so a name added to the wrapper and never shown here is now impossible. What draws each one changed under this section without the check needing to (2026-08-15): 17 of these 20 are now v2's own hand-drawn marks, direct-swapped in; three (read, expand, warn) stay on lucide-react because v2 draws nothing for them. Every mark at the system stroke of 1.5 either way. See icon.tsx for which three and why."
       >
         <Row label="shell">
           {SHELL_ICONS.map((n) => (
@@ -1007,7 +1007,7 @@ function TokenProofs() {
 
       <Section
         title="v2's icon set"
-        note="run-trading@v2's 34 hand-drawn icons, for reference and comparison only. Nothing here is wired into MARKS or any real screen, and the check came back clean without needing to: v2's wrapper is the same 24-box, 1.5-stroke, round-cap-and-join geometry this build's own Icon already uses, so what renders below is a faithful side-by-side rather than an approximation. Grouped in v2's own file order, not a taxonomy invented for this page."
+        note="run-trading@v2's complete 34-icon set. 17 of these are now ALSO the live marks in this build's own Icon section above: direct-swapped in, not approximated, because the geometry already matched exactly. The other 17 are shown here anyway, because this file stays a complete, standalone copy of v2's set rather than shrinking to only what got adopted. Grouped in v2's own file order, not a taxonomy invented for this page."
       >
         {V2_ICON_GROUPS.map(({ label, icons }) => (
           <Row key={label} label={label}>

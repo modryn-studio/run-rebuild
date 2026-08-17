@@ -1,29 +1,29 @@
-/* `run-trading@v2`'s hand-drawn icon set, reproduced here for REFERENCE AND COMPARISON ONLY.
+/* `run-trading@v2`'s complete hand-drawn icon set, all 34, for REFERENCE AND COMPARISON.
  *
- * Ported verbatim from `run-trading@v2:src/components/ui/icons.tsx` (2026-08-15, Luke: "i want
- * all of run-trading@v2's icons ported over to run-rebuild's kitchen-sink... but we will want to
- * make sure we are using run-rebuild's version of lineweight and whatnot").
+ * Ported verbatim from `run-trading@v2:src/components/ui/icons.tsx` (2026-08-15). Two passes:
  *
- * THAT CHECK CAME BACK CLEAN, AND IT IS WORTH STATING WHY THIS FILE EXISTS AT ALL GIVEN THAT.
- * v2's wrapper declares `viewBox="0 0 24 24"`, `strokeWidth={1.5}`, round cap, round join. This
- * build's `ICON_STROKE` (`components/ui/icon.tsx`) is 1.5 on lucide's own 24-box geometry with the
- * same round terminals — the two systems already agree on every number, because this build's
- * choice of 1.5 was made against the same measured reasoning v2's own file states. So nothing here
- * needed reconciling to render faithfully; the gallery is straightforward because the geometry
- * was never the open question.
+ *   1. First as a catalogue only, when Luke asked to see the full set before deciding anything
+ *      further — the geometry check (below) came back clean, and MARKS stayed untouched.
+ *   2. Then Luke asked to go further: "find ones that exist in the Marks and feedback icon list
+ *      now and replace them with v2's icon, direct swap." Seventeen of these 34 ARE now also the
+ *      real production marks in `components/ui/icon.tsx` — `today`, `accounts` (as `Stack`),
+ *      `trades` (as `Sessions`), `settings` (as `Gear`), `collapse`, `menu`, `close`, `check`,
+ *      `chevron`, `moon`, `sun`, `upload`, `file` (as `Doc`), `files`, `unmet` (as `Circle`),
+ *      `back` (as `ArrowLeft`), `add`. Three names stayed on lucide-react because v2 draws nothing
+ *      for them: `read`, `expand`, `warn` — see `icon.tsx`'s own header for why each one specifically.
  *
- * SCOPE, DELIBERATELY NARROW (Luke's call, 2026-08-15). This is a catalogue, not a migration.
- *   - `MARKS` in `components/ui/icon.tsx` is UNCHANGED. Every real screen keeps using lucide-react
- *     exactly as it does today.
- *   - CLAUDE.md's rule — "One icon set. lucide-react. Never inline an <svg>, never generate a UI
- *     icon" — stays true and unedited, because nothing outside `/kitchen-sink` imports this file.
- *   - A full swap was considered and set aside: v2 is a larger, differently-structured app (its
- *     nav is Today/Sessions/products/goals/rhythm/flow/plan/commitments, not this build's four
- *     items), so its 34 marks do not map one-to-one onto this build's 20 names. `Stack`, for
- *     instance, is not a nav icon in v2 at all — it is an empty-state illustration on the accounts
- *     roster. And v2 has no warning-triangle anywhere; this build's `warn` has no v2 counterpart.
- *     Forcing a mapping where none exists is a design decision, not a port, and it was not asked
- *     for here.
+ * THIS FILE STAYS INDEPENDENT ON PURPOSE, even for the 17 that overlap. `icon.tsx` does not import
+ * from here, and this file does not import from `icon.tsx` — the two component trees hold separate
+ * copies of the same path data. That is deliberate, not an oversight: `icon.tsx`'s "one wrapper"
+ * rule is about the GEOMETRY being declared once (stroke, viewBox, cap, join), never about zero
+ * duplication of path strings across files with different jobs. This file's job is staying a
+ * faithful, complete, standalone snapshot of v2's whole set — including the 17 this build did NOT
+ * adopt — so it must not become entangled with whatever `icon.tsx` does next.
+ *
+ * THE GEOMETRY CHECK CAME BACK CLEAN, which is why the swap needed no reconciling. v2's wrapper
+ * declares `viewBox="0 0 24 24"`, `strokeWidth={1.5}`, round cap, round join — the exact numbers
+ * `icon.tsx` already declared for itself, because this build's choice of 1.5 was made against the
+ * same measured reasoning v2's own file states.
  *
  * EACH ICON IS ITS OWN COMPONENT, matching v2's own file shape exactly rather than flattening
  * everything into a generic "array of path strings" renderer. That is what keeps this diff-able
