@@ -198,6 +198,10 @@ export async function projectAccount(traderId: string, accountId: string): Promi
       grossPnlCents: r.pnlCents ?? 0,
       // Negative, and 0 when no Cash History covers this account at all.
       feeCents: net?.feeCents ?? 0,
+      // The broker's own identifiers, promoted so the drawer can be checked against an export.
+      pairId: str(p.pairId),
+      buyFillId,
+      sellFillId,
       state: quarantineReason ? 'quarantined' : 'ok',
       quarantineReason,
       projectedAt: new Date(),
@@ -230,6 +234,9 @@ export async function projectAccount(traderId: string, accountId: string): Promi
           exitPrice: sql`excluded.exit_price`,
           grossPnlCents: sql`excluded.gross_pnl_cents`,
           feeCents: sql`excluded.fee_cents`,
+          pairId: sql`excluded.pair_id`,
+          buyFillId: sql`excluded.buy_fill_id`,
+          sellFillId: sql`excluded.sell_fill_id`,
           // An excluded trade STAYS excluded across a rebuild. Only a fresh quarantine reason from
           // this pass may move it, and a clean row never silently un-excludes itself.
           state: sql`case

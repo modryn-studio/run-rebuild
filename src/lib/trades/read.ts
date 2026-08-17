@@ -44,6 +44,10 @@ export interface TapeRow {
   state: TradeState;
   quarantineReason: string | null;
   exclusionReason: string | null;
+  /** Tradovate's own ids. The only strings the drawer carries that also appear in an export. */
+  pairId: string | null;
+  buyFillId: string | null;
+  sellFillId: string | null;
 }
 
 /** A session header, carrying that session's own totals. */
@@ -151,6 +155,9 @@ export async function getTape(
       state: trade.state,
       quarantineReason: trade.quarantineReason,
       exclusionReason: trade.exclusionReason,
+      pairId: trade.pairId,
+      buyFillId: trade.buyFillId,
+      sellFillId: trade.sellFillId,
     })
     .from(trade)
     .innerJoin(account, eq(account.id, trade.accountId))

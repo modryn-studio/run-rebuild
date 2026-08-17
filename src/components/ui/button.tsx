@@ -100,6 +100,11 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   // button disables, so no async action ever fires twice from a double-click. App-wide rule
   // (Luke, 2026-07-18): every CTA gets this, not just the ones already wired to something async.
   loading?: boolean;
+  /* A PLAIN PROP, not `forwardRef`. React 19 passes `ref` through to a function component like any
+     other prop, so the wrapper this used to need is gone. Added at S5c, where a popover trigger has
+     to return focus to itself on close — a dialog that dismisses into nowhere strands the keyboard
+     at the top of the document. */
+  ref?: React.Ref<HTMLButtonElement>;
 }
 
 export function Button({
@@ -110,10 +115,12 @@ export function Button({
   loading = false,
   disabled,
   children,
+  ref,
   ...props
 }: ButtonProps) {
   return (
     <button
+      ref={ref}
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}

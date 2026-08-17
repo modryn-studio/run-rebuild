@@ -251,10 +251,9 @@ net, row-level detail, right rail digesting the **filtered** set.
 │  ┌────────────────────────────────────────────────────────────────────┐  │
 │  │ Aug 8, 2026 · session          -$563.50    12 trades    41% win    │  │
 │  ├────────────────────────────────────────────────────────────────────┤  │
-│  │ 09:31  MNQ  Long  2   19,204.25 → 19,198.00   -$62.50   ⓘ  [›]     │  │
-│  │ 09:47  MNQ  Long  2   19,199.50 → 19,191.25   -$82.50   ⓘ  [›]     │  │
-│  │ 10:02  MNQ  Long  4   19,190.00 → 19,183.75   -$125.00  ⚑  [›]     │  │
-│  │        └ sized up after 2 losses                                   │  │
+│  │ ◈ Micro Nasdaq    Tradeify 50K (…4873)    09:31      -$62.50   [›] │  │
+│  │ ◈ Micro Nasdaq    Tradeify 50K (…4873)    09:47      -$82.50   [›] │  │
+│  │ ◈ Nasdaq          Tradeify 50K (…4873)    10:02     -$125.00   [›] │  │
 │  └────────────────────────────────────────────────────────────────────┘  │
 │  ┌────────────────────────────────────────────────────────────────────┐  │
 │  │ Aug 7, 2026 · session          +$318.75     8 trades    62% win    │  │
@@ -289,6 +288,29 @@ net, row-level detail, right rail digesting the **filtered** set.
   `Total transactions / Largest / Average / First / Last`; Run's is the trading equivalent.
 - **Row detail opens a drawer** (`Open transaction details`).
 - Toolbar: Search, Date, Filters, toggle summary.
+
+**AMENDED 2026-08-17 (Luke), when `S5c` ported the tape from `run-trading@v2`.** The row above used
+to read `09:31  MNQ  Long  2  19,204.25 → 19,198.00  -$62.50`. v2 shipped exactly that — a two-line
+69px row carrying the prices — and then deliberately moved away from it, to a one-line 52px row:
+
+> those prices are VERIFICATION detail. Verification has a home now: the drawer. A tape is for
+> scanning, and a scan wants one line per event.
+
+What survived its cut, and why each: the **product** (what), the **clock** (when — sequence is the
+subject of every read written so far, *"two seconds after being stopped out"*), and the **result**.
+The prices, the contract month, the direction and the quantity all moved into the drawer, which is
+the row that exists to be checked against a broker screen. That drawer is `S5c` scope, so the
+verification P8 asks for is one keystroke away rather than absent.
+
+**The account column stays, and it FLEXES** — the one place this build knowingly departs from v2's
+row. v2 pinned it at 288px and its own issue #98 measures the cost: at 1280px with the summary rail
+open the tape gets 692px, the fixed columns take 632, and the product name — the row's only flexible
+column — collapses to 60px, so every name truncates. Run's tape is cross-account by definition and a
+copy-trader has to see which of twelve accounts a row belongs to, so the column earns its place; it
+just may not be the thing that squeezes the subject out of the row.
+
+**The `⚑` flag is deferred.** It marks a trade a pattern was drawn from, and `pattern` is `S7`, which
+is blocked. A flag with nothing behind it is a fake.
 
 **Changed for Run:**
 - **No editable comboboxes.** Monarch's merchant and category cells are live comboboxes because

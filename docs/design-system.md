@@ -87,6 +87,28 @@ recorded for each.
 **Directly relevant to our spec:** `--color-band` exists specifically for a day header in the
 tape. That is the session header in our Trades wireframe, already solved.
 
+### When money is coloured, and when it is not — `[SETTLED 2026-08-17, S5c]`
+
+`pos`/`neg` say **this is a RESULT**. Ink and muted say this is a state or a label. Getting this
+wrong in one direction sprays the accent across a page where every row is money; in the other it
+strips the one signal a tape exists to carry. Ported from `run-trading@v2`, which shipped both
+answers across four surfaces before settling it (its issue #93).
+
+| Where | Treatment | Why |
+|---|---|---|
+| A trade's net, on a tape row | **`pos` / `neg`, signed** | A tape is a sequence of **outcomes**. A trade with no direction is not a result |
+| A figure in a summary rail | **`pos` / `neg`, signed** | Each is an answer to the question the filter just asked |
+| A **session band's** subtotal | **`muted`** | A band is a **label** for the rows beneath it, and its figure is a subtotal of numbers already on screen. In full ink it competes with the results it only summarises |
+| A roster row's balance | **ink** | A roster at rest is a **state**, not an outcome |
+
+Two consequences worth stating, because both were learned rather than reasoned:
+
+- **A band needs no rule above or below it.** A ground change is enough to separate a label from a
+  list, and the muted subtotal is what lets the band recede far enough for that to be true.
+- **A zero is not a dash and a dash is not a zero.** `-` means *nothing to report*; `$0.00` means
+  *reported, and it came to nothing*. "Average loss $0.00" reads as a trader who never loses rather
+  than one who has not lost yet, so a null figure prints `-` and never a zero.
+
 #### Which of the two inks: a question about the string's job
 
 Settled 2026-08-14. Luke: *"Metadata attached to an object — a date on a task row, a count, a

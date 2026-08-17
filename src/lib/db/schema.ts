@@ -502,6 +502,17 @@ export const trade = pgTable(
        History arrives in a later upload. */
     feeCents: bigint('fee_cents', { mode: 'number' }).notNull().default(0),
 
+    /* TRADOVATE'S OWN IDS, and the reason they are columns rather than a payload read: the detail
+       drawer is where the entry and exit prices went when the tape row went to one line, so it is
+       the surface a trader holds up against a broker screen. These are the only strings on it that
+       Tradovate also prints. Without them the drawer can show Run's internal uuid and nothing else,
+       which matches no export and is worse than blank because it looks like provenance.
+       Nullable: a round trip that arrived without them is a real state, and inventing one is the
+       failure these exist to prevent. */
+    pairId: text('pair_id'),
+    buyFillId: text('buy_fill_id'),
+    sellFillId: text('sell_fill_id'),
+
     /* `ok` IS THE ONLY STATE THAT FEEDS A COMPUTED FIGURE, and the other two stay visible and
        countable — an exclusion may never silently shrink the record (spec S3, S9b). */
     state: text('state').$type<TradeState>().notNull().default('ok'),

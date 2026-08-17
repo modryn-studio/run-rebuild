@@ -43,6 +43,14 @@ import { V2_ICON_GROUPS } from './v2-icons';
 import { ProgressPanel, type Step } from '@/components/views/accounts/progress-panel';
 import { FindingNotice } from '@/components/views/accounts/finding-notice';
 import type { PreflightFinding } from '@/lib/intake/preflight';
+import { TradesTape } from '@/components/views/trades/trades-tape';
+import { TradesRail } from '@/components/views/trades/trades-rail';
+import { QuarantineNotice } from '@/components/views/trades/quarantine-notice';
+import { EMPTY_FILTER } from '@/lib/trades/filter';
+/* TYPES ONLY. `lib/trades/read.ts` opens with `import 'server-only'`, so pulling a VALUE from it
+   into this `'use client'` file would reach `@/lib/db` → `@/lib/env` and fail the build with an
+   error that does not name the cause. `import type` is erased and always safe. */
+import type { SessionGroup, TapeRow, TradesDigest } from '@/lib/trades/read';
 
 // ── icon groups, checked against the real wrapper ──────────────────────────────────────────
 // Curated ORDER for two rows that read as sets — the shell's own nav/chrome marks, then the
@@ -127,6 +135,14 @@ const GROUPS: { group: string; titles: string[] }[] = [
       'Intake · the thirteen refusals',
       'Intake · required-file checklist',
       'Intake · staged file rows',
+    ],
+  },
+  {
+    group: 'Trades (S5c)',
+    titles: [
+      'Trades · the tape',
+      'Trades · the summary rail',
+      'Trades · empty and excluded',
     ],
   },
   {
@@ -1025,9 +1041,136 @@ function TokenProofs() {
           against the source instead of a re-derivation nothing else can check.
         </Note>
       </Section>
+
+      <Section
+        title="Trades · the tape"
+        note="The real component, with a scripted set. Sessions descend, rows descend by ENTRY inside one: a position scaled out in three pieces closes on a single stamp, so ordering by the exit prints one time on three rows and the sequence reads as random. The band's subtotal is MUTED on purpose, because it labels rows already on screen and in full ink it competes with the results it only summarises. Click any row to open the drawer."
+      >
+        <TradesTape sessions={TAPE_FIXTURE} total={7} displayTimezone="UTC" narrowed={false} />
+        <Note>
+          The third row is quarantined: marked, muted rather than coloured, still listed, and absent
+          from its own band&apos;s figures. That is the whole of &ldquo;an exclusion may never
+          silently shrink the record&rdquo; in one row: 3 trades in the band, 4 rows under it.
+        </Note>
+      </Section>
+
+      <Section
+        title="Trades · the summary rail"
+        note="Recomputed against the active filter, which is what earns a summary column at all. The right-hand copy is the SAME digest under a wins-only filter: four figures go blank and say why, because a win rate of 100% is not a statistic, it is the filter read back, and a 'worst session' with the losses removed is the one that actually misleads."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TradesRail digest={DIGEST_FIXTURE} filter={EMPTY_FILTER} resultFiltered={false} />
+          <TradesRail
+            digest={{ ...DIGEST_FIXTURE, winRatePct: null, bestSessionCents: null, worstSessionCents: null }}
+            filter={{ ...EMPTY_FILTER, results: ['win'] }}
+            resultFiltered
+          />
+        </div>
+      </Section>
+
+      <Section
+        title="Trades · empty and excluded"
+        note="Two empties, and they are different sentences on purpose: telling a trader with two years of tape that they have never traded is the version that costs trust. The notice above them states what is on the tape and out of every figure, and does not render at all when nothing is."
+      >
+        <TradesTape sessions={[]} total={0} displayTimezone="UTC" narrowed={false} />
+        <TradesTape sessions={[]} total={0} displayTimezone="UTC" narrowed />
+        <QuarantineNotice quarantined={3} excluded={0} />
+        <QuarantineNotice quarantined={0} excluded={7} />
+        <Note>
+          `QuarantineNotice` with both counts at zero renders nothing, which is why there is no third
+          card here. A permanent &ldquo;0 quarantined&rdquo; row is a status light for a condition
+          that has never occurred.
+        </Note>
+      </Section>
     </>
   );
 }
+
+/* ── S5c TRADES FIXTURES ─────────────────────────────────────────────────────────────────────
+ *
+ * Same rule as the intake fixtures above, and it bites harder here: this section renders a tape of
+ * money. Every figure is obviously synthetic (7s and 3s, round hundreds), the account is not a
+ * Tradovate name, and the dates are a Sunday and a Saturday — days the CME is shut, so no screenshot
+ * of this can be mistaken for a real session.
+ */
+
+const row = (
+  id: string,
+  over: Partial<TapeRow> & Pick<TapeRow, 'entryAt' | 'exitAt' | 'sessionDate' | 'grossCents'>
+): TapeRow => ({
+  id,
+  accountId: 'demo',
+  accountName: 'DEMOACCT0000007',
+  symbolRoot: 'MNQ',
+  contract: 'MNQZ7',
+  direction: 'long',
+  qty: 3,
+  entryPrice: '17777.250000',
+  exitPrice: '17777.750000',
+  feeCents: -300,
+  netCents: over.grossCents - 300,
+  state: 'ok',
+  quarantineReason: null,
+  exclusionReason: null,
+  pairId: '777000000007',
+  buyFillId: '777000000003',
+  sellFillId: '777000000005',
+  ...over,
+});
+
+const at = (iso: string) => new Date(iso);
+
+const TAPE_FIXTURE: SessionGroup[] = [
+  {
+    sessionDate: '2027-03-07',
+    netCents: 70_000,
+    feesCents: -900,
+    tradeCount: 3,
+    winCount: 2,
+    lossCount: 1,
+    winRatePct: 67,
+    trades: [
+      row('t1', { entryAt: at('2027-03-07T14:33:00Z'), exitAt: at('2027-03-07T14:37:00Z'), sessionDate: '2027-03-07', grossCents: 77_700 }),
+      row('t2', { entryAt: at('2027-03-07T14:07:00Z'), exitAt: at('2027-03-07T14:09:00Z'), sessionDate: '2027-03-07', grossCents: -7_700, direction: 'short', symbolRoot: 'NQ', contract: 'NQZ7' }),
+      /* QUARANTINED, and it is the row this fixture exists for: still listed, marked, muted rather
+         than coloured, and absent from the band's own count above it. */
+      row('t3', { entryAt: at('2027-03-07T13:51:00Z'), exitAt: at('2027-03-07T13:52:00Z'), sessionDate: '2027-03-07', grossCents: 300, state: 'quarantined', quarantineReason: 'XYZ is not in the contract spec.', symbolRoot: 'XYZ', contract: null, direction: null }),
+      row('t4', { entryAt: at('2027-03-07T13:30:00Z'), exitAt: at('2027-03-07T13:33:00Z'), sessionDate: '2027-03-07', grossCents: 3_000 }),
+    ],
+  },
+  {
+    sessionDate: '2027-03-06',
+    netCents: -33_300,
+    feesCents: -600,
+    tradeCount: 3,
+    winCount: 0,
+    lossCount: 3,
+    winRatePct: 0,
+    trades: [
+      row('t5', { entryAt: at('2027-03-06T20:03:00Z'), exitAt: at('2027-03-06T20:11:00Z'), sessionDate: '2027-03-06', grossCents: -30_000, qty: 7 }),
+      row('t6', { entryAt: at('2027-03-06T15:30:00Z'), exitAt: at('2027-03-06T15:31:00Z'), sessionDate: '2027-03-06', grossCents: -3_300, direction: 'short' }),
+      row('t7', { entryAt: at('2027-03-06T09:00:00Z'), exitAt: at('2027-03-06T09:07:00Z'), sessionDate: '2027-03-06', grossCents: 0 }),
+    ],
+  },
+];
+
+const DIGEST_FIXTURE: TradesDigest = {
+  trades: 7,
+  sessions: 3,
+  accounts: 1,
+  netCents: -37_700,
+  feesCents: -1_500,
+  wins: 3,
+  losses: 3,
+  winRatePct: 50,
+  largestWinCents: 77_700,
+  largestLossCents: -30_000,
+  bestSessionCents: 70_000,
+  worstSessionCents: -33_300,
+  firstDay: '2027-03-03',
+  lastDay: '2027-03-07',
+  hasFees: true,
+};
 
 /* ── S4e INTAKE FIXTURES AND HARNESSES ───────────────────────────────────────────────────────
  *

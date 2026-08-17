@@ -342,6 +342,7 @@ out of scope. It becomes real the day open positions are shown.
 | `entry_price` / `exit_price` | numeric(19,6) | no | **A QUOTE, NOT MONEY.** Resolved by SEQUENCE, not side — see below |
 | `gross_pnl_cents` | bigint | no | from the round-trip event |
 | `fee_cents` | bigint | no | negative, `0` when no Cash History covers it. Amended 2026-08-17 |
+| `pair_id` / `buy_fill_id` / `sell_fill_id` | text | yes | **Tradovate's own ids**, for provenance. Amended 2026-08-17 |
 | `state` | enum | no | `ok` · `quarantined` · `excluded` |
 | `quarantine_reason` | text | yes | |
 | `exclusion_reason` | text | yes | user's words, S9b |
@@ -376,6 +377,21 @@ money**, on the one surface whose whole job is being exact about money.
 A short OPENS on the sell and CLOSES on the buy. The swap happens once, at projection time, so
 `entry_price` means what it says everywhere it is read. `entry_at`/`exit_at` follow the same rule
 for the same reason: ordering them by side reports a **negative hold time on half the tape**.
+
+#### The broker's own ids are promoted, because a verification surface has to be verifiable
+
+**`[AMENDED 2026-08-17, S5c]`.** `S5c` moved the entry and exit prices off the tape row and into the
+detail drawer, on the argument that a tape is for scanning and those prices are **verification**
+detail. That argument only holds if the drawer can actually be verified — and the one thing on it a
+trader can take to their broker is Tradovate's own identifiers, which it issues and prints in its
+own exports.
+
+They live in `event.payload`, which §1 forbids a render path from reading, so a drawer built without
+these columns can only show Run's internal row id: a UUID that appears in no export, matches nothing
+on a broker screen, and is worse than showing nothing at all because it looks like provenance.
+
+Nullable, because a round trip that arrived without them is a real state and inventing an id would
+be the exact failure the column exists to prevent.
 
 #### `fee_cents` is stored here, and that does NOT contradict "net is not stored"
 
