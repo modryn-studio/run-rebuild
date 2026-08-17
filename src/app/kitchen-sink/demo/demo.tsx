@@ -29,10 +29,14 @@
 import { useState } from 'react';
 import { AddAccountModal } from '@/components/views/accounts/add-account-modal';
 import { FileUploadStep, type Picked } from '@/components/views/accounts/file-upload-step';
-import { ModalShell } from '@/components/views/accounts/modal-shell';
+import {
+  ModalShell,
+  ModalBody,
+  ModalFooter,
+  ModalActions,
+} from '@/components/views/accounts/modal-shell';
 import { ImportComplete, ModalHeader, RunMark, type Source } from '@/components/views/accounts/shared';
 import { ProgressPanel, type Step } from '@/components/views/accounts/progress-panel';
-import { ModalActions } from '@/components/views/accounts/modal-shell';
 import { FindingList } from '@/components/views/accounts/finding-notice';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
@@ -134,22 +138,27 @@ function FailedScene({ onClose }: { onClose: () => void }) {
         to={<RunMark size={26} />}
         steps={FAILED_STEPS}
       />
-      <div className="mt-2 px-6 pb-2">
+      {/* SCROLLS, MATCHING THE REAL SCREEN (fixed 2026-08-15, caught from a screenshot of THIS
+          scene: a fourth finding's heading was visible and everything under it, including both
+          buttons, was silently clipped by the dialog's own `overflow-hidden`, with no scrollbar).
+          This composition exists to be a faithful stand-in for `file-upload-step.tsx`'s failed
+          state, so it carries the identical fix rather than a scene-only patch. */}
+      <ModalBody className="px-6 pb-2">
         <p className="text-small text-muted mb-3">
           Everything ticked above is saved. Trying again will not duplicate it.
         </p>
         <FindingList findings={DEMO_FINDINGS} />
-        <div className="mt-4">
-          <ModalActions>
-            <Button variant="secondary" size="sm" onClick={onClose}>
-              Back to files
-            </Button>
-            <Button size="sm" onClick={onClose}>
-              Try again
-            </Button>
-          </ModalActions>
-        </div>
-      </div>
+      </ModalBody>
+      <ModalFooter>
+        <ModalActions>
+          <Button variant="secondary" size="sm" onClick={onClose}>
+            Back to files
+          </Button>
+          <Button size="sm" onClick={onClose}>
+            Try again
+          </Button>
+        </ModalActions>
+      </ModalFooter>
     </>
   );
 }
