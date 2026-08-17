@@ -39,6 +39,7 @@ import { LoadingMark } from '@/components/ui/loading-mark';
 import { Wordmark } from '@/components/ui/wordmark';
 import { CodeInput } from '@/components/ui/code-input';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { V2_ICON_GROUPS } from './v2-icons';
 import { ProgressPanel, type Step } from '@/components/views/accounts/progress-panel';
 import { FindingNotice } from '@/components/views/accounts/finding-notice';
 import type { PreflightFinding } from '@/lib/intake/preflight';
@@ -132,6 +133,7 @@ const GROUPS: { group: string; titles: string[] }[] = [
     group: 'Tokens and proofs',
     titles: ['Type ramp', 'Spacing ramp', 'Ground stack', 'Elevation', 'Contrast', 'Ink roles', 'Edges'],
   },
+  { group: 'Reference', titles: ["v2's icon set"] },
 ];
 
 /* ONLY THE FIRST PANE CARRIES THE ANCHOR IDS. In `both` mode every section renders twice, and two
@@ -1000,6 +1002,27 @@ function TokenProofs() {
           because those are the two things the row exists for. A file the detector does not
           recognise says so in <code className="num">neg</code> rather than being refused at the
           drop zone: the trader chose it, so it is named and left for them to remove.
+        </Note>
+      </Section>
+
+      <Section
+        title="v2's icon set"
+        note="run-trading@v2's 34 hand-drawn icons, for reference and comparison only. Nothing here is wired into MARKS or any real screen, and the check came back clean without needing to: v2's wrapper is the same 24-box, 1.5-stroke, round-cap-and-join geometry this build's own Icon already uses, so what renders below is a faithful side-by-side rather than an approximation. Grouped in v2's own file order, not a taxonomy invented for this page."
+      >
+        {V2_ICON_GROUPS.map(({ label, icons }) => (
+          <Row key={label} label={label}>
+            {icons.map(([name, V2Mark]) => (
+              <span key={name} className="text-muted flex flex-col items-center gap-1">
+                <V2Mark size={16} />
+                <span className="text-micro">{name}</span>
+              </span>
+            ))}
+          </Row>
+        ))}
+        <Note>
+          Every icon here is its own small component, copied in v2&apos;s own shape rather than
+          reduced to a generic path-string table, so this file stays a straightforward `git diff`
+          against the source instead of a re-derivation nothing else can check.
         </Note>
       </Section>
     </>
