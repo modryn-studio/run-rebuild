@@ -33,6 +33,7 @@ const { projectAccount } = await import('../src/lib/trades/project.ts');
 const { sessionDateFor } = await import('../src/lib/time/session.ts');
 const { getDigest, getTape, getFacets, getExcluded } = await import('../src/lib/trades/read.ts');
 const { EMPTY_FILTER, rangeWindow } = await import('../src/lib/trades/filter.ts');
+const { allocateFees } = await import('../src/lib/fees/allocate.ts');
 
 let failures = 0;
 const check = (label: string, actual: unknown, expected: unknown) => {
@@ -331,6 +332,38 @@ const [stillThere] = await db
   .from(trade)
   .where(and(eq(trade.traderId, t.id), eq(trade.state, 'excluded')));
 check('...while staying visible and countable on the tape', stillThere.n, 1);
+
+console.log('\n=== 8b. ONE ACCOUNT CANNOT BE PRICED AT ANOTHER ACCOUNT’S RATE ===\n');
+
+/* `run-trading@v2` issue #90.3. A bucket is (local timestamp, contract), and a copy-trader fires
+   one strategy into several accounts at DIFFERENT firms — so the same bucket occurs in each of them
+   at a different rate. Keying on the bucket alone blends them, and the blend is invisible: the fees
+   still sum correctly across the trader, they are just charged to the wrong trades.
+
+   Provoked in the allocator directly rather than through the projector, because the projector reads
+   one account by construction and therefore cannot express the bug. This is the guard for the
+   caller that does not exist yet. */
+const SHARED_BUCKET = '2026-07-16 12:00:00|MNQU6';
+const twoAccounts = [
+  // Account A: one fill of 1 contract, charged $1.00.
+  { id: 1, type: 'fill', pnlCents: null, payload: { accountName: 'A', feeBucketKey: SHARED_BUCKET, externalFillId: 'fA1', qty: 1 } },
+  { id: 2, type: 'fill', pnlCents: null, payload: { accountName: 'A', feeBucketKey: SHARED_BUCKET, externalFillId: 'fA2', qty: 1 } },
+  { id: 3, type: 'fee', pnlCents: -100, payload: { accountName: 'A', bucketKey: SHARED_BUCKET } },
+  { id: 4, type: 'fee', pnlCents: -100, payload: { accountName: 'A', bucketKey: SHARED_BUCKET } },
+  // Account B: the SAME bucket, but charged $9.00 a contract at a different firm.
+  { id: 5, type: 'fill', pnlCents: null, payload: { accountName: 'B', feeBucketKey: SHARED_BUCKET, externalFillId: 'fB1', qty: 1 } },
+  { id: 6, type: 'fill', pnlCents: null, payload: { accountName: 'B', feeBucketKey: SHARED_BUCKET, externalFillId: 'fB2', qty: 1 } },
+  { id: 7, type: 'fee', pnlCents: -900, payload: { accountName: 'B', bucketKey: SHARED_BUCKET } },
+  { id: 8, type: 'fee', pnlCents: -900, payload: { accountName: 'B', bucketKey: SHARED_BUCKET } },
+  { id: 9, type: 'round_trip', pnlCents: 0, payload: { accountName: 'A', qty: 1, buyFillId: 'fA1', sellFillId: 'fA2' } },
+  { id: 10, type: 'round_trip', pnlCents: 0, payload: { accountName: 'B', qty: 1, buyFillId: 'fB1', sellFillId: 'fB2' } },
+];
+const mixed = allocateFees(twoAccounts);
+check('A is charged its OWN rate, not the blend', mixed.byRoundTrip.get(9)?.feeCents, -200);
+check('B is charged its OWN rate, not the blend', mixed.byRoundTrip.get(10)?.feeCents, -1800);
+/* Pooled, both would price at the blended $5.00 a contract: -1000 each. The totals still reconcile
+   either way, which is exactly why this is worth a gate rather than an eyeball. */
+check('the two together still reconcile to the file', (mixed.byRoundTrip.get(9)!.feeCents + mixed.byRoundTrip.get(10)!.feeCents), mixed.feeCents);
 
 console.log('\n=== 9. THE READ LAYER — S5b ===\n');
 

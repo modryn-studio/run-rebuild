@@ -303,8 +303,20 @@ export async function getDigest(
   };
 }
 
-/** Which products and accounts the trader actually has trades on, for the filter's own options.
- *  Derived from the corpus rather than from a fixed list, so a chip never offers an empty result. */
+/* Which products and accounts the trader has ever traded, for the filter's own options.
+ *
+ * DELIBERATELY NOT SCOPED TO THE WINDOW, and this is a correctness decision rather than an
+ * oversight — do not "optimise" it by passing the filter in.
+ *
+ * `run-trading@v2` scoped its equivalent to the accounts that traded inside the current date range
+ * (its issue #92), which silently discards a filter the trader set: pick three accounts, then narrow
+ * the dates to a window where one of them did not trade, and that account vanishes from the panel.
+ * The next Apply writes back the reduced set, dropping a selection nobody removed.
+ *
+ * The rule that resolves it, from v2's own note: what the panel may OFFER is the full roster, so a
+ * selection can always survive; what the panel COUNTS is the in-range set, which is the informative
+ * number. Those are two different lists and collapsing them into one is the bug.
+ */
 export async function getFacets(
   traderId: string
 ): Promise<{ products: string[]; accounts: { id: string; name: string }[] }> {

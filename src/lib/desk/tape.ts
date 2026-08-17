@@ -237,32 +237,17 @@ export interface TapeInput {
   tickSizeByRoot?: Map<string, number>;
 }
 
-// ── formatting: one place, so verifiedNumbers and the rendered tape cannot disagree ──
-
-export const fmtMoney = (cents: number): string => {
-  const abs = (Math.abs(cents) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return `${cents < 0 ? '-' : ''}$${abs}`;
-};
-// A QUOTE, from micro-units. NEVER a fixed two decimals: that was the second half of the price
-// bug, and fixing only the storage would have left every 6E quote rendering as 1.09 from a
-// perfectly stored 1085000. Trailing zeros are trimmed but never below two decimals, so an index
-// future still reads 19204.25 rather than 19204.25000.
-export const fmtPrice = (micros: number): string => {
-  // Trim the padding first, THEN restore the two-decimal floor. Doing it the other way round
-  // lets the trim eat the floor: 29312.500000 became "29312.5" sitting in a column beside
-  // "29318.00", which is the same number rendered two ways in one table.
-  let s = (micros / PRICE_SCALE).toFixed(6).replace(/0+$/, '');
-  if (s.endsWith('.')) s = s.slice(0, -1);
-  const dot = s.indexOf('.');
-  const decimals = dot === -1 ? 0 : s.length - dot - 1;
-  if (decimals < 2) s += (dot === -1 ? '.' : '') + '0'.repeat(2 - decimals);
-  return s;
-};
-export const fmtDuration = (ms: number): string => {
-  const s = Math.round(ms / 1000);
-  const m = Math.floor(s / 60);
-  return m === 0 ? `${s}s` : `${m}m ${s % 60}s`;
-};
+/* ── formatting ──
+ *
+ * MOVED TO `lib/format.ts`, RE-EXPORTED HERE. The rule these were written for is unchanged — one
+ * implementation, so `verifiedNumbers` and the rendered tape cannot disagree — but this module is a
+ * thousand lines of desk machinery, so a `'use client'` tape row importing `fmtPrice` from here
+ * would ship the resolver, the allocator and the episode walk to the browser to format a price.
+ * The re-export keeps every existing caller working and keeps the one-implementation property.
+ * Imported as well as re-exported, because this module formats its own quarantine messages and a
+ * bare `export ... from` does not bind the names locally. */
+export { fmtMoney, fmtPrice, fmtPriceDecimal, fmtDuration } from '@/lib/format';
+import { fmtMoney, fmtPrice, fmtDuration } from '@/lib/format';
 
 // ── dedupe ──
 
