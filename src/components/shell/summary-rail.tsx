@@ -18,7 +18,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/ui/icon';
+import { IconButton } from '@/components/ui/icon-button';
+import { Tooltip } from '@/components/ui/tooltip';
 import { PAGE_COLUMN, RAIL_W } from '@/lib/shell';
+import { StickyRail } from '@/components/shell/sticky-rail';
 
 const RAIL_COLLAPSE_KEY = 'run_rail_collapsed';
 
@@ -99,18 +102,15 @@ export function WithSummaryRail({
   }, [toggle]);
 
   return (
-    <div className={cn(PAGE_COLUMN, 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto]')}>
+    <div className={cn(PAGE_COLUMN, 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]')}>
       <div className="min-w-0">{children}</div>
 
-      <aside
+      {/* `StickyRail` OWNS THE PIN, and it measures rather than assuming. This carried a blanket
+          `lg:sticky lg:top-0`, which is the version that hides the bottom of a rail taller than the
+          viewport — see that file for the measurement. It also owns `order-last` below `lg`, where
+          the tape is the subject and the summary is a comment on it. */}
+      <StickyRail
         className={cn(
-          /* STICKY AND SELF-START above `lg`. A digest of what you are looking at is worth nothing
-             once you have scrolled past it, and a tape is the one surface here people scroll a long
-             way down. `self-start` is what makes it work at all: a grid item stretches to the row's
-             height by default, so a sticky child with nothing left to travel in never moves.
-             ORDER-LAST BELOW `lg`, where the layout is one column: the tape is the subject and the
-             summary is a comment on it, so on a phone the comment goes after. */
-          'max-lg:order-last lg:sticky lg:top-0 lg:self-start',
           'overflow-hidden',
           ready && 'lg:transition-[width] lg:duration-200 lg:ease-out',
           // cn(), never a template string: `lg:w-76` and `lg:w-0` are the same utility group
@@ -124,19 +124,22 @@ export function WithSummaryRail({
         inert={lgUp && collapsed}
       >
         <div className={cn('w-full', RAIL_W)}>{rail}</div>
-      </aside>
+      </StickyRail>
 
-      {/* Reopen control, only while hidden and only where hiding is possible. */}
+      {/* Reopen control, only while hidden and only where hiding is possible.
+          `IconButton` in a POSITIONED WRAPPER rather than a positioned IconButton: `.lift-press`
+          sets `position: relative` unlayered to anchor its 44px hit expander, so a `fixed` passed
+          through `className` resolves back to `relative` and the control lands somewhere in the
+          middle of the page — silently, with no error and no type complaint. `icon-button.tsx`
+          states this; it cost a session once already. */}
       {collapsed && (
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label="Open summary"
-          title="Open summary  ]"
-          className="text-muted hover:text-text hover:bg-surface-2 focus-visible:ring-accent fixed right-4 bottom-4 z-20 hidden size-11 place-items-center rounded-sm focus-visible:ring-2 focus-visible:outline-none lg:grid"
-        >
-          <Icon name="expand" />
-        </button>
+        <div className="fixed right-4 bottom-4 z-20 hidden lg:block">
+          <Tooltip label="Show summary" shortcut="]" align="end">
+            <IconButton onClick={toggle} aria-label="Open summary">
+              <Icon name="collapse" size={18} className="rotate-180" />
+            </IconButton>
+          </Tooltip>
+        </div>
       )}
     </div>
   );

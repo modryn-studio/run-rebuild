@@ -245,7 +245,15 @@ export const account = pgTable(
        purpose: it appears in only two of the six export types, so it is a second identifier and
        never the key. Parsed since S1 and stored from S4e. */
     brokerAccountId: text('broker_account_id'),
-    displayName: text('display_name').notNull(),
+    /* NULLABLE SINCE S5c, AND THE DEFAULT IT USED TO CARRY WAS THE BUG. This was set to the raw
+       `external_account_id` on creation, described as "the raw broker name until a human renames
+       it" — which sounds harmless and defeats `accountRowTitle`'s first rule outright: that helper
+       returns `displayName` before anything else because it is THE TRADER'S OWN NAME, and a value
+       Run wrote itself is not that. The result was a tape row reading `FTDFYL100183704873` on an
+       account whose firm was known, because the composed title was never reached.
+       Null means "nobody has named this", which is the honest state and lets the title be composed
+       from what IS known: the firm, the size, and the last four digits. */
+    displayName: text('display_name'),
 
     /* ── The identity Tradovate does not carry. `docs/docs from run-trading/prop-firm-identity.md`.
      *

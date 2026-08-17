@@ -1,6 +1,7 @@
 import 'server-only';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db, account } from '@/lib/db';
+import { knownFirmForAccount } from '@/lib/prop-firms';
 import type { ACCOUNT_TYPES } from '@/lib/db';
 
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
@@ -109,7 +110,21 @@ export async function resolveAccount(args: ResolveAccountArgs): Promise<string> 
       )
     )
     .limit(1);
-  if (existing) return existing.id;
+  /* A KNOWN FIRM UPGRADES A ROW THAT HAS NONE, which is the one thing this early return may do
+     besides return. A prefix gets confirmed AFTER accounts already exist — that is the normal
+     order, since a prefix is confirmed by a trader looking at an account Run already imported — so
+     without this the accounts that motivated the entry are the only ones that never benefit from it.
+     STRICTLY AN UPGRADE. Guarded on `prop_firm is null`, so a `stated` value the trader gave us is
+     never touched, and nothing here can overwrite one recollection with another. */
+  if (existing) {
+    if (args.propFirm) {
+      await db
+        .update(account)
+        .set({ propFirm: args.propFirm, firmSource: args.firmSource ?? 'detected' })
+        .where(and(eq(account.id, existing.id), isNull(account.propFirm)));
+    }
+    return existing.id;
+  }
 
   const [created] = await db
     .insert(account)
@@ -117,9 +132,11 @@ export async function resolveAccount(args: ResolveAccountArgs): Promise<string> 
       traderId,
       platform,
       externalAccountId,
-      // The raw broker name until a human renames it. Better than a generated label: it is what
-      // the trader sees in Tradovate, so the two surfaces agree on day one.
-      displayName: args.displayName ?? externalAccountId,
+      /* NOT DEFAULTED TO THE ACCOUNT NAME. `display_name` means "what the trader called this", and
+         filling it with the id Run already has makes every account look named — which is exactly
+         what stopped `accountRowTitle` from ever composing "Tradeify (...4873)". Null until a human
+         types something; the raw name is not lost, it is in `external_account_id`. */
+      displayName: args.displayName ?? null,
       accountType: args.accountType ?? null,
       propFirm: args.propFirm ?? null,
       firmSource: args.firmSource ?? null,
@@ -144,8 +161,23 @@ export async function resolveAccount(args: ResolveAccountArgs): Promise<string> 
   return raced.id;
 }
 
-/** Resolve every account a set of rows names, in one pass. Returns a name → id map so the caller
- *  can file each row without re-querying per row. */
+/**
+ * Resolve every account a set of rows names, in one pass. Returns a name → id map so the caller
+ * can file each row without re-querying per row.
+ *
+ * THE FIRM IS RECALLED PER ACCOUNT, which is why it is derived here rather than passed in: the
+ * prefix is a property of the account NAME, and one upload can name several accounts at different
+ * firms. `FTDFYL100183704873` is Tradeify and `ELTDENF2606…` is TradeDay, both confirmed by a real
+ * trader on a real account — `prop-firms.ts` is explicit that an entry exists only for that reason
+ * and never because the letters look like a name.
+ *
+ * `detected`, NEVER `stated`. The prefix was confirmed on somebody else's account, not on this one,
+ * so this is a recollection rather than a fact the trader gave us — and the trader's own answer
+ * always overwrites it. An unknown prefix stays null, which is the normal answer and the one that
+ * asks a one-tap question later instead of asserting something false about somebody's money.
+ *
+ * A CALLER-SUPPLIED `propFirm` STILL WINS, because that one came from the trader.
+ */
 export async function resolveAccountsFor<T extends { accountName: string | null }>(
   rows: T[],
   args: Omit<ResolveAccountArgs, 'externalAccountId'>
@@ -153,7 +185,16 @@ export async function resolveAccountsFor<T extends { accountName: string | null 
   const { groups } = groupByAccount(rows);
   const out = new Map<string, string>();
   for (const g of groups) {
-    out.set(g.accountName, await resolveAccount({ ...args, externalAccountId: g.accountName }));
+    const detected = knownFirmForAccount(g.accountName);
+    out.set(
+      g.accountName,
+      await resolveAccount({
+        ...args,
+        externalAccountId: g.accountName,
+        propFirm: args.propFirm ?? detected,
+        firmSource: args.firmSource ?? (detected ? 'detected' : null),
+      })
+    );
   }
   return out;
 }

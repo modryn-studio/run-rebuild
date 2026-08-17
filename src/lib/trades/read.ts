@@ -2,7 +2,7 @@ import 'server-only';
 import { and, asc, desc, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm';
 import { db, trade, account } from '@/lib/db';
 import type { TradeState } from '@/lib/db';
-import { firmLogoSrc } from '@/lib/prop-firms';
+import { firmLogoSrc, accountRowTitle } from '@/lib/prop-firms';
 import type { TradesFilter } from './filter';
 import { isResultFiltered } from './filter';
 
@@ -144,8 +144,10 @@ export async function getTape(
     .select({
       id: trade.id,
       accountId: trade.accountId,
-      accountName: account.displayName,
+      displayName: account.displayName,
+      externalAccountId: account.externalAccountId,
       propFirm: account.propFirm,
+      sizeDollars: account.sizeDollars,
       symbolRoot: trade.symbolRoot,
       contract: trade.contract,
       direction: trade.direction,
@@ -177,12 +179,16 @@ export async function getTape(
   const groups = new Map<string, TapeRow[]>();
   for (const r of rows) {
     const net = r.grossCents + r.feeCents;
-    // The firm's mark is resolved HERE, from a pure lookup, so the row component never has to know
-    // how logo files are named or which extension each firm's happens to be on disk.
-    const { propFirm, ...rest } = r;
+    /* THE ROW'S ACCOUNT LABEL IS COMPOSED HERE, by the one helper that owns that decision. The tape
+       used to take `display_name` straight off the row, which is how it printed a raw
+       `FTDFYL100183704873` on an account whose firm is known: `accountRowTitle` returns the
+       trader's own name first, then falls back to firm + size + last four. The mark is resolved
+       here too, so the row component never has to know how logo files are named. */
+    const { displayName, externalAccountId, propFirm, sizeDollars, ...rest } = r;
     const row: TapeRow = {
       ...rest,
       netCents: net,
+      accountName: accountRowTitle({ displayName, externalAccountId, propFirm, sizeDollars }),
       firmLogo: propFirm ? firmLogoSrc(propFirm) : null,
     };
     const bucket = groups.get(r.sessionDate);
@@ -346,13 +352,24 @@ export async function getFacets(
       .where(eq(trade.traderId, traderId))
       .orderBy(asc(trade.symbolRoot)),
     db
-      .selectDistinct({ id: account.id, name: account.displayName })
+      .selectDistinct({
+        id: account.id,
+        displayName: account.displayName,
+        externalAccountId: account.externalAccountId,
+        propFirm: account.propFirm,
+        sizeDollars: account.sizeDollars,
+      })
       .from(trade)
       .innerJoin(account, eq(account.id, trade.accountId))
       .where(eq(trade.traderId, traderId))
-      .orderBy(asc(account.displayName)),
+      .orderBy(asc(account.externalAccountId)),
   ]);
-  return { products: products.map((p) => p.root), accounts };
+  return {
+    products: products.map((p) => p.root),
+    // The same composed title the tape prints, so a filter chip and the rows it selects never
+    // disagree about what an account is called.
+    accounts: accounts.map((a) => ({ id: a.id, name: accountRowTitle(a) })),
+  };
 }
 
 /** Quarantined and excluded trades in scope, for the notice above the tape. Counted separately

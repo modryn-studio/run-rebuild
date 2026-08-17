@@ -929,7 +929,12 @@ const secondResolve = await resolveAccount({
 check('resolving twice returns the same account', firstResolve, secondResolve);
 
 const [made] = await db.select().from(account).where(eq(account.id, firstResolve));
-check('the display name defaults to the broker name', made.displayName, realName);
+/* CHANGED AT S5c, AND THE OLD ASSERTION WAS PINNING A BUG. This read "the display name defaults to
+   the broker name" and passed against `displayName === externalAccountId`, which is exactly what
+   made every tape row print `FTDFYL100183704873`: `accountRowTitle` returns `display_name` FIRST
+   because it means "what the TRADER called this", so an auto-filled one shadows the composed
+   "Tradeify (...4873)" forever. Null is the honest state for a name nobody has typed. */
+check('the display name is empty until a human types one', made.displayName, null);
 check('the account type is what the flow asked for', made.accountType, 'sim_funded');
 check('the prop firm is recorded', made.propFirm, 'Tradeify');
 check('the platform is the platform, never the firm', made.platform, 'tradovate');
