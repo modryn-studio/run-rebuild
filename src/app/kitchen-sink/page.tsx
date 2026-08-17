@@ -23,7 +23,7 @@
  * never a plausible P&L figure that could be screenshotted and read as a real trade.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/button';
 import { Card, cardSurface, slotSurface } from '@/components/ui/card';
@@ -67,6 +67,146 @@ export default function KitchenSinkPage() {
   return <Rack />;
 }
 
+
+/* ── FINDING THINGS IN HERE ───────────────────────────────────────────────────────────────────
+ *
+ * Twenty-five sections in one column is a scroll, not a rack. Added 2026-08-15 when the intake's
+ * four sections pushed it past the point where you could find anything (Luke: "it's become very
+ * large and i need organization").
+ *
+ * WHAT TOP DESIGN-SYSTEM SITES ACTUALLY DO, and it is the same three things everywhere — Storybook,
+ * Radix, Polaris, Carbon: a PERSISTENT GROUPED NAV, the current item MARKED, and the content in one
+ * scrolling column. That is the whole pattern. What they add beyond it (per-component routes, a
+ * search index, versioned docs, MDX) is infrastructure that pays for itself at hundreds of
+ * components and dozens of contributors, and buys nothing at twenty-five and one.
+ *
+ * SO: NO ROUTER, NO SEARCH BOX. A search field over twenty-five items you can see at once is a
+ * control that exists to look busy — the same reasoning that keeps a search out of the broker
+ * picker. And a route per section would break the one property this page is FOR: side-by-side
+ * adjacency is what catches three components disagreeing about a radius, and you cannot compare
+ * across a navigation.
+ *
+ * GROUPED BY WHAT A THING IS, not by which file it lives in. `Nav row` and `The overlong list` are
+ * compositions rather than primitives; the ramps and contrast tables are proofs rather than
+ * components. Those are different questions and they were interleaved.
+ */
+
+const slug = (title: string) =>
+  title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+const GROUPS: { group: string; titles: string[] }[] = [
+  { group: 'Controls', titles: ['Button', 'IconButton', 'ThemeToggle', 'Switch', 'Menu'] },
+  { group: 'Inputs', titles: ['Input', 'Textarea', 'CodeInput'] },
+  { group: 'Marks and feedback', titles: ['Icon', 'Tooltip', 'Spinner · LoadingMark · Wordmark'] },
+  { group: 'Surfaces', titles: ['Card'] },
+  {
+    group: 'Compositions',
+    titles: ['Nav row: the reference, and what ships', 'Nav row: what it replaced', 'The overlong list'],
+  },
+  {
+    group: 'Intake (S4e)',
+    titles: [
+      'Intake · progress panel',
+      'Intake · the thirteen refusals',
+      'Intake · required-file checklist',
+      'Intake · staged file rows',
+    ],
+  },
+  {
+    group: 'Tokens and proofs',
+    titles: ['Type ramp', 'Spacing ramp', 'Ground stack', 'Elevation', 'Contrast', 'Ink roles', 'Edges'],
+  },
+];
+
+/* ONLY THE FIRST PANE CARRIES THE ANCHOR IDS. In `both` mode every section renders twice, and two
+ * elements with one id is a broken document — `getElementById` would return the light one and the
+ * observer would watch a duplicate. The two panes scroll TOGETHER in one container at the same
+ * vertical offsets, so anchoring the first also aligns the second. */
+const AnchorCtx = createContext(true);
+
+/** The rail. Sticky, its own scroll, and it never scrolls the page — only the content column. */
+function SectionNav({
+  scrollRef,
+}: {
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const [active, setActive] = useState<string | null>(null);
+
+  /* SCROLL-SPY ON THE CONTAINER, not the window: the rack scrolls an inner element (it matches the
+     app shell, so the document itself never moves) and an observer with no `root` would watch the
+     viewport and never fire. */
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root) return;
+    const targets = [...root.querySelectorAll('section[id]')];
+    if (targets.length === 0) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        // The topmost intersecting section wins, so scrolling up marks the one you arrived at
+        // rather than whichever fired last.
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) setActive(visible[0].target.id);
+      },
+      // A band near the top: a section counts as current once its heading reaches the upper third.
+      { root, rootMargin: '0px 0px -66% 0px', threshold: 0 }
+    );
+    targets.forEach((t) => io.observe(t));
+    return () => io.disconnect();
+  }, [scrollRef]);
+
+  return (
+    <nav
+      aria-label="Sections"
+      className="scroll-thin border-border hidden w-56 shrink-0 overflow-y-auto border-r px-3 py-6 lg:block"
+    >
+      {GROUPS.map(({ group, titles }) => (
+        <div key={group} className="mb-5">
+          <p className="text-micro text-muted px-2 pb-1.5 uppercase">{group}</p>
+          <ul>
+            {titles.map((t) => {
+              const id = slug(t);
+              const on = active === id;
+              return (
+                <li key={t}>
+                  <button
+                    onClick={() => {
+                      const el = scrollRef.current?.querySelector(`#${id}`);
+                      el?.scrollIntoView({ block: 'start' });
+                    }}
+                    aria-current={on ? 'true' : undefined}
+                    className={cn(
+                      'text-small w-full truncate rounded-[var(--radius-sm)] px-2 py-1 text-left transition-colors',
+                      on ? 'bg-hover text-text font-medium' : 'text-muted hover:text-text'
+                    )}
+                  >
+                    {t}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+
+      {/* The rack shows the pieces; the demo shows the FLOW. Two different questions, and the one
+          this page cannot answer deserves a door rather than a mention. */}
+      <a
+        href="/kitchen-sink/demo"
+        className="border-border text-small hover:bg-hover mt-2 flex items-center gap-2 rounded-[var(--radius-sm)] border px-2 py-1.5 transition-colors"
+      >
+        <Icon name="upload" size={14} className="text-muted shrink-0" />
+        Add account, live
+      </a>
+    </nav>
+  );
+}
+
 function Rack() {
   const [theme, setTheme] = useState<ThemeMode>('light');
   const [width, setWidth] = useState<Width>(1280);
@@ -74,6 +214,9 @@ function Rack() {
 
   const text = density === 'long' ? LONG : SHORT;
   const errorText = density === 'long' ? ERROR_LONG : ERROR_SHORT;
+
+  /* The scroll container, handed to the rail so its observer watches the right element. */
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   return (
     /* h-dvh + an internal scroll region, matching the app shell. The rack sits OUTSIDE the
@@ -115,9 +258,15 @@ function Rack() {
       {/* SIDE BY SIDE IS THE MODE THAT FINDS BUGS. This system's dark values are per-mode
           literals, not inversions — scrims, shadows and pressed grounds each have their own
           value, so each can be wrong in exactly one mode. Nobody finds that by using the app. */}
-      <div className={cn('scroll-thin flex min-h-0 flex-1 overflow-y-auto', theme === 'both' ? 'divide-border divide-x' : '')}>
-        {(theme === 'both' ? (['light', 'dark'] as const) : ([theme] as const)).map((mode) => (
-          <div key={mode} className={cn('min-w-0 flex-1', mode === 'dark' && 'dark')}>
+      <div className="flex min-h-0 flex-1">
+        <SectionNav scrollRef={scrollRef} />
+        <div
+          ref={scrollRef}
+          className={cn('scroll-thin flex min-h-0 flex-1 overflow-y-auto', theme === 'both' ? 'divide-border divide-x' : '')}
+        >
+        {(theme === 'both' ? (['light', 'dark'] as const) : ([theme] as const)).map((mode, paneIndex) => (
+          <AnchorCtx.Provider key={mode} value={paneIndex === 0}>
+          <div className={cn('min-w-0 flex-1', mode === 'dark' && 'dark')}>
             <div className="bg-bg text-text min-h-full">
               <div className="scroll-thin mx-auto overflow-x-auto" style={{ maxWidth: width }}>
                 <div className="space-y-12 px-4 py-10" style={{ width }}>
@@ -131,7 +280,9 @@ function Rack() {
               </div>
             </div>
           </div>
+          </AnchorCtx.Provider>
         ))}
+        </div>
       </div>
     </div>
   );
@@ -1128,8 +1279,10 @@ function Section({
   note?: string;
   children: React.ReactNode;
 }) {
+  const anchored = useContext(AnchorCtx);
   return (
-    <section className="border-border border-t pt-8">
+    /* `scroll-mt` so a jumped-to heading clears the sticky header rather than hiding under it. */
+    <section id={anchored ? slug(title) : undefined} className="border-border scroll-mt-6 border-t pt-8">
       <h2 className="text-h2">{title}</h2>
       {/* FULL-STRENGTH INK, NOT `muted` (2026-08-14). This is the argument a reviewer is here to
           read, and it was set in the ink reserved for a property of the object beside it. The tell

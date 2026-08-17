@@ -130,7 +130,25 @@ const BEAT_BUDGET = 2800;
 const beatFor = (rows: number) =>
   Math.max(BEAT_MIN, Math.min(BEAT_MAX, Math.round(BEAT_BUDGET / Math.max(1, rows))));
 
-export function useImportRun(): Run {
+/* `dryRun` IS A DEMO-ONLY ESCAPE HATCH, AND IT IS A SAFETY PROPERTY RATHER THAN A CONVENIENCE.
+ *
+ * `/kitchen-sink/demo` mounts the REAL upload step so the screens can be judged without a session
+ * and without re-uploading five CSVs to reach the one you are iterating. But the real upload step
+ * posts to `/api/csv-import`, so staging files there and pressing Continue would write to the
+ * corpus. A demo that can mutate the database is not a demo.
+ *
+ * v2 LEARNED THIS THE EXPENSIVE WAY and the lesson is worth carrying with the code: its upload
+ * scene was behind `dryRun` while its Add-manually scene was not, so walking those screens created
+ * four live accounts from a page whose own header promised it could not. Its note draws the right
+ * conclusion — "the rule is the property, not the patch: if a form mounted here can reach the
+ * network, this file is lying."
+ *
+ * When true, `start()` walks the same step machine on the same measured beats and returns a
+ * fabricated outcome, without ever touching the network. What stays REAL is everything worth
+ * reviewing: file staging, header detection, the step list, the beat, and every layout decision.
+ * Only the request is suppressed.
+ */
+export function useImportRun(options?: { dryRun?: boolean }): Run {
   const [steps, setSteps] = useState<Step[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [findings, setFindings] = useState<PreflightFinding[]>([]);
@@ -143,8 +161,37 @@ export function useImportRun(): Run {
     setPhase('idle');
   }, []);
 
+  const dryRun = options?.dryRun ?? false;
+
   const start = useCallback(
     async (files: File[], fileTypes: TradovateFileType[]): Promise<ImportOutcome | null> => {
+      if (dryRun) {
+        /* THE SAME BEAT THE REAL SMALL IMPORT RUNS, which is the thing being tuned. v2's dry run
+           passed raw client labels where the live path passed server keys, so every id missed both
+           lookups: the panel read "Filing Fills" instead of "Saving your fills" and every row ran a
+           flat 1500ms, meaning the "measured beats" its own comment promised had never once run.
+           That cannot recur here, because both sides of this build share one detector and there are
+           no client labels to mistranslate. */
+        const rows = buildSteps(fileTypes);
+        const dryBeat = beatFor(rows.length);
+        setPhase('running');
+        setSteps(rows);
+        for (let i = 0; i < rows.length; i++) {
+          await new Promise((r) => setTimeout(r, dryBeat));
+          setSteps((prev) =>
+            prev.map((st, j) =>
+              j === i ? { ...st, state: 'done' } : j === i + 1 ? { ...st, state: 'active' } : st
+            )
+          );
+        }
+        setPhase('settling');
+        await new Promise((r) => setTimeout(r, SETTLE_MS));
+        /* A NON-ZERO `imported`, because the completion screen branches on it (`#79`) and a dry run
+           reporting 0 would rehearse the re-upload screen every time instead of the normal one.
+           Obviously synthetic, per the rack's no-plausible-fixtures rule. */
+        return { imported: 777, parsed: 777, accounts: ['DEMOACCT0000001'], warnings: [] };
+      }
+
       /* ONE STEP PER TYPE, but the server emits one event PER FILE, and two Fills exports from
          different days is a supported upload. Counting how many of each type went out means a
          type's step stays active until every file of that type has landed, and its count is the
@@ -282,7 +329,7 @@ export function useImportRun(): Run {
         return null;
       }
     },
-    []
+    [dryRun]
   );
 
   return { steps, error, findings, phase, start, reset };

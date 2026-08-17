@@ -61,6 +61,9 @@ export default [
             'lift-press',
             // Menu's open animation.
             'pop-in',
+            // The confirming gesture on a selected chip. globals.css:754, and already in the
+            // reduced-motion block. Belongs to the TRADER's choice, never to system progress.
+            'select-pop',
             // The inline text link: accent ink, underline on hover. A hand-written rule at
             // globals.css:606 rather than a token, because it is a two-property recipe rather than
             // a scale value.

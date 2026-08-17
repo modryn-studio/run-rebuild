@@ -66,6 +66,7 @@ export function FileUploadStep({
   onBusyChange,
   files,
   setFiles,
+  dryRun = false,
 }: {
   source: Source;
   onBack: () => void;
@@ -74,12 +75,15 @@ export function FileUploadStep({
   onBusyChange: (busy: boolean) => void;
   files: Picked[];
   setFiles: Dispatch<SetStateAction<Picked[]>>;
+  /** DEMO ONLY. Runs the step machine without posting — see `useImportRun`'s note on why this is a
+   *  safety property rather than a convenience. Never passed by app code. */
+  dryRun?: boolean;
 }) {
   const [dragging, setDragging] = useState(false);
   const [howOpen, setHowOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const run = useImportRun();
+  const run = useImportRun({ dryRun });
   /* Set once the whole run resolves, and this is what gates the handoff rather than the phase.
      A trader might tab away while an import runs; auto-advancing on a timer means if they are not
      looking at that exact instant they miss the one moment that proves the upload landed. Holding
