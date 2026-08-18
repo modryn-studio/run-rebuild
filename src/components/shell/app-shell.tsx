@@ -34,10 +34,10 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { site } from '@/config/site';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { IconButton } from '@/components/ui/icon-button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { Wordmark } from '@/components/ui/wordmark';
+import { AccountMenu } from '@/components/shell/account-menu';
 import { DetectTimezone } from '@/components/detect-timezone';
 import { HEADER_SLOT_ID, HEADER_TITLE_SLOT_ID } from '@/components/shell/header-slot';
 import {
@@ -208,11 +208,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
 
-          {/* `rule`, not `border` (2026-08-14): a group rule inside the rail separates siblings, so
-              it is a divider and takes the divider weight. `border` here drew it at the weight of
-              the card edge, which is the census failure globals.css records. */}
-          <div className="border-rule shrink-0 border-t px-3 py-2">
-            <NavRow href="/settings" label="Settings" icon="settings" pathname={pathname} />
+          {/* `mt-auto`, no rule above it — matching both v2 and the Monarch reference, whose bottom
+              account row carries no divider either. `AccountMenu` is where Settings, the theme
+              toggle and Log out all live now; the persistent `/settings` row this replaced is gone,
+              not hidden — porting the shape means porting where things live, not just how they look. */}
+          <div className="mt-auto shrink-0 px-3 pb-3">
+            <AccountMenu />
           </div>
         </div>
       </aside>
@@ -254,8 +255,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               that is page knowledge. Empty and zero-width until a page portals into it. */}
           <div id={HEADER_TITLE_SLOT_ID} className="flex min-w-0 items-center" />
 
+          {/* NO THEME TOGGLE HERE. v2 carries exactly one, in `AccountMenu` at the foot of the
+              sidebar, verified against Monarch's own account menu before the move — its "Dark mode"
+              row is the same control in the same place. A second copy in the header band was this
+              build's own addition; `/login` and `/status` keep theirs, since neither has this shell
+              or an account menu to hold it. */}
           <div id={HEADER_SLOT_ID} className="ml-auto flex shrink-0 items-center gap-2" />
-          <ThemeToggle />
         </header>
 
         {/* min-h-0 is what lets a flex child actually shrink and scroll; without it the pane

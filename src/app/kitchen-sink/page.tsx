@@ -59,6 +59,7 @@ import type { SessionGroup, TapeRow, TradesDigest } from '@/lib/trades/read';
 const SHELL_ICONS: IconName[] = [
   'today', 'accounts', 'trades', 'read', 'settings',
   'collapse', 'expand', 'menu', 'close', 'check', 'chevron', 'moon', 'sun',
+  'bolt', 'sign-out',
 ];
 const INTAKE_ICONS: IconName[] = ['upload', 'file', 'files', 'unmet', 'back', 'add', 'warn'];
 /** The tape's own marks (S5c). `filter` rides in the Filters control's label. */

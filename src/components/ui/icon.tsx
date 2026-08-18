@@ -111,6 +111,26 @@ function DrawnFilter(props: DrawnProps) {
     </Drawn>
   );
 }
+
+/* A lightning bolt, for "what's new" — ported verbatim from v2's `icons.tsx`. */
+function DrawnBolt(props: DrawnProps) {
+  return (
+    <Drawn {...props}>
+      <path d="M13.5 3 7 13.5h4.3L10 21l7.5-11h-4.3L13.5 3Z" />
+    </Drawn>
+  );
+}
+
+/* Sign out — a door left open on one side, the arrow walking through it. Not a generic exit glyph:
+ * ported verbatim from v2's `icons.tsx`, whose own comment names that distinction. */
+function DrawnSignOut(props: DrawnProps) {
+  return (
+    <Drawn {...props}>
+      <path d="M14.5 4.5H8a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h6.5" />
+      <path d="M20 12H9.5M16.25 8.25 20 12l-3.75 3.75" />
+    </Drawn>
+  );
+}
 function DrawnSun(props: DrawnProps) {
   return (
     <Drawn {...props}>
@@ -273,6 +293,10 @@ const MARKS = {
 
   // ── the tape (S5c) ─────────────────────────────────────────────────────────────────────────
   filter: DrawnFilter,
+
+  // ── the account menu (S5c) ────────────────────────────────────────────────────────────────
+  bolt: DrawnBolt,
+  'sign-out': DrawnSignOut,
 } satisfies Record<string, Glyph | LucideIcon>;
 
 export type IconName = keyof typeof MARKS;

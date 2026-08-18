@@ -59,8 +59,10 @@ export default [
             // cannot invent its own version of "lifted". Both defined in globals.css.
             'lift-rest',
             'lift-press',
-            // Menu's open animation.
+            // Menu's open animation, and its upward-opening twin for a menu that opens ABOVE its
+            // trigger (the account menu, sitting at the foot of the sidebar).
             'pop-in',
+            'pop-in-up',
             // The confirming gesture on a selected chip. globals.css:754, and already in the
             // reduced-motion block. Belongs to the TRADER's choice, never to system progress.
             'select-pop',
