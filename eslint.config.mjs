@@ -63,6 +63,9 @@ export default [
             // trigger (the account menu, sitting at the foot of the sidebar).
             'pop-in',
             'pop-in-up',
+            // ONE motion for a panel opening or closing, shared by the sidebar and the summary rail
+            // so the two panels framing the work cannot drift apart. globals.css argues it.
+            'panel-transition',
             // The confirming gesture on a selected chip. globals.css:754, and already in the
             // reduced-motion block. Belongs to the TRADER's choice, never to system progress.
             'select-pop',

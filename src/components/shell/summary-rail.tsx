@@ -112,7 +112,12 @@ export function WithSummaryRail({
       <StickyRail
         className={cn(
           'overflow-hidden',
-          ready && 'lg:transition-[width] lg:duration-200 lg:ease-out',
+          /* `panel-transition` so the rail and the sidebar are ONE declaration rather than two that
+             currently agree — globals.css names this class after exactly that, since the rail was
+             the second panel it had to cover. A hand-rolled `lg:transition-[width] duration-200`
+             here ran the two panels framing the work at different speeds on the same curve nobody
+             chose. */
+          ready && 'panel-transition',
           // cn(), never a template string: `lg:w-76` and `lg:w-0` are the same utility group
           // under the same modifier, so a raw template leaves BOTH in the attribute and
           // Tailwind's sheet order decides — which puts w-76 last and the rail never closes.

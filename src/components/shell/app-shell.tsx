@@ -45,6 +45,8 @@ import {
   SIDEBAR_W,
   SIDEBAR_COLLAPSE_KEY,
   SIDEBAR_OVERLAY_QUERY,
+  PAGE_COLUMN,
+  HEADER_INDENT,
 } from '@/lib/shell';
 
 /* The four rows the spec fixes, in the order of the questions a trader asks: what happens next
@@ -163,9 +165,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside
         className={cn(
           'bg-bg z-40 shrink-0 overflow-hidden',
-          // Only animate once the stored preference has been applied, or the correction itself
-          // animates on every load.
-          ready && 'transition-[width] duration-200 ease-out',
+          /* `panel-transition`, NOT a hand-rolled `transition-[width] duration-200 ease-out`. That
+             is the exact drift globals.css names when it explains why the class exists: "the only
+             way two panels reliably match is by being the same declaration rather than two that
+             currently agree — a duration copied by hand is a duration that drifts the first time
+             one of them is tuned." The sidebar was on 200ms stock ease-out while the class it was
+             supposed to share runs 300ms on the product's own curve, so the two panels framing the
+             work moved at visibly different speeds.
+             Only once the stored preference has landed, or the correction animates on every load. */
+          ready && 'panel-transition',
           collapsed ? 'w-0' : SIDEBAR_W,
           // Overlay below md: fixed, full height, never in flow.
           'max-md:fixed max-md:inset-y-0 max-md:left-0',
@@ -173,8 +181,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         {/* Pinned width so the contents do not reflow while the track closes. */}
         <div className={cn('flex h-full flex-col', SIDEBAR_W)}>
+          {/* `pr-3 pl-5`, matching v2 rather than a uniform `px-4`. The wordmark wants the deeper
+              inset because it is type sitting against the pane edge; the collapse control wants the
+              shallower one because it is a 36px disc whose own padding already carries the gap. A
+              uniform 16 put the mark too close and the disc too far. */}
           <div
-            className="flex shrink-0 items-center justify-between px-4"
+            className="flex shrink-0 items-center justify-between pr-3 pl-5"
             style={{ height: SHELL_HEADER_H }}
           >
             <Link href="/">
@@ -225,8 +237,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             It used to carry only the Open control and the theme toggle, which forced any page
             wanting a title to build a SECOND 64px band underneath — a near-empty strip above a real
             one. `header-slot.tsx` has the full argument and the quote that named it. */}
+        {/* `PAGE_COLUMN` + `HEADER_INDENT`, WHICH THIS LOST when the title moved up here and
+            `PageHeader` was deleted. That component carried both, and a plain `px-4` put the title
+            at 16px while the cards below it sit at 16px too — so the measured 8px indent, which is
+            what makes a title read as naming the card rather than floating beside it, silently
+            became zero. `shell.ts` states it: "do not 'fix' a header that looks 8px off". This is
+            the shift, and it was mine. */}
         <header
-          className="relative flex shrink-0 items-center gap-2 px-4"
+          className={cn(PAGE_COLUMN, HEADER_INDENT, 'relative flex shrink-0 items-center gap-2')}
           style={{ height: SHELL_HEADER_H }}
         >
           {/* The Open control: only while the sidebar is hidden, and adjacent to where it will
@@ -286,6 +304,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
  * sidebar stops competing with the content it points at.
  *
  * HOVER STILL MOVES, because a row has to answer the pointer — it takes the ground, not the ink.
+ *
+ * AND IT TAKES A DIFFERENT ONE (corrected 2026-08-17, S5c). Hover was `bg-surface-2`, which is the
+ * ACTIVE row's ground — so with the pointer anywhere in the nav, two rows were filled identically
+ * and the ground stopped saying which one was the location. That is not a small shade issue: it
+ * breaks the rule THIS comment sets, since ground is the only channel left carrying rank. Hover is
+ * `bg-hover` now, which is what `run-trading@v2` uses and what its own note argues for after
+ * measuring the two candidate fills at 1.045:1 and 1.075:1 and finding them not tellable apart.
  */
 function NavRow({
   href,
@@ -304,12 +329,34 @@ function NavRow({
     <Link
       href={href}
       aria-current={active ? 'page' : undefined}
+      /* `group` SO THE MARK CAN REACT TO A HOVER ANYWHERE ON THE ROW. A 20px icon is far too small
+         to be its own hover target, which is why the stroke thickens from the row rather than from
+         the glyph.
+         HOVER IS `bg-hover`, NOT `bg-surface-2`, and that was a real defect rather than a shade
+         preference: `surface-2` is the ACTIVE row's ground, so pointing at any inactive row painted
+         it the exact colour of the one you are on. Two rows filled, neither saying which is the
+         location — concealed state, which is what v2's own note calls it after measuring the pair
+         at 1.045:1 and 1.075:1 and finding them not tellable apart.
+         NO LOCAL FOCUS RING. `globals.css` defines a 2px solid accent outline on `:focus-visible`
+         app-wide, and `focus-visible:outline-none` here was suppressing it to substitute a weaker
+         one — the same substitution `theme-toggle.tsx` records being removed everywhere else.
+         `transition-colors`, not `transition`: only colour changes, so animating `all` would put
+         the layout properties on the clock for nothing. */
       className={cn(
-        'text-nav text-text focus-visible:ring-accent flex min-h-11 items-center gap-3 rounded-sm px-3 font-normal focus-visible:ring-2 focus-visible:outline-none md:min-h-9',
-        active ? 'bg-surface-2' : 'hover:bg-surface-2',
+        'text-nav group flex h-10 items-center gap-3 rounded-sm px-3 font-normal transition-colors',
+        active ? 'bg-surface-2 text-text' : 'text-text hover:bg-hover',
       )}
     >
-      <Icon name={icon} className="shrink-0" />
+      {/* HOVER THICKENS THE STROKE, 1.5 -> 1.8. claude.ai's move translated: their sidebar icons are
+          a variable font and they animate its weight axis on hover; we draw SVG, so the equivalent
+          axis is stroke-width. CSS beats the wrapper's presentation attribute, so the wrapper needs
+          no change. 20px, matching v2 — the shell's marks are a size up from the 16px an icon
+          BUTTON carries, because a nav row is read at a glance rather than aimed at. */}
+      <Icon
+        name={icon}
+        size={20}
+        className="shrink-0 transition-[stroke-width] duration-200 ease-out group-hover:[stroke-width:1.8]"
+      />
       {label}
     </Link>
   );

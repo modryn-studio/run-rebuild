@@ -117,6 +117,13 @@ Each is a bug that shipped or a session that got burned.
 - **A `'use client'` file may import TYPES from a db-backed module, never VALUES.** Those reach
   `@/lib/db` → `@/lib/env` → `server-only`, so one constant pulled into a client file ships the
   secret schema to the browser and fails the build. `import type` is erased and always safe.
+- **A row fetched over JSON has no `Date`s, and TypeScript will not tell you.** A server component
+  hands a client one real `Date`; the same row refetched from a route arrives as an ISO **string**
+  wearing the same `Date` type, because `JSON.parse` cannot restore it and the cast at the fetch
+  boundary is a lie the compiler accepts. It fails **only on the rows that came second** — the tape's
+  first 300 clocks render, row 301 reads `Invalid Date` — so it looks like a data bug in one batch
+  rather than a type one everywhere. **Revive at the boundary** (`reviveTrade` in `trades-tape.tsx`),
+  never at the call site, or the next consumer re-learns it.
 - **Every export of a `'use client'` module becomes a client reference** when a Server Component
   imports it, so a plain string arrives as an opaque object and `clsx` drops it — silently, no
   error, no type complaint. **The shell's layout constants live in a module with no `'use client'`
