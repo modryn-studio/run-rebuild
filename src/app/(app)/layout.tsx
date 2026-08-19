@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { AppShell } from '@/components/shell/app-shell';
-import { getTrader } from '@/lib/trader';
+import { getTrader, getSessionUser } from '@/lib/trader';
 
 /* The signed-in app shell.
  *
@@ -30,5 +30,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
      day a link-preserving redirect is worth wiring properly. */
   if (!trader) redirect('/login');
 
-  return <AppShell>{children}</AppShell>;
+  /* RESOLVED HERE AND HANDED DOWN, rather than read by a hook inside the account row. That hook
+     returns null during SSR and the real user after hydration, which is a hydration mismatch and a
+     visible flash from "N" to "L" in the avatar. Free: `getSessionUser` reuses the same
+     request-cached session `getTrader` above already resolved. */
+  const user = await getSessionUser();
+
+  return <AppShell user={user}>{children}</AppShell>;
 }

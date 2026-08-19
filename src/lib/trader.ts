@@ -53,6 +53,36 @@ export interface Trader {
  * leak one trader's identity into another's request on a warm server. That distinction is the
  * whole reason to reach for this rather than a `Map`.
  */
+/** What the account row prints. Not the trader row: these live on `auth_user`, and the provider
+ *  owns them. */
+export interface SessionUser {
+  name: string | null;
+  email: string | null;
+  image: string | null;
+}
+
+/**
+ * The signed-in user's display fields, resolved ON THE SERVER.
+ *
+ * WHY THIS EXISTS RATHER THAN `authClient.useSession()` IN THE COMPONENT. That hook returns null
+ * during SSR and the real user after hydration, so the account row rendered "Not signed in" into the
+ * HTML and "luke@…" a moment later — which React correctly reports as a hydration mismatch, and
+ * which a trader sees as an "N" avatar flashing to an "L". Resolving it here means the server and
+ * the client render the same string, so there is no mismatch and no flash to suppress.
+ *
+ * FREE, because `getTrader` below already resolves this session and both are `cache()`d per request:
+ * this adds no session lookup and no round trip, it just reads fields the call already fetched.
+ */
+export const getSessionUser = cache(async function getSessionUser(): Promise<SessionUser | null> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.id) return null;
+  return {
+    name: session.user.name ?? null,
+    email: session.user.email ?? null,
+    image: session.user.image ?? null,
+  };
+});
+
 export const getTrader = cache(async function getTrader(): Promise<Trader | null> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id) return null;

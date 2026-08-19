@@ -38,6 +38,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { Wordmark } from '@/components/ui/wordmark';
 import { AccountMenu } from '@/components/shell/account-menu';
+import type { SessionUser } from '@/lib/trader';
 import { DetectTimezone } from '@/components/detect-timezone';
 import { HEADER_SLOT_ID, HEADER_TITLE_SLOT_ID } from '@/components/shell/header-slot';
 import {
@@ -85,7 +86,15 @@ function routeTitle(pathname: string): string | null {
 const isOverlay = () =>
   typeof window !== 'undefined' && window.matchMedia(SIDEBAR_OVERLAY_QUERY).matches;
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  user,
+}: {
+  children: React.ReactNode;
+  /* RESOLVED BY THE LAYOUT, not by a hook down in the account row. Server and client then render
+     the same string, which is the whole fix — see `getSessionUser`. */
+  user: SessionUser | null;
+}) {
   // Starts collapsed and corrects on mount. The server cannot know the stored preference, so
   // rendering it open and closing it would be a visible flash on every full page load; the
   // reverse only ever opens a panel, which reads as the app arriving rather than as a glitch.
@@ -225,7 +234,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               toggle and Log out all live now; the persistent `/settings` row this replaced is gone,
               not hidden — porting the shape means porting where things live, not just how they look. */}
           <div className="mt-auto shrink-0 px-3 pb-3">
-            <AccountMenu />
+            <AccountMenu user={user} />
           </div>
         </div>
       </aside>

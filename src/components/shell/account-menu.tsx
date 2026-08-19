@@ -21,6 +21,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { authClient } from '@/lib/auth-client';
+import type { SessionUser } from '@/lib/trader';
 import { useTheme } from '@/components/theme-provider';
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/ui/icon';
@@ -28,8 +29,7 @@ import { Icon } from '@/components/ui/icon';
 const ITEM_CLASS =
   'text-body text-text hover:bg-hover flex min-h-10 w-full items-center gap-2.5 rounded-[var(--radius-sm)] px-2.5 text-left transition';
 
-export function AccountMenu() {
-  const { data: session } = authClient.useSession();
+export function AccountMenu({ user }: { user: SessionUser | null }) {
   const { theme, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -50,12 +50,17 @@ export function AccountMenu() {
     };
   }, [open]);
 
-  const email = session?.user?.email ?? null;
-  const label = session?.user?.name || email || 'Not signed in';
+  /* FROM THE SERVER, NOT FROM `authClient.useSession()`. That hook returns null during SSR and the
+   * real user after hydration, so this row rendered "Not signed in" into the HTML and the trader's
+   * email a moment later — a hydration mismatch React reports, and a visible flash from an "N"
+   * avatar to an "L". The layout resolves it instead, off the same request-cached session the auth
+   * gate already fetched, so both renders produce the same string. */
+  const email = user?.email ?? null;
+  const label = user?.name || email || 'Not signed in';
   /* `referrerPolicy="no-referrer"` is not decoration: Google serves lh3 avatars with a referrer
    * check and returns 403 for some origins without it. */
   const [avatarFailed, setAvatarFailed] = useState(false);
-  const avatar = !avatarFailed ? (session?.user?.image ?? null) : null;
+  const avatar = !avatarFailed ? (user?.image ?? null) : null;
 
   return (
     <div ref={ref} className="relative">
