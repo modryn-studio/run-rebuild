@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { getTrader } from '@/lib/trader';
 import { HeaderSlot } from '@/components/shell/header-slot';
 import { WithSummaryRail } from '@/components/shell/summary-rail';
@@ -35,8 +35,17 @@ export default async function TradesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const trader = await getTrader();
-  // The (app) layout is the auth gate, so no trader here is a sign-out race rather than a state.
-  if (!trader) notFound();
+  /* REDIRECT, NOT `notFound()`, and the difference is what the trader sees when this fires.
+   *
+   * The layout is the gate and it redirects, so reaching here without one is a race rather than a
+   * state — but `notFound()` answered that race with "this page does not exist", which is a dead
+   * end AND untrue: the page exists, the session did not resolve. Luke hit exactly this (2026-08-17:
+   * "i navigate to the /sessions or /trades page and i get a 404. then i navigate back to the login
+   * page and sign in again"), and a 404 gave him nothing to act on — the recovery had to be guessed.
+   *
+   * A redirect to `/login` is the same answer the layout already gives, so the two agree, and it
+   * lands somewhere that can actually fix the problem. */
+  if (!trader) redirect('/login');
 
   const filter = readTradesFilter(await searchParams);
 

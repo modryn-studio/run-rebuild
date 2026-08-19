@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { headers } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
@@ -39,7 +40,20 @@ export interface Trader {
  * least-wrong clock to show a futures trader is the one their sessions are cut in — never a
  * clock nobody trades on. Detection improves it on first page view; see `setDisplayTimezone`.
  */
-export async function getTrader(): Promise<Trader | null> {
+/* DEDUPED PER REQUEST, and that is not just an optimisation.
+ *
+ * A signed-in page resolves the trader TWICE — once in `(app)/layout.tsx`'s gate and once in the
+ * page itself — and the App Router renders a layout and its page CONCURRENTLY. Uncached, that is
+ * two session lookups and up to four database round trips per navigation, and on a trader's very
+ * first sign-in it is two callers racing to create the same row. The insert below is written to
+ * survive that race, but the honest fix is for the race not to exist: `cache()` collapses both
+ * calls into one resolution that both callers await.
+ *
+ * React's `cache`, not a module-level variable: the memo is scoped to the request, so it cannot
+ * leak one trader's identity into another's request on a warm server. That distinction is the
+ * whole reason to reach for this rather than a `Map`.
+ */
+export const getTrader = cache(async function getTrader(): Promise<Trader | null> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.id) return null;
 
@@ -57,7 +71,7 @@ export async function getTrader(): Promise<Trader | null> {
 
   const [created] = await db.select().from(trader).where(eq(trader.authUserId, authUserId));
   return created ?? null;
-}
+});
 
 /** The signed-in trader, or a thrown error. For surfaces that have already checked auth. */
 export async function requireTrader(): Promise<Trader> {
