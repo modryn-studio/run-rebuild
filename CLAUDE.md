@@ -138,6 +138,19 @@ Each is a bug that shipped or a session that got burned.
   actually bound to. Production keeps a pinned string; a wildcard host allowlist in production is
   an open redirect. **Still invisible to curl either way:** the origin check only runs on requests
   carrying a Cookie header. Reproduce auth bugs in a browser or not at all.
+- **Cookies ignore the PORT, so two local builds share one jar.** `localhost:3000` and
+  `localhost:3002` are the same host to a browser. With Better Auth's default cookie name on both,
+  `run-trading@v2` and this build were writing the same key — signing into either **silently signed
+  you out of the other**, on the real browser, repeatedly. The shared `BETTER_AUTH_SECRET` is what
+  made it baffling rather than obvious: the foreign cookie's signature VALIDATES, so it is not
+  rejected as forged; it just resolves to a session id that lives only in the other build's
+  database. `advanced: { cookiePrefix: 'run-rebuild' }` in `src/lib/auth.ts` is the fix, and it is
+  one-sided — v2 keeps the default.
+- **`chrome-devtools start --isolated` deletes its profile on exit.** That is what the flag means: a
+  temporary user-data-dir, cleaned up when the browser closes. Every daemon restart is a fresh
+  browser with no cookies, so a driven session cannot survive one. Pass
+  `--userDataDir <path>` instead for a persistent dedicated profile. It is still not the real Chrome
+  profile, so the Chrome 136+ remote-debugging block does not apply.
 - **Next.js 16 is not the Next.js in your training data.** Read `node_modules/next/dist/docs/`
   before writing framework code. `next dev` maintains that pointer in `AGENTS.md`, which exists so
   Next writes its managed block there instead of into this file.
