@@ -2,24 +2,22 @@
 
 /* THE TAPE: every trade the filter selected, banded by the session it was realised in.
  *
- * Ported from `run-trading@v2`'s `trades-card.tsx` (2026-08-17, S5c), with its row structure and
- * both of its measured retreats intact — and one deliberate departure, noted on the account column.
+ * Ported from `run-trading@v2`'s `trades-card.tsx` (2026-08-17, S5c), including both of its paging
+ * mechanics — the earlier version of this file had neither, which is why it looked like v2 and did
+ * not behave like it.
  *
- * ONE LINE PER EVENT, WHICH IS THE RETREAT THAT MATTERS. v2 shipped a two-line 69px row carrying the
- * entry and exit prices, then moved them into the drawer and went to one line: "those prices are
- * VERIFICATION detail. Verification has a home now: the drawer. A tape is for scanning, and a scan
- * wants one line per event." What survived that cut, and why each: the PRODUCT (what), the CLOCK
- * (when — sequence is the subject of every read this corpus has produced), and the RESULT.
- * `wireframes.md` §3 was amended in the same change rather than left disagreeing.
+ * ONE LINE PER EVENT. v2 shipped a two-line 69px row carrying entry and exit prices, then moved
+ * them into the drawer: "those prices are VERIFICATION detail. A tape is for scanning, and a scan
+ * wants one line per event." What survived: the PRODUCT (what), the CLOCK (when), the RESULT.
  *
- * SORTED BY THE ENTRY, BANDED BY THE EXIT, and the two keys are deliberately different. Money is
- * realised at the close, so the SESSION comes from the exit; the DECISION is the entry, so the order
- * within a session comes from that. Ordering rows by the exit instead was visibly wrong on v2's own
- * tape: a position scaled out in three pieces closes on one stamp, so three consecutive rows printed
- * the identical time and the sequence between them was carried by nothing the eye could see.
+ * SORTED BY THE ENTRY, BANDED BY THE EXIT. Money is realised at the close, so the SESSION comes from
+ * the exit; the DECISION is the entry, so the order within a session comes from that. Ordering rows
+ * by the exit was visibly wrong on v2's own tape: a position scaled out in three pieces closes on
+ * one stamp, so three consecutive rows printed the same time and the sequence was carried by
+ * nothing the eye could see.
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { cn } from '@/lib/cn';
@@ -29,28 +27,164 @@ import { displayTime, displaySessionDate } from '@/lib/time/session';
 import type { SessionGroup, TapeRow } from '@/lib/trades/read';
 import { TradeDrawer } from './trade-drawer';
 
+/** How many rows are IN THE DOM. 361 rows became ~5,000 nodes on v2 and cost ~2 of its 4.5s to
+ *  interactive, so the window governs the DOM while the fetch below governs the wire. */
+const PAGE = 60;
+/** How many rows cross the wire per trip. */
+const BATCH = 300;
+
 /** `+` on a gain, the minus `fmtMoney` already carries on a loss. A tape is a sequence of outcomes
  *  and an unsigned figure makes the reader do the comparison the sign is there to do for them. */
 const signed = (cents: number): string => (cents > 0 ? `+${fmtMoney(cents)}` : fmtMoney(cents));
+
+/** What the paging route needs to answer for the rest of the tape. */
+export type TapeRest = { ids: string[] };
+
+/* JSON HAS NO DATES. Rows fetched from the route arrive with `entryAt`/`exitAt` as ISO strings,
+ * while the first page's came from the server component as real `Date`s. Reviving here means every
+ * consumer below sees one type — without it the clock silently renders "Invalid Date" on row 301
+ * and nowhere else, which is the worst kind of bug to find. */
+function reviveTrade(t: TapeRow): TapeRow {
+  return { ...t, entryAt: new Date(t.entryAt), exitAt: new Date(t.exitAt) };
+}
 
 export function TradesTape({
   sessions,
   total,
   displayTimezone,
   narrowed,
+  rest,
 }: {
   sessions: SessionGroup[];
-  /** Every trade the filter selected, which is not the number of rows drawn. */
+  /** Every trade the filter selected, which is not the number of rows sent. */
   total: number;
   displayTimezone: string;
   /** Whether anything is narrowing, which decides which empty state is honest. */
   narrowed: boolean;
+  /** The ids of every trade the filter selects, so the client can ask for the rest by id. */
+  rest?: TapeRest;
 }) {
-  const [open, setOpen] = useState<TapeRow | null>(null);
-  const drawn = sessions.reduce((n, s) => n + s.trades.length, 0);
+  /* WHICH ROW IS OPEN, as an INDEX into the flattened list rather than an id, because the steppers
+     walk the list: "the next trade" is a position, and resolving an id back to one on every arrow
+     press would be the same lookup done later and worse. -1 is closed. */
+  const [open, setOpen] = useState(-1);
 
-  /* `@container` so a column can be gated on the CARD's width rather than the viewport's: the rail
-     opening changes this card by 304px and nothing about the window says so.
+  /* ENDLESS SCROLL, WINDOWED ON THE CLIENT. Two mechanics and they are not redundant: `limit`
+     governs how many rows are in the DOM, `extra` governs how many have crossed the wire. */
+  const [limit, setLimit] = useState(PAGE);
+  const sentinel = useRef<HTMLDivElement>(null);
+
+  /* THE ROWS FETCHED SINCE THIS LIST LOADED, kept beside the server's rather than merged into them:
+     props are the server's and this is ours, and keeping the two apart is what makes the reset below
+     a single obvious line rather than a reconciliation. */
+  const [extra, setExtra] = useState<TapeRow[]>([]);
+  const [failed, setFailed] = useState(false);
+  /* A REF, NOT STATE. This guards against a second fetch starting while one is in flight, and a
+     state flag would only take effect on the next render — one render too late when the observer
+     can fire twice in a frame. Nothing reads it during render. */
+  const busy = useRef(false);
+
+  // The server's rows, flattened back out of their session groups, plus anything fetched since.
+  const fromServer = sessions.flatMap((s) => s.trades);
+  const all = extra.length > 0 ? [...fromServer, ...extra] : fromServer;
+  const visible = all.slice(0, limit);
+  const more = all.length > limit;
+  /** Rows the filter selects that have not crossed the wire yet. */
+  const unfetched = rest ? rest.ids.length - all.length : 0;
+
+  /* THE FETCH, DRIVEN BY THE BUFFER RATHER THAN BY THE SENTINEL. Reaching the last row and only THEN
+     asking the server is how a list stutters: the trader waits at a spinner for a round trip that
+     could have happened while they were still scrolling. Half a batch of runway. */
+  useEffect(() => {
+    if (!rest || failed || busy.current) return;
+    if (unfetched <= 0) return;
+    if (all.length - limit > BATCH / 2) return;
+
+    busy.current = true;
+    const from = rest.ids.length - unfetched;
+    void (async () => {
+      try {
+        const res = await fetch('/api/trades/page', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ids: rest.ids.slice(from, from + BATCH) }),
+        });
+        if (!res.ok) throw new Error(String(res.status));
+        const data = (await res.json()) as { trades?: TapeRow[] };
+        const rows = (data.trades ?? []).map(reviveTrade);
+        /* AN EMPTY BATCH WOULD LOOP FOREVER — `from` is derived from what we hold, so nothing new
+           means the next render asks for the same window again. Treated as a failure, which is what
+           it is: the ids came from this same filter and should have resolved. */
+        if (rows.length === 0) setFailed(true);
+        else setExtra((x) => [...x, ...rows]);
+      } catch {
+        setFailed(true);
+      } finally {
+        busy.current = false;
+      }
+    })();
+  }, [rest, failed, unfetched, all.length, limit]);
+
+  useEffect(() => {
+    // Nothing left to reveal and nothing left to fetch: no observer, and none left running from the
+    // previous render.
+    if (!more && unfetched === 0) return;
+    const el = sentinel.current;
+    if (!el) return;
+    /* `rootMargin`, so the next page is already rendering by the time the trader reaches the bottom
+       rather than after they hit it and wait. */
+    const io = new IntersectionObserver(
+      (entries) => {
+        // Clamped to what is loaded. Letting the limit run past the end while a fetch is in flight
+        // would land 300 rows in the DOM at once when it returned, which is the whole thing the
+        // window exists to prevent.
+        if (entries.some((e) => e.isIntersecting)) setLimit((n) => Math.min(n + PAGE, all.length));
+      },
+      { rootMargin: '600px 0px' }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+    /* `all.length` IS A DEPENDENCY and it is load-bearing, not tidiness. An observer does not
+       re-fire for an element that was already intersecting, so when a batch arrives under a sentinel
+       still on screen nothing would wake the list up. Re-creating it re-delivers the entry. */
+  }, [more, limit, unfetched, all.length]);
+
+  /* THE DRAWER'S STEPPER PULLS THE WINDOW ALONG. The sentinel is not the only way to reach the
+     bottom: opening a trade and pressing Next walks to row 60 and stops there, on a tape of
+     thousands, with the arrow greyed out as though that were the end. The drawer walks the RENDERED
+     array on purpose, so the honest fix is to render more rather than hand it a second, longer list.
+     Two rows of lead so the step after this one is already there. */
+  useEffect(() => {
+    if (open < 0 || !more) return;
+    if (open >= visible.length - 2) setLimit((n) => Math.min(n + PAGE, all.length));
+  }, [open, more, visible.length, all.length]);
+
+  /* A NEW FILTER IS A NEW LIST, so the window starts over rather than staying deep in a tape the
+     trader is no longer looking at, and so does everything fetched against the old one. The drawer
+     closes with it, because index 400 of the old list is not a trade in the new one.
+     KEYED ON THE LIST'S IDENTITY, NOT ITS REFERENCE: `router.refresh()` hands down a new array
+     holding the same trades in the same order, and against a reference dependency that reads as a
+     new list — which would slam the drawer shut every time the page revalidated. First id, last id
+     and length are enough: a filter change moves at least one, a refresh of the same slice moves
+     none. */
+  const listKey = `${fromServer.length}:${fromServer[0]?.id ?? ''}:${fromServer[fromServer.length - 1]?.id ?? ''}`;
+  useEffect(() => {
+    setLimit(PAGE);
+    setExtra([]);
+    setFailed(false);
+    setOpen(-1);
+  }, [listKey]);
+
+  /* REGROUPED FROM THE WINDOW, not from the server's own groups, because rows fetched since arrive
+     flat and belong under their own session bands. The flat order the drawer steps through is then
+     rebuilt from these groups rather than assumed to equal `visible` — so what the stepper walks is
+     exactly what is on screen. */
+  const days = groupBySession(visible);
+  const flat = days.flatMap((d) => d.trades);
+  // Session totals come from the server and cover the WHOLE session, not the rows drawn.
+  const totalsFor = new Map(sessions.map((s) => [s.sessionDate, s]));
+
+  /* `@container` so a column can be gated on the CARD's width rather than the viewport's.
      `overflow-clip`, not `hidden` — it clips without creating a scroll container, which is what
      lets the header and the bands inside it stay sticky. */
   return (
@@ -72,55 +206,107 @@ export function TradesTape({
         </span>
       </div>
 
-      {sessions.length === 0 ? (
+      {all.length === 0 ? (
         <Empty narrowed={narrowed} />
       ) : (
-        sessions.map((s) => (
-          <div key={s.sessionDate}>
-            {/* THE SESSION BAND. Ground `band`, no rules, and BOTH the date and the total muted.
-                The muted total is the interesting half: a band is a LABEL for the rows under it and
-                its figure is a subtotal of numbers already on screen, so in full ink it competes
-                with the results it is only summarising. Muted puts it back in the background, which
-                is also why no rule is needed — a ground change is enough to separate a label from a
-                list. `design-system.md` carries the rule.
-                `top-15` matches the header's own `min-h-15`, so the band comes to rest exactly
-                beneath it rather than overlapping. */}
-            <div className="bg-band sticky top-15 z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-2">
-              <span className="text-body text-muted font-medium">
-                {displaySessionDate(s.sessionDate)}
-              </span>
-              <span className="text-body text-muted flex items-center gap-3 font-medium tabular-nums">
-                <span>{signed(s.netCents)}</span>
-                <span>
-                  {s.tradeCount.toLocaleString('en-US')} {s.tradeCount === 1 ? 'trade' : 'trades'}
+        days.map((d) => {
+          const t = totalsFor.get(d.sessionDate);
+          return (
+            <div key={d.sessionDate}>
+              {/* THE SESSION BAND. Ground `band`, no rules, and BOTH the date and the total muted.
+                  The muted total is the interesting half: a band is a LABEL for the rows under it
+                  and its figure is a subtotal of numbers already on screen, so in full ink it
+                  competes with the results it is only summarising. A ground change is enough to
+                  separate a label from a list, which is why no rule is needed.
+                  `top-15` matches the header's own `min-h-15`, so the band rests exactly beneath. */}
+              <div className="bg-band sticky top-15 z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-2">
+                <span className="text-body text-muted font-medium">
+                  {displaySessionDate(d.sessionDate)}
                 </span>
-                {/* A rate off nothing decided is a divide, not a fact — so it is absent rather
-                    than printed as 0%. */}
-                {s.winRatePct !== null && <span>{s.winRatePct}% win</span>}
-              </span>
+                {t && (
+                  <span className="text-body text-muted flex items-center gap-3 font-medium tabular-nums">
+                    <span>{signed(t.netCents)}</span>
+                    <span>
+                      {t.tradeCount.toLocaleString('en-US')} {t.tradeCount === 1 ? 'trade' : 'trades'}
+                    </span>
+                    {/* A rate off nothing decided is a divide, not a fact — so it is absent rather
+                        than printed as 0%. */}
+                    {t.winRatePct !== null && <span>{t.winRatePct}% win</span>}
+                  </span>
+                )}
+              </div>
+              <div className="divide-rule divide-y">
+                {d.trades.map((row) => (
+                  <Row
+                    key={row.id}
+                    trade={row}
+                    zone={displayTimezone}
+                    onOpen={() => setOpen(flat.indexOf(row))}
+                  />
+                ))}
+              </div>
             </div>
-            <div className="divide-rule divide-y">
-              {s.trades.map((t) => (
-                <Row key={t.id} trade={t} zone={displayTimezone} onOpen={() => setOpen(t)} />
-              ))}
-            </div>
-          </div>
-        ))
+          );
+        })
       )}
 
-      {/* SAYS SO WHEN IT IS SHOWING PART OF THE SET. A tape that silently stops at its cap looks
-          exactly like a tape that ended, and "187 trades" in the header over 500 drawn rows is the
-          kind of quiet disagreement this codebase forbids everywhere else. */}
-      {drawn < total && (
-        <p className="border-rule text-small text-muted border-t px-5 py-3 text-center">
-          Showing the first {drawn.toLocaleString('en-US')} of {total.toLocaleString('en-US')}.
-          Narrow the range or the filters to see the rest.
-        </p>
+      {/* THE SENTINEL, and it is the only thing on screen that knows a window exists. It carries a
+          row's height so the observer has something real to intersect, and a quiet line rather than
+          a spinner: the next page renders in a frame or two, and a spinner that flashes for 30ms
+          reads as a stutter rather than as progress. `aria-hidden` because the rows arriving
+          beneath it are the announcement.
+          THE COUNT IS AGAINST THE WHOLE TAPE, not against what has been loaded (Luke, 2026-08-05:
+          "why did we create a footer saying 'Showing the first 300 of 2,277'... that is super
+          confusing"). Whether a row is in the DOM, in memory or still on the server is the tape's
+          business, not the trader's — so the line says the one thing they asked, which is how much
+          is left. */}
+      {(more || unfetched > 0) && !failed && (
+        <div ref={sentinel} aria-hidden className="flex h-13 items-center justify-center">
+          <span className="text-body text-muted">
+            {(total - limit).toLocaleString('en-US')} more {total - limit === 1 ? 'trade' : 'trades'}
+          </span>
+        </div>
       )}
 
-      {open && <TradeDrawer trade={open} zone={displayTimezone} onClose={() => setOpen(null)} />}
+      {/* A FETCH CAN FAIL, and a scroll that silently stops is indistinguishable from the end of the
+          tape. Says what happened and offers the retry, rather than leaving the trader to guess. */}
+      {failed && (
+        <div className="border-rule flex h-13 items-center justify-center gap-2 border-t">
+          <span className="text-body text-muted">Could not load more trades.</span>
+          <button
+            type="button"
+            onClick={() => setFailed(false)}
+            className="text-body text-link font-medium"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {open >= 0 && flat[open] && (
+        <TradeDrawer
+          trade={flat[open]}
+          zone={displayTimezone}
+          onClose={() => setOpen(-1)}
+          onPrev={open > 0 ? () => setOpen(open - 1) : undefined}
+          onNext={open < flat.length - 1 ? () => setOpen(open + 1) : undefined}
+          position={{ index: open, of: flat.length }}
+        />
+      )}
     </Card>
   );
+}
+
+/** Rows back into session bands. The server groups the first page; anything fetched after arrives
+ *  flat, so the window is regrouped here rather than appended to stale groups. */
+function groupBySession(rows: TapeRow[]): { sessionDate: string; trades: TapeRow[] }[] {
+  const out: { sessionDate: string; trades: TapeRow[] }[] = [];
+  for (const r of rows) {
+    const last = out[out.length - 1];
+    if (last && last.sessionDate === r.sessionDate) last.trades.push(r);
+    else out.push({ sessionDate: r.sessionDate, trades: [r] });
+  }
+  return out;
 }
 
 function Row({
@@ -149,9 +335,7 @@ function Row({
           either from pushing the figures off their shared right edge.
           AN EQUAL CLAIM ON THE SLACK, not a 2:1 one. Measured at 1440 with the rail and sidebar
           open, which leaves the tape 689px: a 2:1 split handed this column 230px to render a name
-          needing 131, while the account beside it truncated to "FTDFYL..." inside 115. A column
-          cannot hoard space it has no content for while its neighbour is cutting the digits that
-          identify the row. `flex-1` on both distributes what is left evenly instead. */}
+          needing 131, while the account beside it truncated to "FTDFYL..." inside 115. */}
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <InstrumentMark symbol={contract} />
         <div className="min-w-0">
@@ -165,11 +349,6 @@ function Row({
         </div>
       </div>
 
-      {/* WHICH ACCOUNT, AND IT FLEXES — the one place this row departs from v2, deliberately.
-          v2 pinned this at `w-72 shrink-0` so the money column never moved, and its own issue #98
-          measures what that cost: at 1280px with the rail open the tape is 692px, the fixed columns
-          take 632, and the instrument name collapses to 60px so every product on the page truncates.
-          A cross-account tape may not squeeze out its own subject to keep a column still. */}
       <span className="text-body text-muted hidden min-w-0 flex-1 items-center gap-1.5 sm:flex">
         <AccountName name={t.accountName} logo={t.firmLogo} />
       </span>
@@ -191,13 +370,18 @@ function Row({
             than coloured: it is real and it is not counted, so it may not wear the colour that
             means "this is in your result". */}
         {excluded && (
-          <span className="text-muted shrink-0" title={t.quarantineReason ?? t.exclusionReason ?? undefined}>
+          <span
+            className="text-muted shrink-0"
+            title={t.quarantineReason ?? t.exclusionReason ?? undefined}
+          >
             <Icon name="warn" size={14} />
           </span>
         )}
         <span
           className={cn('text-body-lg font-medium tabular-nums', excluded && 'text-muted')}
-          style={excluded ? undefined : { color: t.netCents >= 0 ? 'var(--color-pos)' : 'var(--color-neg)' }}
+          style={
+            excluded ? undefined : { color: t.netCents >= 0 ? 'var(--color-pos)' : 'var(--color-neg)' }
+          }
         >
           {signed(t.netCents)}
         </span>
@@ -207,7 +391,7 @@ function Row({
           reads as a control that is switched off. */}
       <span
         aria-hidden
-        className="text-muted group-hover:border-border group-hover:bg-surface group-hover:shadow-[var(--shadow-card)] group-active:shadow-[var(--shadow-press)] flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent transition"
+        className="text-muted group-hover:text-text group-hover:bg-surface group-hover:shadow-[var(--shadow-card)] group-active:bg-bg group-active:shadow-[var(--shadow-press)] flex size-8 shrink-0 items-center justify-center rounded-full transition"
       >
         <Icon name="chevron" size={16} className="-rotate-90" />
       </span>
@@ -219,16 +403,15 @@ function Row({
  *
  * THE DIGITS NEVER TRUNCATE, THE FIRM DOES. A plain `truncate` eats from the RIGHT, which cuts
  * exactly the tail that says WHICH account — and for a copy-trader running one strategy across
- * twelve of them, that tail is the only part they are reading. Seen live at 1440px before the fix:
- * "FTDFYL10018370…", which is the same prefix on every account that firm ever issued. So the tail
- * is its own `shrink-0` span and the head takes the squeeze.
+ * twelve of them, that tail is the only part they are reading. So the tail is its own `shrink-0`
+ * span and the head takes the squeeze.
  *
  * NOT `accountLast4`, WHICH IS A DIFFERENT JOB and reaching for it here shipped a real defect for
- * one render: that helper COMPOSES a bracketed suffix for a firm name ("Tradeify 50K" + " (...4873)"),
- * so using it to SPLIT an id made the head `name.slice(0, len - 9)` and the row read
- * "FTDFYL100 (...4873)" — the middle digits dropped by arithmetic rather than by truncation, which
- * is a wrong string rather than a shortened one. Splitting the name itself cannot do that: every
- * character is still rendered, and the browser decides what fits.
+ * one render: that helper COMPOSES a bracketed suffix for a firm name, so using it to SPLIT a
+ * string made the head `name.slice(0, len - 9)` and the row read "FTDFYL100 (...4873)" — the middle
+ * digits dropped by arithmetic rather than by truncation, which is a wrong string rather than a
+ * shortened one. Splitting the name itself cannot do that: every character is still rendered, and
+ * the browser decides what fits.
  *
  * THE LOGO IS ON A PERMANENTLY LIGHT TILE, the same `--color-logo-tile` the Add-account modal uses:
  * a firm ships one asset that assumes a light ground, so theming the tile would put a light-only
@@ -251,8 +434,7 @@ function AccountName({ name, logo }: { name: string; logo: string | null }) {
       )}
       {/* HEAD AND TAIL IN THEIR OWN GAPLESS BOX. They are two halves of ONE token, and the row's
           `gap-1.5` (which exists to space the logo off the name) was landing between them too:
-          "FTDFYL10018370 4873", which reads as two fields rather than one truncated id. The gap
-          belongs between the mark and the name, nowhere else. */}
+          "FTDFYL10018370 4873", which reads as two fields rather than one truncated id. */}
       <span className="flex min-w-0">
         <span className="truncate">{head}</span>
         {tail && <span className="shrink-0">{tail}</span>}

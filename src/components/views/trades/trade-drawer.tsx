@@ -28,10 +28,20 @@ export function TradeDrawer({
   trade: t,
   zone,
   onClose,
+  onPrev,
+  onNext,
+  position,
 }: {
   trade: TapeRow;
   zone: string;
   onClose: () => void;
+  /* THE STEPPERS. Undefined at either end rather than disabled-and-present, so the control is
+     absent when there is nowhere to go instead of being a button that does nothing. Checking a
+     trade usually means checking several in a row, which is the whole reason these exist. */
+  onPrev?: () => void;
+  onNext?: () => void;
+  /** Where this trade sits in the tape as shown, so the panel can say so. */
+  position?: { index: number; of: number };
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const restoreTo = useRef<HTMLElement | null>(null);
@@ -52,6 +62,21 @@ export function TradeDrawer({
         onClose();
         return;
       }
+      /* ARROWS WALK THE TAPE. Checking one trade against a broker screen usually means checking
+         several, and reaching for the mouse between each one is the friction this removes. Guarded
+         on the target so the keys still belong to a field if one ever lands in here. */
+      const el = e.target as HTMLElement | null;
+      const typing = el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+      if (!typing && (e.key === 'ArrowUp' || e.key === 'ArrowLeft') && onPrev) {
+        e.preventDefault();
+        onPrev();
+        return;
+      }
+      if (!typing && (e.key === 'ArrowDown' || e.key === 'ArrowRight') && onNext) {
+        e.preventDefault();
+        onNext();
+        return;
+      }
       if (e.key !== 'Tab') return;
       // The trap. Without it, Tab walks straight out of an open dialog into the tape behind it.
       const focusable = panel.current?.querySelectorAll<HTMLElement>(
@@ -68,7 +93,7 @@ export function TradeDrawer({
         first.focus();
       }
     },
-    [onClose]
+    [onClose, onPrev, onNext]
   );
 
   const contract = t.contract ?? t.symbolRoot;
@@ -97,10 +122,27 @@ export function TradeDrawer({
         tabIndex={-1}
         className="bg-surface border-border relative flex h-full w-full max-w-sm flex-col overflow-y-auto border-l outline-none"
       >
-        <div className="border-rule flex min-h-15 shrink-0 items-center justify-between gap-3 border-b px-5">
-          <span id="trade-drawer-title" className="text-title text-text truncate font-medium">
+        <div className="border-rule flex min-h-15 shrink-0 items-center gap-2 border-b px-5">
+          <span id="trade-drawer-title" className="text-title text-text min-w-0 flex-1 truncate font-medium">
             {productName(contract) ?? contract}
           </span>
+
+          {/* WHERE YOU ARE IN THE TAPE. Without it the arrows are two controls with no sense of
+              distance — and on a long tape "3 of 360" is the difference between stepping and
+              wandering. Counts from 1, because the trader is not reading an array index. */}
+          {position && (
+            <span className="text-caption text-muted shrink-0 tabular-nums">
+              {(position.index + 1).toLocaleString('en-US')} of {position.of.toLocaleString('en-US')}
+            </span>
+          )}
+          {/* ABSENT AT EITHER END, not disabled. A disabled control still says the idea was
+              entertained; nothing there says there is nothing there. */}
+          <IconButton onClick={onPrev} aria-label="Previous trade" disabled={!onPrev}>
+            <Icon name="chevron" size={14} className="rotate-180" />
+          </IconButton>
+          <IconButton onClick={onNext} aria-label="Next trade" disabled={!onNext}>
+            <Icon name="chevron" size={14} />
+          </IconButton>
           <IconButton onClick={onClose} aria-label="Close">
             <Icon name="close" size={14} />
           </IconButton>

@@ -134,13 +134,20 @@ function where(traderId: string, f: TradesFilter, window: { from: string | null;
  * The SESSION a trade belongs to still comes from the exit — money is realised at the close — so
  * the two keys are deliberately different and each is right for its own job.
  */
-export async function getTape(
-  traderId: string,
-  f: TradesFilter,
-  window: { from: string | null; to: string | null },
-  { limit = 500 }: { limit?: number } = {}
-): Promise<SessionGroup[]> {
-  const rows = await db
+/* ONE SELECT FOR A TAPE ROW, so the first page and every page fetched after it are the same shape
+ * by construction rather than by two lists of columns staying in step. A row that arrives from the
+ * paging route with a differently-composed account label, or a missing provenance id, is a bug
+ * nothing would catch until a trader scrolled far enough to see it.
+ *
+ * The account label and the firm mark are composed HERE for the same reason: `accountRowTitle` is
+ * the one helper that owns what an account is called, and the row component never has to know how
+ * logo files are named. */
+async function selectTapeRows(
+  predicate: SQL,
+  extra?: SQL,
+  limit?: number
+): Promise<TapeRow[]> {
+  const q = db
     .select({
       id: trade.id,
       accountId: trade.accountId,
@@ -168,32 +175,77 @@ export async function getTape(
     })
     .from(trade)
     .innerJoin(account, eq(account.id, trade.accountId))
+    .where(extra ? and(predicate, extra) : predicate)
+    .orderBy(desc(trade.sessionDate), desc(trade.entryAt));
+
+  const rows = await (limit === undefined ? q : q.limit(limit));
+
+  return rows.map((r) => {
+    const { displayName, externalAccountId, propFirm, sizeDollars, ...rest } = r;
+    return {
+      ...rest,
+      netCents: r.grossCents + r.feeCents,
+      accountName: accountRowTitle({ displayName, externalAccountId, propFirm, sizeDollars }),
+      firmLogo: propFirm ? firmLogoSrc(propFirm) : null,
+    };
+  });
+}
+
+/**
+ * THE ORDERED IDS OF EVERY TRADE THE FILTER SELECTS, and nothing else.
+ *
+ * IDS RATHER THAN AN OFFSET, which is the choice that makes paging safe. An offset would mean the
+ * server re-deriving the filter and re-running this query on every trip, and any drift between the
+ * two derivations shows as a row appearing twice or not at all. Handing the client the ordered ids
+ * costs bytes instead — a uuid is 36 of them, so 20,000 trades is ~740KB against roughly 10MB for
+ * those rows in full, and the client then asks for exactly the rows it wants.
+ *
+ * The order is the tape's own: session descending, entry descending inside one.
+ */
+export async function getTapeIds(
+  traderId: string,
+  f: TradesFilter,
+  window: { from: string | null; to: string | null }
+): Promise<string[]> {
+  const rows = await db
+    .select({ id: trade.id })
+    .from(trade)
     .where(where(traderId, f, window))
-    .orderBy(desc(trade.sessionDate), desc(trade.entryAt))
-    .limit(limit);
+    .orderBy(desc(trade.sessionDate), desc(trade.entryAt));
+  return rows.map((r) => r.id);
+}
+
+/**
+ * Full rows for exactly the ids asked for, in the order asked for.
+ *
+ * THE IDS ARE NOT TRUSTED. Every read is scoped to the signed-in trader, so a hand-crafted body can
+ * only ever ask for rows that trader already owns — a wrong id returns nothing rather than somebody
+ * else's tape. The caller's order is the tape's order, so it is preserved rather than re-derived.
+ */
+export async function getTradesByIds(traderId: string, ids: string[]): Promise<TapeRow[]> {
+  if (ids.length === 0) return [];
+  const rows = await selectTapeRows(inArray(trade.id, ids), eq(trade.traderId, traderId));
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return ids.map((id) => byId.get(id)).filter((r): r is TapeRow => Boolean(r));
+}
+
+export async function getTape(
+  traderId: string,
+  f: TradesFilter,
+  window: { from: string | null; to: string | null },
+  { limit = 500 }: { limit?: number } = {}
+): Promise<SessionGroup[]> {
+  const rows = await selectTapeRows(where(traderId, f, window), undefined, limit);
 
   /* GROUPED IN CODE, TOTALLED IN SQL. The grouping is free here because the rows arrive sorted by
      session already; the session's own FIGURES are not computed from this array, because this array
      is capped by `limit` and a header built from a truncated session would state a total for trades
      it cannot see. `sessionTotals` answers that separately, over the same `where`. */
   const groups = new Map<string, TapeRow[]>();
-  for (const r of rows) {
-    const net = r.grossCents + r.feeCents;
-    /* THE ROW'S ACCOUNT LABEL IS COMPOSED HERE, by the one helper that owns that decision. The tape
-       used to take `display_name` straight off the row, which is how it printed a raw
-       `FTDFYL100183704873` on an account whose firm is known: `accountRowTitle` returns the
-       trader's own name first, then falls back to firm + size + last four. The mark is resolved
-       here too, so the row component never has to know how logo files are named. */
-    const { displayName, externalAccountId, propFirm, sizeDollars, ...rest } = r;
-    const row: TapeRow = {
-      ...rest,
-      netCents: net,
-      accountName: accountRowTitle({ displayName, externalAccountId, propFirm, sizeDollars }),
-      firmLogo: propFirm ? firmLogoSrc(propFirm) : null,
-    };
-    const bucket = groups.get(r.sessionDate);
+  for (const row of rows) {
+    const bucket = groups.get(row.sessionDate);
     if (bucket) bucket.push(row);
-    else groups.set(r.sessionDate, [row]);
+    else groups.set(row.sessionDate, [row]);
   }
 
   const totals = await sessionTotals(traderId, f, window, [...groups.keys()]);

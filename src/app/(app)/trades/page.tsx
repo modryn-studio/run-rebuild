@@ -8,10 +8,14 @@ import { TradesRail } from '@/components/views/trades/trades-rail';
 import { TradesControls } from '@/components/views/trades/trades-controls';
 import { QuarantineNotice } from '@/components/views/trades/quarantine-notice';
 import { readTradesFilter, rangeWindow, isNarrowed, isResultFiltered } from '@/lib/trades/filter';
-import { getTape, getDigest, getFacets, getExcluded } from '@/lib/trades/read';
+import { getTape, getTapeIds, getDigest, getFacets, getExcluded } from '@/lib/trades/read';
 import { sessionDateFor } from '@/lib/time/session';
 
 export const metadata: Metadata = { title: 'Trades' };
+
+/** The rows sent with the HTML. The client windows 60 at a time and fetches 300 more as it goes,
+ *  so this is five windows of runway before the first round trip. */
+const FIRST_PAGE = 300;
 
 /* THE RECORD. Every trade, banded by the session it was realised in, with a digest of whatever the
  * filter currently selects.
@@ -41,11 +45,17 @@ export default async function TradesPage({
      tomorrow's trade date — which is the day their next fill will be filed under. */
   const window = rangeWindow(filter, sessionDateFor(new Date()));
 
-  const [sessions, digest, facets, excluded] = await Promise.all([
-    getTape(trader.id, filter, window),
+  /* THE FIRST PAGE, PLUS THE MAP TO THE REST. The tape sends a slice of full rows and the ORDERED
+     IDS of everything else, so the client can ask for the next batch by id as the trader reaches it.
+     Ids rather than an offset: the server never re-derives the filter, so no row can appear twice or
+     be skipped because the second derivation differed. A uuid is 36 bytes, so even a two-year corpus
+     is well under a megabyte of ids against roughly ten of rows. */
+  const [sessions, digest, facets, excluded, ids] = await Promise.all([
+    getTape(trader.id, filter, window, { limit: FIRST_PAGE }),
     getDigest(trader.id, filter, window),
     getFacets(trader.id),
     getExcluded(trader.id, filter, window),
+    getTapeIds(trader.id, filter, window),
   ]);
 
   return (
@@ -68,9 +78,10 @@ export default async function TradesPage({
           />
           <TradesTape
             sessions={sessions}
-            total={digest.trades + excluded.quarantined + excluded.excluded}
+            total={ids.length}
             displayTimezone={trader.displayTimezone}
             narrowed={isNarrowed(filter)}
+            rest={{ ids }}
           />
           {/* PROVENANCE, on the page that presents computed figures (`spec.md` §S3, P8). It names
               the source and the range the numbers actually cover rather than claiming freshness the
