@@ -651,6 +651,80 @@ quarantine with S9b's two actions, provenance line.
 > grade. A quarantine row is the sharpest test of it — it reports a fact about a record, not a
 > verdict about a trader.
 
+### S5d — /trades on a phone *(planned 2026-08-20, not started)*
+
+Derived from **Monarch's native mobile app**, not its web app — which matters, because the web at a
+390px viewport does NOT do any of this: it keeps the 224px sidebar and the desktop table. Measured,
+not assumed. So the source here is Luke's three screenshots plus Run's own system, and nothing in
+this slice can be re-derived from the live site later.
+
+**Nothing here is broken today.** Measured at 390px: no horizontal overflow, 61px rows, the rail
+stacked below the tape. This is a redesign, not a repair, and the honest reason to do it is that
+`app-shell.tsx` still says *"MOBILE IS DELIBERATELY UNFINISHED ... what is here is 'not broken', not
+'designed'"*. This slice is what lets that paragraph be deleted.
+
+**Depends on `S3d`** (the bottom bar) landing first — the drawer cannot lose its nav rows until
+something else carries them.
+
+#### What the reference does, and what Run does with it
+
+| Monarch's mobile screen | Run's version |
+|---|---|
+| Top bar: hamburger · bell · centred title · bulk-select · add | hamburger · bell · centred title. **The two right-hand slots stay empty** — trades are not editable and there is no manual add, so both of Monarch's controls refuse to port |
+| Full-width search pill, filter icon at its right edge | The same pill. `Search` becomes the field itself; `Date` and `Filters` collapse behind the one filter icon |
+| Date group header: date left, day's net right, on a grey band | **Already built.** Run's session bands are this exactly — `bg-band`, date left, net right, muted |
+| Row: category emoji · merchant · amount. One line | Instrument mark · product name · result. One line. **Account, direction and time come off the row** and live in the detail screen |
+| No summary panel anywhere on the list screen | The summary rail does not render below `md` |
+| Tap a row → full screen, animated up from the bottom | A real route, `/trades/[id]` (Luke's call, 2026-08-20) |
+
+#### The row loses three fields, and that is the trade
+
+Direction and time are things a futures trader genuinely reads, and dropping them is the cost of a
+one-line row. It is defensible because **the detail screen carries every one of them** — screenshot 3
+is a complete fact list — and because the `Columns` control already establishes that account and time
+are the two fields a trader can live without. What it means in practice is that the phone is for
+*scanning* and the detail screen is for *checking*, which is the same split the reference makes.
+
+#### `/trades/[id]` — a route, not the drawer
+
+Chosen over restyling the existing drawer because the phone's back gesture has to work. An overlay
+would need history interception to answer the back button, and getting that wrong strands the user
+on a page they cannot leave.
+
+- The existing `TradeDrawer` body is already the right content and should be **shared, not forked** —
+  `Section`, `Row`, `CopyButton` and the header block are all in `trade-drawer-body.tsx` for exactly
+  this reason. Desktop keeps the drawer; the phone gets the route; both render the same parts.
+- **The tape has to restore scroll position on return**, or every back tap dumps the trader at the
+  top of 360 trades. This is the part most likely to be missed and the most annoying if it is.
+- The steppers become the route's own prev/next. `position` (`3 of 4`) already exists for it.
+- Slides up: `translate-y-full` → `0` on `.drawer-transition`, which is already the enter/leave curve.
+
+#### Open, and worth deciding inside the slice rather than now
+
+- **The rail's figures have nowhere else to go yet.** Net P&L, win rate, average session and the rest
+  are only on `/trades`; hiding the rail below `md` makes them unreachable on a phone until `S8`
+  builds Today. Either Today carries them, or the mobile header keeps a way back to the rail.
+- **The tab bar's active state fights a doctrine line.** `design-system.md` says a nav row's rank is
+  carried by the GROUND alone. A 64px tab bar has no room for a ground pill, and the reference fills
+  the ICON instead. Run draws one weight of icon and has no filled variants, so the likely answer is
+  ink plus weight — which is the one place the ground rule does not reach. Record the exception.
+
+### S3d — The bottom bar *(planned 2026-08-20, not started)*
+
+The shell half of `S5d`, split out because it changes every signed-in page rather than one.
+
+- **Four items, not five**: Today · Accounts · Trades · Read, off the existing `NAV` array with the
+  same icons and order. One source, so the bar and the drawer can never disagree about the app's
+  spine.
+- **Below `md` only**, the same 767px boundary `SIDEBAR_OVERLAY_QUERY` already draws.
+- **Fixed to the bottom, clearing `env(safe-area-inset-bottom)`** — an iPhone home indicator sits
+  where a tab bar's labels want to be.
+- **The drawer loses its four nav rows at that breakpoint** and keeps everything else: wordmark and
+  settings at the top, the account row pinned at the bottom. That is screenshot 2's structure, and it
+  is thin until `S6`–`S8` add secondary surfaces (Luke, 2026-08-20: *"the left sidebar might be kind
+  of empty right now but that's okay"*).
+- `main`'s bottom padding has to clear the bar, or the last tape row sits under it.
+
 ### S6 — Accounts ⭐
 
 Hero metric selector, groups by state with own totals, **freshness stamp on every row**,
@@ -741,9 +815,79 @@ must already exist.
 > no catch-up, no gap counted. The trader who has been away is the one this page is worth most to.
 > [`psychology.md` §6](psychology.md#6-what-to-steal).
 
+### S8b — The two rows the account menu already opens *(added 2026-08-20)*
+
+**Both of these rows ship today and both go nowhere.** `account-menu.tsx` renders Settings as a
+live `<Link href="/settings">` and What's new as an inert button, and neither route exists. That was
+found by auditing routes against this plan (Luke, 2026-08-20: *"the /settings page needs to be added
+to the build plan. same with /whats-new"*) — until now no slice claimed either, so they were not
+"not built yet", they were **unplanned**, which is a different and worse thing. Today and Read 404
+on purpose because `S8` and `S7` are coming for them; these two had nobody coming.
+
+**`/settings`** — `spec.md` §"Taxonomy lives in Settings, not in the product surface" already fixes
+what belongs here: **setups, symbols and tags**, the vocabulary the product computes against. It
+follows the reference, which keeps categories, merchants, rules and tags in Settings even though the
+entire product runs on them. Plus the two settings that already exist as state with nowhere to be
+edited: `trader.display_timezone` (written today by `DetectTimezone`, never shown) and the theme
+(reachable only from the account menu).
+
+> ⚠️ **`display_timezone` is display only and must never reach the bucketing code** (`CLAUDE.md`).
+> A settings screen is exactly where that rule gets broken, because a timezone control looks like it
+> should change what a session date means. It must not.
+
+**`/whats-new`** — a changelog. Inert in both builds today for the honest reason that neither has
+one. It is the smallest surface in the plan and it stays out of the sidebar: it is an account-menu
+row, not a destination, because a changelog is something you read once and never look for again.
+
+**THE SIDEBAR'S SETTINGS GEAR BELONGS TO THIS SLICE TOO** (added 2026-08-20). The sidebar header now
+carries a settings control beside the collapse toggle, matching the reference's own placement
+(measured on `app.monarch.com/transactions`: a 224px sidebar with a 62px logo and four 36px round
+controls, the third of which is a link to `/settings/profile`). **It ships `disabled`**, because
+there is nothing to open yet and a control that looks live and does nothing on click is worse than
+one that says so. It becomes a link the day this slice lands — the same day the account menu's
+Settings row stops 404-ing, since both point at the same page.
+
+**Why `S8b` and not inside `S9`.** Polish is a pass over what exists; these are two new routes.
+Sized after `S8` because both are low-stakes and neither blocks anything — but ahead of the public
+launch gate, since a live link to a 404 in the account menu is the kind of thing a first visitor
+finds. **If they slip, the rows go inert rather than shipping links to nothing.**
+
 ### S9 — Polish
 
 Empty states, error copy, keyboard, mobile, dark mode across the kitchen sink.
+
+### S9c — Notifications *(added 2026-08-20; deliberately near-last)*
+
+The sidebar header carries a bell beside the settings gear, matching the reference's placement.
+**It ships `disabled` and shows no unread dot**, and both of those are the point until this slice
+lands: a permanent dot on a control that opens nothing is a status light for a condition that has
+never occurred, which is the same rule `QuarantineNotice` already follows by rendering nothing at
+zero.
+
+**Last on purpose** (Luke, 2026-08-20: *"i would say the notifications would be one of the last
+things we implement"*). Numbered `S9c` rather than `S9b` — that label is already the
+quarantine-resolve slice in `spec.md`.
+
+**The open question this slice has to answer first is what Run would ever notify about**, because
+the doctrine rules out most of what a finance app uses notifications for. **No state may represent
+absence**: no "you haven't imported in 9 days", no streak, no backlog, no catch-up. That is the
+majority of the reference's own notification surface, and none of it can ship here. What is left is
+narrow and worth stating before any UI is built:
+
+- an import that **finished** while the trader was away, and what it found
+- a trade that **quarantined**, since that is a fact about the record they have to act on
+- the daily **read** being ready
+
+All three are *events that happened*, never *reminders that something did not*. If the list cannot
+be filled without reaching for absence, the honest outcome is that Run has no notification centre
+and the bell comes out of the sidebar — which is a legitimate result of this slice, not a failure of
+it.
+
+**The unread dot's colour is unresolved.** The reference uses red with a 2px ring in the sidebar's
+own ground colour, so the dot reads as cut out of the bell rather than sitting on it. The ring is
+worth taking. The red is not obviously right here: `--color-neg` means *a result that lost money*,
+and overloading it for "you have mail" is exactly the kind of second job that broke the border
+tokens. `--color-accent` is the product's existing dot language. Decide it with the slice.
 
 ---
 
@@ -759,6 +903,11 @@ they don't share a surface.
 | 3 | `S4` alone — everything downstream depends on its shape. **Backend closed 2026-08-14; `S4e` (the UI) is what remains** |
 | 4 | `S5` · `S6` (different pages, same projections) |
 | 5 | `S8` · `S7` **only once the pattern-vs-reading decision is made** |
+| 6 | `S8b` settings + what's new · `S9` polish |
+| 7 | `S9c` notifications — last, and only if the doctrine leaves anything to notify about |
+
+**`S3d` then `S5d` (the phone) slot wherever the mobile pass is scheduled** — `S3d` first, since the
+drawer cannot give up its nav rows until the bottom bar carries them.
 
 ---
 

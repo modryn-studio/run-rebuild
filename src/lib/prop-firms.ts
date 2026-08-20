@@ -260,6 +260,30 @@ export function accountRowTitle(a: AccountName): string {
   return `${a.propFirm}${size}${accountLast4(a.externalAccountId)}`;
 }
 
+/** What an UNLABELLED account groups under in the filter panel's tree. A real firm name would be a
+ *  claim; this is visibly not one, and it sorts to the end beside the named firms. */
+export const UNLABELLED_FIRM = 'Unlabelled';
+
+/**
+ * The same title WITHOUT the firm, for a row that already sits under its firm.
+ *
+ * THE FIRM IS THE ROW ABOVE. In the filter panel's tree an account is nested under its firm, so
+ * repeating it gives "Tradeify / Tradeify 50K (...4873)" — the one word the trader just read,
+ * printed twice, eating the width that the size and the last four actually need.
+ *
+ * Falls back to the full title when there is no firm to strip, which is exactly the unlabelled case:
+ * there the prefix is the only hint anyone has and `accountRowTitle`'s own note says to keep it.
+ */
+export function accountShortTitle(a: AccountName): string {
+  if (a.displayName) return a.displayName;
+  if (!a.propFirm) return placeholderAccountTitle(a.externalAccountId);
+  const size = a.sizeDollars ? sizeLabel(a.sizeDollars) : '';
+  const last4 = accountLast4(a.externalAccountId).trim();
+  // Both halves can be empty (no size, placeholder key), which would leave a blank row — so the
+  // firm comes back rather than printing nothing.
+  return [size, last4].filter(Boolean).join(' ') || a.propFirm;
+}
+
 /** " (...3685)", or nothing for one of Run's own placeholder keys — those digits are a uuid
  *  fragment and would read as an account number the trader could go and check. */
 export function accountLast4(externalAccountId: string): string {

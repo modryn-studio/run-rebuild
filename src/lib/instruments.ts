@@ -93,6 +93,23 @@ export function productName(symbol: string): string | null {
   return PRODUCTS[productRoot(symbol)] ?? null;
 }
 
+/* Which roots a search term names, matched against the product NAME rather than the ticker.
+ *
+ * THIS IS WHY IT LIVES HERE AND NOT IN SQL. `MNQ` -> `Micro Nasdaq-100` is a mapping this table
+ * owns, so a trader typing "nasdaq" can only be answered by something holding this table. The
+ * alternative — putting the names in the database purely so a `LIKE` could reach them — would be a
+ * second copy of a list that already has one home, and the two would drift.
+ *
+ * Resolving to ROOTS rather than filtering rows means the caller still narrows with an indexed
+ * `symbol_root IN (...)`, so the search stays a column comparison instead of a scan over names. */
+export function rootsMatchingName(needle: string): string[] {
+  const n = needle.trim().toLowerCase();
+  if (!n) return [];
+  return Object.entries(PRODUCTS)
+    .filter(([, name]) => name.toLowerCase().includes(n))
+    .map(([root]) => root);
+}
+
 /* Which of the seven instrument marks a product wears.
  *
  * PINNED FOR THE ONES TRADED DAILY, hashed for everything else. The hash alone would be fine, but it
@@ -101,7 +118,16 @@ export function productName(symbol: string): string | null {
  *
  * A MICRO AND ITS FULL-SIZE SIBLING NEVER SHARE A HUE, and that is the one assignment here that is
  * about risk rather than looks. Two products a stop distance means something different on must not
- * look alike in a list. */
+ * look alike in a list.
+ *
+ * THAT SENTENCE WAS FALSE FOR FIVE PAIRS UNTIL 2026-08-20, and it was false in the way a claim in a
+ * comment usually is: it described the six pairs somebody had pinned by hand and said nothing about
+ * the rest, which fell through to the hash and collided by chance. NG/MNG, HG/MHG, 6B/M6B, 6A/M6A
+ * and 6J/M6J each rendered ONE mark for two products that differ by 10x per point. Found by putting
+ * `InstrumentMark` on the rack and measuring the invariant instead of restating it.
+ * Every pair is pinned now, and `MICRO_PAIRS` below is what makes the guarantee checkable rather
+ * than remembered. A new micro added to PRODUCTS gets a line there and a pin here, in the same
+ * commit, or the rack goes red. */
 const PINNED: Record<string, number> = {
   ES: 3, MES: 7,
   NQ: 4, MNQ: 1,
@@ -109,8 +135,31 @@ const PINNED: Record<string, number> = {
   RTY: 5, M2K: 3,
   CL: 4, MCL: 7,
   GC: 6, MGC: 5,
-  '6E': 2, ZN: 1, ZB: 3,
+  NG: 5, MNG: 2,
+  HG: 1, MHG: 4,
+  SI: 1, SIL: 7,
+  '6E': 2, M6E: 1,
+  '6B': 5, M6B: 1,
+  '6A': 4, M6A: 7,
+  '6J': 6, M6J: 3,
+  BTC: 4, MBT: 3,
+  ETH: 1, MET: 5,
+  ZN: 1, ZB: 3,
 };
+
+/* EVERY FULL-SIZE PRODUCT ON THIS LIST AND ITS MICRO, so the no-shared-hue rule above can be
+ * MEASURED. It lives here rather than in the rack that renders it because "MNG is the micro of NG"
+ * is instrument knowledge, and a test whose fixture list lives somewhere else stops covering the
+ * table the moment somebody adds a row to one and not the other.
+ *
+ * Ordered full-size first. Both members are roots, never contract strings. */
+export const MICRO_PAIRS: readonly (readonly [string, string])[] = [
+  ['ES', 'MES'], ['NQ', 'MNQ'], ['YM', 'MYM'], ['RTY', 'M2K'],
+  ['CL', 'MCL'], ['NG', 'MNG'],
+  ['GC', 'MGC'], ['SI', 'SIL'], ['HG', 'MHG'],
+  ['6E', 'M6E'], ['6B', 'M6B'], ['6A', 'M6A'], ['6J', 'M6J'],
+  ['BTC', 'MBT'], ['ETH', 'MET'],
+];
 
 /** 1..7, matching the `--mark-N` tokens in `globals.css`. */
 export function markHue(root: string): number {

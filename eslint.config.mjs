@@ -59,13 +59,33 @@ export default [
             // cannot invent its own version of "lifted". Both defined in globals.css.
             'lift-rest',
             'lift-press',
-            // Menu's open animation, and its upward-opening twin for a menu that opens ABOVE its
-            // trigger (the account menu, sitting at the foot of the sidebar).
+            // A STYLE HOOK WITH NO RULES OF ITS OWN, carried by Button's `secondary` variant so
+            // globals.css can key a hand-written `[data-active='true']` rule off something stable.
+            // Button's variants are Tailwind pseudo-class utilities, which have no data-attribute
+            // form, so a popover trigger had no way to stay visibly pushed in while its panel was
+            // open. Listed here even though the rule does not currently reach it — it lives in an
+            // object literal rather than a `className` prop, so no-custom-classname never sees it,
+            // and a hand-written class that is absent from this list is one nobody can find.
+            'btn-secondary',
+            // Menu's open animation.
             'pop-in',
-            'pop-in-up',
+            // The account menu's own panel motion, a transition rather than a keyframe animation
+            // (2026-08-20, adopting modryn-base) — interruptible, and needs no closing state.
+            // Replaced 'pop-in-up', which opened it with a keyframe entrance and no exit at all.
+            'menu-panel',
             // ONE motion for a panel opening or closing, shared by the sidebar and the summary rail
             // so the two panels framing the work cannot drift apart. globals.css argues it.
             'panel-transition',
+            // The trade drawer's own timing: same 0.3s duration as panel-transition, but ease-out
+            // rather than ease-in-out, because the drawer enters and leaves rather than resizing in
+            // place. Split out 2026-08-20 rather than sharing a curve that fit only two of the three
+            // panels that used to carry it.
+            'drawer-transition',
+            // `overflow: clip` plus an 8px `overflow-clip-margin`: clips a collapsing panel's
+            // contents without clipping the drop shadow of the Card inside it. Two properties that
+            // only make sense together, so they live in globals.css rather than as a pair of
+            // arbitrary utilities at the call site.
+            'clip-allow-shadow',
             // The confirming gesture on a selected chip. globals.css:754, and already in the
             // reduced-motion block. Belongs to the TRADER's choice, never to system progress.
             'select-pop',
@@ -85,6 +105,15 @@ export default [
             // token. Standard properties only, never `::-webkit-scrollbar` — the two do not
             // compose, so carrying both means maintaining two descriptions of one bar.
             'scroll-thin',
+            // No bar at all, for the nav rail. `design-rules.md` names it: a scrollbar inside
+            // the one panel whose job is to recede is chrome. Unlike `scroll-thin` it DOES need
+            // `::-webkit-scrollbar`, because hiding a bar is the one case the standard property
+            // does not cover in every engine.
+            'no-scrollbar',
+            // The skeleton's shimmer: a gradient sweep plus a keyframe, which no utility can
+            // express. Declared once in globals.css so the curve and the 1.6s cycle cannot be
+            // re-picked per call site.
+            'skeleton',
             // Structural, not visual: these carry no design decision.
             'sr-only',
             'group',

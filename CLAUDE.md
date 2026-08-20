@@ -15,8 +15,9 @@ change. Point agents at the file, never at your memory of it.
 | `docs/architecture.md` | Where every piece of state lives, and why |
 | `docs/build-plan.md` | Slice order `S0`–`S9`, and the definition of done |
 | `docs/design-system.md` | Every visual decision, with the measurement behind it |
+| `docs/scar-tissue.md` | The evidence behind every rule below. **Read before arguing with one** |
 | `docs/wireframes.md` · `docs/problem-brief.md` | Structure · the problem and the kill signal |
-| `docs/psychology.md` | Why the product changes behaviour, what it must never build, and the advice line |
+| `docs/psychology.md` | Why the product changes behaviour, what it must never build, the advice line |
 | `docs/blueprint-instrumentation.md` | Open questions, friction log, retro. **Append friction in the moment** |
 
 **A slice is done when:** it works, handles its error case, handles its empty case, works on mobile,
@@ -27,7 +28,8 @@ matches the design system, is merged, and is deployed. Not before.
 ## Operating Rules
 
 - **This file is owned like code. Keep it under ~200 lines.** If a rule stops being true, change it
-  in the same commit as the code that made it false.
+  in the same commit as the code that made it false. If a rule needs a paragraph of evidence, the
+  rule stays here and the evidence goes to `docs/scar-tissue.md`.
 - **Log friction in the moment** — `// FRICTION <date>: <what>` in code, `<!-- FRICTION -->` in docs.
   `grep -rn FRICTION .` assembles it at the retro. Written later is memory, which is what this
   replaces.
@@ -39,18 +41,16 @@ matches the design system, is merged, and is deployed. Not before.
 claude --worktree s4-ingest     # builds .claude/worktrees/s4-ingest on branch worktree-s4-ingest
 ```
 
-- **`main` is deployed and always green.** It is the integration point. There is no `dev` branch:
-  a second integration point only pays off when several people integrate before a release, and
-  solo it just delays the "deployed" half of the definition of done.
-- **A worktree is a slice.** It branches from `origin/main`, not from local `HEAD`, so it starts
-  clean. One slice, one worktree, one merge. Two or three at once, never eight — `build-plan.md`'s
-  waves already say which slices can run together.
-- **Merge when the slice is done**, by the seven-point definition, not when it mostly works. Then
-  delete the worktree. A worktree kept "just in case" is the long-lived branch you avoided.
-- **Each worktree needs its own `npm install`** (a fresh checkout has no `node_modules`), and gets
-  its own dev port automatically — which is why `dev` must never pin one.
-- **`.worktreeinclude` carries `.env.local` in.** Without it the worktree cannot boot, and the
-  error does not name the cause.
+- **`main` is deployed and always green.** It is the integration point. There is no `dev` branch: a
+  second integration point only pays off when several people integrate before a release, and solo it
+  just delays the "deployed" half of the definition of done.
+- **A worktree is a slice.** It branches from `origin/main`, not local `HEAD`. One slice, one
+  worktree, one merge. Two or three at once, never eight — `build-plan.md`'s waves say which can run
+  together. **Merge when the slice is done** by the seven-point definition, then delete it. A
+  worktree kept "just in case" is the long-lived branch you avoided.
+- **Each worktree needs its own `npm install`**, and gets its own dev port automatically — which is
+  why `dev` must never pin one. **`.worktreeinclude` carries `.env.local` in**; without it the
+  worktree cannot boot and the error does not name the cause.
 
 ---
 
@@ -58,118 +58,101 @@ claude --worktree s4-ingest     # builds .claude/worktrees/s4-ingest on branch w
 
 Each is load-bearing on the product's one claim: **never show a number you cannot reconcile.**
 
-- **Money is integer cents (`bigint`). Never a float.** Prices are `numeric(19,6)`. A float cannot
+**Money and time**
+- **Money is integer cents (`bigint`), never a float.** Prices are `numeric(19,6)`. A float cannot
   reconcile, and `MAX DRAWDOWN 1644.2%` is what the alternative looks like in production.
-- **One module owns every time bucket.** Session date, day, week, month, YTD — all from one place,
-  one vocabulary. Two code paths computing one derived value is how a product disagrees with itself
-  about "your worst day". It has already happened once, with a TS bucketer and a SQL `date_trunc`
-  both called "grain".
-- **`SESSION_BOUNDARY_ZONE` and `SESSION_BOUNDARY_HOUR` travel together.** `America/Chicago` + `17`.
-  Pairing that zone with `18` (or New York with `17`) files an hour of every evening session under
-  the wrong trade date, silently. A named IANA zone, never a fixed offset — an offset breaks twice
-  a year.
+- **One module owns every time bucket** (`src/lib/time/`). Two code paths computing one derived
+  value is how a product disagrees with itself about "your worst day". It has happened once already.
+- **`SESSION_BOUNDARY_ZONE` and `SESSION_BOUNDARY_HOUR` travel together** — `America/Chicago` + `17`.
+  A named IANA zone, never a fixed offset; an offset breaks twice a year.
 - **`session_date` derives from `exit_at`.** A trade belongs to the session it was realised in.
 - **`trader.display_timezone` is display only.** It must never reach the bucketing code.
+
+**The import**
 - **Never build a matching engine.** Tradovate's Position History already carries Tradovate's own
-  entry→exit pairing. Under the reconcile rule, a matcher is a machine for producing numbers you
-  cannot reconcile.
+  entry→exit pairing. Under the reconcile rule, a matcher produces numbers you cannot reconcile.
 - **Cash History is required on import, not optional.** The Fills export's `commission` column is
   one of four fee lines, measured at **42% of true cost**. On a real 10-day export the fees exceeded
-  the gross loss. Gross-only reporting understates the real loss by half.
+  the gross loss.
 - **Fees resolve per round trip, by an exact per-contract-per-side split** — never pro-rata, never
-  per fill. Across 360 real round trips the exact split reproduced the file to the cent, zero
-  remainder. Fees key to fills on **raw strings**, because Cash History timestamps carry no timezone
-  and parsing them shifts every fee by the server's offset.
+  per fill. Across 360 real round trips the exact split reproduced the file to the cent. Fees key to
+  fills on **raw strings**: Cash History timestamps carry no timezone, and parsing them shifts every
+  fee by the server's offset.
 - **An unknown `symbol_root` quarantines.** Never a default multiplier, never a guess from a similar
-  root, never priced at zero. `contract_spec` is seeded narrow, from the exchange's own published
-  spec, with the source URL and read date beside each row.
+  root, never priced at zero. `contract_spec` is seeded narrow from the exchange's published spec,
+  with the source URL and read date beside each row.
+
+**The data**
 - **`event` is append-only.** Corrections append with `corrects_event_id`; the original never
   mutates. Everything else is a projection you can rebuild by replaying it.
 - **Nothing reads `event.payload` on a render path.** Promoted columns or a projection.
 - **Scope every read by account and window from the first query.** Free now, unretrofittable once
   four surfaces depend on it.
-- **Every query is scoped by `trader_id` from the session, never from the request.** The record is
-  somebody's trading history.
+- **Every query is scoped by `trader_id` from the session, never from the request.**
 - **Chunk writes at 1,000 rows.** Postgres caps a statement at 65,535 bind parameters.
+
+**The surfaces**
 - **The LLM never computes a number.** It receives finished figures and writes the sentence around
   them. Every number in a read comes from SQL.
-- **Trades are not editable — the option is not offered.** The claim is "our numbers are the
-  broker's numbers." A quarantined trade gets re-sync or exclude-with-a-reason, and neither writes
-  to the trade.
-- **An excluded or quarantined trade stays visible and countable.** An exclusion may never silently
-  shrink the record.
+- **Trades are not editable, and the option is not offered.** The claim is "our numbers are the
+  broker's numbers." A quarantined trade gets re-sync or exclude-with-a-reason; neither writes to
+  the trade. **An excluded or quarantined trade stays visible and countable** — an exclusion may
+  never silently shrink the record.
 - **No state may represent absence.** No "you haven't imported in 9 days", no backlog, no catch-up,
-  no streak — every surface reopens where it was left. Free now, unretrofittable once Today, Trades
-  and Read each hold an idea of "current". Investors check **9.5% less the day after a loss**, so the
-  trader who has been away is the one the read is worth most to (`docs/psychology.md`).
+  no streak — every surface reopens where it was left. Investors check **9.5% less the day after a
+  loss**, so the trader who has been away is the one the read is worth most to (`psychology.md`).
 
 ---
 
-## Scar Tissue — inherited, and every one still applies
+## Scar Tissue — the rules
 
-Each is a bug that shipped or a session that got burned.
+Each line is a bug that shipped or a session that got burned. **The evidence, the measurements and
+the reasoning behind every one live in `docs/scar-tissue.md`.** Read that before changing or arguing
+with a rule. The rules stay HERE, because this file is loaded into every session and that one is not.
 
-- **DB scripts need BOTH flags.** `tsx --env-file=.env.local --conditions=react-server`. The first
-  loads `DATABASE_URL`; the second gets past the `server-only` guard in `lib/env.ts`. Missing either
-  fails in a way that does not name the cause.
-- **Migrations: `drizzle-kit generate` + `migrate`, NEVER `push`.** One push makes `migrate` skip
-  older migrations forever, silently, exit 0. No warning, no easy repair.
-- **A `'use client'` file may import TYPES from a db-backed module, never VALUES.** Those reach
-  `@/lib/db` → `@/lib/env` → `server-only`, so one constant pulled into a client file ships the
-  secret schema to the browser and fails the build. `import type` is erased and always safe.
-- **A row fetched over JSON has no `Date`s, and TypeScript will not tell you.** A server component
-  hands a client one real `Date`; the same row refetched from a route arrives as an ISO **string**
-  wearing the same `Date` type, because `JSON.parse` cannot restore it and the cast at the fetch
-  boundary is a lie the compiler accepts. It fails **only on the rows that came second** — the tape's
-  first 300 clocks render, row 301 reads `Invalid Date` — so it looks like a data bug in one batch
-  rather than a type one everywhere. **Revive at the boundary** (`reviveTrade` in `trades-tape.tsx`),
-  never at the call site, or the next consumer re-learns it.
-- **Every export of a `'use client'` module becomes a client reference** when a Server Component
-  imports it, so a plain string arrives as an opaque object and `clsx` drops it — silently, no
-  error, no type complaint. **The shell's layout constants live in a module with no `'use client'`
-  at its top, and that absence is the point.** Re-exporting from the client file does NOT launder
-  them. On the old build this cost two server-rendered pages their gutter and max-width entirely.
-- **In dev, `baseURL` resolves per request from the `Host` header — it is not pinned to one port.**
-  A pinned `BETTER_AUTH_URL` breaks the moment a second dev server or worktree takes the next port,
-  and it breaks in a way that costs the most time: every browser POST 403s before the throttle hook
-  and before any mail, the screen reports a generic send failure, and retrying can never work.
-  `src/lib/auth.ts` uses Better Auth's `baseURL: { allowedHosts: [...], protocol: 'http' }` in dev
-  instead — its own multi-host feature, not a workaround — so sign-in works on whatever port Next
-  actually bound to. Production keeps a pinned string; a wildcard host allowlist in production is
-  an open redirect. **Still invisible to curl either way:** the origin check only runs on requests
-  carrying a Cookie header. Reproduce auth bugs in a browser or not at all.
-- **Cookies ignore the PORT, so two local builds share one jar.** `localhost:3000` and
-  `localhost:3002` are the same host to a browser. With Better Auth's default cookie name on both,
-  `run-trading@v2` and this build were writing the same key — signing into either **silently signed
-  you out of the other**, on the real browser, repeatedly. The shared `BETTER_AUTH_SECRET` is what
-  made it baffling rather than obvious: the foreign cookie's signature VALIDATES, so it is not
-  rejected as forged; it just resolves to a session id that lives only in the other build's
-  database. `advanced: { cookiePrefix: 'run-rebuild' }` in `src/lib/auth.ts` is the fix, and it is
-  one-sided — v2 keeps the default.
-- **`chrome-devtools start --isolated` deletes its profile on exit.** That is what the flag means: a
-  temporary user-data-dir, cleaned up when the browser closes. Every daemon restart is a fresh
-  browser with no cookies, so a driven session cannot survive one. Pass
-  `--userDataDir <path>` instead for a persistent dedicated profile. It is still not the real Chrome
-  profile, so the Chrome 136+ remote-debugging block does not apply.
-- **Next.js 16 is not the Next.js in your training data.** Read `node_modules/next/dist/docs/`
-  before writing framework code. `next dev` maintains that pointer in `AGENTS.md`, which exists so
-  Next writes its managed block there instead of into this file.
-- **TypeScript stays on 6.** 7.0 ships no programmatic API, so typescript-eslint throws on import
-  and takes `npm run lint` down with it.
-- **Tailwind v4 has no config file.** `@theme` in `src/app/globals.css` — never `:root`, never
-  `tailwind.config.*`.
-- **One icon set, one wrapper.** `src/components/ui/icon.tsx`. Hand-drawn is the default, ported
-  verbatim from `run-trading@v2`; `lucide-react` is the stated fallback for the few names v2 never
-  drew (`read`, `expand`, `warn`). Both obey the same wrapper: `viewBox 0 0 24 24`, stroke 1.5,
-  round cap/join. Never inline an `<svg>`, never generate a UI icon elsewhere — stroke weights
-  drifted 50% across a codebase before this rule, in both builds independently.
-- **API routes use `createRouteLogger`** from `@/lib/route-logger` — never raw `console.log`.
-- **Env vars go in `src/lib/env.ts`** (zod, fail-fast) or they fail at request time instead of boot.
-- **An emailed code, not a magic link.** A link signs in whichever device opens it.
-- **The OTP send throttle lives in the `before` hook**, not in `sendVerificationOTP` — by the send
-  hook the plugin has already rotated the stored code, so throttling there is a silent lockout.
-- **`?next=` is attacker-supplied by construction.** Read it through `safeNext`. `startsWith('/')`
-  is NOT enough: `//evil.example` is protocol-relative and leaves the origin while reading as a path.
+**Stack**
+- **DB scripts need BOTH flags:** `tsx --env-file=.env.local --conditions=react-server`.
+- **Migrations: `drizzle-kit generate` + `migrate`, NEVER `push`.** One push makes `migrate` skip older migrations forever, silently.
+- **A `'use client'` file may import TYPES from a db-backed module, never VALUES.** `import type` is erased and always safe.
+- **Every export of a `'use client'` module becomes a client reference.** The shell's layout constants live in a plain module (`src/lib/shell.ts`) and re-exporting does not launder them.
+- **A row fetched over JSON has no `Date`s, and TypeScript will not tell you.** Revive at the boundary (`reviveTrade`), never at the call site.
+- **Next.js 16 is not the Next.js in your training data.** Read `node_modules/next/dist/docs/` before writing framework code.
+- **TypeScript stays on 6**; 7.0 breaks typescript-eslint and takes `npm run lint` down.
+- **Tailwind v4 has no config file.** `@theme` in `src/app/globals.css`, never `:root`, never `tailwind.config.*`.
+- **API routes use `createRouteLogger`**; env vars go in `src/lib/env.ts` (zod, fail-fast).
+- **NO `loading.tsx` AT THE APP ROOT.** Past ~50KB of streamed payload its boundary stops hydrating, silently. Put one on a segment that waits on data and nowhere else; a route needing a Suspense boundary declares its own. **`src/app/loading.tsx` currently violates this** — inherited from `modryn-base`'s scar list, not yet acted on here.
+
+**Auth**
+- **No pinned `BETTER_AUTH_URL` in dev** — `baseURL` resolves per request from `Host`. Production keeps a pinned string. **Reproduce auth bugs in a browser or not at all**; the origin check only runs on requests carrying a Cookie header.
+- **Cookies ignore the PORT, so two local builds share one jar.** `advanced: { cookiePrefix: 'run-rebuild' }` is the fix, and it is one-sided.
+- **An emailed code, not a magic link.** The OTP send throttle lives in the `before` hook, not `sendVerificationOTP`.
+- **`?next=` is attacker-supplied.** Always read it through `safeNext`; `startsWith('/')` is NOT enough.
+
+**Design system** — the full set lives in `docs/design-system.md` and
+`modryn-hq@v4:playbooks/design-rules.md`. **Read them before touching a token, a primitive or the
+shell.** Enforced in three places rather than by memory: the primitives carry the reasoning at the
+point of use, `/kitchen-sink` renders and measures them, and lint fails a build on a token that
+does not exist. The ones that bite hardest:
+
+- **A utility with no token behind it emits nothing** — no error, no warning, no type complaint. Confirm a token exists before writing a class. Tokens read only from inline styles or hand-written CSS need `@theme static`.
+- **Shadow tokens must be indirect** (`--shadow-card: var(--elevation-card)`), or the `.dark` override silently does nothing.
+- **Three easing curves, each with a job, and `ease-in` is BANNED.** `ease` in place; `ease-out` entering or leaving; `ease-in-out` moving or resizing; `linear` only for constant motion. A perceived-performance rule, not a taste one.
+- **Muted is METADATA; ink is PROSE.** Two tiers, never three.
+- **A control gets a border OR a drop shadow, never both**, and only `Card` gets the shadow.
+- **One icon set, one wrapper** (`src/components/ui/icon.tsx`). Never inline an `<svg>`.
+- **Both modes, always.** The `.dark` block is per-mode literals, not inversions.
+- **A component isn't done until it appears in `/kitchen-sink` in every state**, in the same commit. The rack holds **no literal values** — no hex, px, font name or arbitrary Tailwind.
+- **"Works on mobile" means a deployed build on a real phone.** A 375px desktop viewport has a mouse, so `:hover` fires and every touch target passes. It is a width check, not the gate.
+
+**Before proposing a motion or interaction change, check `modryn-hq@v4:playbooks/ui-ux-sources.md`.**
+It records what each source gave us and, more usefully, what was weighed and TURNED DOWN.
+
+**House style**
+- **No em dashes in user-facing copy.** Comma, colon, parentheses, or a plain hyphen. Comments and docs are exempt; lint enforces the rest.
+- **The app never names itself to the person using it.** Use *you / your*, *we*, or nothing. Marketing surfaces are the exception.
+
+**Tooling**
+- **`chrome-devtools start --isolated` deletes its profile on exit.** Pass `--userDataDir <path>`. Its screenshot follows the FRONTED tab, not the one `select_page` chose. **Never run `chrome-devtools stop`.**
 
 ---
 
@@ -180,8 +163,9 @@ Vercel AI SDK v7 · Neon + Drizzle · Better Auth (emailed code + Google) · nod
 
 ```
 docs/               the phase artifacts. spec.md and architecture.md are LOCKED
-src/app/            App Router — admin/, api/auth/, api/track/, login/, status/
+src/app/            App Router — admin/, api/, login/, status/, trades/, kitchen-sink/
 src/components/ui/  primitives ported from run-trading@v3, against these exact tokens
+src/components/views/  the product's own surfaces — trades/ (tape, rail, drawer), accounts/, auth/
 src/lib/csv/        one parser per Tradovate export. Detected by header signature, never filename
 src/lib/intake/     preflight · write · commit · accounts · statement. Everything before a row lands
 src/lib/desk/       the tape: finished figures for the read. Never computes on a render path
@@ -191,8 +175,8 @@ drizzle/            migrations. generate + migrate, never push
 ```
 
 **Environment:** `ANTHROPIC_API_KEY`, `DATABASE_URL`, `BETTER_AUTH_SECRET` are required and the app
-will not boot without them. `REPLICATE_API_TOKEN` is **local only** — it generates media, it does not
-serve it, so it belongs on your machine and not on the deploy.
+will not boot without them. `REPLICATE_API_TOKEN` is **local only** — it generates media, it does
+not serve it, so it belongs on your machine and not on the deploy.
 
 ---
 
@@ -205,22 +189,4 @@ serve it, so it belongs on your machine and not on the deploy.
   number; most of them are the record of getting it wrong once.
 - **If a screen needs a value that isn't in the system, add it to the system first, then use it.**
   One-offs are how a design system dies.
-- **A utility with no token behind it emits nothing** — no error, no warning, no type complaint, just
-  an unstyled element. When adding a class, confirm the token exists. Tokens read only from inline
-  styles or hand-written CSS need `@theme static` or they are tree-shaken away.
-- **Both modes, always.** The `.dark` block is per-mode literals, not inversions — scrims, shadows
-  and pressed grounds each have their own value, and each can be wrong in exactly one mode.
-- **A component isn't done until it appears in `/kitchen-sink` in every state** (`S3c`), and that
-  is a live gate, not a checklist item: the rack is where a component is reviewed, so one that
-  isn't in it has not been looked at. It is also where the system gets judged, because a design
-  system cannot be evaluated one component at a time. Its first run found `text-figure` in `rem`
-  in a px ramp, `Textarea` on Tailwind's default `text-sm`, and a dark band/hover collision.
-- **"Works on mobile" means a deployed build on a real phone.** A 375px viewport in a desktop
-  browser is a width check, not a device check: it has a mouse, so `:hover` fires and every touch
-  target passes; it has no on-screen keyboard, no iOS Safari, and no real scroll momentum. The
-  rack's 375 column and this rule do different jobs, and only the second one is the gate.
 - **`layout.tsx` sets `robots: { index: false }`.** Remove it when the project genuinely goes public.
-- **No em dashes in user-facing copy** (headlines, labels, any UI text). Comma, colon, parentheses,
-  or a plain hyphen. Code comments and docs are exempt.
-- **The app never names itself to the person using it.** Use *you / your*, or *we*, or nothing.
-  Marketing surfaces are the exception.

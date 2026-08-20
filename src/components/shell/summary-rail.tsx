@@ -12,7 +12,12 @@
  * BELOW `lg` IT IS A STACKED BLOCK THAT NEVER COLLAPSES. "A panel the full width of the screen is
  * not a rail, and collapsing it would just be hiding content with no visible way back."
  *
- * `]` toggles it — the bracket that pairs with the sidebar's `[`.
+ * `]` toggles it — the bracket that pairs with the sidebar's `[`. ONE HEADER BUTTON DOES BOTH
+ * DIRECTIONS, ported from v2's `SessionsLayout` exactly (2026-08-19) — it used to be a floating
+ * bottom-right button that only ever reopened, with no way to close from the header at all. v2
+ * never had that split: the same `IconButton` stays mounted in the header band and just flips
+ * icon rotation, `data-active` (held pressed while shown, same as `lift-press` gives Date/Filters
+ * while their panel is open) and its tooltip label between "Hide summary" and "Show summary".
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -22,6 +27,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { PAGE_COLUMN, RAIL_W } from '@/lib/shell';
 import { StickyRail } from '@/components/shell/sticky-rail';
+import { HeaderSlot } from '@/components/shell/header-slot';
 
 const RAIL_COLLAPSE_KEY = 'run_rail_collapsed';
 
@@ -102,50 +108,75 @@ export function WithSummaryRail({
   }, [toggle]);
 
   return (
-    <div className={cn(PAGE_COLUMN, 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]')}>
-      <div className="min-w-0">{children}</div>
+    <>
+      {/* THE ONE CONTROL, BOTH DIRECTIONS — ported from v2's `SessionsLayout` exactly. This used to
+          be two different things: a keyboard-only close (`]`, undiscoverable) and a floating
+          bottom-right button that only ever reopened. v2 never had that split — one `IconButton` in
+          the header does both jobs, staying mounted and just flipping icon rotation, `data-active`
+          and the tooltip label. A control that vanishes on close is a control with no way back that
+          isn't also invisible. */}
+      <HeaderSlot>
+        <Tooltip label={collapsed ? 'Show summary' : 'Hide summary'} shortcut="]">
+          <IconButton
+            className="hidden lg:flex"
+            onClick={toggle}
+            aria-label={collapsed ? 'Show summary' : 'Hide summary'}
+            aria-pressed={!collapsed}
+            data-active={!collapsed}
+          >
+            <Icon name="collapse" size={18} className={cn('transition-transform', !collapsed && 'rotate-180')} />
+          </IconButton>
+        </Tooltip>
+      </HeaderSlot>
 
-      {/* `StickyRail` OWNS THE PIN, and it measures rather than assuming. This carried a blanket
-          `lg:sticky lg:top-0`, which is the version that hides the bottom of a rail taller than the
-          viewport — see that file for the measurement. It also owns `order-last` below `lg`, where
-          the tape is the subject and the summary is a comment on it. */}
-      <StickyRail
-        className={cn(
-          'overflow-hidden',
-          /* `panel-transition` so the rail and the sidebar are ONE declaration rather than two that
-             currently agree — globals.css names this class after exactly that, since the rail was
-             the second panel it had to cover. A hand-rolled `lg:transition-[width] duration-200`
-             here ran the two panels framing the work at different speeds on the same curve nobody
-             chose. */
-          ready && 'panel-transition',
-          // cn(), never a template string: `lg:w-76` and `lg:w-0` are the same utility group
-          // under the same modifier, so a raw template leaves BOTH in the attribute and
-          // Tailwind's sheet order decides — which puts w-76 last and the rail never closes.
-          collapsed ? 'lg:w-0' : RAIL_W,
-        )}
-        /* A collapsed rail is 0px wide and its contents are still in the tab order and still read
-           aloud — `overflow-hidden` hides pixels, not the accessibility tree. Only above `lg`,
-           where collapsing is possible at all. */
-        inert={lgUp && collapsed}
-      >
-        <div className={cn('w-full', RAIL_W)}>{rail}</div>
-      </StickyRail>
+      <div className={cn(PAGE_COLUMN, 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]')}>
+        <div className="min-w-0">{children}</div>
 
-      {/* Reopen control, only while hidden and only where hiding is possible.
-          `IconButton` in a POSITIONED WRAPPER rather than a positioned IconButton: `.lift-press`
-          sets `position: relative` unlayered to anchor its 44px hit expander, so a `fixed` passed
-          through `className` resolves back to `relative` and the control lands somewhere in the
-          middle of the page — silently, with no error and no type complaint. `icon-button.tsx`
-          states this; it cost a session once already. */}
-      {collapsed && (
-        <div className="fixed right-4 bottom-4 z-20 hidden lg:block">
-          <Tooltip label="Show summary" shortcut="]" align="end">
-            <IconButton onClick={toggle} aria-label="Open summary">
-              <Icon name="collapse" size={18} className="rotate-180" />
-            </IconButton>
-          </Tooltip>
-        </div>
-      )}
-    </div>
+        {/* `StickyRail` OWNS THE PIN, and it measures rather than assuming. This carried a blanket
+            `lg:sticky lg:top-0`, which is the version that hides the bottom of a rail taller than
+            the viewport — see that file for the measurement. It also owns `order-last` below `lg`,
+            where the tape is the subject and the summary is a comment on it. */}
+        <StickyRail
+          /* NAMED, because it is the SECOND `<aside>` on the page (2026-08-20, S5 step 3). The
+             sidebar is the other one, and two unnamed complementary landmarks make a reader
+             navigating by landmark enter each one to find out which is which. "Summary" is what the
+             card inside it is titled and what its own toggle calls it, so the three agree. */
+          aria-label="Summary"
+          className={cn(
+            /* CLIP, BUT NOT THE CARD'S SHADOW (2026-08-20, Luke: "there is a slight awkward squared
+               off shadow or something at the bottom edges of the summary card"). This was a blanket
+               `overflow-hidden`, and this element's box is pixel-identical to the `Card` inside it —
+               measured at 304 x 483.33 for both — so the card's `0 2px 4px` shadow was clipped to
+               nothing and the card rendered flat with hard square corners. The tape card beside it
+               has no clipping ancestor and kept its shadow, which is what made the pair look wrong
+               rather than merely plain.
+               The clip itself is not optional: without it the pinned 304px contents spill past the
+               closing edge for the whole 300ms. `.clip-allow-shadow` (globals.css) clips the layout
+               and lets paint escape 8px, which is the CSS feature for this exact case.
+               COLLAPSED GOES BACK TO `overflow-hidden`, or that 8px margin shows a sliver of a panel
+               that is meant to be gone. Guarded on `lgUp` for the same reason `inert` below is: the
+               rail does not collapse at all beneath `lg`, so a stored `collapsed` must not reach
+               this decision and clip the shadow on a phone. */
+            lgUp && collapsed ? 'overflow-hidden' : 'clip-allow-shadow',
+            /* `panel-transition` so the rail and the sidebar are ONE declaration rather than two
+               that currently agree — globals.css names this class after exactly that, since the
+               rail was the second panel it had to cover. A hand-rolled
+               `lg:transition-[width] duration-200` here ran the two panels framing the work at
+               different speeds on the same curve nobody chose. */
+            ready && 'panel-transition',
+            // cn(), never a template string: `lg:w-76` and `lg:w-0` are the same utility group
+            // under the same modifier, so a raw template leaves BOTH in the attribute and
+            // Tailwind's sheet order decides — which puts w-76 last and the rail never closes.
+            collapsed ? 'lg:w-0' : RAIL_W,
+          )}
+          /* A collapsed rail is 0px wide and its contents are still in the tab order and still
+             read aloud — `overflow-hidden` hides pixels, not the accessibility tree. Only above
+             `lg`, where collapsing is possible at all. */
+          inert={lgUp && collapsed}
+        >
+          <div className={cn('w-full', RAIL_W)}>{rail}</div>
+        </StickyRail>
+      </div>
+    </>
   );
 }

@@ -29,6 +29,12 @@ const log = createRouteLogger('api/trades/page');
 /** One batch. Matches the client's own, so scrolling reaches for the same amount every time. */
 const MAX_IDS = 300;
 
+/* Same guard as `api/trades/export`, and for the same reason: `trade.id` is a uuid column, so a
+   non-uuid string is rejected by Postgres and surfaces as a 500 rather than as the client error it
+   is. This route is fed by ids the page computed, so it is the less exposed of the two — but "the
+   caller is our own code" is a property of today's callers, not of the route. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(req: Request): Promise<Response> {
   const ctx = log.begin();
   try {
@@ -37,7 +43,7 @@ export async function POST(req: Request): Promise<Response> {
 
     const body = (await req.json().catch(() => null)) as { ids?: unknown } | null;
     const ids = Array.isArray(body?.ids)
-      ? body.ids.filter((v): v is string => typeof v === 'string').slice(0, MAX_IDS)
+      ? body.ids.filter((v): v is string => typeof v === 'string' && UUID.test(v)).slice(0, MAX_IDS)
       : [];
     if (ids.length === 0) return log.end(ctx, Response.json({ trades: [] }));
 

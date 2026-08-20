@@ -172,6 +172,16 @@ export function AppShell({
       )}
 
       <aside
+        /* NAMED SO THE OPEN CONTROL CAN POINT AT IT. `aria-expanded` alone only says "something is
+           closed"; with `aria-controls` it says WHICH thing, which matters precisely here because
+           the panel it refers to is not on screen to be found. v2 carries both. */
+        id="app-sidebar"
+        /* AND NAMED FOR A SCREEN READER TOO (2026-08-20, S5 step 3). `id` answers `aria-controls`;
+           it does not give the landmark a name. Two `<aside>` elements ship on /trades - this and
+           the summary rail - so a reader navigating by landmark heard "complementary, complementary"
+           and had to enter each one to find out which was which. A landmark that appears twice has
+           to say which one it is. */
+        aria-label="Main navigation"
         className={cn(
           'bg-bg z-40 shrink-0 overflow-hidden',
           /* `panel-transition`, NOT a hand-rolled `transition-[width] duration-200 ease-out`. That
@@ -211,18 +221,53 @@ export function AppShell({
                 `Tooltip` for the same reason: a native `title` waits a second, is unstyled, and is
                 the only hint in the product that is not the app's own raised object. Teaching the
                 key is what that component exists for. */}
-            <Tooltip label="Collapse" shortcut="[">
-              <IconButton onClick={toggle} aria-label="Collapse navigation">
-                {/* Two marks, one job. Below `md` the panel is a modal overlay and this is its
-                    explicit dismiss, so it reads as a close; above it, it is a collapse. */}
-                <Icon name="close" size={16} className="md:hidden" />
-                <Icon name="collapse" size={16} className="hidden md:block" />
-              </IconButton>
-            </Tooltip>
+            {/* THREE CONTROLS, IN MONARCH'S OWN ORDER (2026-08-20). Measured on
+                `app.monarch.com/transactions`: its 224px sidebar carries a 62px logo and then four
+                36px round controls hard against the right edge — search, notifications (with an
+                unread dot), a settings LINK to `/settings/profile`, and collapse. Run's sidebar is
+                the same 224px and `IconButton` is already the same 36px circle, so this is a
+                placement match rather than a new shape.
+                SEARCH IS NOT AMONG THEM HERE. /trades has its own Search control in the page band
+                and it searches TRADES; a second one in the shell would either duplicate it or
+                promise a global search this product does not have.
+                NEITHER OF THESE DOES ANYTHING YET (Luke, 2026-08-20: "nothing will happen with
+                those buttons for the time being"). They are `disabled` rather than silently inert:
+                a control that looks live and does nothing on click is the worse of the two, and
+                `IconButton` already has a considered disabled state. Tracked as `S8b` (settings)
+                and `S9c` (notifications) in `build-plan.md` — `S9b` was already taken by the
+                quarantine-resolve slice in `spec.md`, which is exactly the kind of collision a
+                comment inventing its own label would have shipped. */}
+            <div className="flex items-center gap-0.5">
+              <Tooltip label="Notifications">
+                <IconButton disabled aria-label="Notifications">
+                  <Icon name="bell" size={16} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip label="Settings">
+                <IconButton disabled aria-label="Settings">
+                  <Icon name="settings" size={16} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip label="Collapse" shortcut="[">
+                <IconButton onClick={toggle} aria-label="Collapse sidebar">
+                  {/* ONE MARK AT EVERY BREAKPOINT, matching v2 exactly (2026-08-19). This carried
+                      two — `close` below `md`, `collapse` above — on the reasoning that a modal
+                      overlay wants an explicit dismiss. v2 considered the same split and rejected
+                      it: the button is present at every breakpoint precisely BECAUSE the overlay
+                      needs a visible way out (scrim-tap and Escape are both learned gestures,
+                      neither visible), but the meaning never changes between the two — "put this
+                      panel away" is one job, so it gets one mark. */}
+                  <Icon name="collapse" size={16} />
+                </IconButton>
+              </Tooltip>
+            </div>
           </div>
 
           {/* scroll-thin: the platform default is a 15px grey slab that reads as chrome beside
               the content, and this pane is content on paper with nothing framing it. */}
+          {/* No `aria-label`: this <nav> is the only one in the document AND it is already inside
+              the labelled <aside> above, so naming it a second time makes a reader announce the
+              same words twice on the way in. A name is for telling two of a kind apart. */}
           <nav className="scroll-thin flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
             {NAV.map(({ label, href, icon }) => (
               <NavRow key={href} href={href} label={label} icon={icon} pathname={pathname} />
@@ -240,8 +285,39 @@ export function AppShell({
       </aside>
 
       {/* min-w-0 is what lets the pane shrink instead of forcing the flex row wider than the
-          viewport — without it a wide table pushes the whole shell into a horizontal scroll. */}
-      <div className="flex min-w-0 flex-1 flex-col">
+          viewport — without it a wide table pushes the whole shell into a horizontal scroll.
+          `relative` is what the floating Open control below is positioned against. */}
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        {/* THE OPEN CONTROL FLOATS OVER THE PANE; IT IS NOT IN THE HEADER'S FLEX ROW. Ported from
+            v2 (2026-08-19) after measuring the two builds side by side: this used to be an in-flow
+            sibling before the title, so with the sidebar collapsed the title started at
+            24 (pl-6) + 36 (the disc) + 8 (gap) = 68px, against v2's 64. Four pixels, and it moved
+            the title every time the sidebar opened or closed by a different amount than v2's does.
+            Out of flow, the control cannot push the title at all, and the header's own `pl-16`
+            below is what clears it — which is the number v2 measured. */}
+        {collapsed && (
+          <div
+            className="absolute top-0 left-0 z-40 flex items-center px-3"
+            style={{ height: SHELL_HEADER_H }}
+          >
+            <Tooltip label="Open sidebar" shortcut="[">
+              <IconButton
+                onClick={toggle}
+                aria-label="Open sidebar"
+                /* `aria-expanded` alone only says "something is closed". With `aria-controls` it
+                   says WHICH thing, which matters here because the panel it opens is not on
+                   screen. Both ported from v2. */
+                aria-expanded={false}
+                aria-controls="app-sidebar"
+              >
+                {/* THE MENU MARK AT 20, matching v2 exactly. Collapsing is an action ON a panel you
+                    can see, so that mark points at it; opening is reaching for a panel that is not
+                    on screen, which is what a menu glyph means everywhere. */}
+                <Icon name="menu" size={20} />
+              </IconButton>
+            </Tooltip>
+          </div>
+        )}
         {/* ONE BAND, CARRYING THE PAGE'S IDENTITY AND ITS CONTROLS.
             It used to carry only the Open control and the theme toggle, which forced any page
             wanting a title to build a SECOND 64px band underneath — a near-empty strip above a real
@@ -253,22 +329,21 @@ export function AppShell({
             became zero. `shell.ts` states it: "do not 'fix' a header that looks 8px off". This is
             the shift, and it was mine. */}
         <header
-          className={cn(PAGE_COLUMN, HEADER_INDENT, 'relative flex shrink-0 items-center gap-2')}
+          className={cn(
+            PAGE_COLUMN,
+            HEADER_INDENT,
+            'relative flex shrink-0 items-center gap-2',
+            /* CLEARS THE FLOATING OPEN CONTROL, which occupies this same left corner whenever the
+               sidebar is hidden. Without it that 36px disc sits directly under the title's own left
+               edge. `pl-16` is v2's measured number and it beats `HEADER_INDENT`'s `pl-6` cleanly,
+               because twMerge DOES dedupe two classes in the same `pl` group — unlike `pl-6` against
+               `PAGE_COLUMN`'s `px-4`, which both survive and are resolved by Tailwind's sheet order
+               instead. Only safe while the gutter has no responsive half: an `sm:px-*` in play would
+               sort last and silently beat a bare `pl-*`. */
+            collapsed && 'pl-16'
+          )}
           style={{ height: SHELL_HEADER_H }}
         >
-          {/* The Open control: only while the sidebar is hidden, and adjacent to where it will
-              appear. Same 64px band as the sidebar's own header row. */}
-          {collapsed && (
-            <Tooltip label="Open" shortcut="[">
-              <IconButton onClick={toggle} aria-label="Open navigation">
-                {/* The collapse mark, mirrored: pointing right says "put this away", pointing left
-                    says "bring it back", so one drawn mark describes both directions of one
-                    action rather than the set gaining a second glyph for the reverse. */}
-                <Icon name="collapse" size={16} className="rotate-180" />
-              </IconButton>
-            </Tooltip>
-          )}
-
           {/* DERIVED FROM THE ROUTE, SYNCHRONOUSLY, and that is why the title does not come through
               the portal: the thing that names the screen must never be a frame late.
               CENTRED ON A PHONE, static from `sm`. A 375px band cannot hold a left title, the open
@@ -353,18 +428,32 @@ function NavRow({
          the layout properties on the clock for nothing. */
       className={cn(
         'text-nav group flex h-10 items-center gap-3 rounded-sm px-3 font-normal transition-colors',
-        active ? 'bg-surface-2 text-text' : 'text-text hover:bg-hover',
+        /* ONE GROUND FOR BOTH, and `selected` is the token that means it (Luke, 2026-08-20,
+           adopting the boilerplate's call). Active was `surface-2` and hover was `hover`: two
+           tokens, two values, for one question. The rule is that a row's rank is carried by the
+           GROUND ALONE and the pointer already disambiguates the moment two rows match, so a
+           separate hover value is one channel more than the job needs. Ink stays full on every
+           row - a destination is not metadata. */
+        active ? 'bg-selected text-text' : 'text-text hover:bg-selected',
       )}
     >
       {/* HOVER THICKENS THE STROKE, 1.5 -> 1.8. claude.ai's move translated: their sidebar icons are
           a variable font and they animate its weight axis on hover; we draw SVG, so the equivalent
           axis is stroke-width. CSS beats the wrapper's presentation attribute, so the wrapper needs
           no change. 20px, matching v2 — the shell's marks are a size up from the 16px an icon
-          BUTTON carries, because a nav row is read at a glance rather than aimed at. */}
+          BUTTON carries, because a nav row is read at a glance rather than aimed at.
+          NO CURVE AND NO DURATION, BOTH DELETED (2026-08-20, S5 step 3). This read
+          `duration-200 ease-out`, which is two hand-picked values that happen to equal the system
+          defaults, and one of them was the WRONG curve by the role table: a hover is a state change
+          IN PLACE, so it takes `ease`, and `ease-out` is for something entering or leaving. The row
+          around this glyph carries a bare `transition-colors` and therefore already runs on `ease`,
+          so the ground faded on one curve while the stroke inside it thickened on another - two
+          curves in a single gesture. Naming nothing inherits 200ms and `ease` from `@theme`, which
+          is the whole reason the default was set there. */}
       <Icon
         name={icon}
         size={20}
-        className="shrink-0 transition-[stroke-width] duration-200 ease-out group-hover:[stroke-width:1.8]"
+        className="shrink-0 transition-[stroke-width] group-hover:[stroke-width:1.8]"
       />
       {label}
     </Link>

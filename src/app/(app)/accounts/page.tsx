@@ -1,55 +1,39 @@
-import { and, count, eq, sql } from 'drizzle-orm';
-import { db, account, event } from '@/lib/db';
+import type { Metadata } from 'next';
 import { requireTrader } from '@/lib/trader';
-import { AccountsView, type RosterAccount } from './accounts-view';
 import { PAGE_COLUMN } from '@/lib/shell';
+import { cn } from '@/lib/cn';
 
-/* The accounts roster. `S4e` builds the minimum that makes the intake testable; `S6` is the real
- * page. See the note at the top of `accounts-view.tsx`.
+/* ACCOUNTS — CLEARED TO AN EMPTY SHELL (Luke, 2026-08-20: "delete what is on the main content.
+ * im starting from scratch on this page").
  *
- * A SERVER COMPONENT READING THE CORPUS, which is why the modal calls `router.refresh()` when an
- * import finishes rather than pushing a new row into local state. One source of truth for what a
- * trader owns, and a new account appears because the database says so.
+ * WHAT WAS HERE. `accounts-view.tsx`, the roster `S4e` built as the minimum that made the intake
+ * testable, plus the server query behind it. Both are deleted rather than commented out — the whole
+ * point of starting from scratch is not to negotiate with the previous attempt, and the code is one
+ * `git show` away if a decision in it turns out to be worth recovering.
+ *
+ * `S6` in `build-plan.md` is what fills this: hero metric selector, groups by state with their own
+ * totals, a freshness stamp on every row, `CLOSED` as a permanent group, summary rail. That slice
+ * always said it replaces this page wholesale; this just does the deleting first.
+ *
+ * ⚠️ THE IMPORT LAUNCHER WENT WITH IT, AND NOTHING ELSE OFFERS ONE. `AddAccountModal` was mounted
+ * here and only here in the shipped app, so there is currently no route from the product into the
+ * three-file ingest. The flow itself is intact and unchanged — the modal, the drop zone, the
+ * preflight, the write path, all of `S4e` — and `/kitchen-sink/demo` still mounts the real modal
+ * under `dryRun` so it can be judged on a device. What is missing is a door in the product, and
+ * `S6` builds it: per `build-plan.md`, launching an import from a specific account's own page is
+ * the context v2's adoption path depends on, which is the reason "Add manually" was deferred to
+ * that slice in the first place.
+ *
+ * THE ROUTE STAYS RATHER THAN 404-ING. `Accounts` is one of the four NAV rows and the sidebar links
+ * to it; a destination that exists and is empty is a different statement from one that is missing,
+ * and this one is being rebuilt rather than not yet started.
  */
+export const metadata: Metadata = { title: 'Accounts' };
+
 export default async function AccountsPage() {
-  const trader = await requireTrader();
+  // The gate stays. This is a signed-in surface whatever gets built on it, and losing the guard
+  // while the page is empty is how it comes back without one.
+  await requireTrader();
 
-  /* SCOPED BY `trader_id` FROM THE SESSION, never from the request, and by account in the join.
-     The record is somebody's trading history.
-     One query rather than a roster read plus a count per row: the trade count is what proves an
-     import landed, so it is not decoration that can be fetched lazily. `round_trip` only — fills
-     and fees are legs and costs, and counting them here would report a number the trader has no
-     word for. */
-  const rows = await db
-    .select({
-      id: account.id,
-      externalAccountId: account.externalAccountId,
-      displayName: account.displayName,
-      propFirm: account.propFirm,
-      accountType: account.accountType,
-      sizeDollars: account.sizeDollars,
-      trades: count(event.id),
-    })
-    .from(account)
-    .leftJoin(event, and(eq(event.accountId, account.id), eq(event.type, 'round_trip')))
-    .where(eq(account.traderId, trader.id))
-    .groupBy(account.id)
-    .orderBy(sql`${account.createdAt} desc`);
-
-  const accounts: RosterAccount[] = rows.map((r) => ({ ...r, trades: Number(r.trades) }));
-
-  /* CONNECTED LOGINS, not accounts. A firm issues one Tradovate login and a copy-trader runs many
-     accounts under it, so the login count is the number a trader recognises. Zero until the OAuth
-     rail turns on — there is no way to connect one yet, and the row that shows this is dark. */
-  const connected = 0;
-
-  /* THE GUTTER, which this page never had. `PAGE_COLUMN` is the shell's one horizontal rhythm and
-     `/accounts` was rendering flush to the pane edge — invisible while the only thing on it was a
-     title and a button, obvious the moment `S5c` put the roster beside `/trades`. Imported from
-     `@/lib/shell` rather than through a client module: see that file's note on why. */
-  return (
-    <div className={PAGE_COLUMN}>
-      <AccountsView accounts={accounts} connected={connected} />
-    </div>
-  );
+  return <div className={cn(PAGE_COLUMN, 'pb-8')} />;
 }

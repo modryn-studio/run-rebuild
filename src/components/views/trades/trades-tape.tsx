@@ -22,7 +22,9 @@ import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { cn } from '@/lib/cn';
 import { fmtMoney } from '@/lib/format';
-import { productName, productRoot, markHue } from '@/lib/instruments';
+import { productName } from '@/lib/instruments';
+import { InstrumentMark } from './instrument-mark';
+import { ColumnsMenu, useTapeColumns, type TapeColumn } from './columns-menu';
 import { displayTime, displaySessionDate } from '@/lib/time/session';
 import type { SessionGroup, TapeRow } from '@/lib/trades/read';
 import { TradeDrawer } from './trade-drawer';
@@ -78,7 +80,12 @@ export function TradesTape({
      props are the server's and this is ours, and keeping the two apart is what makes the reset below
      a single obvious line rather than a reconciliation. */
   const [extra, setExtra] = useState<TapeRow[]>([]);
-  const [failed, setFailed] = useState(false);
+  /* THE REASON, NOT JUST THE FACT. This was a bare boolean and the line it drew said only "Could
+     not load more trades" — which is the silent-failure this codebase forbids everywhere else: a
+     401, a 500 and an empty batch are three different problems with three different fixes, and the
+     trader (or whoever is debugging it) could not tell them apart. Null means no failure. */
+  const [failure, setFailure] = useState<string | null>(null);
+  const failed = failure !== null;
   /* A REF, NOT STATE. This guards against a second fetch starting while one is in flight, and a
      state flag would only take effect on the next render — one render too late when the observer
      can fire twice in a frame. Nothing reads it during render. */
@@ -109,16 +116,20 @@ export function TradesTape({
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ ids: rest.ids.slice(from, from + BATCH) }),
         });
-        if (!res.ok) throw new Error(String(res.status));
+        if (!res.ok) {
+          // The status IS the diagnosis: 401 is a dead session, 500 is the route, 404 is the path.
+          const body = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(body?.error ? `${res.status}: ${body.error}` : `HTTP ${res.status}`);
+        }
         const data = (await res.json()) as { trades?: TapeRow[] };
         const rows = (data.trades ?? []).map(reviveTrade);
         /* AN EMPTY BATCH WOULD LOOP FOREVER — `from` is derived from what we hold, so nothing new
            means the next render asks for the same window again. Treated as a failure, which is what
            it is: the ids came from this same filter and should have resolved. */
-        if (rows.length === 0) setFailed(true);
+        if (rows.length === 0) setFailure('the server returned no rows for ids it should know');
         else setExtra((x) => [...x, ...rows]);
-      } catch {
-        setFailed(true);
+      } catch (e) {
+        setFailure(e instanceof Error ? e.message : 'the request did not complete');
       } finally {
         busy.current = false;
       }
@@ -171,7 +182,7 @@ export function TradesTape({
   useEffect(() => {
     setLimit(PAGE);
     setExtra([]);
-    setFailed(false);
+    setFailure(null);
     setOpen(-1);
   }, [listKey]);
 
@@ -182,6 +193,7 @@ export function TradesTape({
   const days = groupBySession(visible);
   const flat = days.flatMap((d) => d.trades);
   // Session totals come from the server and cover the WHOLE session, not the rows drawn.
+  const { hidden: hiddenColumns, toggle: toggleColumn } = useTapeColumns();
   const totalsFor = new Map(sessions.map((s) => [s.sessionDate, s]));
 
   /* `@container` so a column can be gated on the CARD's width rather than the viewport's.
@@ -200,10 +212,17 @@ export function TradesTape({
           className="bg-surface pointer-events-none absolute inset-x-0 top-0 h-3 rounded-t-[var(--radius)]"
         />
         <span className="text-title text-text font-medium">Trades</span>
-        {/* THE NOUN, not a bare number. "360" beside a title reads as an id as easily as a count. */}
-        <span className="text-body text-muted ml-auto tabular-nums">
-          {total.toLocaleString('en-US')} {total === 1 ? 'trade' : 'trades'}
-        </span>
+        {/* THE COUNT CAME OUT (2026-08-20). It read "360 trades" here, and the summary rail beside
+            it already says `Trades 360` off the same filtered set - `getDigest` and the tape count
+            one set by construction, so the two can never disagree and the second was pure redundancy
+            sitting where the reference puts CONTROLS. Measured on Monarch: its table header carries
+            Edit multiple / Sort / Columns and NO count, despite the same rail-plus-table shape.
+            SORT IS DELIBERATELY NOT HERE. This tape's order is a finding rather than a preference:
+            rows descend by ENTRY because a position scaled out in three pieces closes on one exit
+            stamp, so ordering by exit prints one time on three rows and the sequence reads as
+            random. A generic column sorter invites exactly that arrangement. If sort ships it needs
+            a deliberate short list that excludes the broken one. */}
+        <ColumnsMenu hidden={hiddenColumns} onToggle={toggleColumn} />
       </div>
 
       {all.length === 0 ? (
@@ -223,21 +242,28 @@ export function TradesTape({
                 <span className="text-body text-muted font-medium">
                   {displaySessionDate(d.sessionDate)}
                 </span>
+                {/* THE DAY'S NET, AND NOTHING ELSE (2026-08-19, Luke: "keep it simple").
+                    This carried the count and the win rate too, which `spec.md` §5 asked for and
+                    which `psychology.md` §6 then argues against on the page it governs: the four
+                    properties are "specificity in place of evaluation" and "ending on a position,
+                    not a grade". `0% win` on a seven-trade day is a grade — it is the only figure
+                    on this page that scores a stretch of trading rather than reporting it, and it
+                    lands hardest on exactly the day a trader least needs scoring.
+                    The count and the rate are not lost: both are in the summary rail, over the
+                    filtered set, where they are a description rather than a verdict on one day.
+                    `run-trading@v2` groups by day with `{ day, netCents, trades }` and prints only
+                    the net, so this is also what the reference does. spec.md and build-plan.md were
+                    amended in the same commit; see the note there. */}
                 {t && (
-                  <span className="text-body text-muted flex items-center gap-3 font-medium tabular-nums">
-                    <span>{signed(t.netCents)}</span>
-                    <span>
-                      {t.tradeCount.toLocaleString('en-US')} {t.tradeCount === 1 ? 'trade' : 'trades'}
-                    </span>
-                    {/* A rate off nothing decided is a divide, not a fact — so it is absent rather
-                        than printed as 0%. */}
-                    {t.winRatePct !== null && <span>{t.winRatePct}% win</span>}
+                  <span className="text-body text-muted font-medium tabular-nums">
+                    {signed(t.netCents)}
                   </span>
                 )}
               </div>
               <div className="divide-rule divide-y">
                 {d.trades.map((row) => (
                   <Row
+                    hidden={hiddenColumns}
                     key={row.id}
                     trade={row}
                     zone={displayTimezone}
@@ -271,11 +297,17 @@ export function TradesTape({
       {/* A FETCH CAN FAIL, and a scroll that silently stops is indistinguishable from the end of the
           tape. Says what happened and offers the retry, rather than leaving the trader to guess. */}
       {failed && (
-        <div className="border-rule flex h-13 items-center justify-center gap-2 border-t">
-          <span className="text-body text-muted">Could not load more trades.</span>
+        <div className="border-rule flex min-h-13 flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t px-5 py-3 text-center">
+          <span className="text-body text-muted">
+            Could not load the remaining {(total - all.length).toLocaleString('en-US')} trades.
+          </span>
+          {/* THE REASON, said out loud. A scroll that silently stops is indistinguishable from the
+              end of the tape, and "could not load" with no cause is indistinguishable from a bug in
+              any of four layers. */}
+          <span className="text-caption text-muted">({failure})</span>
           <button
             type="button"
-            onClick={() => setFailed(false)}
+            onClick={() => setFailure(null)}
             className="text-body text-link font-medium"
           >
             Try again
@@ -313,10 +345,13 @@ function Row({
   trade: t,
   zone,
   onOpen,
+  hidden,
 }: {
   trade: TapeRow;
   zone: string;
   onOpen: () => void;
+  /** Which optional columns the trader has turned off. See `columns-menu.tsx`. */
+  hidden: TapeColumn[];
 }) {
   const contract = t.contract ?? t.symbolRoot;
   const name = productName(contract);
@@ -349,15 +384,19 @@ function Row({
         </div>
       </div>
 
-      <span className="text-body text-muted hidden min-w-0 flex-1 items-center gap-1.5 sm:flex">
-        <AccountName name={t.accountName} logo={t.firmLogo} />
-      </span>
+      {!hidden.includes('account') && (
+        <span className="text-body text-muted hidden min-w-0 flex-1 items-center gap-1.5 sm:flex">
+          <AccountName name={t.accountName} logo={t.firmLogo} />
+        </span>
+      )}
 
       {/* WHEN IT WAS TAKEN, not when it closed, and it has to be the key the list is sorted by or
           the order reads as random. `w-20` because "12:28 PM" needs the room "08:54" did not. */}
-      <span className="text-body text-muted hidden w-20 shrink-0 tabular-nums sm:block">
-        {displayTime(t.entryAt, zone)}
-      </span>
+      {!hidden.includes('time') && (
+        <span className="text-body text-muted hidden w-20 shrink-0 tabular-nums sm:block">
+          {displayTime(t.entryAt, zone)}
+        </span>
+      )}
 
       {/* THE RESULT, WITH ITS RIGHT EDGE PINNED. `min-w`, not `w`: it holds every figure a retail
           futures account produces and grows rather than colliding if one exceeds it. A column of
@@ -388,10 +427,19 @@ function Row({
       </div>
 
       {/* IT LIGHTS WITH THE ROW. The whole row is the button, so a bare chevron sitting inside it
-          reads as a control that is switched off. */}
+          reads as a control that is switched off.
+          A SPAN THAT WEARS `IconButton`'S MECHANIC, not the component: this sits INSIDE a <button>,
+          and a nested button is invalid HTML - which is also why it is `aria-hidden`. The row is the
+          control; this is the mark that says so.
+          BORDER ON HOVER, NOT A DROP SHADOW (2026-08-20). It hand-rolled the mechanic IconButton
+          carried before the house rule landed, `shadow-card` included - so it kept claiming "I float
+          above the page" after every other control in the product had stopped. Now it is the same
+          three states `.lift-press` declares: nothing at rest, the border a secondary button shows
+          at rest plus the raised ground on hover, and the pressed ground plus the INSET on press.
+          `border-transparent` at rest so only the COLOUR moves and the disc never resizes. */}
       <span
         aria-hidden
-        className="text-muted group-hover:text-text group-hover:bg-surface group-hover:shadow-[var(--shadow-card)] group-active:bg-bg group-active:shadow-[var(--shadow-press)] flex size-8 shrink-0 items-center justify-center rounded-full transition"
+        className="text-muted group-hover:text-text group-hover:bg-surface group-hover:border-border group-active:bg-bg group-active:shadow-[var(--shadow-press)] flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent transition"
       >
         <Icon name="chevron" size={16} className="-rotate-90" />
       </span>
@@ -440,29 +488,6 @@ function AccountName({ name, logo }: { name: string; logo: string | null }) {
         {tail && <span className="shrink-0">{tail}</span>}
       </span>
     </>
-  );
-}
-
-/* THE PRODUCT'S MARK. A hue per root, so a scan down the tape can tell one instrument from another
- * without reading — and a micro never shares a hue with its full-size sibling, which is the one
- * assignment here that is about risk rather than looks. */
-function InstrumentMark({ symbol }: { symbol: string }) {
-  const root = productRoot(symbol);
-  const hue = markHue(root);
-  return (
-    <span
-      aria-hidden
-      /* MIXED WITH `surface`, NOT `transparent`. The tint is a wash of the hue over the ground it
-         sits on, and mixing into transparency makes it translucent instead — which lets the row's
-         hover ground show through and changes the mark's colour when the pointer arrives. */
-      className="text-caption grid size-7 shrink-0 place-items-center rounded-full font-medium tabular-nums tracking-[-0.01em]"
-      style={{
-        color: `var(--mark-${hue})`,
-        background: `color-mix(in srgb, var(--mark-${hue}) var(--mark-tint), var(--color-surface))`,
-      }}
-    >
-      {root.slice(0, 3)}
-    </span>
   );
 }
 

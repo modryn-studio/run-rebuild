@@ -26,16 +26,27 @@ type ButtonSize = 'sm' | 'md' | 'lg';
 const variantClasses: Record<ButtonVariant, string> = {
   // Their primary has no shadow and darkens on hover (orange -> orangeDark); pine gets the same
   // treatment through --color-accent-hover rather than an opacity wash, which greys the fill.
-  /* DISABLED IS A REAL SWAP, not an opacity drop (2026-08-13). `secondary` already did this and it
-   * is the considered version: opacity fades the control's EDGES as well as its ink, so a filled
-   * button goes soft and blurry rather than reading as off. A ground change keeps the shape crisp
-   * and says "inert" instead of "faded". Both filled variants now answer the same way.
+  /* DISABLED IS A FADED ACCENT, NOT A GREY SWAP (2026-08-20, Luke), REVERSING 2026-08-13.
    *
-   * `ghost`, `Input` and `Textarea` keep opacity, deliberately: a bare or bordered control has no
-   * fill to swap, and this palette has only two ink tiers (`faint` is an alias of `muted`), so
-   * there is no quieter ink to move them to. Opacity is the only lever they have. */
+   * This shipped as `disabled:bg-surface-2 disabled:text-muted disabled:opacity-100` on the
+   * argument that opacity fades a filled control's edges into mush where a ground change stays
+   * crisp. That argument holds for `secondary`, which has a BORDER to keep crisp; primary has no
+   * border at all, so there is no edge for the fade to blur — there is only the fill, and a faded
+   * pine still reads unmistakably as the primary action in its off state.
+   *
+   * The deciding evidence is that the swap left Run alone against every reference it derives from:
+   * `modryn-base`, `run-trading@v2` AND Monarch all fade the accent here. A disabled primary that
+   * turns warm grey stops looking like the same button and starts looking like a secondary one,
+   * which is exactly what a disabled state must not do — it should say "this button, not yet",
+   * not "a different button".
+   *
+   * `loading` inherits this for free (`disabled={disabled || loading}`), which is the case that
+   * matters most: a CTA mid-submit should still be visibly the primary CTA.
+   *
+   * `secondary` deliberately KEEPS its ground swap: it has a border, the 2026-08-13 reasoning
+   * applies to it unchanged, and base does the same thing there (`disabled:bg-surface`). */
   primary:
-    'bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-hover active:shadow-[var(--shadow-press)] disabled:bg-surface-2 disabled:text-muted disabled:shadow-none disabled:opacity-100',
+    'bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-active active:shadow-[var(--shadow-press)] disabled:opacity-50',
   /* THE EDGE PAIR IS `border` -> `border-strong`, AND IT WENT AWAY FOR HALF A DAY (2026-08-14).
    * The border pass moved this to a 3:1 field edge on the reading that an interactive control owes
    * SC 1.4.11 3:1. It does not: 1.4.11 asks that of the visual information REQUIRED to identify a
@@ -47,7 +58,18 @@ const variantClasses: Record<ButtonVariant, string> = {
    * The rest-to-hover step is 1.47x, which is the "subtle" the note above is describing; pointing
    * the hover at a compliant value made it 2.94x and read as the whole button lighting up. */
   secondary:
-    'border-border bg-surface text-text border shadow-[var(--shadow-sm)] hover:border-border-strong active:bg-[var(--pressed-bg)] active:shadow-[var(--shadow-press)] disabled:bg-surface-2 disabled:text-muted disabled:shadow-none disabled:opacity-100',
+    /* NO RESTING DROP SHADOW (2026-08-20). This carried `--shadow-sm` under its own hairline, which
+       is the combination `design-rules.md` forbids outright: a drawn edge and a cast shadow are two
+       different claims about one object, and only `Card` may make the second. `modryn-base` deleted
+       its equivalent token for exactly this. The border still marks the hit target and the fill
+       still separates it from the ground; the press keeps its INSET, which is the opposite claim
+       and stays legal. Same change `.lift-rest` took in globals.css, so the header controls and this
+       button remain one control class.
+       `btn-secondary` IS A STYLE HOOK, NOT DECORATION (2026-08-20). It carries no rules of its own -
+       it exists so `globals.css` can key a hand-written `[data-active='true']` rule off something
+       stable, for a popover trigger (Columns) that needs to stay visibly pushed in for as long as
+       its panel is open. See that rule for why it is not a `data-[active=true]:` utility here. */
+    'btn-secondary border-border bg-surface text-text border hover:border-border-strong active:bg-[var(--pressed-bg)] active:shadow-[var(--shadow-press)] disabled:bg-surface-2 disabled:text-muted disabled:shadow-none disabled:opacity-100',
   /* The quiet, always-accent-colored outline (a header "add" control, a secondary CTA beside a
    * primary one) - distinct from `secondary`, whose edge only firms up on hover.
    *
@@ -132,12 +154,20 @@ export function Button({
        * accent, so a labelled button and an icon button in one header showed two different focus
        * treatments and the weaker one was on the button people actually tab to.
        *
-       * `truncate` because the label has nowhere to go. Measured at every width, a long label
-       * pushed this to 1008px and never reflowed — 2.9x its container at 375. A button that
-       * overflows breaks the layout around it; one that truncates is ugly and contained. Labels
-       * here are short by design, so this is the failure mode, not the normal path. */
+       * THE LABEL TRUNCATES, AND IT TRUNCATES ON THE INNER SPAN (2026-08-20). The decision to
+       * truncate rather than wrap stands and is measured: a long label pushed this to 1008px and
+       * never reflowed, 2.9x its container at 375, and a button that overflows breaks the layout
+       * around it where one that truncates is ugly and contained.
+       *
+       * What was WRONG is where `truncate` sat. On the button itself it combined with
+       * `justify-center` to clip the label at BOTH ends with no ellipsis anywhere: a centred flex
+       * container overflows symmetrically, so the text ran past the left and right padding at once
+       * and `text-overflow` had no block box to render an ellipsis in. Measured on the rack at a
+       * 384px button against a 408px label. Moved onto the span below, which is a flex ITEM and can
+       * therefore shrink (`overflow-hidden` gives a flex item an automatic minimum size of 0), so it
+       * now does what it always claimed to: one clean ellipsis at the end. */
       className={cn(
-        'rounded-[var(--radius-sm)] inline-flex items-center justify-center gap-2 truncate font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow] duration-100 disabled:cursor-not-allowed',
+        'rounded-[var(--radius-sm)] inline-flex items-center justify-center gap-2 font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow] duration-100 disabled:cursor-not-allowed',
         variantClasses[variant],
         sizeClasses[size],
         className
@@ -149,14 +179,20 @@ export function Button({
           right-aligned footer. `Menu` already reserves its trigger width for the same reason, so
           this is the system's existing answer rather than a new one. */}
       {loading ? (
-        <span className="relative inline-flex items-center">
-          <span className="invisible">{children}</span>
+        <span className="relative inline-flex min-w-0 items-center">
+          <span className="invisible truncate">{children}</span>
           <span className="absolute inset-0 grid place-items-center">
             <Spinner />
           </span>
         </span>
       ) : (
-        children
+        /* The span carries `truncate`, not the button. See the note on `className` above.
+           `inline-flex` + `gap-2` rather than a plain span, because this is now the button's ONLY
+           child: the button's own gap has nothing left to sit between, so an icon-plus-label call
+           site would render the two flush together. NO `justify-center` — the button centres this
+           span already, and centring again inside a box that can overflow splits the overflow
+           evenly and clips the label at both ends with the ellipsis nowhere. */
+        <span className="inline-flex min-w-0 items-center gap-2 truncate">{children}</span>
       )}
     </button>
   );

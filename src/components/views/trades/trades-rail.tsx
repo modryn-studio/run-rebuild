@@ -19,16 +19,21 @@ import { Card } from '@/components/ui/card';
 import { fmtMoney } from '@/lib/format';
 import { RANGE_LABEL, type TradesFilter } from '@/lib/trades/filter';
 import type { TradesDigest } from '@/lib/trades/read';
+import { DownloadCsv } from '@/components/views/trades/download-csv';
 
 export function TradesRail({
   digest,
   filter,
   resultFiltered,
+  ids,
 }: {
   digest: TradesDigest;
   filter: TradesFilter;
-  /** What the four blank rows below are explained by. */
+  /** What the blank rows below are explained by. */
   resultFiltered: boolean;
+  /** The ordered ids of the whole filtered selection, for the export. Not the page's slice: a file
+   *  built from what loaded would silently be "the part you scrolled to". */
+  ids: string[];
 }) {
   /* WHAT THE NUMBERS COVER, said once and quietly, and ONLY when there is something to say.
      "Worst session -$5,120" reads as the worst ever when it is the worst in ninety days, and a money
@@ -68,6 +73,13 @@ export function TradesRail({
 
         <Group />
 
+        {/* ALL THREE SESSION FIGURES SAY WHY THEY ARE BLANK rather than showing `Money`'s dash. A
+            dash means "no data" and there is plenty of data — it is on the tape beside this. These
+            are the rows that would mislead hardest: "Worst -$51.20" under a wins filter reads as
+            the worst day this trader has ever had. */}
+        <Line label="Average session">
+          <Money cents={digest.avgSessionCents} withheld={resultFiltered} />
+        </Line>
         <Line label="Best session">
           <Money cents={digest.bestSessionCents} withheld={resultFiltered} />
         </Line>
@@ -77,11 +89,11 @@ export function TradesRail({
 
         <Group />
 
-        <Line label="Largest win">
-          <Money cents={digest.largestWinCents} />
+        <Line label="Average win">
+          <Money cents={digest.avgWinCents} />
         </Line>
-        <Line label="Largest loss">
-          <Money cents={digest.largestLossCents} />
+        <Line label="Average loss">
+          <Money cents={digest.avgLossCents} />
         </Line>
 
         <Group />
@@ -89,11 +101,13 @@ export function TradesRail({
         {/* THE LABEL CHANGES WITH THE TRUTH. `spec.md` §S3: a surface showing a net figure must say
             whether fees were imported for that range, because the alternative is a gross number
             wearing a net label — and on the reference export the fees exceeded the gross loss. */}
+        {/* NO SEPARATE FEES ROW, matching v2 (2026-08-19). Fees are carried by this LABEL, not by a
+            line of their own: the label is already the load-bearing statement (`Net` means costs
+            are in the figure, `Gross` means they are not), so a Fees row underneath restates what
+            the word above it just said. The doctrine that matters is that fees are IN the net
+            number, which the label asserts and the footnote below covers when they are missing. */}
         <Line label={digest.hasFees ? 'Net P&L' : 'Gross P&L'}>
           <Money cents={digest.netCents} strong />
-        </Line>
-        <Line label="Fees">
-          <Money cents={digest.feesCents} />
         </Line>
         {/* Plural even at one: the question is "how many is this pooling", and "1 account" answers
             it rather than reading as an awkward singular. */}
@@ -107,6 +121,10 @@ export function TradesRail({
           No Cash History covers these trades, so every figure here is before costs.
         </p>
       )}
+
+      {/* Deliberately BELOW the ledger, at the foot of the card: it is what you do with these
+          numbers, not one of them. */}
+      <DownloadCsv name="trades" ids={ids} />
     </Card>
   );
 }

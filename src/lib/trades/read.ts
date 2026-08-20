@@ -2,8 +2,10 @@ import 'server-only';
 import { and, asc, desc, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm';
 import { db, trade, account } from '@/lib/db';
 import type { TradeState } from '@/lib/db';
-import { firmLogoSrc, accountRowTitle } from '@/lib/prop-firms';
+import { firmLogoSrc, accountRowTitle, accountShortTitle, UNLABELLED_FIRM } from '@/lib/prop-firms';
+import { rootsMatchingName } from '@/lib/instruments';
 import type { TradesFilter } from './filter';
+import type { FacetRow } from './facets';
 import { isResultFiltered } from './filter';
 
 /* WHAT THE TRADES PAGE READS. Every figure on it comes from here, and every one comes from SQL.
@@ -78,9 +80,10 @@ export interface TradesDigest {
   losses: number;
   /** Null when a result filter makes it meaningless, or when nothing is decided. See below. */
   winRatePct: number | null;
-  largestWinCents: number | null;
-  largestLossCents: number | null;
+  avgWinCents: number | null;
+  avgLossCents: number | null;
   /** Null under a result filter: a session with its losers removed is not a session. */
+  avgSessionCents: number | null;
   bestSessionCents: number | null;
   worstSessionCents: number | null;
   firstDay: string | null;
@@ -118,6 +121,43 @@ function where(traderId: string, f: TradesFilter, window: { from: string | null;
     parts.push(f.results[0] === 'win' ? sql`${NET} > 0` : sql`${NET} < 0`);
   } else if (f.results.length === 2) {
     parts.push(sql`${NET} <> 0`);
+  }
+
+  /* THE SEARCH TERM, APPLIED IN SQL LIKE EVERY OTHER NARROWING. v2 matched its term in JavaScript
+   * over an index it had already loaded; this build's standing rule is that nothing is filtered in
+   * the browser and nothing is filtered after the read, so it is a predicate.
+   *
+   * FOUR THINGS MATCH, and each is something the chips beside this control cannot ask:
+   *   the ROOT      `MNQ` — a chip can ask this, but only by exact pick
+   *   the CONTRACT  `MNQU6` — NOT a filter chip at all, deliberately (the month is an expiry, not a
+   *                 strategy), so this is the only way to reach one
+   *   the PRODUCT   `nasdaq` -> the roots that name resolves to, via `rootsMatchingName`
+   *   the ACCOUNT   as a SUBQUERY, not a join. `getDigest` reads `trade` alone, so a join here would
+   *                 either break that caller or force every caller to carry a join it does not use.
+   *                 `account` is one row per account, so this costs an index probe per row at worst.
+   *
+   * `%` AND `_` ARE ESCAPED. They are LIKE wildcards, so an unescaped `_` silently matches any
+   * character and a lone `%` matches every row — a search that returns everything reads as a broken
+   * filter rather than as the trader having typed an operator. */
+  if (f.q) {
+    const like = `%${f.q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    const roots = rootsMatchingName(f.q);
+    parts.push(
+      sql`(
+        ${trade.symbolRoot} ilike ${like}
+        or ${trade.contract} ilike ${like}
+        ${roots.length ? sql`or ${inArray(trade.symbolRoot, roots)}` : sql``}
+        or exists (
+          select 1 from ${account}
+          where ${account.id} = ${trade.accountId}
+            and (
+              coalesce(${account.displayName}, '') ilike ${like}
+              or coalesce(${account.externalAccountId}, '') ilike ${like}
+              or coalesce(${account.propFirm}, '') ilike ${like}
+            )
+        )
+      )`
+    );
   }
 
   return and(...parts.filter((p): p is SQL => Boolean(p)))!;
@@ -336,8 +376,17 @@ export async function getDigest(
         feesCents: sql<number>`coalesce(sum(${trade.feeCents}), 0)`.mapWith(Number),
         wins: sql<number>`count(*) filter (where ${NET} > 0)`.mapWith(Number),
         losses: sql<number>`count(*) filter (where ${NET} < 0)`.mapWith(Number),
-        largestWinCents: sql<number | null>`max(${NET}) filter (where ${NET} > 0)`,
-        largestLossCents: sql<number | null>`min(${NET}) filter (where ${NET} < 0)`,
+        /* THE AVERAGES, NOT THE EXTREMES (2026-08-19, matching v2). This was `max`/`min` — largest
+           win and largest loss — which are the same KIND of figure as best/worst session directly
+           above them in the rail: four extremes stacked, two of them single trades. The averages
+           are what pair against win rate, and those three together are the expectancy triangle
+           (win rate x avg win against avg loss) that decides whether an edge survives. A largest
+           loss is one bad afternoon; an average loss is the habit, which is what `psychology.md`
+           exists to name.
+           ROUNDED IN SQL, because these stay integer cents all the way to the formatter — `avg()`
+           returns numeric and a fractional cent is not money in this codebase. */
+        avgWinCents: sql<number | null>`round(avg(${NET}) filter (where ${NET} > 0))`,
+        avgLossCents: sql<number | null>`round(avg(${NET}) filter (where ${NET} < 0))`,
         firstDay: sql<string | null>`min(${trade.sessionDate})`,
         lastDay: sql<string | null>`max(${trade.sessionDate})`,
         // Whether any fee was ever imported for this set. Zero is a real answer meaning "gross",
@@ -370,8 +419,16 @@ export async function getDigest(
     wins: totals.wins,
     losses: totals.losses,
     winRatePct: resultFiltered || !decided ? null : Math.round((totals.wins / decided) * 100),
-    largestWinCents: totals.largestWinCents === null ? null : Number(totals.largestWinCents),
-    largestLossCents: totals.largestLossCents === null ? null : Number(totals.largestLossCents),
+    avgWinCents: totals.avgWinCents === null ? null : Number(totals.avgWinCents),
+    avgLossCents: totals.avgLossCents === null ? null : Number(totals.avgLossCents),
+    /* THE SESSION FIGURES ARE ALL THREE OR NONE. `avgSession` joins best and worst under the same
+       `resultFiltered` guard for the same reason they carry it: a session with its losers filtered
+       out is not a session, so its average is as misleading as its worst. Rounded to whole cents
+       on the same rule as the win/loss averages above. */
+    avgSessionCents:
+      resultFiltered || !sessionNets.length
+        ? null
+        : Math.round(sessionNets.reduce((a, b) => a + b, 0) / sessionNets.length),
     bestSessionCents: resultFiltered || !sessionNets.length ? null : Math.max(...sessionNets),
     worstSessionCents: resultFiltered || !sessionNets.length ? null : Math.min(...sessionNets),
     firstDay: totals.firstDay,
@@ -394,9 +451,18 @@ export async function getDigest(
  * selection can always survive; what the panel COUNTS is the in-range set, which is the informative
  * number. Those are two different lists and collapsing them into one is the bug.
  */
+/** One account as the filter panel needs it: the composed title for chips and search, the firm it
+ *  groups under, and the title WITHOUT the firm for the row nested beneath it. */
+export interface FacetAccount {
+  id: string;
+  name: string;
+  firm: string;
+  short: string;
+}
+
 export async function getFacets(
   traderId: string
-): Promise<{ products: string[]; accounts: { id: string; name: string }[] }> {
+): Promise<{ products: string[]; accounts: FacetAccount[] }> {
   const [products, accounts] = await Promise.all([
     db
       .selectDistinct({ root: trade.symbolRoot })
@@ -419,9 +485,44 @@ export async function getFacets(
   return {
     products: products.map((p) => p.root),
     // The same composed title the tape prints, so a filter chip and the rows it selects never
-    // disagree about what an account is called.
-    accounts: accounts.map((a) => ({ id: a.id, name: accountRowTitle(a) })),
+    // disagree about what an account is called. `firm` and `short` come along for the panel's tree:
+    // it groups by firm and prints the account WITHOUT the firm under it, since the row above
+    // already says it.
+    accounts: accounts.map((a) => ({
+      id: a.id,
+      name: accountRowTitle(a),
+      firm: a.propFirm ?? UNLABELLED_FIRM,
+      short: accountShortTitle(a),
+    })),
   };
+}
+
+/**
+ * `(account, product) -> wins, losses` over everything the trader has ever traded.
+ *
+ * THE WHOLE INPUT TO THE FILTER PANEL'S NARROWING, and it is one query rather than one per tick —
+ * see `lib/trades/facets.ts` for why the intersection happens in the browser.
+ *
+ * DELIBERATELY NOT WINDOW-SCOPED, exactly like `getFacets` above and for the same reason: what the
+ * panel may OFFER is the full roster, so a selection can always survive a date change. v2's issue
+ * #92 is the bug that rule exists to prevent.
+ *
+ * `ok` ONLY. A quarantined trade is visible on the tape and countable in the notice above it, but a
+ * filter option reading "MNQ 12" that resolves to 9 usable rows would be a number that cannot be
+ * reconciled against the tape it filters.
+ */
+export async function getFacetRows(traderId: string): Promise<FacetRow[]> {
+  const rows = await db
+    .select({
+      accountId: trade.accountId,
+      product: trade.symbolRoot,
+      wins: sql<number>`count(*) filter (where ${NET} > 0)`.mapWith(Number),
+      losses: sql<number>`count(*) filter (where ${NET} < 0)`.mapWith(Number),
+    })
+    .from(trade)
+    .where(and(eq(trade.traderId, traderId), eq(trade.state, 'ok')))
+    .groupBy(trade.accountId, trade.symbolRoot);
+  return rows;
 }
 
 /** Quarantined and excluded trades in scope, for the notice above the tape. Counted separately

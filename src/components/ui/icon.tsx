@@ -39,8 +39,23 @@
  * ADDING AN ICON: draw it here, through `Drawn` below, in v2's shape (one wrapper, geometry only,
  * nothing per-icon overrides stroke or viewBox) — or import a lucide fallback for something v2
  * never needed. Either way it is one new entry in `MARKS`. Never inline an `<svg>` anywhere else.
+ *
+ * ─── THE ONE STATED EXCEPTION: A THIRD PARTY'S BRAND MARK ────────────────────────────────────
+ *
+ * `GoogleMark` in `views/auth/login.tsx` is an inline `<svg>` with four hardcoded hex values, and
+ * it is allowed to be (confirmed 2026-08-20). It cannot come through `Drawn`: it is FOUR-COLOUR and
+ * this wrapper is monochrome by construction, it is drawn on a 48 viewBox rather than 24, and it
+ * has no strokes to carry the 1.5 weight. Google's brand terms also require the exact colours, so
+ * tokenising them would be wrong even where it is possible.
+ *
+ * Recorded here rather than only at the call site, because the rule and its exception have to be
+ * readable in the same place - an audit that greps for `<svg` finds that file either way, and
+ * without this paragraph it reads as a violation somebody missed.
+ *
+ * THE EXCEPTION IS "A THIRD PARTY'S BRAND MARK", NOT "A COLOURED ICON". Any mark that is Run's own,
+ * or that could be drawn in one colour, goes in `MARKS` like everything else.
  */
-import { FileText, ChevronsRight, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { FileText, ChevronsRight, TriangleAlert, Bell, type LucideIcon } from 'lucide-react';
 import type { SVGProps } from 'react';
 
 /** The system's stroke. Read the note above before changing it. */
@@ -108,6 +123,25 @@ function DrawnFilter(props: DrawnProps) {
   return (
     <Drawn {...props}>
       <path d="M3.5 7h17M6.5 12h11M9.5 17h5" />
+    </Drawn>
+  );
+}
+
+/* An eye: VISIBILITY, ported verbatim from v2's `icons.tsx`.
+ *
+ * ADDED 2026-08-20 BECAUSE TWO CONTROLS ON ONE PAGE WORE ONE MARK (Luke: "do we really want the
+ * Columns button to have the same icon as the Filters? prob not right. they are on the same
+ * /trades page"). Correct, and it is worse than a cosmetic repeat: the /trades band states a
+ * control's job with a distinct leading mark every time — Search wears `search`, Date wears
+ * `today`, Filters wears `filter` — so a second `filter` says the two controls do the same thing.
+ * They do the opposite. Filters changes WHICH TRADES the tape holds; Columns changes WHICH FACTS
+ * about them are drawn, and the panel behind it is a list of things being shown or hidden. An eye
+ * is that, exactly. */
+function DrawnEye(props: DrawnProps) {
+  return (
+    <Drawn {...props}>
+      <path d="M2.5 12s3.6-6 9.5-6 9.5 6 9.5 6-3.6 6-9.5 6-9.5-6-9.5-6Z" />
+      <circle cx="12" cy="12" r="2.75" />
     </Drawn>
   );
 }
@@ -187,6 +221,28 @@ function DrawnMenu(props: DrawnProps) {
   return (
     <Drawn {...props}>
       <path d="M3 6h18M3 12h18M3 18h10" />
+    </Drawn>
+  );
+}
+// Ported verbatim from `run-trading@v2`'s `icons.tsx` (2026-08-19), rather than reached for in
+// lucide: v2 drew this one, and the house rule is that the hand-drawn set is the default and lucide
+// is only the fallback for marks v2 never drew.
+// Ported verbatim from `run-trading@v2`'s `icons.tsx` (2026-08-20), for the drawer's broker ids.
+// v2 drew it, so it comes from there rather than from lucide - the hand-drawn set is the default and
+// lucide is only the fallback for marks v2 never drew.
+function DrawnCopy(props: DrawnProps) {
+  return (
+    <Drawn {...props}>
+      <rect x="9" y="9" width="11.5" height="11.5" rx="2.5" />
+      <path d="M15 6.5v-1a2 2 0 0 0-2-2H5.5a2 2 0 0 0-2 2V13a2 2 0 0 0 2 2h1" />
+    </Drawn>
+  );
+}
+function DrawnSearch(props: DrawnProps) {
+  return (
+    <Drawn {...props}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m15.75 15.75 4.25 4.25" />
     </Drawn>
   );
 }
@@ -276,6 +332,8 @@ const MARKS = {
   collapse: DrawnCollapse,
   expand: ChevronsRight,
   menu: DrawnMenu,
+  search: DrawnSearch,
+  copy: DrawnCopy,
   close: DrawnClose,
   check: DrawnCheck,
   chevron: DrawnChevron,
@@ -293,10 +351,21 @@ const MARKS = {
 
   // ── the tape (S5c) ─────────────────────────────────────────────────────────────────────────
   filter: DrawnFilter,
+  // Which COLUMNS are drawn, never which trades are kept. See DrawnEye for why it is not `filter`.
+  eye: DrawnEye,
 
   // ── the account menu (S5c) ────────────────────────────────────────────────────────────────
   bolt: DrawnBolt,
   'sign-out': DrawnSignOut,
+
+  /* ── the sidebar header (2026-08-20) ──────────────────────────────────────────────────────
+     A LUCIDE FALLBACK, which is the documented path rather than an exception: `run-trading@v2`
+     drew 34 marks and a bell is not among them (checked, not assumed), so this is the same case
+     as `read`, `expand` and `warn`. Drawing one here would be inventing a mark to fill a gap,
+     which the note at the top of this file forbids. It still goes through `Icon` and therefore
+     still renders at 16px / stroke 1.5 like everything else — lucide's own default is 24 at
+     stroke 2, which is why an unwrapped one looks almost right and is not. */
+  bell: Bell,
 } satisfies Record<string, Glyph | LucideIcon>;
 
 export type IconName = keyof typeof MARKS;

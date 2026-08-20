@@ -8,7 +8,7 @@ import { TradesRail } from '@/components/views/trades/trades-rail';
 import { TradesControls } from '@/components/views/trades/trades-controls';
 import { QuarantineNotice } from '@/components/views/trades/quarantine-notice';
 import { readTradesFilter, rangeWindow, isNarrowed, isResultFiltered } from '@/lib/trades/filter';
-import { getTape, getTapeIds, getDigest, getFacets, getExcluded } from '@/lib/trades/read';
+import { getTape, getTapeIds, getDigest, getFacets, getFacetRows, getExcluded } from '@/lib/trades/read';
 import { sessionDateFor } from '@/lib/time/session';
 
 export const metadata: Metadata = { title: 'Trades' };
@@ -59,12 +59,13 @@ export default async function TradesPage({
      Ids rather than an offset: the server never re-derives the filter, so no row can appear twice or
      be skipped because the second derivation differed. A uuid is 36 bytes, so even a two-year corpus
      is well under a megabyte of ids against roughly ten of rows. */
-  const [sessions, digest, facets, excluded, ids] = await Promise.all([
+  const [sessions, digest, facets, excluded, ids, facetRows] = await Promise.all([
     getTape(trader.id, filter, window, { limit: FIRST_PAGE }),
     getDigest(trader.id, filter, window),
     getFacets(trader.id),
     getExcluded(trader.id, filter, window),
     getTapeIds(trader.id, filter, window),
+    getFacetRows(trader.id),
   ]);
 
   return (
@@ -72,12 +73,22 @@ export default async function TradesPage({
       {/* INTO THE SHELL'S OWN BAND, not a second one under it. The shell already prints "Trades"
           from the route, so this page contributes only its controls. */}
       <HeaderSlot>
-        <TradesControls filter={filter} products={facets.products} accounts={facets.accounts} />
+        <TradesControls
+          filter={filter}
+          products={facets.products}
+          accounts={facets.accounts}
+          facetRows={facetRows}
+        />
       </HeaderSlot>
 
       <WithSummaryRail
         rail={
-          <TradesRail digest={digest} filter={filter} resultFiltered={isResultFiltered(filter)} />
+          <TradesRail
+            digest={digest}
+            filter={filter}
+            resultFiltered={isResultFiltered(filter)}
+            ids={ids}
+          />
         }
       >
         <div className="flex flex-col gap-4">
@@ -92,14 +103,6 @@ export default async function TradesPage({
             narrowed={isNarrowed(filter)}
             rest={{ ids }}
           />
-          {/* PROVENANCE, on the page that presents computed figures (`spec.md` §S3, P8). It names
-              the source and the range the numbers actually cover rather than claiming freshness the
-              corpus cannot support. */}
-          {digest.trades > 0 && (
-            <p className="text-caption text-muted px-1">
-              From your Tradovate export, covering {digest.firstDay} to {digest.lastDay}.
-            </p>
-          )}
         </div>
       </WithSummaryRail>
     </>

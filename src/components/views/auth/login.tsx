@@ -20,8 +20,9 @@ import { site } from '@/config/site';
 import { analytics } from '@/lib/analytics';
 import { authClient } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { CodeInput } from '@/components/ui/code-input';
-import { Input } from '@/components/ui/input';
+import { TextField } from '@/components/ui/text-field';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 type Busy = 'google' | 'sending' | 'verifying' | null;
@@ -91,7 +92,12 @@ export function Login() {
      attacker-supplied by construction, and an unchecked one would let a link like
      `yourapp.com/login?next=https://evil.example` hand a freshly authenticated user to somebody
      else's page. See lib/next-path.ts.
-     `useSearchParams` needs a Suspense boundary above it, which the route already provides. */
+     `useSearchParams` FORCES A CLIENT-SIDE BAILOUT, so it needs a Suspense boundary above it or
+     the page cannot be prerendered. `src/app/login/page.tsx` declares that boundary explicitly, and
+     the note there is worth reading before moving this call: it used to be satisfied by a
+     `loading.tsx` at the app ROOT, which nobody had put there for this reason and which was in the
+     wrong place for its own. This comment used to read "which the route already provides" - true,
+     and true by accident. */
   const next = safeNext(useSearchParams().get('next'));
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -258,10 +264,36 @@ export function Login() {
 
           {/* The card frame stays mounted across states - only its contents swap - so a successful
               send reads as "the card you just used answered you", not as a page reset. */}
-          <div className="border-border bg-surface mt-8 rounded-[var(--radius)] border p-6">
+          {/* `Card`, NOT A HAND-ROLLED SURFACE (2026-08-20). This was
+              `border-border bg-surface rounded-[var(--radius)] border p-6` - a card built by hand
+              that reproduced the radius and the fill and then got the elevation exactly backwards:
+              a BORDER and NO SHADOW, where `Card` is a shadow and no border. It is the one screen a
+              cold visitor lands on, and it was the only surface in the product making the opposite
+              claim to every other one.
+              Measured rather than argued: `app.monarch.com/transactions` (2026-08-20) renders its
+              cards at `border-radius: 12px`, `box-shadow: rgba(34,32,29,0.1) 0 2px 4px`,
+              `border-width: 0px` - which is `--elevation-card` to the byte - and both cards on
+              /trades already match it. This one did not, because it never went through the
+              primitive. `modryn-base`'s own login uses `<Card className="mt-8 p-6">`; this build
+              diverged from it at the port.
+              `p-6` STAYS. The trades cards are `px-5` (20px), matching the reference's data cards,
+              but this is a form card with stacked full-width controls rather than rows of figures,
+              and base uses 24 here too. The chrome was the defect; the padding was not. */}
+          <Card className="mt-8 p-6">
             {/* One error slot, at the TOP: a Google failure originates from the button above, so a
                 message under the email form would attribute it to the wrong control. */}
-            {error && <p className="text-small text-neg mb-4 text-center">{error}</p>}
+            {/* `role="alert"`, ADDED 2026-08-20 (S5 step 3). This slot appeared and disappeared
+                silently for anyone not watching it: a message that is only a colour and a position
+                is not an error state, it is a decoration that happens to be terracotta. Every other
+                error surface in the product announces itself - `FieldError` carries the same role,
+                and the intake's refusals are notices - so this was the one that did not.
+                `aria-live` is not added beside it: `role="alert"` already implies `assertive`, and
+                declaring both is how one announcement becomes two. */}
+            {error && (
+              <p role="alert" className="text-small text-neg mb-4 text-center">
+                {error}
+              </p>
+            )}
 
             {step === 'code' ? (
               <CodePanel
@@ -311,7 +343,24 @@ export function Login() {
                   }}
                   className="flex flex-col gap-3"
                 >
-                  <Input
+                  {/* `TextField`, NOT a raw `Input` (2026-08-20, S5 step 3), and this screen is
+                      the reason that primitive exists: its header comment names /login as the place
+                      that carried an `aria-label` and no `<label>` element, so the one screen a
+                      cold visitor lands on rendered ZERO labels. The primitive was written and
+                      racked and this call site was never migrated to it, which is the ordinary way
+                      a fix gets built and not applied.
+                      `labelHidden` rather than no label. The visible design is a single
+                      placeholder-driven field and that stays; a visually hidden label is still a
+                      label, and `TextField` makes `label` required precisely so the choice has to
+                      be stated rather than skipped.
+                      NO `error` PROP, deliberately: this form's failures are reported in the one
+                      slot at the top of the card, because a Google failure originates ABOVE this
+                      field and a message underneath it would attribute it to the wrong control.
+                      `aria-invalid` is not wired for the same reason - it would claim the email is
+                      what failed when the message may be about the button above it. */}
+                  <TextField
+                    label="Email address"
+                    labelHidden
                     type="email"
                     required
                     inputMode="email"
@@ -323,7 +372,6 @@ export function Login() {
                       if (error) setError(null);
                     }}
                     placeholder="Enter your email"
-                    aria-label="Email address"
                   />
                   <Button
                     type="submit"
@@ -348,7 +396,7 @@ export function Login() {
                 </p>
               </>
             )}
-          </div>
+          </Card>
         </div>
       </main>
     </div>

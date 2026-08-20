@@ -52,6 +52,21 @@
      as quiet as a block of it, which is the reference's whole trick - but they answer different
      questions and one moving is not a reason for the other to follow. */
   --color-band: #f6f5f3;
+  /* ── THE BOILERPLATE'S GROUND NAMES, MAPPED ONTO RUN'S (2026-08-19) ─────────────────────────
+     `modryn-base` runs page -> `surface` -> `elevated`, where ELEVATED is the raised thing: a card,
+     a popover, a modal. Run runs page -> `surface-2` -> `surface`, where SURFACE is that same raised
+     card. Same ramp, two vocabularies, and every primitive the boilerplate ships reads `elevated` —
+     so without this alias a ported `Card` renders with NO background at all, silently, because "a
+     utility with no token behind it emits nothing".
+     An alias, not a second value: one ground cannot be two colours. The codebase step renames Run's
+     `surface` -> `elevated` and `surface-2` -> `surface` for real and retires these. */
+  --color-elevated: var(--color-surface);
+  /* A NAV ROW'S ACTIVE GROUND, AND ITS HOVER GROUND — deliberately the same value (Luke, 2026-08-19,
+     confirming the boilerplate's call). Run had these as two tokens: `surface-2` active, `hover`
+     hovered. The rule is that a row's rank is carried by the GROUND ALONE and the pointer already
+     disambiguates the moment two rows match, so a separate hover ground is one channel more than the
+     job needs. Derived from the PAGE rather than fixed, so a recolour carries it: 5% toward ink in
+     light, 22% in dark (a near-black page needs a bigger step to read at all). */
   /* ── FOUR JOBS, FOUR TOKENS, AND THE FLOOR COMES FROM THE JOB (2026-08-14) ──────────────────
      A census of the rebuild found 438 painted borders and every one of them was `--color-border`:
      39 structural edges, 399 row dividers, and every control in the product. `--color-rule` had
@@ -172,8 +187,22 @@
      terracotta is documented as the earned gravity / enforcement hue, and it is also the more
      legible of the two options (their green reads 3.3:1 on white against our 4.5). */
   --color-accent: #1f6b57;      /* deep pine - the one accent */
-  --color-accent-hover: #185545; /* one step down, the way their orange has orangeDark */
+  /* DERIVED, NOT PICKED (2026-08-19, aligning with `modryn-base`). This was `#185545`, a hand-typed
+     hex, and globals.css's own change/do-not-change box in the boilerplate names that as the exact
+     failure to avoid: a derived token written as a literal stops tracking the accent, and it stops
+     in ONE MODE FIRST, which is why nobody notices. 90% toward black in oklab reproduces the old
+     value to within a rounding step, so this is the same colour arrived at honestly. */
+  --color-accent-hover: color-mix(in oklab, var(--color-accent) 90%, black);
+  /* A saturated primary fill carries no border, so its press needs a signal that is not a shadow.
+     Mixed FROM `accent-hover` rather than from `accent`, and capped at 97%: in dark mode the label
+     on this fill is `elevated`, itself dark, so darkening further COSTS contrast instead of buying
+     it. 97% is measured headroom, not a round number (`design-rules.md`). */
+  /* Declared in `@theme static` below — see the note there on why. */
   --color-accent-fg: #ffffff;
+  /* THE BOILERPLATE'S NAME FOR THE SAME ROLE. `modryn-base` calls this `accent-foreground` and every
+     primitive it ships reads that name, so the alias is what lets a ported component work unchanged.
+     One value, two spellings, and the migration in the codebase step retires `--color-accent-fg`. */
+  --color-accent-foreground: var(--color-accent-fg);
   --color-pos: #2b754e;         /* darkened 5.5%: 4.11 on surface-2 was under the floor */
   --color-neg: #a84a3c;         /* muted terracotta - the earned gravity / enforcement hue */
   /* DARKENED 2026-08-13, #b8863b -> #85612a. It failed EVERY light ground - 2.96 / 3.23 / 2.64 /
@@ -182,6 +211,15 @@
      gauge, and a red zone nobody can see is the one hue in this palette that must never fail.
      Dark needed no change (4.72 worst) because dark had already been lifted for exactly this. */
   --color-warn: #85612a;        /* the red-zone AMBER (a status hue, not a 2nd accent) */
+  /* ── THE BOILERPLATE'S NAMES FOR THE SAME THREE ROLES ──────────────────────────────────────
+     `modryn-base` spells these `success` / `warning` / `danger`, and every primitive it ships reads
+     those names — `FieldError` is `text-danger`, and without the alias it renders as unstyled ink.
+     Aliases, not new values: Run's pos/neg/warn are a documented carve-out (terracotta is the
+     earned-gravity hue, and it is the more legible of the two candidates), so the VALUES stay Run's
+     and only the vocabulary is shared. The codebase step picks one spelling and retires the other. */
+  --color-success: var(--color-pos);
+  --color-warning: var(--color-warn);
+  --color-danger: var(--color-neg);
   /* Their ramp: 4 / 6 / 8 / 12 / 16 / 9999. We use three of them, which is the point of naming them -
      a SLOT (a row, a card, a selectable choice) is 12, a CONTROL (a button, an input, a chip) is 8,
      and a BADGE is 6. Before this the row radius was hand-typed as `--radius` at eight call sites
@@ -189,6 +227,17 @@
   --radius: 12px;      /* a slot: card, row, modal, selectable choice */
   --radius-sm: 8px;    /* a control: button, input, chip, menu item */
   --radius-xs: 6px;    /* a badge */
+  /* ── THE BOILERPLATE'S SPELLING OF THE SAME THREE STEPS (2026-08-19) ────────────────────────
+     `modryn-base` names its scale `sm` / `md` / `lg` and its rule reads "every labelled control
+     shares ONE radius (`rounded-md`), fields included; `rounded-sm` is for small insets, never a
+     form control." Run's scale is the SAME THREE JOBS under different names, which made the rule
+     look violated here when it is not: Run's control step is `--radius-sm`, so a Run control on
+     `rounded-sm` is obeying the rule that a base control on `rounded-md` obeys.
+     Aliased rather than renamed, because renaming is ~200 call sites and belongs in the codebase
+     step, not in the token file. The VALUES are Run's (12/8/6, not base's 16/10/6) — the radius
+     scale is explicitly a project's to choose. */
+  --radius-md: var(--radius-sm);  /* a control. base's `rounded-md` */
+  --radius-lg: var(--radius);     /* a slot.    base's `rounded-lg` */
   /* Gridlines and axis rules. Their own token, and it is NOT `border`: a chart rule sits under data
      and must recede further than an edge that separates two objects. */
   --chart-axis: #efece9;
@@ -198,6 +247,11 @@
      `active:bg-background-secondary`, which resolves the same way in each mode.
      Getting this backwards in dark is what made the press read as a dead spot rather than a push. */
   --pressed-bg: #f6f5f3;
+  /* THE BOILERPLATE'S NAME FOR IT, and there it is derived rather than typed: `--color-pressed:
+     var(--color-bg)`. Run's literal already IS the page in both modes (`#f6f5f3` / `#191918`), so
+     pointing at the page token changes no pixel and makes a recolour carry it. Exposed under
+     `--color-*` so `bg-pressed` exists as a utility, which is how every ported primitive spells it. */
+  /* Declared in `@theme static` below — see the note there on why. */
 
   /* Motion defaults — the ONE curve, applied to every bare `transition` utility.
      Added 2026-07-22 after an audit found the app was running TWO motion languages: the four
@@ -213,7 +267,40 @@
      so hovers never feel laggy.
      Per-element overrides (duration-*, ease-*) still win where a specific move needs them. */
   --default-transition-duration: 200ms;
-  --default-transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* `ease`, NOT `--ease-out`, AND THAT IS THE HOUSE RULE RATHER THAN A REGRESSION (2026-08-20).
+     Run shipped easeOutCubic as its default and argued for it at length, but the role table says
+     the DEFAULT curve is for a state change IN PLACE - a colour, a ground, an opacity - and `ease`
+     is that curve's job. `ease-out` is for something ENTERING or LEAVING, which is a different
+     motion and is now reached for by name (`--ease-out`) at the few places that actually do it.
+     Pointing the default at ease-out gave every hover in the product an entrance curve, which is
+     the same class of miss as the stock 150ms it originally replaced: a curve nobody chose per
+     element, just a different one. `modryn-base` declares exactly this. */
+  --default-transition-timing-function: ease;
+
+  /* ── THREE CURVES, EACH WITH A JOB, AND `ease-in` IS BANNED ────────────────────────────────
+     From `modryn-hq@v4:playbooks/design-rules.md`, sourced from Emil Kowalski's Easing Blueprint
+     (recorded in `ui-ux-sources.md`). This is a PERCEIVED-PERFORMANCE rule, not a taste one: their
+     proof is two dropdowns at an identical 300ms where the `ease-in` one plainly feels slower.
+       ease         a state change IN PLACE — a colour, a ground, an opacity
+       ease-out     something ENTERING or LEAVING — a menu, a tooltip, a scrim, a panel
+       ease-in-out  something ALREADY ON SCREEN that moves or resizes
+       linear       constant motion ONLY — a spinner, and nothing else
+       ease-in      never. It starts slow, which reads as the app hesitating.
+     Real curves rather than the CSS keywords, because the built-in ones are too weak to register.
+     Run already used easeOutCubic as its single default; the named token is that same value, so
+     nothing re-times — what changes is that the OTHER two jobs now have a curve to reach for
+     instead of a hand-picked `ease-out` at every call site. Same family, so an entrance and a move
+     read as one hand. */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* `ease-in-out` is declared in `@theme static` below. It has no consumer yet — the plain block
+     pruned it and it measured EMPTY in both modes, while `ease-out` survived only because the
+     default transition above happens to reference it. A curve nobody has reached for yet is exactly
+     the kind of token that must still EXIST, or the first person to reach for it gets nothing and
+     no error. */
+  /* A SPINNER IS CONSTANT MOTION, so `linear` is correct and stays. The DURATION is the finding:
+     Tailwind ships `spin 1s linear`, which is a number nobody chose, and a faster spinner makes an
+     app feel faster to load at an identical real load time. */
+  --animate-spin: spin 0.7s linear infinite;
 
   /* Type scale — the ONLY source of text sizes (never hand-pick text-[13px] per component).
      Dense instrument register: one grotesque throughout + mono numerics (serif = wordmark only).
@@ -260,6 +347,24 @@
   --text-nav: 16px;          --text-nav--line-height: 24px;          --text-nav--font-weight: 400;   --text-nav--letter-spacing: -0.01em;
   --text-title: 18px;        --text-title--line-height: 24px;         --text-title--font-weight: 500; --text-title--letter-spacing: -0.01em;
   --text-h2: 24px;           --text-h2--line-height: 30px;            --text-h2--font-weight: 500;    --text-h2--letter-spacing: -0.01em;
+  /* ── THE BOILERPLATE'S HEADING STEPS, IN RUN'S SCALE (2026-08-19) ──────────────────────────
+     `modryn-base` ships h1/h2/h3 and every primitive it ships reaches for them; Run had only `h2`,
+     with `title` and `display` doing the neighbouring jobs under Run's own names. These fill the two
+     gaps so a ported component renders at a real size instead of at nothing, and they are placed in
+     RUN'S ramp rather than copied from base's rem values: base runs 36/28/22px against Run's px
+     ladder, and Run's face sets optically larger at the same point size (Hanken's x-height measures
+     0.49em against system sans' 0.445em, canvas-measured). Slotting them between the existing steps
+     keeps one ladder rather than two that disagree.
+       h1  -> the page title above `display`'s figure register
+       h3  -> between `h2` and `title`, which is the step base's EmptyState heading wants */
+  /* THE DISPLAY FACE. `modryn-base` ships this as `system-ui` with a TODO calling that a reject,
+     because a boilerplate cannot know the brand. Run already chose one and shipped it: Newsreader,
+     the editorial serif, loaded in `layout.tsx` as `--font-serif` and worn by the wordmark. This
+     points the boilerplate's name at Run's answer rather than introducing a second display face —
+     one project, one heading font. */
+  --font-heading: var(--font-serif), Georgia, ui-serif, serif;
+  --text-h1: 28px;           --text-h1--line-height: 34px;            --text-h1--font-weight: 500;    --text-h1--letter-spacing: -0.02em;
+  --text-h3: 20px;           --text-h3--line-height: 26px;            --text-h3--font-weight: 500;    --text-h3--letter-spacing: -0.01em;
   /* MONEY / STAT NUMERALS. Not a display step - it never set in the serif and it is not a heading
      role. Sans + tabular-nums, never `.num` (that is for machine strings).
      px SINCE 2026-08-13, WAS 1.6rem/1.9rem. The kitchen sink put the whole ramp in one column and
@@ -312,17 +417,33 @@
      So the fill is left alone (brand.md: never #fff) and the ambient layer is brought to theirs.
      Two layers rather than their one, kept: the tight first layer is the contact shadow that stops
      a card looking like it is floating, and the second is the reach. */
-  --shadow-card: 0 2px 4px 0 rgba(34, 32, 29, 0.10);
+  /* ── INDIRECT ON PURPOSE, AND THIS IS LOAD-BEARING (2026-08-19) ────────────────────────────
+     Tailwind RESOLVES a shadow declared directly in `@theme` at BUILD time and inlines it into the
+     utility, leaving only the colour variable behind — so a `.dark` override of `--shadow-*`
+     silently does nothing and every shadow renders at its LIGHT value in dark mode. That shipped in
+     the boilerplate once. Pointing the theme value at a plain custom property leaves Tailwind
+     nothing to resolve, so the `.dark` swap works at runtime the way it reads.
+     Run was not visibly broken only because every call site spells it `shadow-[var(--shadow-card)]`,
+     the arbitrary-value form, which defers to runtime by accident. That workaround is why this file
+     carries ~70 `no-arbitrary-value` lint warnings, and it fails the moment anyone writes the
+     obvious `shadow-card`. The real values live in `:root` below, which MUST stay above `.dark`:
+     equal specificity, so source order decides. */
+  --shadow-card: var(--elevation-card);
   /* The resting lift for a CONTROL, a step below a card's. Measured off the reference's header
-     buttons, which sit at exactly this while their cards sit at the value above. */
-  --shadow-sm: 0 1px 2px 0 rgba(34, 32, 29, 0.05);
+     buttons, which sit at exactly this while their cards sit at the value above.
+     ⚠ `modryn-base` DELETED its equivalent: a resting drop shadow under a border is the exact
+     combination `design-rules.md` forbids, and this token's only consumer is `.lift-rest`, which
+     does precisely that. Kept for now so the token layer lands without moving the app; the control
+     itself is fixed in the codebase step (Luke, 2026-08-19: "styled like the modryn-base repo has
+     it. that is the modryn house style"), and this token goes with it. */
+  --shadow-sm: var(--elevation-sm);
   /* The inverse of --shadow-card: the same object pressed IN rather than raised. Used only by the
      compact icon button (components/ui/icon-button.tsx), where lift-then-press is the affordance.
      A runtime var for the same reason --shadow-card is one: the dark value is not the light value
      inverted. Light is the measured 0.10 ink; dark needs ~4x the alpha and a pure black,
      because on a near-value dark surface a 10% ink shadow does not register at all. Same ratio the
      card shadow above already uses between modes (0.05/0.08 light -> 0.30/0.22 dark). */
-  --shadow-press: inset 0 2px 4px 0 rgba(34, 32, 29, 0.10);
+  --shadow-press: var(--elevation-press);
 
   /* ── Scrims ───────────────────────────────────────────────────────────────────────────
      A SCRIM IS MADE OF INK, IN BOTH MODES. That sounds obvious and it is exactly the bug these
@@ -407,6 +528,28 @@
    `static` is the documented "emit these whatever you think" switch, and it is the right tool for
    any token consumed by hand-written CSS or an inline style rather than by a class. */
 @theme static {
+  /* A NAV ROW'S ACTIVE GROUND, AND ITS HOVER GROUND — deliberately the SAME value (Luke,
+     2026-08-19, confirming the boilerplate's call). Run had two: `surface-2` active, `hover`
+     hovered. The rule is that a row's rank is carried by the GROUND ALONE, and the pointer already
+     disambiguates the moment two rows match, so a second ground is one channel more than the job
+     needs. 5% toward ink in light; the `.dark` block runs 22%, because a near-black page needs a
+     far bigger step before a ground reads as one at all.
+     `static`, NOT the plain block, and that is not a preference. Declared in plain `@theme` it came
+     back EMPTY in light mode and resolved only in dark — Tailwind pruned it because no utility
+     referenced it yet, while the `.dark` copy survived by virtue of living in ordinary CSS. Measured
+     live, 2026-08-19, before anything consumed it. Same failure `--color-rule` and the mark hues
+     below already carry. */
+  --color-selected: color-mix(in oklab, var(--color-bg) 95%, var(--color-text));
+  /* THE PRESSED GROUND and THE PRIMARY'S PRESSED FILL, static for the same reason as the row above
+     and the mark hues below: nothing references them from a utility class YET, so the plain block
+     pruned both and they measured EMPTY in both modes. They are consumed by hand-written CSS
+     (`.lift-press`) and read by the kitchen sink through `getComputedStyle`, neither of which the
+     compiler can see. `modryn-base` keeps these in plain `@theme` and gets away with it only
+     because its primitives already spell them as classes; ours do not until the codebase step. */
+  --color-pressed: var(--color-bg);
+  --color-accent-active: color-mix(in oklab, var(--color-accent-hover) 97%, black);
+  /* The third curve. See the motion block above for which job each one has. */
+  --ease-in-out: cubic-bezier(0.645, 0.045, 0.355, 1);
   /* THE ROW RULE, a SECOND border weight and the thing that was missing (Luke, 2026-08-05: "look at
      the lines in light mode... you see how the lines are distinctly visible on Run's page. then look
      at monarch's. you see how they are harder to see. is that because the the color, weight, or
@@ -453,6 +596,26 @@
   --color-logo-tile: #fdfcf9;
 }
 
+/* ── THE REAL ELEVATION VALUES ──────────────────────────────────────────────────────────────
+   Plain custom properties, NOT `@theme`, so Tailwind has nothing to resolve at build time and the
+   `.dark` block below can actually swap them. See the note on `--shadow-card` for the failure this
+   shape prevents. THIS BLOCK MUST STAY ABOVE `.dark`: both carry equal specificity, so source order
+   decides, and below it the whole fix is a silent no-op.
+   Two values plus one on notice. DROP vs INSET is the split, not a ramp of depths: a drop shadow
+   claims "I float above the page", which only a Card may claim; an inset claims the opposite, that
+   the surface went down, which is what a press is. */
+:root {
+  /* THE SKELETON'S SWEEP. A plain custom property rather than a `@theme` token because only the
+     hand-written `.skeleton` rule below reads it, and per-mode literals rather than an inversion:
+     the sheen moves TOWARD the lighter end in both modes, and the two ends are not mirror images.
+     Light lifts `surface-2` (#ebe8e5) toward the page; dark lifts it a step past itself, because a
+     white sheen on a near-black ground reads as a flash rather than a sweep. */
+  --skeleton-sheen: #f7f6f4;
+  --elevation-card: 0 2px 4px 0 rgba(34, 32, 29, 0.10);
+  --elevation-sm: 0 1px 2px 0 rgba(34, 32, 29, 0.05);
+  --elevation-press: inset 0 2px 4px 0 rgba(34, 32, 29, 0.10);
+}
+
 /* Dark mode — a warm-matched counterpart, accent lifted for legibility. Toggled via
    ThemeProvider (src/components/theme-provider.tsx) adding/removing .dark on <html>. */
 .dark {
@@ -493,7 +656,9 @@
      5.71 now. */
   --color-muted: #a6a4a0;       /* their content.secondary, lifted to clear AA on every ground */
   --color-accent: #56b79b;
-  --color-accent-hover: #47a189;
+  /* DERIVED, like its light counterpart. 90% toward black in oklab reproduces the old hand-typed
+     #47a189 to within a rounding step, so no pixel moves and a recolour now carries it. */
+  --color-accent-hover: color-mix(in oklab, var(--color-accent) 90%, black);
   --chart-axis: #3b3a37;
   /* DELIBERATELY NOT THEIRS (Luke, 2026-08-01: "i cant see it on the dark theme"). Their button says
      `active:bg-background-secondary`, which in dark is #2a2a28 - LIGHTER than the #222221 it rests
@@ -517,6 +682,9 @@
      rack together in dark; if the hover disappears into the band, the fix is a distinct dark
      `--color-band`, not a darker hover (hover is shared by every list in the product). */
   --color-band: #2a2a28;
+  /* 22%, NOT light's 5%. A near-black page needs a far bigger step toward ink before a ground
+     reads as a ground at all; the same 5% here is invisible. Derived, so a recolour carries it. */
+  --color-selected: color-mix(in oklab, var(--color-bg) 78%, var(--color-text));
   --pressed-bg: #191918;
   --color-accent-fg: #0b1512;
   --color-pos: #6ab391;         /* lifted 11%: 3.97 on surface-2 was under the floor */
@@ -525,9 +693,14 @@
   /* Dark surfaces sit near-value to bg, so the lift needs a stronger black-based shadow to read.
      Widened with the light value above and by the same ratio, so a card does not read as raised in
      one mode and printed on in the other. */
-  --shadow-card: 0 2px 4px 0 rgba(0, 0, 0, 0.32);
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.28);
-  --shadow-press: inset 0 2px 5px 0 rgba(0, 0, 0, 0.45);   /* theirs is #0003; deepened with the ground, same reason */
+  /* THE ELEVATION VALUES, NOT THE THEME TOKENS. Overriding --shadow-* here would be the no-op the
+     note above warns about; these are the plain properties the theme tokens point at. Dark needs
+     ~4x the alpha and a pure black, because on a near-value dark surface a 10% ink shadow does not
+     register at all. */
+  --skeleton-sheen: #4a4845;
+  --elevation-card: 0 2px 4px 0 rgba(0, 0, 0, 0.32);
+  --elevation-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.28);
+  --elevation-press: inset 0 2px 5px 0 rgba(0, 0, 0, 0.45);   /* theirs is #0003; deepened with the ground, same reason */
   /* Black, not the dark ink token - see the note beside the light values. A dark page dimmed by its
      own near-white text colour gets BRIGHTER, which is the failure this replaces. */
   --scrim: rgba(0, 0, 0, 0.62);
@@ -575,6 +748,22 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
+  /* SKINNY SCROLLBARS EVERYWHERE, BY DEFAULT (2026-08-20, adopting `modryn-base`'s rule).
+     ON `*`, NOT ON `html`, AND THAT IS THE WHOLE TRICK: `scrollbar-color` inherits but
+     `scrollbar-width` DOES NOT, so declaring both on the root styles the DOCUMENT's own bar and
+     silently leaves every interior scroll pane at the OS default.
+     This replaces an opt-in `.scroll-thin` class, which is the same failure as a motion curve that
+     is not the default: applied to some panes, forgotten on the rest. Caught exactly that way -
+     `/kitchen-sink`'s main pane shipped bare `overflow-y-auto` and painted the platform's grey
+     slab beside a tape that uses the thin one.
+     THE THUMB IS `muted`, NOT `border`. Measured: `border` sits around 1.2:1 against the page in
+     light and 1.4:1 in dark, which does not render a skinny thumb so much as delete it. `muted` is
+     findable in both modes, which is the entire job of a scrollbar. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-muted) transparent;
+  }
+
   /* Keyboard-focus baseline (a11y) for every interactive element — mouse users unaffected. */
   :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: var(--radius-sm); }
   .serif { font-family: var(--font-serif), Georgia, ui-serif, serif; }
@@ -616,14 +805,50 @@
 }
 .text-link:hover { text-decoration: underline; }
 
-.scroll-thin {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-border) transparent;
+/* NO BAR AT ALL, for a surface whose job is to stay quiet. `design-rules.md` names the nav rail
+   specifically: a scrollbar inside it is chrome drawn on the one panel that should recede. Distinct
+   from `.scroll-thin` below, which QUIETENS a bar on a surface that still needs to show one — a
+   long content pane has to advertise that it scrolls; a nav rail does not. */
+.no-scrollbar {
+  scrollbar-width: none;
 }
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* REDUNDANT SINCE 2026-08-20, kept only so existing call sites do not break. The `*` rule in
+   `@layer base` now themes every pane, including the ones nobody remembered to opt in. Remove the
+   class from a call site whenever you are already editing it; do not add it to a new one. The
+   thumb value lives with the universal rule, not here, so this cannot drift from it. */
+.scroll-thin { }
 
 /* Sparse motion — one quiet reveal + a calm presence pulse (opacity only, no glow). */
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-.rise { animation: rise 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.rise { animation: rise 0.5s var(--ease-out) both; }
+
+/* A SHIMMER, NOT A PULSE (2026-08-20). Both are conventional; the research is not neutral between
+   them - a sweep is perceived as SHORTER than an opacity pulse at an identical real duration, which
+   is the whole job of a loading placeholder. A pulse also fades the block toward whatever is behind
+   it, so on a ground close to the skeleton's own it can approach invisibility at the trough, which
+   is exactly the failure this component already had once here.
+   `linear`, AND THAT IS THE CURVE TABLE'S OWN ANSWER rather than an exception to it: a sweep is
+   constant motion, which is `linear`'s one legitimate job, the same reason the spinner keeps it.
+   Easing a sweep makes it appear to stall once per cycle.
+   1.6s sits inside the 1.5-2s band the guidance gives: fast enough to read as active, slow enough
+   that it never pulls the eye off the content arriving around it. */
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.skeleton {
+  background-color: var(--color-surface-2);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--skeleton-sheen) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.6s linear infinite;
+}
 
 @keyframes softpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .soft-pulse { animation: softpulse 2.4s ease-in-out infinite; }
@@ -635,7 +860,7 @@
 
 /* The red-zone gauge fill grows in once when the zone crosses (opacity/transform only, no glow). */
 @keyframes climb { from { opacity: 0.4; transform: scaleX(0.15); } to { opacity: 1; transform: scaleX(1); } }
-.climb { animation: climb 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both; transform-origin: left center; }
+.climb { animation: climb 0.7s var(--ease-out) both; transform-origin: left center; }
 
 /* ONE MOTION FOR A PANEL OPENING OR CLOSING - width (a panel that pushes) and translate (a panel
    that slides over), on the same signature curve as .rise/.select-pop, not Tailwind's stock
@@ -649,7 +874,68 @@
 
    Tailwind v4's -translate-x-* utilities set the standalone `translate` CSS property, not
    `transform` - listing `transform` here transitioned nothing and the panel just snapped. */
-.panel-transition { transition: width 0.3s cubic-bezier(0.22, 0.61, 0.36, 1), translate 0.3s cubic-bezier(0.22, 0.61, 0.36, 1); }
+/* `--ease-in-out`, NOT ease-out (2026-08-20). The role table is explicit: ease-out is for
+   something ENTERING or LEAVING, ease-in-out for something ALREADY ON SCREEN that moves or
+   resizes. A sidebar and a summary rail are both on screen the whole time and change WIDTH, so
+   this is the second job, not the first. `modryn-base` declares the identical pair for its own
+   panel (`transition: 0.3s var(--ease-in-out)`). */
+.panel-transition {
+  /* SHORTHAND FOR THE TIMING, LONGHAND FOR THE PROPERTIES (2026-08-20, adopting `modryn-base`'s
+     form). This was `transition: width 0.3s var(--ease-in-out), translate 0.3s var(--ease-in-out)`,
+     which states the duration twice and the curve twice - four places for two values to drift apart
+     the first time either is tuned.
+     The shorthand with no property named defaults to `all`, and the `transition-property` line then
+     narrows it, so the ORDER matters: the longhand has to come after or the implicit `all`
+     overwrites it. Listing the two properties also keeps colour and shadow off the clock, which is
+     what stops a panel fighting the theme toggle.
+     `ease-in-out` IS THE CORRECT CURVE HERE, and it earns the name: this is for something ALREADY
+     ON SCREEN that resizes - the sidebar and the summary rail both animate `width`, i.e. they are
+     already visible and changing shape, which is exactly that curve's one job. The trade drawer
+     used to share this class and no longer does; see `.drawer-transition` below for why.
+     Source: `modryn-hq@v4:playbooks/ui-ux-sources.md`, the Transitions entry. */
+  transition: 0.3s var(--ease-in-out);
+  transition-property: width, translate;
+}
+
+/* THE DRAWER'S OWN TIMING, SPLIT OUT FROM `.panel-transition` (2026-08-20). It used to share that
+   declaration on the stated reasoning that "two panels framing the work that arrive at different
+   speeds read as two different products" - which is true of DURATION and says nothing about curve.
+   The drawer ENTERS AND LEAVES the screen; the sidebar and rail RESIZE IN PLACE. Those are the two
+   different jobs the role table names `ease-out` and `ease-in-out` for, and one class had been
+   asked to do both.
+   `0.3s` STAYS, on purpose - matching duration is what keeps the family feel `panel-transition`'s
+   own comment argues for, and the correction is to the curve alone.
+   `opacity` IS IN THE PROPERTY LIST, and it has to be. This is UNLAYERED (see `.panel-transition`'s
+   own note on why), so it always beats anything in Tailwind's layer for `transition-property` on an
+   element carrying both - not merged, one wins outright. The drawer's steppers fade in and slide at
+   once, and a Tailwind `transition-opacity` utility placed beside this class would silently lose:
+   measured live before this was written, the steppers' computed `transitionProperty` read `"width,
+   translate"` with no `opacity` in it at all, so the fade was never animating. The panel itself
+   never changes its own opacity, so listing the property here is inert there and load-bearing on
+   the steppers - one declaration has to cover both call sites' needs. */
+.drawer-transition {
+  transition: 0.3s var(--ease-out);
+  transition-property: translate, opacity;
+}
+
+/* CLIP THE CONTENT, LET THE DROP SHADOW OUT (2026-08-20).
+   A panel that animates its width to zero has to clip, or its contents spill past the closing edge
+   for the whole 300ms. `overflow: hidden` does that - and also clips anything a CHILD paints outside
+   its own box, which for a `Card` is its entire reason for looking raised.
+   Measured on /trades: the summary rail's `<aside>` and the card inside it had pixel-identical boxes
+   (304 x 483.33, same origin), so `--shadow-card`'s `0 2px 4px` - which needs 6px below the box and
+   4px to each side - was clipped to NOTHING. The card rendered as a flat rectangle with hard square
+   corners while the tape card beside it, which has no clipping ancestor, kept its shadow. One page,
+   two cards, two different elevations, and the flat one is the bug rather than the soft one.
+   `overflow: clip` + `overflow-clip-margin` is the feature for exactly this: clip the layout at the
+   box, then allow painting a stated distance beyond it. 8px covers the 6px reach with room, and is
+   far short of anything a caller would notice as a spill.
+   ONLY WHILE THE PANEL IS OPEN. Collapsed, the margin would show an 8px sliver of a panel that is
+   supposed to be gone, so the call site swaps back to `overflow-hidden` there - see summary-rail. */
+.clip-allow-shadow {
+  overflow: clip;
+  overflow-clip-margin: 8px;
+}
 
 /* ── The compact icon button's chip (components/ui/icon-button.tsx) ────────────────────
    REST = nothing, HOVER = a raised chip appears, PRESS = the same chip pushes in. Harvested from
@@ -688,13 +974,21 @@
      -4px on each side of 36 lands exactly on 44. Added 2026-07-30 when the icon buttons were
      consolidated - it preserves Luke's 2026-07-21 "44x44 hit area STAYS" alongside the 36px look. */
   position: relative;
+  /* A BORDER AT REST, TRANSPARENT (2026-08-20). The width is present in every state and only the
+     COLOUR moves on hover, so the circle never resizes and the change can actually transition - a
+     width going 0 -> 1px cannot animate in any browser. Base uses the identical technique. */
+  border: 1px solid transparent;
   /* 100ms, not the 200ms default: contact has to be immediate or the press reads mushy. Same
      house curve, so it is still the one motion language (the measured reference is 0.1s
      ease-out). */
-  transition: background-color 0.1s cubic-bezier(0.22, 0.61, 0.36, 1),
-              border-color 0.1s cubic-bezier(0.22, 0.61, 0.36, 1),
-              box-shadow 0.1s cubic-bezier(0.22, 0.61, 0.36, 1),
-              color 0.1s cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* `ease`, matching the default curve, because every property here is a state change IN PLACE -
+     a ground, an edge, an inset, an ink. Nothing enters, leaves, moves or resizes, so ease-out
+     would be an entrance curve on something that never enters. The 0.1s stays: contact has to be
+     immediate or the press reads mushy. */
+  transition: background-color 0.1s ease,
+              border-color 0.1s ease,
+              box-shadow 0.1s ease,
+              color 0.1s ease;
 }
 /* NOT AN INVERSION - the ramps are not symmetric. Light lifts to `surface` (a white chip on the grey
    band) and presses back down to `surface-2`. Dark lifts to `hover` and presses back to `surface`,
@@ -721,12 +1015,26 @@
    in both - but a BUTTON is not, and between two of their answers the one with the edge is right
    here: a card is a region you read, a button is a thing you hit, and an edge is how a hit target
    says where it ends. */
-.lift-rest { background-color: var(--color-surface); box-shadow: var(--shadow-sm); border: 1px solid var(--color-border); }
+/* NO RESTING SHADOW (2026-08-20). This carried `--shadow-sm` UNDER a hairline, which is precisely
+   the combination the house rule forbids: "a control gets a border OR a drop shadow, never both -
+   and only Card ever gets the shadow". Base deleted its equivalent token outright for the same
+   reason. The border alone is what says where the hit target ends; the fill is what separates it
+   from the band behind it. */
+.lift-rest { background-color: var(--color-surface); border: 1px solid var(--color-border); }
 /* :not(:disabled) ADDED 2026-08-13. Without it a disabled IconButton still lifted on hover
    and pushed in on press: CSS :hover fires on a disabled button, so the control looked live and
    only failed on click. Found in the rack, which is the first place a disabled one was rendered
    beside an enabled one. */
-.lift-press:not(:disabled):hover { background-color: var(--lift-bg); box-shadow: var(--shadow-card); }
+/* HOVER IS A BORDER PLUS A GROUND, NOT A DROP SHADOW (2026-08-20, adopting the house rule).
+   This read `box-shadow: var(--shadow-card)` - a chip that visibly LIFTED off the page - and that
+   is the one thing `design-rules.md` forbids a control to do: a drop shadow claims "I float above
+   the page", and that claim belongs to `Card` alone. The replacement is the same pair a SECONDARY
+   button wears at rest (`border` + the raised ground), which is exactly the resemblance Luke named:
+   an icon button hovers into the shape a labelled secondary button already rests in.
+   Nothing is lost. The chip still appears out of nothing on hover; it is now bounded by an edge
+   instead of by a cast shadow, and the press below still pushes it in with an INSET, which is the
+   opposite claim and stays legal. */
+.lift-press:not(:disabled):hover { background-color: var(--lift-bg); border-color: var(--color-border); }
 /* HOVER IS THE BORDER AND NOTHING ELSE, for anything that is already a raised object (Luke,
    2026-07-31: "monarch doesn't highlight the entire button on hover. i think its just the border.
    and its subtle"). He is right and it is in their source verbatim - their button carries
@@ -735,7 +1043,13 @@
    that already has a ground must not get a second one on hover. A BARE glyph (IconButton, the theme
    toggle, the sidebar collapse) keeps the chip-appears behaviour above - "some buttons like the
    sidebar menu button is good the way it is". */
-.lift-rest:hover { background-color: var(--color-surface); box-shadow: var(--shadow-sm); border-color: var(--color-border-strong); }
+/* `:not(:disabled)` TO MATCH THE RULE ABOVE, and that is a fix rather than tidying. This read
+   `.lift-rest:hover` (0,2,0) while `.lift-press:not(:disabled):hover` above reads (0,3,0), so on a
+   control carrying BOTH classes the bare-chip rule won and a header control hovered into the chip
+   treatment instead of the border-only one this rule describes. Equal specificity restores "source
+   order decides", which is what the comment always claimed. Same class of bug as the `data-active`
+   one fixed on 2026-08-19, from the same 2026-08-13 change. */
+.lift-rest:not(:disabled):hover { background-color: var(--color-surface); border-color: var(--color-border-strong); }
 /* PRESSED, and it has to come after both. Their button: `active:shadow-inset active:bg-background-secondary`. */
 /* HELD DOWN WHILE A PANEL IS OPEN, not just while the finger is down. A trigger that springs back
    the moment you release has stopped saying which control the panel belongs to - the same argument
@@ -743,21 +1057,39 @@
    reads as a press on top of it. */
 .lift-rest[data-active='true'] { background-color: var(--pressed-bg); box-shadow: var(--shadow-press); border-color: var(--color-border-strong); }
 .lift-rest:active { background-color: var(--pressed-bg); box-shadow: var(--shadow-press); }
+/* THE SAME HELD-OPEN CLAIM, FOR `Button variant="secondary"` (2026-08-20). A card-header popover
+   trigger (Columns) is `Button secondary`, not `HeaderControl` - `header-slot.tsx` is explicit that
+   `lift-press`/`lift-rest` are the shell BAND's chrome and a card control reaching for them anyway
+   is the wrong family. But Button's own `variantClasses` only carry Tailwind `hover:`/`active:`
+   utilities, which have no data-attribute variant, so setting `data-active` on one did nothing -
+   Columns opened and the trigger sprang back the instant the pointer lifted.
+   Written as a hand-rolled rule keyed off `.btn-secondary`, not as a `data-[active=true]:` utility
+   in the variant string, on purpose: `data-active` already cost one real bug here once (2026-08-19,
+   the `.lift-press`/`.lift-rest` pair above) from relying on a variant's position in the generated
+   stylesheet to beat `:hover`, which is not the same thing as its position in a className string.
+   Unlayered, like the block above - a real CSS rule always beats a Tailwind utility regardless of
+   source order, so this cannot be re-broken by reordering classes in `button.tsx`. */
+.btn-secondary[data-active='true'] { background-color: var(--pressed-bg); box-shadow: var(--shadow-press); border-color: var(--color-border-strong); }
 /* HELD state for a toggle, e.g. the Sessions "Summary" control while its rail is open. Same ground
    and same inset shadow as :active, but it stays put instead of springing back - a toggle that
    springs back reads as having done nothing, and the only way left to learn what it did is to go
    look for the panel.
    AFTER :hover on purpose. Both selectors are one class plus one simple selector, so they carry
    equal specificity and source order decides; placed later, the held state survives the pointer
-   passing over it. It sits BEFORE :active so a real press still reads as a press. */
-.lift-press[data-active='true'] { background-color: var(--press-bg); box-shadow: var(--shadow-press); }
+   passing over it. It sits BEFORE :active so a real press still reads as a press.
+   `:not(:disabled)` HERE TOO, matching the hover rule above it (2026-08-19). The disabled-hover fix
+   on line 729 raised THAT selector's specificity without raising this one's, so a control that was
+   both open (`data-active`) and hovered lost to `:hover` and sprang back to the raised look the
+   instant the cursor rested on it after a click - the normal case, not an edge one. Equal
+   specificity restores "source order decides," which is what makes this selector win. */
+.lift-press:not(:disabled)[data-active='true'] { background-color: var(--press-bg); box-shadow: var(--shadow-press); }
 .lift-press:not(:disabled):active { background-color: var(--press-bg); box-shadow: var(--shadow-press); }
 @media (prefers-reduced-motion: reduce) { .lift-press { transition: none; } }
 
 /* A quiet settle when a selectable card becomes active - just enough weight to confirm the choice,
    never a bounce. Pair with the accent border/tint, which transition on their own. */
 @keyframes selectpop { 0% { transform: scale(0.985); } 55% { transform: scale(1.008); } 100% { transform: scale(1); } }
-.select-pop { animation: selectpop 0.28s cubic-bezier(0.22, 0.61, 0.36, 1); }
+.select-pop { animation: selectpop 0.28s var(--ease-out); }
 
 /* A modal backdrop fades in on open - opacity only, never the content behind it, so the surface
    underneath still reads as static (matches the no-entrance-animation rule for screens 1/2/3). */
@@ -766,8 +1098,10 @@
 
 /* ── Popovers: ONE entrance for every panel that opens off a trigger ───────────────────
    Added 2026-07-31 (Luke: "all menus should open with a touch of animation"). Four panels were
-   appearing in a single frame - the two chart menus, the trade Filters panel, the phone overflow
-   and the sidebar's account menu - which reads as a redraw rather than as something arriving.
+   appearing in a single frame - the two chart menus, the trade Filters panel and the phone overflow
+   - which reads as a redraw rather than as something arriving. The sidebar's account menu used to
+   be a fifth; it moved to `.menu-panel` below (2026-08-20), which is a transition rather than an
+   animation and needs neither this reasoning nor these keyframes.
 
    ENTER ONLY, NO EXIT. An exit fade needs the panel held mounted through it (the useModalClose
    machinery in modal-shell.tsx), which is a lot of state for 140ms nobody watches; and a dismissal
@@ -781,19 +1115,60 @@
   from { opacity: 0; transform: translateY(-4px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-.pop-in { animation: popin 0.14s cubic-bezier(0.22, 0.61, 0.36, 1) both; transform-origin: top right; }
-/* Same move for a panel that opens UPWARD (the sidebar's account menu, anchored bottom-left). It has
-   to travel the other way and grow from the other corner, or it reads as arriving from behind the
-   trigger rather than out of it. */
-@keyframes popinup {
-  from { opacity: 0; transform: translateY(4px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+.pop-in { animation: popin 0.14s var(--ease-out) both; transform-origin: top right; }
+
+/* A MENU PANEL THAT OPENS AND CLOSES WITHOUT A STATE MACHINE (2026-08-20, adopting `modryn-base`).
+   Replaces `.pop-in-up` / `@keyframes popinup`, the sidebar account menu's only consumer, retired
+   with it. That was a pair of keyframe animations - an entrance only, per the section header above
+   - which is why the menu had to leave INSTANT rather than close with any motion at all: keyframes
+   cannot be interrupted, so an exit needs its own held-mounted state, an `animationend` listener to
+   unmount, and a `pointer-events-none` guard for the case where that event never fires. `run-trading@v2`
+   shipped exactly that machinery; base measured it as two coordinated bugs and replaced it.
+
+   A TRANSITION IS INTERRUPTIBLE BY DEFINITION - the browser reverses from wherever the value
+   currently is, so reopening mid-close just turns around instead of restarting the exit from the
+   top. `display` IS IN THE TRANSITION, which is the part that makes a real exit possible while
+   still ending at `display: none`: `transition-behavior: allow-discrete` defers the switch to
+   `none` until the closing transition finishes, and applies it immediately on the way in. Closed
+   therefore means genuinely closed - out of the accessibility tree, out of the tab order,
+   unclickable - with no `aria-hidden` or `inert` to keep in sync by hand.
+
+   `@starting-style` supplies the "before" state for the first frame the panel is displayed.
+   Without it there is nothing to animate FROM and the panel just appears.
+
+   Exit is faster than entry (0.1s against 0.14s), the one asymmetry worth keeping: an arrival is
+   worth watching, a dismissal is something the user already decided on. Scale starts at 0.98 rather
+   than 0, matching `.pop-in` - an element growing from nothing reads as arriving from nowhere. */
+.menu-panel {
+  transition: 0.14s var(--ease-out);
+  transition-property: opacity, scale, translate, display;
+  transition-behavior: allow-discrete;
+  /* Grows out of the row that opened it, not out of its own centre. */
+  transform-origin: bottom left;
 }
-.pop-in-up { animation: popinup 0.14s cubic-bezier(0.22, 0.61, 0.36, 1) both; transform-origin: bottom left; }
+.menu-panel[data-open='true'] {
+  opacity: 1;
+  scale: 1;
+  translate: 0 0;
+}
+.menu-panel[data-open='false'] {
+  opacity: 0;
+  scale: 0.98;
+  translate: 0 4px;
+  display: none;
+  transition-duration: 0.1s;
+}
+@starting-style {
+  .menu-panel[data-open='true'] {
+    opacity: 0;
+    scale: 0.98;
+    translate: 0 4px;
+  }
+}
 /* The same arrival for something CENTRED - a stacked confirmation, not a panel hanging off a
    trigger. Only the origin differs: `pop-in` scales from its top-right corner because that is where
    its trigger is, and a centred card doing that appears to be thrown in from the corner. */
-.pop-in-center { animation: popin 0.14s cubic-bezier(0.22, 0.61, 0.36, 1) both; transform-origin: center; }
+.pop-in-center { animation: popin 0.14s var(--ease-out) both; transform-origin: center; }
 
 /* A FIGURE OR A LIST THAT JUST BECAME A DIFFERENT ONE. Not an entrance - the element was already
    there and its CONTENT was replaced, which a plain re-render shows as a hard swap.
@@ -804,7 +1179,7 @@
    trend line plus every group header), and anything that travels would read as the page twitching.
    Shorter than pop-in - this accompanies a change you asked for, so it must not feel like latency. */
 @keyframes valuefade { from { opacity: 0; } to { opacity: 1; } }
-.value-fade { animation: valuefade 0.14s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.value-fade { animation: valuefade 0.14s var(--ease-out) both; }
 
 /* ── Intake progress (components/views/accounts/progress-panel.tsx) ────────────────────
    ONE move, for the longest wait in the product (~17s measured).
@@ -823,7 +1198,7 @@
                 .select-pop, but select-pop confirms the TRADER's choice and this confirms the
                 SYSTEM's work; two different events should not share a gesture. */
 @keyframes checkdraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-.check-draw { stroke-dasharray: 1; animation: checkdraw 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.check-draw { stroke-dasharray: 1; animation: checkdraw 0.32s var(--ease-out) both; }
 
 /* ── The Total P&L plot (components/views/accounts/total-pnl-card.tsx) ─────────────────
    ONE GESTURE PER CHART TYPE, because the two are not the same object. A line has a direction and
@@ -841,16 +1216,26 @@
    carries a non-scaling stroke, so stroke-dasharray lengths are computed in a space unrelated to
    the painted pixels and the draw would run at a different speed at every card width. */
 @keyframes drawin { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
-.draw-in { animation: drawin 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.draw-in { animation: drawin 0.7s var(--ease-out) both; }
 
 /* Each bar grows out of the zero line. `transform-origin` is set per bar by the component, because
    a losing day hangs BELOW the axis and has to grow downward from its top edge, not upward from
    its bottom. The component also staggers the delay across the series so the set reads left to
    right - the same direction the line draws - without any bar taking longer than the line does. */
 @keyframes barrise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-.bar-rise { animation: barrise 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.bar-rise { animation: barrise 0.42s var(--ease-out) both; }
 
 @media (prefers-reduced-motion: reduce) {
+  /* `animate-pulse` IS TAILWIND'S, NOT OURS, AND THIS LIST IS AN ALLOWLIST (2026-08-20). Every
+     other entry here is a class this file declares, so a built-in utility used by a primitive was
+     never covered: `Skeleton` kept pulsing for a trader who had asked the OS for less motion, and
+     a skeleton is the one animation on screen for as long as a page takes to load. The boilerplate
+     catches this by accident, with a universal `*` selector; naming it is the version that still
+     works if that selector is ever narrowed. */
+  /* A frozen sweep would leave a bright band parked across the block, which reads as a rendering
+     fault. `.skeleton` therefore drops the gradient entirely below, rather than being timed to
+     0.01ms like the entrances. */
+  .animate-pulse,
   .rise,
   .climb,
   .select-pop,
@@ -859,7 +1244,6 @@
   .cursor-blink,
   .backdrop-fade,
   .pop-in,
-  .pop-in-up,
   .value-fade,
   .draw-in,
   .bar-rise,
@@ -869,6 +1253,15 @@
   .check-draw {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  /* THE SKELETON GOES STILL, NOT SLOW. Timing it to 0.01ms like the entrances above would park the
+     sheen wherever the sweep happened to stop, leaving a bright band frozen across the block - a
+     placeholder that looks broken rather than one that is waiting. Dropping the gradient leaves a
+     flat `surface-2` block, which still reads as "content is coming" without any motion at all. */
+  .skeleton {
+    background-image: none;
+    animation: none;
   }
   /* The bars carry an inline per-bar delay for the left-to-right stagger. Killing the duration
      alone would still hold the last bar off for the length of the stagger. */

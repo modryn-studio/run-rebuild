@@ -70,6 +70,14 @@ export type TradesFilter = {
      question, and so is "everything up to the day I blew it". */
   from: string | null;
   to: string | null;
+  /* THE SEARCH TERM. `wireframes.md` §3 draws `[Search]` in this toolbar and names it in the
+     toolbar list, so this is v1 scope rather than a v2 carry-over (#20).
+     WHAT IT MATCHES IS DELIBERATELY NARROWER THAN v2'S. v2 matched the note, the account title, the
+     symbol and the product name; notes are NOT IN V1 (#10), so the note half does not exist here.
+     What remains is still more than the chips can ask: the contract month is not a filter chip at
+     all (this panel offers PRODUCT, never `MNQU6`), and an account is a chip you scan rather than a
+     string you can type a fragment of. See `where()` in `read.ts` for the columns. */
+  q: string | null;
 };
 
 export const EMPTY_FILTER: TradesFilter = {
@@ -79,6 +87,7 @@ export const EMPTY_FILTER: TradesFilter = {
   range: DEFAULT_RANGE,
   from: null,
   to: null,
+  q: null,
 };
 
 const isRange = (v: unknown): v is Range => RANGES.includes(v as Range);
@@ -103,6 +112,10 @@ export function readTradesFilter(params: Record<string, string | string[] | unde
     range: isRange(range) ? range : DEFAULT_RANGE,
     from: isDay(from) ? from : null,
     to: isDay(to) ? to : null,
+    /* TRIMMED, AND EMPTY BECOMES NULL, so `?q=` and `?q=%20%20` both mean "not searching" rather
+       than "match every row against a blank string". A single value only: `?q=a&q=b` arrives as an
+       array and there is no sensible reading of two search terms, so it falls back to no search. */
+    q: (typeof params.q === 'string' ? params.q.trim() : '') || null,
   };
 }
 
@@ -168,7 +181,9 @@ export const activeCount = (f: TradesFilter): number =>
 /** Whether anything at all is narrowing the tape, which decides the empty state's wording: "no
  *  trades in this range" is a different sentence from "no trades yet". */
 export const isNarrowed = (f: TradesFilter): boolean =>
-  activeCount(f) > 0 || f.range !== DEFAULT_RANGE || Boolean(f.from || f.to);
+  // `q` counts here but NOT in `activeCount`: it has its own control, the same way the range does,
+  // so a term must not light the Filters button's dot.
+  activeCount(f) > 0 || f.range !== DEFAULT_RANGE || Boolean(f.from || f.to) || Boolean(f.q);
 
 /* WHETHER A RESULT FILTER IS NARROWING THE SET, which the digest needs and which is not cosmetic:
  * four of its figures become UNTRUE rather than merely narrow. See `digest` in `read.ts`. */
