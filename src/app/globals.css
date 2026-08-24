@@ -791,6 +791,15 @@
        On <html> and driven by the .dark class below, NOT `prefers-color-scheme`: the theme here is
        an explicit user choice that can disagree with the OS. */
     color-scheme: light;
+    /* NATIVE CONTROLS TAKE RUN'S ACCENT, NOT THE BROWSER'S (2026-08-24, Luke: "the calendars on
+       the date menu have blue buttons and blue hover and highlighted dates"). They were Chrome's
+       default blue, which is what an unset `accent-color` gets you - `color-scheme` above only
+       tells the UA which THEME to paint, never which hue. `<input type="date">` opens the
+       platform's own calendar and none of this app's CSS reaches inside it; `accent-color` is the
+       one property that does. It also covers checkboxes, radios and range inputs, so the whole
+       native surface stops disagreeing with the product.
+       It reads the token, so it follows the theme without a second declaration in `.dark`. */
+    accent-color: var(--color-accent);
     font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
@@ -997,6 +1006,23 @@
   letter-spacing: 0.14em;
   font-weight: 500;
   text-transform: uppercase;
+}
+
+/* THE INSTRUMENT MARK'S TYPE: a 3-letter product root inside a 28px disc.
+   NEGATIVE TRACKING, AND IT IS MEASURED RATHER THAN TASTE. `--text-caption` sets +0.02em, which is
+   right for fine print and wrong here: "MNQ" renders 26.00px wide at that value inside a 28px
+   circle, leaving 1px of clearance a side. At -0.01em it is 25.01px. One pixel, in the tightest
+   case the tape can produce - `productRoot(...).slice(0, 3)` caps the string at three characters,
+   so MNQ and M2K are as wide as it gets.
+   A CLASS RATHER THAN `tracking-[-0.01em]` AT THE CALL SITE, for the reason `.eyebrow` is one:
+   every other tracking value in this system lives in a type role, and an arbitrary one in a
+   className is a role nobody can find. Size still comes from the token. */
+.ticker {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  letter-spacing: -0.01em;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 /* A FULL-SCREEN SHEET THAT ARRIVES FROM THE BOTTOM (`S5d`, 2026-08-21).

@@ -24,7 +24,7 @@ export function InstrumentMark({ symbol, className }: { symbol: string; classNam
          sits on, and mixing into transparency makes it translucent instead - which lets the row's
          hover ground show through and changes the mark's colour when the pointer arrives. */
       className={cn(
-        'text-caption grid size-7 shrink-0 place-items-center rounded-full font-medium tabular-nums tracking-[-0.01em]',
+        'ticker grid size-7 shrink-0 place-items-center rounded-full',
         className
       )}
       style={{

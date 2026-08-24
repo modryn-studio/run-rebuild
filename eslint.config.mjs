@@ -53,6 +53,9 @@ export default [
             // used to be separate sizes (10px vs 11px) and that step was invisible. It reads its
             // size from `--text-caption`, so the tier below `small` stays single. globals.css.
             'eyebrow',
+            // The instrument mark's type: caption size, tabular, and a MEASURED -0.01em that buys
+            // 1px of clearance for "MNQ" inside a 28px disc. globals.css shows the measurement.
+            'ticker',
             // Mono + tabular-nums for MACHINE STRINGS — order ids, timestamps, tickers — and
             // deliberately never a money figure. globals.css:390.
             'num',
