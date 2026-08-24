@@ -288,13 +288,15 @@ export function TradesTape({
                   competes with the results it is only summarising. A ground change is enough to
                   separate a label from a list, which is why no rule is needed.
                   `top-15` matches the header's own `min-h-15`, so the band rests exactly beneath. */}
-              {/* `top-15` matches the header's `min-h-15` so the band rests beneath it — but the
-                  header is GONE below `md`. There the band rests under the sticky SEARCH row
-                  instead: `top-14` is 56px, which is that row's exact total height (8 top + 36
-                  field + 12 bottom). The two numbers have to agree — a band that sticks too high
-                  slides under the search field, too low and a strip of tape shows through the gap.
-                  See `TradesSearchPill`. */}
-              <div className="bg-band sticky top-15 z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-2 max-md:top-14 max-md:px-4">
+              {/* `top-15` matches the tape's own column header (`min-h-15`, sticky at 0 inside this
+                  same scroller) so the band rests exactly beneath it. That header is `max-md:hidden`.
+                  `top-0` BELOW `md`, CHANGED 2026-08-24 WITH THE SEARCH ROW. It was `top-14`, 56px,
+                  the search row's exact height - because that row was `sticky top-0` in this
+                  scroller and the band had to clear it. The row now portals into the shell's header
+                  band, OUTSIDE `<main>`, so the scrollport already begins below it and 56px of
+                  offset would park the band 56px down from its own ceiling with a strip of tape
+                  showing through the gap. Nothing to clear, so nothing to offset. */}
+              <div className="bg-band sticky top-15 z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-2 max-md:top-0 max-md:px-4">
                 <span className="text-body text-muted font-medium">
                   {displaySessionDate(d.sessionDate)}
                 </span>

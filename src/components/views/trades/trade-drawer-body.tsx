@@ -53,8 +53,16 @@ export function Row({
       <dt className="text-body text-muted shrink-0">{label}</dt>
       <dd
         className={cn(
+          /* 16px, MATCHING THE RULE THIS PANEL WAS THE ONLY ONE BREAKING (2026-08-24).
+             `design-system.md` §2a rule 3 - a label/value pair is 14 muted over 16 ink - was
+             written from measurements of the reference's own summary panel and detail drawer, and
+             the summary rail obeys it. Here the values were `text-body`, the SAME size as their
+             labels, so "Gross  -$117.00" read as two equal facts rather than as a labelled figure.
+             The panel was already half converted: `strong` (the Net row) has been 16px all along,
+             which is the row that matters most and the reason this went unnoticed.
+             WEIGHT still separates the two: `strong` is 500, everything else 400. */
           'flex min-w-0 items-center justify-end gap-2 text-right tabular-nums',
-          strong ? 'text-body-lg text-text font-medium' : 'text-body text-text'
+          strong ? 'text-body-lg text-text font-medium' : 'text-body-lg text-text'
         )}
       >
         <span className="truncate">{children}</span>

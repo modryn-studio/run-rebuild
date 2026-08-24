@@ -27,7 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
-import { HeaderControl } from '@/components/shell/header-slot';
+import { HeaderControl, HeaderSlot } from '@/components/shell/header-slot';
 import { FilterSheet } from './filter-sheet';
 import { IconButton } from '@/components/ui/icon-button';
 import { DateInput } from '@/components/ui/date-input';
@@ -183,7 +183,15 @@ export function TradesSearchPill({
        `rgb(246,245,243)` on `rgb(246,245,243)`: invisible. This line BOUNDS the header against the
        content scrolling under it, which is an edge. See `design-system.md` §3. */
     <>
-    <div className="bg-bg border-border sticky top-0 z-20 -mx-4 -mb-4 border-b px-4 pt-2 pb-3 md:hidden">
+    {/* IT PORTALS INTO THE SHELL'S BAND, so it is no longer inside the thing that scrolls
+        (2026-08-24). It was `sticky top-0 z-20 -mx-4 -mb-4` in the page body: the sticky pinned it,
+        the negative margins reached back out to the screen edges and cancelled the page column's
+        `gap-4`. All three were compensating for being in the wrong box. In the band it is simply a
+        full-width row above the scroller, so `<main>`'s scrollbar starts beneath it.
+        `z-20` goes too: the band is a sibling of `<main>` rather than a child, so nothing in the
+        pane can paint over it and there is no stack to win. */}
+    <HeaderSlot slot="band">
+    <div className="bg-bg border-border border-b px-4 pt-2 pb-3 md:hidden">
       {/* ONE FIELD, WITH THE FILTER MARK INSIDE IT. The reference puts its filter control at the
           right edge of the search field rather than beside it, which is what keeps the row to a
           single object instead of two competing ones. */}
@@ -243,13 +251,16 @@ export function TradesSearchPill({
         </IconButton>
       </form>
     </div>
+    </HeaderSlot>
 
-    {/* OUTSIDE THE STICKY CONTAINER, and that is a stacking bug rather than tidying (2026-08-21).
-        The sheet started life inside it, and `position: sticky` with a `z-index` CREATES A STACKING
-        CONTEXT — so the sheet's `z-[70]` was scoped inside a `z-20` box and resolved beneath the
-        shell's own `z-40` chrome. Measured: the hamburger and the bottom bar painted straight
-        through a full-screen sheet.
-        As a sibling it competes in the root context, where 70 actually means 70. */}
+    {/* OUTSIDE THE BAND, and that is a stacking bug rather than tidying (2026-08-21). The sheet
+        started life inside the row's container, which was `sticky` with a `z-index` and therefore
+        A STACKING CONTEXT — so the sheet's `z-[70]` was scoped inside a `z-20` box and resolved
+        beneath the shell's own `z-40` chrome. Measured: the hamburger and the bottom bar painted
+        straight through a full-screen sheet.
+        The sticky is gone now (the row portals into the shell's band instead), but the sheet stays
+        out here for the same reason it was moved: it must render in the ROOT context, not inside
+        whatever box the search row happens to occupy this month. */}
     <FilterSheet
       /* The breakpoint gate lives HERE now, with the surface that knows this is the phone's
          control. See the prop's note in `filter-sheet.tsx`. */

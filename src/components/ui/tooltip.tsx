@@ -78,6 +78,8 @@ export function Tooltip({
 }) {
   const id = useId();
   const anchor = useRef<HTMLSpanElement>(null);
+  /** Set by `pointerdown`, read by the `focus` it causes. See the note on `onFocus`. */
+  const fromPointer = useRef(false);
   const tip = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   // True from the moment OPEN_DELAY starts counting until it fires or is cancelled. Exists so
@@ -216,8 +218,32 @@ export function Tooltip({
         onPointerLeave={hide}
         // onFocus/onBlur are delegated from focusin/focusout in React, so they fire for the control
         // inside rather than only for this wrapper.
-        onFocus={() => show(true)}
-        onBlur={hide}
+        /* FOCUS OPENS IT ONLY FOR THE KEYBOARD (2026-08-24, Luke: "i thought we removed the
+           tooltips. im still seeing 'open sidebar [' on mobile. it pops up and stays up after i
+           press the hamburger").
+           The `pointerType` guard above was right and insufficient: a TAP also FOCUSES the button,
+           and this handler then opened the tooltip and left it up until something else took focus -
+           which on a phone is nothing, so it stayed.
+           MODALITY IS TRACKED, NOT INFERRED. The first fix asked `:focus-visible`, which was wrong
+           twice: the handler sits on this WRAPPER SPAN, which is not focusable and so can never
+           match it, and the heuristic behind it is the browser's own judgement call rather than a
+           fact. `pointerdown` always precedes the focus it causes, so a flag set there and read
+           here answers the actual question - did this focus arrive from a pointer - with no
+           guessing. A Tab sets no flag and still opens the tooltip, which is who it is for. */
+        onPointerDown={() => {
+          fromPointer.current = true;
+        }}
+        onFocus={() => {
+          if (fromPointer.current) {
+            fromPointer.current = false;
+            return;
+          }
+          show(true);
+        }}
+        onBlur={() => {
+          fromPointer.current = false;
+          hide();
+        }}
       >
         {trigger}
       </span>

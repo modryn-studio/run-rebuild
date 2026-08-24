@@ -37,21 +37,35 @@ export const HEADER_SLOT_ID = 'page-header-slot';
  * which row you drilled into — and that is page knowledge, not shell knowledge. */
 export const HEADER_TITLE_SLOT_ID = 'page-header-title-slot';
 
+/* A FULL-WIDTH BAND BETWEEN THE HEADER AND THE SCROLLER, for page chrome that must not scroll and
+ * must not be scrolled BEHIND (2026-08-24, Luke: "the scrollbar needs to stop at the bottom of the
+ * header and stop at the top of the footer ... fyi the search bar is part of the mobile header").
+ *
+ * WHY A SLOT AND NOT `sticky`. The phone's search row was `sticky top-0` INSIDE `<main>`, and a
+ * sticky element is a child of its scroller by definition - so the scrollbar ran the full height of
+ * the pane and behind it. Sticky makes a thing LOOK like header; only leaving the scroller makes it
+ * one. The row does not scroll, so it does not belong to the scrolling box.
+ *
+ * It is the page's content and the shell's position, which is the same split `HEADER_SLOT_ID`
+ * already makes for the band's controls. */
+export const HEADER_BAND_SLOT_ID = 'page-header-band-slot';
+
 export function HeaderSlot({
   children,
   slot = 'controls',
 }: {
   children: ReactNode;
-  slot?: 'controls' | 'title';
+  slot?: 'controls' | 'title' | 'band';
 }) {
   const [host, setHost] = useState<HTMLElement | null>(null);
 
   // On mount only. The host is the shell's, and the shell outlives every page, so re-querying per
   // render would be work that can only ever return the same node.
-  useEffect(
-    () => setHost(document.getElementById(slot === 'title' ? HEADER_TITLE_SLOT_ID : HEADER_SLOT_ID)),
-    [slot]
-  );
+  useEffect(() => {
+    const id =
+      slot === 'title' ? HEADER_TITLE_SLOT_ID : slot === 'band' ? HEADER_BAND_SLOT_ID : HEADER_SLOT_ID;
+    setHost(document.getElementById(id));
+  }, [slot]);
 
   return host ? createPortal(children, host) : null;
 }

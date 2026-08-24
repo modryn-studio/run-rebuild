@@ -36,9 +36,20 @@ const mono = IBM_Plex_Mono({
 });
 
 export const viewport: Viewport = {
-  // Shrinks layout viewport when an on-screen keyboard opens — h-dvh containers
-  // then exclude keyboard height without per-component visualViewport hacks.
-  interactiveWidget: 'resizes-content',
+  /* THE KEYBOARD OVERLAYS, IT DOES NOT RESIZE (2026-08-24, Luke: "when i click in the search text
+   * field, the phone's keyboard opens. but the footer does not need to move with the keyboard").
+   *
+   * This was `resizes-content`, which shrinks the LAYOUT viewport while a keyboard is up. That is
+   * what `h-dvh` measures, so the whole shell column compressed and the bottom bar rode up to sit
+   * on top of the keyboard - four nav tabs stacked above a keyboard the trader is typing into,
+   * which is chrome competing with the thing it interrupted.
+   *
+   * `overlays-content` leaves the layout viewport alone: the keyboard is drawn OVER the page, the
+   * bar stays at the foot of the document where it belongs, and the browser still scrolls the
+   * focused field into view. The one thing to watch is a field low on the screen being covered -
+   * not a risk for the surface that prompted this, since the phone's search row sits in the header
+   * band at the very top. */
+  interactiveWidget: 'overlays-content',
 };
 
 export const metadata: Metadata = {

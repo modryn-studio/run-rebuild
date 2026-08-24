@@ -40,7 +40,11 @@ import { Wordmark } from '@/components/ui/wordmark';
 import { AccountMenu } from '@/components/shell/account-menu';
 import type { SessionUser } from '@/lib/trader';
 import { DetectTimezone } from '@/components/detect-timezone';
-import { HEADER_SLOT_ID, HEADER_TITLE_SLOT_ID } from '@/components/shell/header-slot';
+import {
+  HEADER_BAND_SLOT_ID,
+  HEADER_SLOT_ID,
+  HEADER_TITLE_SLOT_ID,
+} from '@/components/shell/header-slot';
 import {
   BOTTOM_BAR_H,
   SHELL_HEADER_H,
@@ -524,6 +528,13 @@ export function AppShell({
             NOT AN INLINE STYLE PLUS `md:pb-12`, which is what this was and which never worked: an
             inline style always beats a class, so the desktop override was dead on arrival and the
             pane carried a phone's clearance at 1280px. Measured, not assumed. */}
+        {/* PAGE CHROME THAT DOES NOT SCROLL, and therefore is not inside the thing that scrolls.
+            The phone's search row lived in the page body as `sticky top-0`, which looks identical
+            and is not: a sticky element belongs to its scroller, so `<main>`'s scrollbar ran the
+            full height of the pane and behind the row. Out here it ends where the content does.
+            Empty and zero-height until a page portals into it. See `HEADER_BAND_SLOT_ID`. */}
+        <div id={HEADER_BAND_SLOT_ID} className="shrink-0" />
+
         <main className="scroll-thin pane-bottom-clearance min-h-0 min-w-0 flex-1 overflow-y-auto">
           {children}
         </main>
@@ -593,7 +604,14 @@ function BottomBar({ pathname }: { pathname: string }) {
          white on white and the bar had no top at all. The reference's own tab bar carries a clearly
          visible divider; this is an EDGE bounding one surface against another, which is `border`'s
          job. Same token confusion the page header's own bottom edge hit the day before. */
-      className="border-border bg-surface fixed inset-x-0 bottom-0 z-20 flex shrink-0 border-t md:hidden"
+      /* IN FLOW, NOT `fixed` (2026-08-24). As a fixed element it left the flex column, so `<main>`
+         - `flex-1` in an `h-dvh` column - stretched to the viewport floor and ran its scrollbar
+         down BEHIND the bar. As the column's last in-flow child it pins to the bottom exactly the
+         same way, and `main` now ends where it begins.
+         `shrink-0` is what makes that true: without it the bar would compress before the pane does.
+         The safe-area padding stays on the bar, which is the element that actually touches the
+         home indicator. */
+      className="border-border bg-surface flex shrink-0 border-t md:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {NAV.map(({ label, href, icon }) => {
