@@ -89,3 +89,19 @@ export const SIDEBAR_COLLAPSE_KEY = 'run_sidebar_collapsed';
  * Kept as a string so the component and any test read the same query.
  */
 export const SIDEBAR_OVERLAY_QUERY = '(max-width: 767px)';
+
+/** The phone's bottom navigation bar, content height only — the safe-area inset is added on top.
+ *
+ * `S3d`, 2026-08-20. A REFERENCE TO THE TOKEN, not a copy of its value, and that distinction is a
+ * bug this already caused once. It started as the literal `'3.5rem'` applied through an inline
+ * `style`; an inline style always beats a class, so `<main>`'s `md:pb-12` — the whole mechanism for
+ * restoring the desktop value — was dead, and the pane carried a phone's clearance at 1280px.
+ *
+ * `--bottom-bar-h` lives in `globals.css` because BOTH consumers need it and only one of them is
+ * JavaScript: the bar's own height (here, inline) and `.pane-bottom-clearance`'s media query
+ * (there, hand-written CSS). A token can be read by both; a TypeScript constant cannot.
+ *
+ * The safe-area inset is never folded in — a device reports it at runtime and it is 0 in a desktop
+ * browser, so baking it in would make one number mean two things.
+ */
+export const BOTTOM_BAR_H = 'var(--bottom-bar-h)';

@@ -176,7 +176,17 @@ export function ModalShell({
   return (
     <div
       /* Exit fades the whole overlay; entry leaves the card alone (only the scrim animates in).
-         `pointer-events-none` while closing so a second click during the fade cannot land. */
+         `pointer-events-none` while closing so a second click during the fade cannot land.
+         `ease-linear` IS A STATED EXCEPTION TO THE CURVE ROLES, not an oversight, and it is written
+         down here because an audit flagged it as one (2026-08-20). The role table says `linear` is
+         for CONSTANT motion only - the spinner - and that something leaving takes `ease-out`. This
+         departs from it on a measurement, recorded at the top of this file: on ease-out a 140ms fade
+         is already at 10% opacity by the halfway mark, so almost all of it happens in the first few
+         frames and it still reads as a snap. The curve was undoing the fix the short duration
+         exists for.
+         `ui-ux-sources.md` sanctions exactly this shape of departure - Sonner ships `ease` where
+         `ease-out` is technically correct, "a real reminder that the role table is a default, not a
+         law". A departure with a measurement behind it stands; one without does not. */
       className={`fixed inset-0 z-[60] flex items-center justify-center p-4 transition-opacity duration-[160ms] ease-linear ${
         closing ? 'pointer-events-none opacity-0' : 'opacity-100'
       }`}
@@ -192,7 +202,11 @@ export function ModalShell({
           way IN — only the dim layer transitions. */}
       <div
         aria-hidden
-        className={`absolute inset-0 transition-opacity duration-300 ease-[cubic-bezier(0.22,0.61,0.36,1)] ${
+        /* `ease-out`, THE TOKEN, not the curve written out (2026-08-20). This read
+           `ease-[cubic-bezier(0.22,0.61,0.36,1)]`, which IS `--ease-out` - the same numbers, inlined
+           at a call site. A token spelled out by hand is a second copy of a value that has one home,
+           and it silently stops tracking the token the moment the curve is ever retuned. */
+        className={`absolute inset-0 transition-opacity duration-300 ease-out ${
           open ? 'opacity-100' : 'opacity-0'
         }`}
         /* `--scrim`, not a color-mix off `--color-text`: that token inverts by mode, so in dark it

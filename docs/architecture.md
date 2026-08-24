@@ -196,6 +196,11 @@ producing numbers you cannot reconcile.
 position history → cash history, so **at the moment a `round_trip` is written its fees do not
 exist yet**, and an append-only log cannot revise the row afterwards.
 
+> **This binds `event`, not `trade`** — `[CLARIFIED 2026-08-17, S5]`. `net` is still stored
+> nowhere. But the `trade` projection carries `fee_cents`, because it is rebuilt after the import
+> commits, when the fees exist. See the `fee_cents` note under `trade` for the re-projection
+> requirement that makes that safe.
+
 #### The fee allocation rules — every one of these is a fixed bug
 
 1. **The split is exact, not pro-rata.** Tradovate charges a flat rate per contract per side, so
@@ -330,16 +335,86 @@ out of scope. It becomes real the day open positions are shown.
 | `id` | uuid | no | |
 | `account_id` | uuid | no | |
 | `symbol_root` | text | no | |
-| `entry_at` / `exit_at` | timestamptz | no | UTC |
+| `entry_at` / `exit_at` | timestamptz | no | UTC. The EARLIER and LATER fill, never buy-then-sell — see below |
 | `session_date` | date | no | **derived from `exit_at`.** See §4 |
 | `qty` | int | no | |
-| `entry_price` / `exit_price` | numeric(19,6) | no | **A QUOTE, NOT MONEY.** See the precision note below |
-| `gross_pnl_cents` | bigint | no | from the round-trip event. **`net` is NOT stored** — see the projections section above |
+| `direction` | enum | **yes** | `long` · `short`. **Null is honest**, see below. Amended 2026-08-17 |
+| `entry_price` / `exit_price` | numeric(19,6) | no | **A QUOTE, NOT MONEY.** Resolved by SEQUENCE, not side — see below |
+| `gross_pnl_cents` | bigint | no | from the round-trip event |
+| `fee_cents` | bigint | no | negative, `0` when no Cash History covers it. Amended 2026-08-17 |
+| `pair_id` / `buy_fill_id` / `sell_fill_id` | text | yes | **Tradovate's own ids**, for provenance. Amended 2026-08-17 |
 | `state` | enum | no | `ok` · `quarantined` · `excluded` |
 | `quarantine_reason` | text | yes | |
 | `exclusion_reason` | text | yes | user's words, S9b |
 
 Indexes: `(account_id, session_date)`, `(account_id, exit_at)`, `state`
+
+#### `direction`, and why it is stored rather than derived — `[AMENDED 2026-08-17, S5]`
+
+**Direction is which side came FIRST, not what the prices did.** A round trip has no `side`
+column because it has two, and the question is exactly *did you buy first or sell first*. Deriving
+it instead from price ordering plus the P&L sign works for most rows and silently guesses on a
+scratch trade, where P&L is zero and the two prices are equal.
+
+**Nullable on purpose:** when either timestamp is missing the answer is unknown, and an unknown
+direction beats a guessed one on a row whose whole content is what happened.
+
+It is stored rather than recomputed because the projector holds `boughtAtLocal`/`soldAtLocal` at
+ingest and the render path does not — reading it back out would mean reading `payload`, which §1
+forbids on a render path. Ported from `run-trading@v2` `lib/data/account-detail.ts`.
+
+#### Entry and exit are a SEQUENCE, and mapping them from the side is a bug that already shipped
+
+**This is the reason `entry_price`/`exit_price` are resolved in the projector and not in a view.**
+Tradovate's payload carries `buyPrice` and `sellPrice`, which are **sides, not sequence**. Mapping
+buy→entry and sell→exit is correct for a long and exactly backwards for a short.
+
+Caught in production on the previous build (Luke, 2026-08-01): *"it says it was a short and i made
+money.. entry at 30,134.25 and exit at 30,147.50. how can that be?"* It could not be — the trade
+was fine and the labels were lying, so **every winning short on the page read as a loser that made
+money**, on the one surface whose whole job is being exact about money.
+
+A short OPENS on the sell and CLOSES on the buy. The swap happens once, at projection time, so
+`entry_price` means what it says everywhere it is read. `entry_at`/`exit_at` follow the same rule
+for the same reason: ordering them by side reports a **negative hold time on half the tape**.
+
+#### The broker's own ids are promoted, because a verification surface has to be verifiable
+
+**`[AMENDED 2026-08-17, S5c]`.** `S5c` moved the entry and exit prices off the tape row and into the
+detail drawer, on the argument that a tape is for scanning and those prices are **verification**
+detail. That argument only holds if the drawer can actually be verified — and the one thing on it a
+trader can take to their broker is Tradovate's own identifiers, which it issues and prints in its
+own exports.
+
+They live in `event.payload`, which §1 forbids a render path from reading, so a drawer built without
+these columns can only show Run's internal row id: a UUID that appears in no export, matches nothing
+on a broker screen, and is worse than showing nothing at all because it looks like provenance.
+
+Nullable, because a round trip that arrived without them is a real state and inventing an id would
+be the exact failure the column exists to prevent.
+
+#### `fee_cents` is stored here, and that does NOT contradict "net is not stored"
+
+**`net` is still not stored** — it is `gross_pnl_cents + fee_cents` at render, and no column holds
+it. What changed is where the allocation runs.
+
+The rule above says net must be derived because *"at the moment a `round_trip` is written its fees
+do not exist yet, and an append-only log cannot revise the row afterwards."* That reasoning is
+about **`event`**, and it still holds there exactly as written. `trade` is a projection: it is
+rebuildable by construction, and the projector runs after the whole import commits, when the fees
+**do** exist.
+
+**The condition that makes this safe, and it is a requirement not a note:** the projector
+re-projects the whole affected account and window on every import, so Cash History arriving in a
+later upload recomputes the trades it touches rather than leaving a stale figure behind. A
+projection that is only ever appended to is just a slow table.
+
+Why not allocate per query, which is what `run-trading@v2` does: v2's own reason is that a rate is
+`sum(fee)/sum(qty)` **grouped by bucket** and therefore cannot drift with query scope. That is an
+argument for **one allocator**, which this keeps — the same exact per-contract-per-side split runs
+once, at projection time. What v2 paid for the other half of the choice is measured in its own
+comments: **a 9,530ms page load and a 1.1MB payload**, from fee rows crossing the wire to rebuild
+rates the database had already grouped.
 
 **`session_date` is stored, not computed on read.** It is derived once at ingest from `exit_at`
 and the exchange calendar, then persisted — because every grouping in the product keys off it and
@@ -385,10 +460,20 @@ stay countable. `ok` is the only state that feeds a computed figure.
 | `trader_id` | uuid | no | |
 | `session_date` | date | no | |
 | `net_pnl_cents` / `fees_cents` | bigint | no | |
-| `trade_count` / `win_count` | int | no | |
+| `trade_count` / `win_count` / `loss_count` | int | no | `loss_count` amended 2026-08-17 — see below |
 | `first_trade_at` / `last_trade_at` | timestamptz | yes | |
 
 PK: `(trader_id, session_date)`
+
+**A SCRATCH IS NEITHER A WIN NOR A LOSS** — `[AMENDED 2026-08-17, S5]`. `win_count` alone cannot
+express a session's win rate, because `trade_count − win_count` is not the loss count: an
+exactly-zero net is rare but real, either a true scratch or fees that precisely ate the gain.
+Deriving losses by subtraction files every one of them as a loss and **understates the win rate on
+the header of the session it happened in**.
+
+So both counts are stored and the rate is `win / (win + loss)`, with scratches visible as the
+remainder. Ported from `run-trading@v2`'s `session-stats.ts`, which states the rule and then needs
+it: its own tape carries rows where fees exactly cancelled the gross.
 
 **Keyed on the trader, not the account.** A trader may work several accounts in one session, and
 the wedge is about *their* day. Per-account rollups are a filter over `trade`, not a second table.

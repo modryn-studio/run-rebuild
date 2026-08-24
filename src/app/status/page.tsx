@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { db, contractSpec } from '@/lib/db';
 import { env } from '@/lib/env';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { Card } from '@/components/ui/card';
 
 // S0's walking skeleton, and the whole point of it is that it is not a feature.
 //
@@ -55,7 +56,11 @@ export default async function StatusPage() {
         The walking skeleton. One query, read at request time.
       </p>
 
-      <div className="bg-surface mt-8 rounded-[var(--radius)] p-6 shadow-[var(--shadow-card)]">
+      {/* `Card`, not the same three classes retyped (2026-08-20). The chrome here was already
+          CORRECT - shadow, no border - so this changes nothing on screen. It is a maintenance fix:
+          a hand-rolled copy of `cardSurface` does not follow the primitive when the primitive
+          moves, and this is the page that must keep working when everything else is suspect. */}
+      <Card className="mt-8 p-6">
         <p className="text-caption text-muted uppercase">Instruments known</p>
         {reachable ? (
           <>
@@ -79,7 +84,7 @@ export default async function StatusPage() {
             </p>
           </>
         )}
-      </div>
+      </Card>
 
       <p className="text-caption text-muted mt-6">
         Build <span className="num text-text">{build}</span>

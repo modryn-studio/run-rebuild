@@ -125,6 +125,29 @@ export const auth = betterAuth({
         allowedHosts: ['localhost:*', '*.localhost:*', '127.0.0.1:*'],
         protocol: 'http',
       },
+  /* THIS APP'S OWN COOKIE NAME, and it fixes a real sign-out loop rather than tidying a namespace.
+   *
+   * COOKIES IGNORE THE PORT. `localhost:3000` and `localhost:3002` are ONE cookie jar as far as the
+   * browser is concerned — the port is not part of a cookie's identity, only the host is. So two Run
+   * builds running side by side on different ports are writing to the same jar.
+   *
+   * Both were also using Better Auth's DEFAULT cookie name, so they were writing the same KEY. Sign
+   * into `run-trading@v2` on :3000 and it overwrites the token this app set on :3002, and the other
+   * way round — which is why signing into either one silently signed the trader out of the other
+   * (Luke, 2026-08-17: "i keep getting signed out of my real Chrome browser as well... for
+   * run-trading@v2 on local 3000 and run-rebuild on local 3002").
+   *
+   * THE SHARED SECRET IS WHAT MADE IT CONFUSING rather than obvious. Both `.env.local` files carry
+   * the SAME `BETTER_AUTH_SECRET` and DIFFERENT `DATABASE_URL`s (verified by hash, 2026-08-17), so
+   * the foreign cookie's signature VALIDATES here — it is not rejected as forged. It simply resolves
+   * to a session id that exists only in the other build's database, so the lookup finds nothing and
+   * the trader is treated as signed out. A mismatched secret would at least have failed loudly.
+   *
+   * A distinct prefix is the whole fix and it is one-sided: v2 keeps the default, this build takes
+   * its own name, and the two tokens stop colliding. Not a dev-only workaround — production runs one
+   * host per build, but the cost of the collision is a silent sign-out and the cost of the prefix is
+   * nothing. */
+  advanced: { cookiePrefix: 'run-rebuild' },
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema: { user: authUser, session: authSession, account: authAccount, verification: authVerification },

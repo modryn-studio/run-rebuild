@@ -29,6 +29,7 @@ export function Menu<T extends string>({
   options,
   onChange,
   label,
+  valueLabel,
   className,
 }: {
   value: T;
@@ -36,6 +37,18 @@ export function Menu<T extends string>({
   onChange: (value: T) => void;
   /** Names the control for screen readers; the visible text is always the current choice. */
   label: string;
+  /* WHAT THE TRIGGER SAYS WHEN THE STATE IS NOT ONE OF THE OPTIONS (2026-08-20).
+   *
+   * Normally the trigger derives its text from `value`, and that is right for a menu whose state is
+   * exactly one of its rows. The account selector's is not: the underlying filter is a LIST, so it
+   * can hold two accounts while the menu only offers "all" or one at a time. Without this the
+   * fallback `options.find(...) ?? options[0]` would quietly print "All accounts" while two were
+   * selected — a control lying about the filter it represents, which is the one thing a selector
+   * mirroring a filter may not do.
+   *
+   * Supplying it does NOT add a row. The menu still offers only real choices; this changes what the
+   * closed trigger reads, nothing else. */
+  valueLabel?: string;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -125,13 +138,18 @@ export function Menu<T extends string>({
         className="lift-press lift-rest text-small text-text flex h-9 items-center justify-between gap-3 rounded-[var(--radius-sm)] px-3 font-medium"
       >
         <span className="grid">
+          {/* THE OVERRIDE RIDES IN THE SAME GRID CELL as the options, so it inherits the reserved
+              width rather than resizing the trigger — which is the whole point of stacking them. */}
+          {valueLabel !== undefined && (
+            <span className="col-start-1 row-start-1 text-left whitespace-nowrap">{valueLabel}</span>
+          )}
           {options.map((o) => (
             <span
               key={o.value}
-              aria-hidden={o.value !== value}
+              aria-hidden={valueLabel !== undefined || o.value !== value}
               className={cn(
                 'col-start-1 row-start-1 text-left whitespace-nowrap',
-                o.value !== value && 'invisible'
+                (valueLabel !== undefined || o.value !== value) && 'invisible'
               )}
             >
               {o.label}

@@ -63,6 +63,12 @@ export function CodeInput({
     if (next.length === LENGTH) onComplete?.(next);
   }
 
+  // REPLACES THE WHOLE VALUE, deliberately, rather than merging with whatever is already typed.
+  // A code arrives as one unit - from a password manager, a messaging app, the OS's own "paste
+  // code from clipboard" suggestion - and every one of those pastes the full six digits, not a
+  // fragment meant to land at the cursor. Two partial digits typed by hand and then a six-digit
+  // paste replacing them is the expected outcome, not data loss: the paste IS the code.
+  //
   // Paste is handled explicitly so "123 456" and "code: 123456" both work; the default would
   // insert the punctuation and blow the maxLength.
   function handlePaste(e: ClipboardEvent<HTMLInputElement>) {
@@ -118,7 +124,14 @@ export function CodeInput({
               className={cn(
                 // h-12 matches Input's min-h-12 and Button size="lg", so a code box and a text
                 // field are the same height everywhere in the product.
-                'tabular-nums flex h-12 min-w-0 max-w-12 flex-1 items-center justify-center rounded-[var(--radius-sm)] border text-h2 transition-colors',
+                /* NO TRANSITION, DELIBERATELY (2026-08-20). This ran `transition-colors`, and that is the one
+                   violation `ui-ux-sources.md` records under "never animate a keyboard-initiated
+                   action": a trader types six digits faster than a 200ms fade can finish, so the
+                   active ring TRAILS the keystrokes instead of following them. It is not a duration
+                   to tune, it is a transition to delete. The border still changes value on focus and
+                   on invalid; it just changes instantly, which is what a discrete keyboard command
+                   deserves. `modryn-base` ships this with no transition for the same reason. */
+                'tabular-nums flex h-12 min-w-0 max-w-12 flex-1 items-center justify-center rounded-[var(--radius-sm)] border text-h2',
                 disabled && 'opacity-50',
                 /* `field` AT REST, NOT `border` (Luke, 2026-08-14: "the outline of the code boxes on
                    the login screen are hard to see"). Measured, they were: #e4e1de on the white

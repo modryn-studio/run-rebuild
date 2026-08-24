@@ -4,9 +4,10 @@ import { desc, eq, sql } from 'drizzle-orm';
 import { db, analyticsEvent, authUser } from '@/lib/db';
 import { getAdmin } from '@/lib/require-admin';
 import { requireTrader } from '@/lib/trader';
-import { PageHeader } from '@/components/shell/page-header';
+import { HeaderSlot } from '@/components/shell/header-slot';
 import { PAGE_COLUMN } from '@/lib/shell';
 import { cn } from '@/lib/cn';
+import { cardSurface } from '@/components/ui/card';
 
 // Never let this into an index, even by accident.
 export const metadata: Metadata = {
@@ -17,9 +18,19 @@ export const metadata: Metadata = {
 // Always fresh: a cached funnel is a wrong funnel.
 export const dynamic = 'force-dynamic';
 
-// The card chrome, once. This page is a placeholder you will replace, so it does not earn a shared
-// primitive — but it does earn one constant, because six hand-typed copies is how padding drifts.
-const CARD = 'border-border bg-surface rounded-[var(--radius)] border';
+/* `cardSurface`, NOT A HAND-ROLLED EDGE (2026-08-20). This read
+ * `border-border bg-surface rounded-[var(--radius)] border` — a constant literally named CARD that
+ * reproduced the radius and the fill and then got elevation exactly backwards: a BORDER and NO
+ * SHADOW, where a card in this system is a shadow and no border. Five surfaces rendered it.
+ *
+ * It is the same defect the /login card carried, found the same way and in the same audit, and it
+ * came from the same place: `modryn-base`'s own admin page ships the identical constant, so this is
+ * inherited rather than introduced here. Fixed in both, or the next project seeds it again.
+ *
+ * The reasoning for a constant still holds — six hand-typed copies is how padding drifts — so it
+ * stays a constant. What it points at is the primitive now, which is the whole argument for having
+ * one: a placeholder page does not get to invent its own elevation. */
+const CARD = cardSurface;
 
 // All-time figures. Counts are done in SQL, not by pulling every row and counting in JS —
 // that reads the same at 100 rows and falls over at 100k.
@@ -115,7 +126,11 @@ export default async function AdminPage() {
     // The indent is only correct when the gutter is on a WRAPPER the cards sit in. Caught by
     // measuring the rendered page, never by tsc — which is why the shell is checked in a browser.
     <>
-      <PageHeader title="Admin" />
+      {/* THE TITLE SLOT, not the controls one: `/admin` is not a NAV destination, so the shell
+          cannot derive its name from the route and that end of the band would otherwise be empty. */}
+      <HeaderSlot slot="title">
+        <h1 className="text-title text-text truncate font-medium">Admin</h1>
+      </HeaderSlot>
 
       <div className={PAGE_COLUMN}>
         <p className="text-small mb-10">
