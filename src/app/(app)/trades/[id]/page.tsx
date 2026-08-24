@@ -7,16 +7,20 @@ import { productName } from '@/lib/instruments';
 import { TradeDetail } from '@/components/views/trades/trade-detail';
 import { ICON_BUTTON } from '@/components/ui/icon-button';
 import { Icon } from '@/components/ui/icon';
-import { PAGE_COLUMN } from '@/lib/shell';
 import { HeaderSlot } from '@/components/shell/header-slot';
-import { cn } from '@/lib/cn';
+import { TradeSheet } from '@/components/views/trades/trade-sheet';
 
-/* ONE TRADE, AS A ROUTE (`S5d`, 2026-08-20).
+/* ONE TRADE, AS A ROUTE (`S5d`, 2026-08-20) THAT PRESENTS AS A SHEET (2026-08-24).
  *
  * WHY A ROUTE AND NOT THE DRAWER (Luke's call). On a phone the reference opens a transaction as a
  * full screen that animates up, and the phone's BACK GESTURE has to answer it. An overlay would
  * need history interception to do that, and getting it wrong strands someone on a screen they
  * cannot leave. A route gets back, back-swipe, a shareable URL and survives a reload for free.
+ *
+ * AND IT NOW ARRIVES LIKE ONE (Luke: "this page should pop up from the bottom of the screen just
+ * like the filter screen ... you get this point. consistency"). `TradeSheet` gives it the filter
+ * sheet's entrance, header and scrollport below `md` while leaving the mechanism alone - the
+ * presentation changed, the router did not.
  *
  * THE DESKTOP KEEPS THE DRAWER. Above `sm` a trader opening a trade is reading one against the tape
  * behind it and stepping through several — that is what a drawer is for, and `trade-drawer.tsx`
@@ -67,8 +71,10 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
 
   const contract = t.contract ?? t.symbolRoot;
 
+  const title = productName(contract) ?? contract;
+
   return (
-    <div className={cn(PAGE_COLUMN, 'pb-8')}>
+    <TradeSheet title={title}>
       {/* THE TRAIL GOES IN THE SHELL'S OWN BAND, not in a second one underneath it (`S5d`,
           2026-08-20). This first shipped as a `sticky top-0` bar inside the page, which put the
           shell's title at y=0 and this one at y=84 — two stacked title bars, and exactly the bug
@@ -88,16 +94,10 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
         <Link href="/trades" aria-label="Back to trades" className={ICON_BUTTON}>
           <Icon name="back" size={18} />
         </Link>
-        <h1 className="text-title text-text ml-1 min-w-0 truncate font-medium">
-          {productName(contract) ?? contract}
-        </h1>
+        <h1 className="text-title text-text ml-1 min-w-0 truncate font-medium">{title}</h1>
       </HeaderSlot>
 
-      {/* `max-w-[560px]`, the drawer's own width, so the fact list has the same measure at every
-          viewport rather than stretching a label/value pair across a 1600px monitor. */}
-      <div className="mx-auto w-full max-w-[560px]">
-        <TradeDetail trade={t} zone={trader.displayTimezone} titleId="trade-title" showTitle={false} />
-      </div>
-    </div>
+      <TradeDetail trade={t} zone={trader.displayTimezone} titleId="trade-title" showTitle={false} />
+    </TradeSheet>
   );
 }
