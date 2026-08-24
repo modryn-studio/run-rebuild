@@ -201,7 +201,7 @@ function EdgeCell({
   return (
     <td ref={ref} className={cn(groundCls, 'p-2 whitespace-nowrap')}>
       <div className={cn(edgeCls, 'mb-1 h-5 w-10 rounded-[var(--radius-xs)] border')} />
-      <span className={cn('num text-micro', fail ? 'text-neg' : 'text-muted')}>
+      <span className={cn('num text-caption', fail ? 'text-neg' : 'text-muted')}>
         {ratio === null ? '' : `${ratio.toFixed(2)}${fail ? ' FAIL' : ''}`}
       </span>
     </td>

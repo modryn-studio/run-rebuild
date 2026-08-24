@@ -171,7 +171,7 @@ function BrokerRow({ connected }: { connected: number }) {
         <span className="flex items-center gap-2">
           <span className="text-body-lg text-text font-medium">Brokers</span>
           {!live && (
-            <span className="text-micro text-muted border-border rounded-[var(--radius-sm)] border px-1.5 py-0.5 uppercase">
+            <span className="eyebrow text-muted border-border rounded-[var(--radius-sm)] border px-1.5 py-0.5">
               Soon
             </span>
           )}

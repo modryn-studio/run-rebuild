@@ -57,9 +57,11 @@ export function TypeMetrics() {
       samples.map((sample) => {
         const style = getComputedStyle(sample);
         const name = sample.dataset.step ?? '';
+        // `data-token` when the row is a ROLE rather than a ramp step - see `TypeStep.token`.
+        const token = sample.dataset.token || name;
         return {
           name,
-          declaredPx: toPx(rootStyle.getPropertyValue(`--text-${name}`), rootPx),
+          declaredPx: toPx(rootStyle.getPropertyValue(`--text-${token}`), rootPx),
           renderedPx: parseFloat(style.fontSize),
           lineHeight: style.lineHeight,
           weight: style.fontWeight,
@@ -104,7 +106,7 @@ export function TypeMetrics() {
                   </Verdict>
                 )}
               </div>
-              <p data-step={step.name} className={`${step.cls} mt-2 text-pretty`}>
+              <p data-step={step.name} data-token={step.token} className={`${step.cls} mt-2 text-pretty`}>
                 {step.sample}
               </p>
             </div>

@@ -300,8 +300,17 @@ export function TradesControls({
           those two do; giving it a border and a hover fill made it read as a third equal button
           instead of the escape hatch underneath them. */}
       {isNarrowed(filter) && (
-        <button
-          type="button"
+        /* `Button variant="ghost"`, NOT A HAND-ROLLED `<button>` (2026-08-24, Luke: "is the
+           'clear' actually a ghost button? it should be"). It was a raw element wearing
+           `text-body text-muted hover:text-text` - which is `ghost`'s resting and hover ink,
+           re-typed. The original note here argued it must not read as "a third equal button"
+           beside Date and Filters, and that argument is right and is exactly what `ghost` is
+           for: no border, no resting ground, ink only. What it gains by being the component is
+           the press state, the disabled handling and the focus ring, none of which the raw
+           element had. */
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() =>
             write({
               range: null,
@@ -315,10 +324,10 @@ export function TradesControls({
               q: null,
             })
           }
-          className="text-body text-muted hover:text-text shrink-0 font-medium transition-colors"
+          className="shrink-0"
         >
           Clear
-        </button>
+        </Button>
       )}
       {/* Clear, then Search, Date, Filters — v2's order, with the one undo in front of it.
           ALL OF IT IS DESKTOP-ONLY NOW (`S5d`). Below `md` the band carries a centred title instead
@@ -800,7 +809,7 @@ function FiltersPopover({
                   >
                     <span className="text-body min-w-0 flex-1 truncate">{d.label}</span>
                     {d.picked > 0 && (
-                      <span className="bg-accent text-accent-fg text-micro shrink-0 rounded-full px-1.5 font-semibold tabular-nums">
+                      <span className="bg-accent text-accent-fg text-caption shrink-0 rounded-full px-1.5 font-semibold tabular-nums">
                         {d.picked}
                       </span>
                     )}
@@ -902,13 +911,9 @@ function FiltersPopover({
                     <div key={d.key} className="mb-3 last:mb-0">
                       <div className="mb-1 flex items-center justify-between gap-2 px-1">
                         <span className="text-body text-text font-medium">{d.label}</span>
-                        <button
-                          type="button"
-                          onClick={() => clearDim(d.key)}
-                          className="text-body text-muted hover:text-text font-medium transition-colors"
-                        >
+                        <Button variant="ghost" size="sm" className="-my-1" onClick={() => clearDim(d.key)}>
                           Clear
-                        </button>
+                        </Button>
                       </div>
                       {d.key === 'accounts'
                         ? draft.accounts.map((id) => {
@@ -977,14 +982,14 @@ function PanelFooter({
 }) {
   return (
     <div className="border-rule flex h-14 items-center justify-between gap-3 border-t px-3">
-      <button
-        type="button"
-        disabled={clearDisabled}
-        onClick={onClear}
-        className="text-body text-muted hover:text-text -my-2 py-2 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40"
-      >
+      {/* GHOST, SO THE THREE BUTTONS IN THIS ROW ARE THE SAME OBJECT. This was a raw `<button>`
+          re-typing ghost's ink by hand, which is how it ended up at `text-body` while `Cancel` and
+          `Apply` beside it came from `Button size="sm"`. One component, one size, and the only
+          thing that varies across the row is the variant - which is the reference's own
+          discipline: its Clear / Cancel / Apply are all 14px/500 and differ only in ink. */}
+      <Button variant="ghost" size="sm" disabled={clearDisabled} onClick={onClear}>
         Clear
-      </button>
+      </Button>
       <div className="flex items-center gap-2">
         <Button variant="secondary" size="sm" onClick={onCancel}>
           Cancel
@@ -1021,13 +1026,9 @@ function DateField({
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-body text-text font-medium">{label}</p>
         {value && (
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            className="text-body text-muted hover:text-text font-medium transition-colors"
-          >
+          <Button variant="ghost" size="sm" className="-my-1" onClick={() => onChange(null)}>
             Clear
-          </button>
+          </Button>
         )}
       </div>
       {/* `bg-bg`, AGAINST THE DEFAULT. This panel is `surface`, so a field wearing `surface` too

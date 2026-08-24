@@ -28,7 +28,7 @@ export function V2ReferenceSection() {
             {icons.map(([name, V2Mark]) => (
               <span key={name} className="text-muted flex flex-col items-center gap-1.5">
                 <V2Mark size={16} />
-                <span className="text-micro">{name}</span>
+                <span className="text-caption">{name}</span>
               </span>
             ))}
           </div>

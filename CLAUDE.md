@@ -140,6 +140,7 @@ does not exist. The ones that bite hardest:
 - **Shadow tokens must be indirect** (`--shadow-card: var(--elevation-card)`), or the `.dark` override silently does nothing.
 - **Three easing curves, each with a job, and `ease-in` is BANNED.** `ease` in place; `ease-out` entering or leaving; `ease-in-out` moving or resizing; `linear` only for constant motion. A perceived-performance rule, not a taste one.
 - **Muted is METADATA; ink is PROSE.** Two tiers, never three.
+- **A row is ONE type size; chrome is never smaller than the content it controls.** `text-small` (12px) appears nowhere on `/trades`. Peers in a button row are one component at one size, varying only `variant`. **`docs/design-system.md` §2a is the measured contract — read it before porting a page from `run-trading@v2`.**
 - **A motion class owns the TIMING; the call site owns the POSITION.** `.drawer-transition` and `.panel-transition` name only `transition`; the displacing is a Tailwind utility at the call site. `.sheet-transition` broke that and put `translate` for the dismissed state in the stylesheet, which is how a stale CSS deploy turned a full-screen sheet into an inert overlay over the whole app.
 - **A control gets a border OR a drop shadow, never both**, and only `Card` gets the shadow.
 - **One icon set, one wrapper** (`src/components/ui/icon.tsx`). Never inline an `<svg>`.

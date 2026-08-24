@@ -69,7 +69,12 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
 
 /* The type scale. `sample` is deliberately a real sentence: a step is wrong in a way you can see
  * in prose and cannot see in the word "Aa". */
-export type TypeStep = { name: string; cls: string; sample: string };
+/* `token` NAMES THE CUSTOM PROPERTY THIS ROW MEASURES AGAINST, and it exists because not every
+ * row is a ramp STEP. `.eyebrow` is a ROLE at an existing step: it reads `--text-caption` for its
+ * size and adds tracking, weight and case. Without this the metrics table would look up
+ * `--text-eyebrow`, find nothing, and report a missing token - a false failure in the one place
+ * that is supposed to catch real ones. Defaults to `name`, so every genuine step is unaffected. */
+export type TypeStep = { name: string; cls: string; sample: string; token?: string };
 
 /* THE FULL RAMP, NOT BASE'S EIGHT. This was copied verbatim from `modryn-base` at first, which
  * meant four of Run's own steps — `micro`, `nav`, `title`, `figure` — had no row here at all,
@@ -88,7 +93,11 @@ export const TYPE_STEPS: TypeStep[] = [
   { name: 'body', cls: 'text-body', sample: 'The default. Everything that is not a heading or a caption is set at this size.' },
   { name: 'small', cls: 'text-small', sample: 'Help text under a field, secondary metadata, timestamps.' },
   { name: 'caption', cls: 'text-caption', sample: 'Labels, table headers, the smallest thing allowed to carry meaning.' },
-  { name: 'micro', cls: 'text-micro', sample: 'BADGE LABEL' },
+  /* `micro` IS GONE (2026-08-24). It sat at 10px against caption's 11px, a step nobody can see,
+     and what actually separated them was tracking rather than size. The spaced-caps role survives
+     as `.eyebrow`, which reads its size from `--text-caption` and therefore is not a ramp step -
+     it is a ROLE at an existing step, which is why it has its own row below rather than one here. */
+  { name: 'eyebrow', cls: 'eyebrow', sample: 'SECTION LABEL', token: 'caption' },
 ];
 
 export const RADIUS_STEPS = [

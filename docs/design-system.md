@@ -98,8 +98,8 @@ this table is.
 
 | Token | Size | Line-height | Weight | Tracking | Used for |
 |---|---|---|---|---|---|
-| `text-micro` | 10px | 14px | 500 | 0.14em | the smallest eyebrow, spaced caps |
-| `text-caption` | 11px | 15px | — | 0.02em | a label naming the thing under it |
+| `text-caption` | 11px | 15px | — | 0.02em | fine print, a count badge, disclosure |
+| `.eyebrow` | 11px | 15px | 500 | 0.14em | a spaced-caps section label (**a role, not a step**) |
 | `text-small` | 12px | 16px | — | — | secondary, a control's own label |
 | `text-body` | 14px | 20px | — | — | **default** |
 | `text-body-lg` | 16px | 24px | — | — | a setting's title, a lead paragraph |
@@ -122,6 +122,63 @@ the rack's first run is what found it. A single unit across a scale or the scale
 
 **Hierarchy below body is carried by size and weight, never by ink.** See §3 — the palette has no
 stop that is both quieter than `muted` and legible, which is a finding rather than an omission.
+
+**`.eyebrow` is a ROLE AT AN EXISTING STEP, not a ramp step, and that distinction is load-bearing.**
+It reads its size from `--text-caption`, so there is exactly one size tier below `small`. It was
+`--text-micro` at 10px until 2026-08-24, and the 1px gap to caption was a step nobody could see
+while every call site still had to choose between them. What actually separated the two was
+tracking, weight and case — so those became the role and the size step went away. If a future
+surface wants "a smaller caption", the answer is no: it wants one of these two roles.
+
+### 2a. The measured contract — read this before porting a page from `run-trading@v2`
+
+Both scales below were read out of the live DOM on 2026-08-24 by walking every leaf text node and
+grouping by computed size, weight and colour. Monarch's `/transactions` is the reference for
+`/trades`; the numbers are theirs, not an impression of theirs.
+
+**Monarch runs its entire transactions page on three sizes.** 14, 16, 18, plus a single 12px badge
+that appears once. Hierarchy comes from **weight and ink**, never from another size step: 14px
+serves as full-ink toolbar buttons AND muted band text AND muted helper copy, and only weight and
+colour tell them apart.
+
+**Run's `/trades` now matches that pattern, in Run's own tokens:**
+
+| Role | Run | Monarch, measured |
+|---|---|---|
+| Chrome: a toolbar chip, a menu trigger, a footer button | `text-body` (14) **/500**, full ink | 14/500, full ink |
+| Secondary: a muted label, helper copy, the session band | `text-body` (14) muted | 14/400 and 14/500, muted |
+| Primary: every cell of a tape row, a rail value | `text-body-lg` (16) | 16/400 |
+| A result figure | `text-body-lg` (16) **/500**, pos/neg ink | 16/500, green — but see below |
+| A page or panel heading | `text-title` (18) | 18/500 |
+| A detail panel's amount and title | `text-h2` (24) | 24/500 |
+| Fine print, a count badge | `text-caption` (11) | — *(no equivalent; see below)* |
+
+**The rules that fall out of it, and the ones a ported page must obey:**
+
+1. **A row is ONE size.** Every cell of a tape row is `text-body-lg`. Account and time were 14
+   against the instrument's 16, which read them as annotations on it rather than as fields of equal
+   standing. What separates the net figure is what separates it in the reference: it is the only
+   coloured cell and the only one at weight 500.
+2. **Chrome is never smaller than the content it controls.** A toolbar chip, a `Menu` trigger and a
+   `Button size="sm"` are all `text-body`. `text-small` (12px) appears nowhere on `/trades`, and a
+   ported page should not reintroduce it — that step is what made the header's `Clear` sit a size
+   above the chips beside it, and the popover's `Clear` a size above `Cancel` and `Apply`.
+3. **A label/value pair is 14 muted over 16 ink.** The summary rail does this; so does the
+   reference's summary panel and its detail drawer.
+4. **Peers in a button row are one component at one size.** Clear / Cancel / Apply are all
+   `Button size="sm"`; only `variant` changes. `Clear` is `variant="ghost"` — no border, no resting
+   ground, ink only — which is what "it must not read as a third equal button" always meant.
+
+**Two places Run deliberately does NOT follow Monarch:**
+
+- **`text-caption` has no equivalent there and stays anyway.** Monarch is a budgeting app with no
+  audit obligation, so it never needs a tier below "muted body". Run's doctrine is *never show a
+  number you cannot reconcile*: the rail's provenance line and the inline quarantine reason are
+  **disclosure**, not merely quiet text, and they are read by a different kind of attention.
+- **Both signs of a result are coloured.** Monarch colours only the positive, leaving expenses plain
+  ink at weight 400 — which works because an expense is the default direction of a spending ledger
+  rather than a bad outcome. A loss is not the default direction of a trading tape; it is half the
+  subject, and a column of results has to be readable by sign at a glance.
 
 ---
 

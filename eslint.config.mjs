@@ -48,6 +48,11 @@ export default [
           // not that the rule is wrong.
           whitelist: [
             'cursor-blink',
+            // THE SPACED-CAPS EYEBROW, and a class rather than a token because what makes it a
+            // different object from `text-caption` is tracking, weight and CASE, not size - the two
+            // used to be separate sizes (10px vs 11px) and that step was invisible. It reads its
+            // size from `--text-caption`, so the tier below `small` stays single. globals.css.
+            'eyebrow',
             // Mono + tabular-nums for MACHINE STRINGS — order ids, timestamps, tickers — and
             // deliberately never a money figure. globals.css:390.
             'num',

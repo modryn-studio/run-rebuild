@@ -325,7 +325,12 @@
      precisely how the sidebar ended up at 400 by accident: brand.md carried a written rule
      ("nav links are text-body-lg") that no token enforced, and a system that is not the DEFAULT
      is a suggestion. Same lesson as the icon stroke drift and the motion curve. */
-  --text-micro: 10px;        --text-micro--line-height: 14px;        --text-micro--letter-spacing: 0.14em; --text-micro--font-weight: 500;
+  /* ONE TIER BELOW `small`, NOT TWO (2026-08-24, Luke: "merge micro and caption into one tier").
+     `--text-micro` sat at 10px against this 11px, which is a step nobody can see and a decision
+     every call site had to make anyway. What actually separated them was never the size - it was
+     TRACKING: 0.14em spaced caps for an eyebrow against 0.02em for fine print. So the size step is
+     gone and the role survives as `.eyebrow`, which reads its size from THIS token. One size, two
+     roles, one source of truth for the size. */
   --text-caption: 11px;      --text-caption--line-height: 15px;      --text-caption--letter-spacing: 0.02em;
   --text-small: 12px;        --text-small--line-height: 16px;
   --text-body: 14px;         --text-body--line-height: 20px;
@@ -977,6 +982,21 @@
 .clip-allow-shadow {
   overflow: clip;
   overflow-clip-margin: 8px;
+}
+
+/* THE SPACED-CAPS EYEBROW: a section label, not fine print. Both are 11px - the size step that
+   used to separate them (`--text-micro` at 10px) was invisible and is gone - so what makes this a
+   different object is the tracking, the weight and the case, which is what it always was.
+   IT READS ITS SIZE FROM THE TOKEN, so the tier stays single: change `--text-caption` and this
+   moves with it. `text-transform` is baked in because an eyebrow that is not upper case is not an
+   eyebrow, and leaving it to the call site is how `trade-drawer-body.tsx` ended up hand-rolling
+   `text-small` + `tracking-[0.1em]` + `uppercase` as a third version of this. */
+.eyebrow {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  letter-spacing: 0.14em;
+  font-weight: 500;
+  text-transform: uppercase;
 }
 
 /* A FULL-SCREEN SHEET THAT ARRIVES FROM THE BOTTOM (`S5d`, 2026-08-21).

@@ -80,10 +80,10 @@ const PAGE_TITLE: Record<SubPage, string> = {
 };
 
 /* THE GREY SECTION BAND. The same object the tape's session band is: a LABEL for the rows beneath
- * it, so it takes `band` ground and muted ink. `text-micro` is the ramp's spaced-caps eyebrow. */
+ * it, so it takes `band` ground and muted ink. `.eyebrow` is the ramp's spaced-caps role. */
 function SectionBand({ children }: { children: React.ReactNode }) {
   return (
-    <p className="bg-band text-micro text-muted border-rule border-y px-4 py-3 uppercase">
+    <p className="eyebrow bg-band text-muted border-rule border-y px-4 py-3">
       {children}
     </p>
   );

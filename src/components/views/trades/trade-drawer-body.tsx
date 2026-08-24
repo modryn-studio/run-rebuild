@@ -21,12 +21,11 @@ import { Icon } from '@/components/ui/icon';
 export function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mt-6 first:mt-0">
-      {/* `text-micro`, WHICH IS WHAT THIS ALREADY WAS (2026-08-24). The token IS the spaced-caps
-          eyebrow - it carries `letter-spacing: 0.14em` and `font-weight: 500` in the ramp itself -
-          and this hand-rolled a second one at a different size with `tracking-[0.1em]` beside it.
-          Two ways to draw one object is how a scale drifts, and `filter-sheet.tsx`'s section band
-          was already using the token for the identical job. The arbitrary tracking goes with it. */}
-      <p className="text-micro text-muted uppercase">{label}</p>
+      {/* `.eyebrow`, WHICH IS WHAT THIS ALREADY WAS (2026-08-24). It hand-rolled `text-small` +
+          `tracking-[0.1em]` + `uppercase`, a third version of an object the system already names -
+          the same role as `filter-sheet.tsx`'s section band. The class carries the size, the
+          tracking, the weight and the case, so there is nothing left here to get wrong. */}
+      <p className="eyebrow text-muted">{label}</p>
       {/* mt-3: measured 12px from the reference's section label to its first value, against our 8. */}
       <dl className="mt-3">{children}</dl>
     </div>
