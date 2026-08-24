@@ -7,7 +7,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "//build": "verify-css runs AFTER next build and fails it if the emitted stylesheet is missing rules globals.css declares. Added 2026-08-24 after a deployment shipped current HTML with a stale stylesheet and every other signal stayed green.",
+    "build": "next build && node scripts/verify-css.mjs",
     "start": "next start",
     "lint": "eslint src/",
     "//db-script": "Scripts that touch the DB need BOTH flags: --env-file loads DATABASE_URL, --conditions=react-server gets past the server-only guard in lib/env.ts. Rediscovering that cost a round trip on 2026-08-06. Pattern: tsx --env-file=.env.local --conditions=react-server scripts/<name>.mts",

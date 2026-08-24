@@ -116,6 +116,8 @@ with a rule. The rules stay HERE, because this file is loaded into every session
 - **A `'use client'` file may import TYPES from a db-backed module, never VALUES.** `import type` is erased and always safe.
 - **Every export of a `'use client'` module becomes a client reference.** The shell's layout constants live in a plain module (`src/lib/shell.ts`) and re-exporting does not launder them.
 - **A row fetched over JSON has no `Date`s, and TypeScript will not tell you.** Revive at the boundary (`reviveTrade`), never at the call site.
+- **Turbopack's build cache is OFF** (`experimental.turbopackFileSystemCacheForBuild: false`, default `true` since 16.3.0). It shipped CURRENT HTML WITH A STALE STYLESHEET; the phone was unusable and build, lint, typecheck and `/status` were all green. `next dev` uses a different cache, so local can never show you this.
+- **`npm run build` verifies its own stylesheet** (`scripts/verify-css.mjs`). Every unconditional class rule in `globals.css`, and every token those rules read, must reach the emitted CSS or the build fails.
 - **Next.js 16 is not the Next.js in your training data.** Read `node_modules/next/dist/docs/` before writing framework code.
 - **TypeScript stays on 6**; 7.0 breaks typescript-eslint and takes `npm run lint` down.
 - **Tailwind v4 has no config file.** `@theme` in `src/app/globals.css`, never `:root`, never `tailwind.config.*`.

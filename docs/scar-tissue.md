@@ -66,6 +66,84 @@ consumer re-learns it.
 Read `node_modules/next/dist/docs/` before writing framework code. `next dev` maintains that pointer
 in `AGENTS.md`, which exists so Next writes its managed block there instead of into `CLAUDE.md`.
 
+### Turbopack's build cache is OFF, and the build verifies its own stylesheet
+
+**2026-08-24. The worst deploy this project has had, and every signal was green while it happened.**
+
+Deployment `0849edc` served **current HTML with a stale stylesheet**. Not a cache in a browser, not a
+CDN: the build itself emitted the wrong CSS.
+
+Measured, rather than inferred:
+
+| | bytes | `.sheet-transition` |
+|---|---|---|
+| deployed stylesheet | 56,566 | absent |
+| clean local build, same commit | 60,818 | present |
+
+The deployed file was a strict SUBSET of the correct one. Every rule the merged branch added was
+gone: `sheet-transition`, `drawer-transition`, `icon-btn`, `menu-panel`, `clip-allow-shadow`,
+`pane-bottom-clearance`, `btn-secondary`, plus the `--color-success` / `--color-danger` /
+`--text-h3` / `--ease-sheet` / `--bottom-bar-h` tokens. Tracing each missing rule to the commit that
+introduced it put all of them on the merged branch, and everything still present at `f81b38c` (S0).
+
+It also still carried `.pop-in-up`, a class that `90c7ff0` **replaced** with `menu-panel`. So the
+stylesheet was not the previous release's either. It dated to an intermediate commit ON THE BRANCH,
+which is what makes a build cache holding branch artifacts the explanation rather than a guess about
+the CDN.
+
+**What it cost.** `filter-sheet.tsx` is a `fixed inset-0 z-[70]` panel that is ALWAYS MOUNTED, and
+the one rule holding it off-screen is `.sheet-transition[data-open='false'] { translate: 0 100% }`.
+Without it the sheet painted over the entire app, and because its wrapper carries
+`pointer-events-none` while closed, the visible UI was inert and taps fell through to a tape nobody
+could see. The phone was unusable. `npm run build` exited 0, `npm run lint` exited 0, `tsc` was
+clean, and `/status` reported the correct commit.
+
+**Why it could not be seen locally.** `next dev` uses a DIFFERENT cache
+(`.next/dev/cache/turbopack`) from `next build` (`.next/cache/turbopack`). A dev server on :3002 can
+never show this, and it showed a perfect page throughout.
+
+**The mechanism, read from the installed package rather than remembered.**
+`experimental.turbopackFileSystemCacheForBuild` is declared at
+`node_modules/next/dist/server/config-shared.d.ts:732` and appears in the resolved defaults at
+`:1812` as `true`. Next's own docs date that default: *"v16.3.0 - FileSystem caching is enabled by
+default for builds."* This project pins 16.3.0, so it adopted the behaviour the week it shipped.
+Vercel restores `.next/cache` between deployments, which makes that cache the one input to a
+production build that is not the source tree, and the only difference between Vercel's build and a
+clean local one.
+
+**What is NOT claimed.** A two-commit warm-cache rebuild was run in an isolated worktree - build
+`6ec8494` cold, then `0849edc` against that warm cache - and it did **not** reproduce the fault.
+Both builds were correct. So the precise invalidation path is unproven. That is an argument for
+removing the cache, not for keeping it: an experimental cache that cannot be shown to be wrong on
+demand, and cannot be shown to be right either, does not belong between the source and what a
+trader loads. A third-party blog claiming the flag is opt-in is wrong; the installed package and the
+official docs agree that it defaults on.
+
+**The two rules that came out of it.**
+
+1. `experimental.turbopackFileSystemCacheForBuild: false` in `next.config.ts`. The build is
+   deterministic or it is not trustworthy, and this app builds cold in about two minutes.
+2. `scripts/verify-css.mjs` runs as the second half of `npm run build`. It derives the required set
+   from `globals.css` itself - every unconditional top-level class rule with a real body, plus every
+   custom property those rules read - and fails the build if any is absent from the emitted CSS. A
+   hand-maintained list would have gone stale; this one extends itself the moment a rule is added.
+   Verified both ways before it was trusted: it PASSES the known-good build and FAILS the actual
+   production stylesheet, naming all 8 missing classes and 3 missing tokens.
+
+**Its own first version was wrong, which is worth recording.** The scan skipped comments as it
+walked and captured each rule's selector as everything since the previous `}` - which, for a rule
+preceded by a comment block, is the comment. This stylesheet documents nearly every rule it
+declares, so the check silently covered 19 classes out of 40, and `.sheet-transition` - the exact
+rule it exists to protect - was one it missed. It reported success. A check that under-reports is
+worse than no check, so comments are stripped before the scan now.
+
+**The fragility that remains, deliberately not fixed.** A full-screen, always-mounted,
+`pointer-events-none` overlay whose dismissal depends on one external CSS rule fails
+catastrophically rather than gracefully. With a deterministic build and a build-time gate, a stale
+stylesheet can no longer ship, so this is third-order - but if the sheet is ever touched again, the
+robust shape is to drive the dismissed position from an inline style (which beats classes and needs
+no stylesheet) or to unmount it when closed.
+
 ### TypeScript stays on 6
 
 7.0 ships no programmatic API, so typescript-eslint throws on import and takes `npm run lint` down
