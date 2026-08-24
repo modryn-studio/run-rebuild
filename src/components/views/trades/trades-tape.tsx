@@ -465,15 +465,23 @@ function Row({
           it now carries in SIZE, which is what the reference does too: `text-body` here against
           `text-body-lg` on the instrument. */}
       {!hidden.includes('account') && (
-        <span className="text-body text-text hidden min-w-0 flex-1 items-center gap-1.5 sm:flex">
+        <span className="text-body-lg text-text hidden min-w-0 flex-1 items-center gap-1.5 sm:flex">
           <AccountName name={t.accountName} logo={t.firmLogo} />
         </span>
       )}
 
       {/* WHEN IT WAS TAKEN, not when it closed, and it has to be the key the list is sorted by or
           the order reads as random. `w-20` because "12:28 PM" needs the room "08:54" did not. */}
+      {/* ONE SIZE ACROSS THE ROW (2026-08-24, Luke: "flatten to 16 everywhere in the row").
+          The reference's row is 16px in every cell - merchant, category, account - and carries its
+          hierarchy in WEIGHT and INK instead of in size. This row split 16/14, which made account
+          and time read as annotations on the instrument rather than as fields of equal standing.
+          They are not annotations: an account decides whether a loss matters, and the entry time is
+          the key the tape is ordered by.
+          What still separates the net figure is what separates it in the reference too - it is the
+          only cell that is coloured, and the only one at weight 500. */}
       {!hidden.includes('time') && (
-        <span className="text-body text-text hidden w-20 shrink-0 tabular-nums sm:block">
+        <span className="text-body-lg text-text hidden w-20 shrink-0 tabular-nums sm:block">
           {displayTime(t.entryAt, zone)}
         </span>
       )}

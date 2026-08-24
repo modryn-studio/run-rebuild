@@ -177,8 +177,14 @@ function Group() {
 function Line({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 px-5 py-1.5">
+      {/* LABEL 14 MUTED, VALUE 16 INK, which is the reference's summary panel exactly: its
+          "Total transactions" / "Largest expense" labels measure 14px/400 muted and their values
+          16px/400 full ink. Both were 14 here, so the panel's figures read at the same size as the
+          words describing them. 16 also makes "a figure is 16px" true across the whole page now
+          that the tape's row is flat - the rail and the tape stop disagreeing about how big a
+          number is. */}
       <dt className="text-body text-muted shrink-0">{label}</dt>
-      <dd className="text-body min-w-0 text-right">{children}</dd>
+      <dd className="text-body-lg min-w-0 text-right">{children}</dd>
     </div>
   );
 }

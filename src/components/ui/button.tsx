@@ -110,7 +110,14 @@ const variantClasses: Record<ButtonVariant, string> = {
  * already hand-sets, and it matches the Input primitive so a stacked field-and-button pair agrees.
  */
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-small',
+  /* 14px, NOT 12px (2026-08-24). The reference's popover footer buttons are 32px tall with
+     14px/500 type - the same type as everything else in that panel. `sm` carried `text-small`,
+     which is what made `Clear` (plain text at `text-body`) sit a size above `Cancel` and `Apply`
+     beside it in the same footer row. One size across a button row, which is the reference's
+     actual discipline: it varies WEIGHT and INK, never size, within a group of peers.
+     `sm` and `md` now differ by height and padding alone, which is the distinction that was
+     always doing the work. */
+  sm: 'h-8 px-3 text-body',
   md: 'h-9 px-4 text-body',
   lg: 'h-12 px-6 text-body-lg',
 };

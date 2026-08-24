@@ -75,7 +75,14 @@ export function HeaderControl({ children, className, ...props }: React.Component
       type="button"
       {...props}
       className={cn(
-        'lift-press lift-rest text-small text-text flex h-9 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] px-3 font-medium',
+        /* `text-body`, NOT `text-small` (2026-08-24). Measured on the reference: its toolbar
+           buttons - Search, Filters, Sort, Columns, Edit multiple - are 14px/500 at `h-9`, the
+           SAME size as its muted body copy, not a step below it. This chip was 12px, which made
+           the page's chrome smaller than the content it controls and put a size step in the scale
+           that the reference does not have. `h-9` already matched; only the type was out.
+           It also ends a visible inconsistency: the header's plain-text `Clear` is `text-body`, so
+           the undo sat a size ABOVE the three chips it belongs beside. */
+        'lift-press lift-rest text-body text-text flex h-9 shrink-0 items-center gap-1.5 rounded-[var(--radius-sm)] px-3 font-medium',
         className
       )}
     >

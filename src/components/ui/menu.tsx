@@ -135,7 +135,10 @@ export function Menu<T extends string>({
         // pointer left and nothing on screen said which control the list belonged to.
         data-active={open ? 'true' : undefined}
         onClick={() => (open ? setOpen(false) : openAt())}
-        className="lift-press lift-rest text-small text-text flex h-9 items-center justify-between gap-3 rounded-[var(--radius-sm)] px-3 font-medium"
+        /* `text-body`, matching `HeaderControl` (2026-08-24). This trigger and that chip are the
+           same object at the same `h-9` and sit in the same band; they had no business rendering
+           at different sizes. Both now land where the reference's toolbar buttons measure. */
+        className="lift-press lift-rest text-body text-text flex h-9 items-center justify-between gap-3 rounded-[var(--radius-sm)] px-3 font-medium"
       >
         <span className="grid">
           {/* THE OVERRIDE RIDES IN THE SAME GRID CELL as the options, so it inherits the reserved

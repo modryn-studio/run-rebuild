@@ -397,7 +397,7 @@ export function FilterSheet({
                         to write because the state cannot be reached. */}
                     <div className="flex flex-col gap-4 px-4 py-4">
                       <label className="flex flex-col gap-1.5">
-                        <span className="text-small text-muted font-medium">Start date</span>
+                        <span className="text-body text-text font-medium">Start date</span>
                         <DateInput
                           value={draft.from}
                           max={draft.to}
@@ -407,7 +407,7 @@ export function FilterSheet({
                         />
                       </label>
                       <label className="flex flex-col gap-1.5">
-                        <span className="text-small text-muted font-medium">End date</span>
+                        <span className="text-body text-text font-medium">End date</span>
                         <DateInput
                           value={draft.to}
                           min={draft.from}

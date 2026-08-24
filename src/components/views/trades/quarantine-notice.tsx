@@ -39,7 +39,9 @@ export function QuarantineNotice({
         </p>
         {/* NAMES THE CONSEQUENCE, not just the state. A trader who reads "2 quarantined" and nothing
             else does not know whether the numbers beside it are affected. */}
-        <p className="text-small text-muted mt-0.5">
+        {/* 14px, matching its own title and every other secondary line on this page. It was 12px,
+            which was the last thing on /trades still using that step. */}
+        <p className="text-body text-muted mt-0.5">
           {quarantined > 0
             ? 'These are still listed below. Open one to see what could not be reconciled.'
             : 'These are still listed below, with the reason you gave.'}

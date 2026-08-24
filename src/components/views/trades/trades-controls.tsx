@@ -825,7 +825,7 @@ function FiltersPopover({
                     />
                   </>
                 ) : (
-                  <span className="text-small text-muted font-medium">
+                  <span className="text-body text-text font-medium">
                     {dims.find((d) => d.key === dim)?.label}
                   </span>
                 )}
@@ -901,11 +901,11 @@ function FiltersPopover({
                   return (
                     <div key={d.key} className="mb-3 last:mb-0">
                       <div className="mb-1 flex items-center justify-between gap-2 px-1">
-                        <span className="text-small text-muted font-medium">{d.label}</span>
+                        <span className="text-body text-text font-medium">{d.label}</span>
                         <button
                           type="button"
                           onClick={() => clearDim(d.key)}
-                          className="text-small text-muted hover:text-text font-medium transition-colors"
+                          className="text-body text-muted hover:text-text font-medium transition-colors"
                         >
                           Clear
                         </button>
@@ -1019,12 +1019,12 @@ function DateField({
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-small text-muted font-medium">{label}</p>
+        <p className="text-body text-text font-medium">{label}</p>
         {value && (
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="text-small text-muted hover:text-text font-medium transition-colors"
+            className="text-body text-muted hover:text-text font-medium transition-colors"
           >
             Clear
           </button>
@@ -1052,7 +1052,11 @@ function DateField({
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-small text-muted mb-2 font-medium">{label}</p>
+      {/* 14px AND FULL INK (2026-08-24, Luke: "the copy 'Search' in the menu should be full
+          ink"). The reference's own popover label measures 14px/500 at rgb(255,255,255) - the
+          brightest thing in that panel - above helper copy at 14px/400 muted. This was 12px muted,
+          which made a section heading quieter AND smaller than the sentence explaining it. */}
+      <p className="text-body text-text mb-2 font-medium">{label}</p>
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );

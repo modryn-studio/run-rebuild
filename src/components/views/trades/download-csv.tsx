@@ -84,7 +84,7 @@ export function DownloadCsv({
       </button>
       {/* Said once, beside the retry, rather than in a toast. The button is the thing that failed
           and the button is where a trader is already looking. */}
-      {failed && !busy && <p className="text-small text-muted mt-1">That did not download.</p>}
+      {failed && !busy && <p className="text-body text-muted mt-1">That did not download.</p>}
     </div>
   );
 }
