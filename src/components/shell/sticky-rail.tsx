@@ -31,14 +31,34 @@ export function StickyRail({ className, children, ...props }: React.ComponentPro
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    /* `offsetHeight`, not `getBoundingClientRect`: this element's height does not change when it
-       becomes sticky, so the observer below cannot feed itself. */
-    const check = () => setFits(el.offsetHeight <= window.innerHeight);
+    /* IT MEASURES AGAINST THE SCROLLPORT, NOT THE WINDOW (2026-08-24), and that is the one thing
+       this port got wrong. v2 compared the rail to `window.innerHeight` and was right to: THE
+       DOCUMENT scrolled there, so the window WAS the scrollport.
+       run-rebuild does not scroll the document - `app-shell.tsx` is `h-dvh overflow-hidden` and
+       `<main>` is the thing that scrolls, sitting below a 64px header. So the window overstated the
+       available height by exactly that header, and the test claimed a fit it did not have.
+       Reproduced at 1280x560: the rail is 523px, the window says 560 so it pinned, and `<main>` is
+       496 - so 27px of the rail's bottom sat below the scrollport with no way to reach it. That is
+       precisely the failure this component exists to prevent, restated one layer up.
+       `clientHeight`, not `getBoundingClientRect().height`: the scrollport's inner height excluding
+       any horizontal bar, which is the space a sticky child actually has.
+
+       `offsetHeight` for the rail, not `getBoundingClientRect`: this element's height does not
+       change when it becomes sticky, so the observer below cannot feed itself. */
+    const check = () => {
+      const port = el.closest('main') ?? el.parentElement;
+      setFits(el.offsetHeight <= (port?.clientHeight ?? window.innerHeight));
+    };
     check();
     // The rail's own height changes when its content does — a filter that drops the trade count
     // from four digits to three reflows it. The viewport changes on resize and on zoom.
     const ro = new ResizeObserver(check);
     ro.observe(el);
+    /* THE SCROLLPORT IS OBSERVED TOO. Its height changes without the window's on this app - the
+       phone's header band appears, the bottom bar comes and goes at `md` - and a rail that only
+       re-checks when the rail itself reflows would keep a stale verdict through all of it. */
+    const port = el.closest('main');
+    if (port) ro.observe(port);
     window.addEventListener('resize', check);
     return () => {
       ro.disconnect();
