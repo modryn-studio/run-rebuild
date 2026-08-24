@@ -78,8 +78,16 @@ export function Row({
       <span
         aria-hidden
         className={cn(
+          /* `border-strong` UNTICKED, NOT `border-border` (2026-08-24, Luke: "the check boxes are
+             also hard to see. they shouldn't be muted"). `--color-border` is the quiet edge of a
+             thing that has a fill and a label to identify it. An unticked box has neither - it is
+             an empty 16px square, and the outline IS the control. That is the exact case
+             `button.tsx` names as belonging to `border-strong`: "Input and CodeInput keep the
+             strong edge because they have no label and no fill of their own." A checkbox is the
+             smallest member of that family, so it had the weakest possible edge on the element
+             that needed the firmest. */
           'flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors',
-          state === 'off' ? 'border-border' : 'border-accent bg-accent text-accent-fg'
+          state === 'off' ? 'border-border-strong' : 'border-accent bg-accent text-accent-fg'
         )}
       >
         {state === 'on' && <Icon name="check" size={12} />}

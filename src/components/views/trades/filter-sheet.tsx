@@ -41,7 +41,7 @@ import type { FacetRow } from '@/lib/trades/facets';
 import { productName } from '@/lib/instruments';
 import {
   DEFAULT_RANGE,
-  RANGES,
+  RANGE_OPTIONS,
   RANGE_LABEL,
   RESULT_TOKENS,
   type Range,
@@ -428,11 +428,17 @@ export function FilterSheet({
                     A LIST OF TICKS IS A DIFFERENT OBJECT. Every row here shows whether it is the
                     current answer, so a screen with no tick anywhere reads as "nothing selected"
                     rather than as "everything" — and the resting state of the tape would be the one
-                    state this screen could not describe. It is the widest window, so it sorts
-                    first, which is also the order `RANGES` already declares. */}
+                    state this screen could not describe.
+                    IT SORTS LAST (2026-08-24, Luke: "the All Time option should be below the Last
+                    year option"). It led the list because `RANGES` declares it first and it is the
+                    widest window - but the rows above it are a RAMP, seven days out to a year, and
+                    a reset dropped at the top of a ramp is the one row that does not belong to the
+                    sequence it is sitting in. At the foot it reads as the way back out of the list,
+                    which is what it is. `RANGE_OPTIONS` is `RANGES` minus the default, so the ramp
+                    is spelled by the module rather than re-ordered by hand here. */}
                 <SectionBand>Quick ranges</SectionBand>
                 <div role="radiogroup" aria-label="Quick ranges">
-                  {RANGES.map((r) => (
+                  {[...RANGE_OPTIONS, DEFAULT_RANGE].map((r) => (
                     <PickRow
                       key={r}
                       select="one"

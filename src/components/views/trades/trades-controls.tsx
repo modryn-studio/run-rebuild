@@ -495,8 +495,18 @@ function DatePopover({ applied }: { applied: TradesFilter }) {
                     aria-pressed={on}
                     onClick={() => setDraft({ range: r, from: null, to: null })}
                     className={cn(
-                      'text-body hover:bg-hover flex min-h-9 w-full items-center rounded-[var(--radius-sm)] px-2 text-left transition-colors',
-                      on ? 'text-text font-medium' : 'text-muted'
+                      /* THE APP SIDEBAR'S CONTRACT, because this is the app sidebar's object
+                         (2026-08-24, Luke: "that should be full ink. like the left sidebar in the
+                         app itself. it acts the same way"). It does: a list of destinations where
+                         exactly one is current and picking another replaces it.
+                         `nav-row.tsx` states the rule and this rail was breaking both halves of it.
+                         INK STAYS FULL ON EVERY ROW - an unpicked range is a place you can go, not
+                         metadata about the picked one, and muting it made seven of the eight look
+                         disabled. THE GROUND ALONE CARRIES RANK, which is why hover and selected
+                         are one token: `bg-selected` for the current row, the same on hover, and
+                         the pointer already disambiguates the moment two rows match. */
+                      'text-body flex min-h-9 w-full items-center rounded-[var(--radius-sm)] px-2 text-left transition-colors',
+                      on ? 'bg-selected text-text font-medium' : 'text-text hover:bg-selected'
                     )}
                   >
                     {RANGE_LABEL[r]}
@@ -804,7 +814,10 @@ function FiltersPopover({
                     }}
                     className={cn(
                       'flex min-h-9 w-full items-center gap-2 rounded-[var(--radius-sm)] px-2 text-left transition-colors',
-                      dim === d.key ? 'bg-hover text-text font-medium' : 'text-muted hover:bg-hover'
+                      /* Same object and same contract as the Date rail above and the app's own
+                         sidebar: full ink on every row, `bg-selected` carrying rank on its own. An
+                         axis you have not opened yet is not metadata. */
+                      dim === d.key ? 'bg-selected text-text font-medium' : 'text-text hover:bg-selected'
                     )}
                   >
                     <span className="text-body min-w-0 flex-1 truncate">{d.label}</span>
