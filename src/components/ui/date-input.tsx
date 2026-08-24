@@ -26,7 +26,7 @@
  * value, in ink, exactly as the UA intended.
  */
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 
 type Size = 'sm' | 'md';
@@ -67,6 +67,15 @@ export function DateInput({
 >) {
   const ref = useRef<HTMLInputElement>(null);
   const { h, font, pad } = SIZES[size];
+  /* FOCUS HAS TO BE STATE, because the placeholder and the UA's edit mask cannot both be visible.
+     `color: transparent` hides the mask while the field is empty - that is the whole trick this
+     component turns - but it does NOT hide the ACTIVE segment: Chrome paints that one with its own
+     background and foreground, ignoring the transparent colour. So focusing an empty field drew
+     `mm` on top of `Earliest` and the field read "mmiest" (2026-08-24, seen on /trades).
+     A CSS `:focus-within` variant cannot fix it, because the thing that must change is whether the
+     placeholder RENDERS, not how it looks. */
+  const [focused, setFocused] = useState(false);
+  const masked = !value && !focused;
 
   /* `className` REACHES THE INPUT, not the wrapper, because every override a call site has wanted
      so far is a property of the field itself — the desktop popover sits on `surface` and needs its
@@ -94,6 +103,14 @@ export function DateInput({
             // The native indicator is still there on the platforms that draw one.
           }
         }}
+        onFocus={(e) => {
+          setFocused(true);
+          rest.onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          rest.onBlur?.(e);
+        }}
         /* `focus:outline-none` for the same reason `Input` carries it: the border going pine IS the
            focus indicator, and the global ring would draw a second one around the first. */
         className={cn(
@@ -101,8 +118,10 @@ export function DateInput({
           h,
           font,
           pad,
-          // The UA's edit mask paints in `color`. Empty means it paints in nothing.
-          !value && 'text-transparent',
+          // The UA's edit mask paints in `color`, so hiding it is hiding the colour. Once focused
+          // the mask has to come back: it is the format hint you type against, and its active
+          // segment is drawn by the UA in spite of this anyway.
+          masked && 'text-transparent',
           className
         )}
         {...rest}
@@ -110,7 +129,7 @@ export function DateInput({
 
       {/* NOT `inset-0`: the calendar indicator lives at the right edge and this must not sit over
           it, or the one remaining click target for the native picker is swallowed. */}
-      {!value && (
+      {masked && (
         <span
           aria-hidden
           className={cn(

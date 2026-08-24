@@ -791,14 +791,18 @@
        On <html> and driven by the .dark class below, NOT `prefers-color-scheme`: the theme here is
        an explicit user choice that can disagree with the OS. */
     color-scheme: light;
-    /* NATIVE CONTROLS TAKE RUN'S ACCENT, NOT THE BROWSER'S (2026-08-24, Luke: "the calendars on
-       the date menu have blue buttons and blue hover and highlighted dates"). They were Chrome's
-       default blue, which is what an unset `accent-color` gets you - `color-scheme` above only
-       tells the UA which THEME to paint, never which hue. `<input type="date">` opens the
-       platform's own calendar and none of this app's CSS reaches inside it; `accent-color` is the
-       one property that does. It also covers checkboxes, radios and range inputs, so the whole
-       native surface stops disagreeing with the product.
-       It reads the token, so it follows the theme without a second declaration in `.dark`. */
+    /* IN-PAGE NATIVE CONTROLS TAKE RUN'S ACCENT - checkboxes, radios, range inputs, progress.
+       AND IT DOES **NOT** FIX THE DATE PICKER, which is why it is worth stating. It was added on
+       2026-08-24 believing it would (Luke: "the calendars on the date menu have blue buttons and
+       blue hover and highlighted dates") and it did not: the popup calendar is browser chrome
+       rendered OUTSIDE the document, and no page CSS reaches it. Verified on screen - the selected
+       day stayed Chrome blue with this set, in both themes.
+       The in-field edit mask resists too. `::selection` does not apply to the active segment, and
+       `::-webkit-datetime-edit-*-field:focus` does not match; a plain background on those
+       sub-fields DOES paint, but unconditionally, so it cannot express "the segment you are on".
+       Kept anyway, on its own merits: it themes every native control that IS in the document, and
+       this product will grow them. It reads the token, so it follows the theme with no second
+       declaration in `.dark` - measured rgb(31,107,87) light, rgb(86,183,155) dark. */
     accent-color: var(--color-accent);
     font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
