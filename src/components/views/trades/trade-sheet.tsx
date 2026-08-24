@@ -27,11 +27,10 @@
  */
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/ui/icon';
 import { ICON_BUTTON } from '@/components/ui/icon-button';
-import { PAGE_COLUMN } from '@/lib/shell';
 
 export function TradeSheet({ title, children }: { title: string; children: React.ReactNode }) {
   /* IT ARRIVES CLOSED AND OPENS ON THE NEXT FRAME, which is what makes it animate at all. A sheet
@@ -42,10 +41,27 @@ export function TradeSheet({ title, children }: { title: string; children: React
      this element is also the desktop's page container - it must not animate there. State keeps the
      two cases apart without a second element. */
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   useEffect(() => {
     const id = requestAnimationFrame(() => setOpen(true));
     return () => cancelAnimationFrame(id);
   }, []);
+
+  /* IT LEAVES THE WAY IT ARRIVED (2026-08-24, Luke: "does it animate back towards the bottom of the
+     screen or does it just close out? i need consistency"). It just closed: a route unmounts the
+     moment navigation commits, so there was nothing left on screen to animate.
+     So the control drives the animation and the navigation follows it. `setOpen(false)` starts the
+     200ms the class already declares for leaving, and the push happens after.
+     A TIMEOUT, NOT `transitionend`: reduced motion collapses the duration to zero and a
+     `transitionend` may never fire at all, which would strand the trader on a screen whose back
+     button silently does nothing. A timer always resolves. 220ms is the declared 0.2s plus a frame.
+     THE OS BACK GESTURE STILL GOES STRAIGHT BACK, and that is correct rather than a gap: the
+     browser draws its own page transition for that, and overriding it would make Run's animation
+     fight the platform's. Our control animates our way; the system's animates its way. */
+  const leave = () => {
+    setOpen(false);
+    setTimeout(() => router.push('/trades'), 220);
+  };
 
   return (
     <div
@@ -58,8 +74,14 @@ export function TradeSheet({ title, children }: { title: string; children: React
         'sheet-transition bg-bg',
         'max-md:fixed max-md:inset-0 max-md:z-[70] max-md:flex max-md:flex-col',
         !open && 'max-md:translate-y-full',
-        // From `md` it is just the page: the column, its measure, and a foot of breathing room.
-        cn(PAGE_COLUMN, 'md:pb-8')
+        /* `md:px-4`, NOT `PAGE_COLUMN` VERBATIM (2026-08-24, Luke: "we are not using the full width
+           of the screen"). `PAGE_COLUMN` is `mx-auto w-full px-4`, and that `px-4` applied at every
+           width - on top of the scrollport's own `px-4` below `md`. Measured at 390: content began
+           at x=32 in a 358px box, against the tape rows it was drilled from at x=16, and the header
+           put its back arrow at x=24 where `FilterSheet`'s sits at 8.
+           A phone sheet is FULL BLEED and its children own their insets, which is what the filter
+           sheet already does. The column and its gutter belong to the desktop page only. */
+        'mx-auto w-full md:px-4 md:pb-8'
       )}
     >
       {/* PHONE ONLY. Above `md` the shell's own band carries the trail, which is where a route
@@ -71,13 +93,17 @@ export function TradeSheet({ title, children }: { title: string; children: React
             did exactly that on `FilterSheet`'s back arrow, which rendered inline beside the centred
             title instead of at the far left. */}
         <div className="absolute left-2">
-          {/* A LINK, NOT `router.back()`, for the reason the route already states: back depends on
-              how the trader ARRIVED, and someone opening this URL cold would be sent wherever they
-              were before Run. `/trades` is where this screen belongs regardless. The phone's own
-              back gesture still does the history thing for anyone who wants it. */}
-          <Link href="/trades" aria-label="Back to trades" className={ICON_BUTTON}>
+          {/* A BUTTON HERE, AND A LINK IN THE DESKTOP TRAIL, because the two do different jobs.
+              This one has to ANIMATE before it navigates, which a plain link cannot express - and
+              the middle-click, cmd-click and "copy link address" a link buys are worth nothing on
+              the touch screen this control only exists on (`md:hidden`). The route's own trail in
+              the shell band stays a `<Link>` for exactly those affordances.
+              It pushes `/trades` rather than calling `back()`, for the reason the route states:
+              back depends on how the trader ARRIVED, and someone opening this URL cold would be
+              sent wherever they were before Run. */}
+          <button type="button" onClick={leave} aria-label="Back to trades" className={ICON_BUTTON}>
             <Icon name="back" size={22} />
-          </Link>
+          </button>
         </div>
         <h2 className="text-h3 text-text min-w-0 truncate px-12 font-medium">{title}</h2>
       </div>
