@@ -138,8 +138,17 @@ not get a promise it can't keep.
 that day's net (`August 5, 2026 +$1,337.35`). The trading equivalent is stronger, because a
 session is a more meaningful unit to a trader than a calendar day is to a spender. So the
 session is the **grouping of the Trades page**, not a destination — a session header carries
-its own net, trade count, and win rate. If sessions later need their own room, that's a
+its own net. If sessions later need their own room, that's a
 row we add on evidence, not on anticipation.
+
+> **Amended 2026-08-19 (Luke): the header carries the NET ONLY.** It specified net, trade count and
+> win rate. §6 of `psychology.md` governs every string on this page and its four properties include
+> *specificity in place of evaluation* and *ending on a position, not a grade* — and `0% win` on a
+> seven-trade day is a grade, the one figure on the page that scores a stretch of trading instead of
+> reporting it. It also lands hardest on the day a trader least needs scoring, which is the reader
+> this page is worth most to. The count and the rate both remain in the summary rail, over the
+> filtered set, where they describe rather than judge. `run-trading@v2` reached the same shape
+> independently: it groups by day as `{ day, netCents, trades }` and prints only the net.
 
 **Depth lives in page headers (P1).** `Trades` carries `All · By session`. `Read` carries
 `Patterns · History`. Nothing new appears in the sidebar.
@@ -378,7 +387,7 @@ needs a live read before criteria can be written.
 > correct, so that I can trust anything built on top of them.
 
 Acceptance criteria:
-- `THE SYSTEM SHALL group trades under session headers carrying that session's net P&L, trade count, and win rate`
+- `THE SYSTEM SHALL group trades under session headers carrying that session's net P&L` — *amended 2026-08-19: was "net P&L, trade count, and win rate". See the note in §3 on why the rate came out.*
 - `THE SYSTEM SHALL display fees per round trip, and SHALL NOT present a net figure that excludes them` — **amended 2026-08-11: per round trip, not per fill.** Fees arrive on a separate export that names no fill id; they resolve to round trips by an exact per-contract-per-side split. A per-fill fee figure would be a fabrication.
 - `THE SYSTEM SHALL indicate, on any surface showing a net figure, whether fees were imported for that range` — the alternative is a gross number labelled net
 - `THE SYSTEM SHALL display, on every page presenting computed figures, the provenance of those figures — the source file or connection, the account, the range covered, and when it was last read` (P8)
@@ -616,7 +625,7 @@ accessibility markup of Monarch's Accounts and Transactions pages (chrome-devtoo
 - `Add account (CSV)` ✅ — every check runs before the write, and the counts reported are rows the
   database accepted (amended 2026-08-15 with §S1's criteria; it read *"nothing commits until the
   count/range/rejects are confirmed"*, which described a confirm gate that `S4e` does not build)
-- `Trades` ✅ — session headers carrying net/count/win rate, filtered-set digest, read-only rows
+- `Trades` ✅ — session headers carrying the session net, filtered-set digest, read-only rows
 - `Read` ✅ — daily, a page not a modal, one pattern, plus the History tab
 - `Today` ✅ — Monarch's widget contract applied unchanged
 

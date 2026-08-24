@@ -642,7 +642,7 @@ paid for itself every time).
 
 ### S5 — Trades ⭐ *the record*
 
-Session headers carrying net/count/win rate, read-only rows, filtered-set digest, visible
+Session headers carrying the session net (count and win rate came out 2026-08-19 — see spec.md §3), read-only rows, filtered-set digest, visible
 quarantine with S9b's two actions, provenance line.
 
 > 📖 **[`psychology.md` §6](psychology.md#6-what-to-steal)** — Monarch's four properties govern every
