@@ -202,7 +202,17 @@ export function Tooltip({
       <span
         ref={anchor}
         className="inline-flex"
-        onPointerEnter={() => show(false)}
+        /* A TOUCH IS NOT A HOVER, and `pointerenter` does not know that on its own (2026-08-24,
+           Luke: "remove tooltips from mobile"). Pointer events fire for touch too, so every TAP on
+           a control opened its tooltip on a phone — a panel appearing next to the thing you just
+           pressed, explaining a keyboard shortcut that device does not have.
+           `pointerType` rather than a `(hover: hover)` media query, because the question is about
+           THIS gesture, not about the device. A Surface has both: its mouse should still get
+           tooltips, its finger should not, and a media query cannot tell those apart. */
+        onPointerEnter={(e) => {
+          if (e.pointerType === 'touch') return;
+          show(false);
+        }}
         onPointerLeave={hide}
         // onFocus/onBlur are delegated from focusin/focusout in React, so they fire for the control
         // inside rather than only for this wrapper.

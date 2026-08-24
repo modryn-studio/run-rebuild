@@ -474,8 +474,15 @@
      there". 0.40 against 0.50 is that difference stated in one number.
      Dark moves with it. A scrim on a near-black ground has less room to work, so the dark value
      runs slightly heavier than light at both tiers — the same asymmetry the shadow tokens carry. */
-  --scrim: rgba(34, 32, 29, 0.5);   /* theirs, measured */
-  --scrim-nav: rgba(28, 36, 48, 0.4);
+  /* BOTH WENT UP A STEP, BOTH MODES (2026-08-24, Luke: "make the scrim a little darker for both
+     light and dark mode ... for desktop as well for consistency"). One token pair serves every
+     width, so there was nothing to keep in step — the phone and the desktop dim identically by
+     construction, which is the reason these are tokens and not per-surface values.
+     0.50 -> 0.58 and 0.40 -> 0.50. The GAP between them is preserved, because that gap is the
+     distinction the two tokens exist to carry: a modal makes the page unreachable, a drawer slides
+     over a page that is still there. Raising only one would have collapsed them into each other. */
+  --scrim: rgba(34, 32, 29, 0.58);
+  --scrim-nav: rgba(28, 36, 48, 0.5);
 
   /* --switch-off  the resting track of a switch (components/ui/switch.tsx).
      A literal per-mode value for exactly the reason --scrim is one: anything mixed off an ink
@@ -735,8 +742,11 @@
   --elevation-press: inset 0 2px 5px 0 rgba(0, 0, 0, 0.45);   /* theirs is #0003; deepened with the ground, same reason */
   /* Black, not the dark ink token - see the note beside the light values. A dark page dimmed by its
      own near-white text colour gets BRIGHTER, which is the failure this replaces. */
-  --scrim: rgba(0, 0, 0, 0.62);
-  --scrim-nav: rgba(0, 0, 0, 0.5);
+  /* 0.62 -> 0.70 and 0.50 -> 0.60, moving with light (2026-08-24). A scrim on a near-black ground
+     has less room to work than one on white, which is why these were already higher; they stay
+     higher, and the step between them stays the same size it is in light. */
+  --scrim: rgba(0, 0, 0, 0.7);
+  --scrim-nav: rgba(0, 0, 0, 0.6);
   /* MIGRATED 2026-08-14, #4a4f57 -> #888680. Two bugs in one line, and the first is why the second
      survived: #4a4f57 is a COOL SLATE in a palette that is warm-neutral everywhere else, left over
      from the pre-Monarch ink (the same family as `--scrim-nav`'s rgba(28,36,48) two lines up). It

@@ -454,8 +454,18 @@ function Row({
         </div>
       </div>
 
+      {/* FULL INK, NOT MUTED (2026-08-24), and the reference decided it. Read live off Monarch's own
+          transactions table rather than inferred: its account cell renders at `rgb(255,255,255)` on
+          a `rgb(25,25,24)` ground — the BRIGHTEST thing in the row, above even the merchant name at
+          `rgb(238,238,236)`. Its whole row is full ink; the only muted things on that screen are the
+          date group bands and two icon glyphs.
+          That does not break "muted is METADATA, ink is PROSE", because an account is not metadata
+          about the trade — it is one of the facts the trade IS, and on a funded account it is the
+          fact that decides whether a loss matters. The hierarchy this column used to carry in COLOUR
+          it now carries in SIZE, which is what the reference does too: `text-body` here against
+          `text-body-lg` on the instrument. */}
       {!hidden.includes('account') && (
-        <span className="text-body text-muted hidden min-w-0 flex-1 items-center gap-1.5 sm:flex">
+        <span className="text-body text-text hidden min-w-0 flex-1 items-center gap-1.5 sm:flex">
           <AccountName name={t.accountName} logo={t.firmLogo} />
         </span>
       )}
@@ -463,7 +473,7 @@ function Row({
       {/* WHEN IT WAS TAKEN, not when it closed, and it has to be the key the list is sorted by or
           the order reads as random. `w-20` because "12:28 PM" needs the room "08:54" did not. */}
       {!hidden.includes('time') && (
-        <span className="text-body text-muted hidden w-20 shrink-0 tabular-nums sm:block">
+        <span className="text-body text-text hidden w-20 shrink-0 tabular-nums sm:block">
           {displayTime(t.entryAt, zone)}
         </span>
       )}
@@ -511,9 +521,13 @@ function Row({
           row is the target and a tap is the affordance. It earns its place on a DESKTOP, where a
           pointer needs somewhere to aim and a hover state to answer it — neither of which exists on
           a touch screen, where it is 32px of chrome that never lights up. */}
+      {/* FULL INK AT REST (2026-08-24). Monarch's own chevron measures `rgb(255,255,255)` — it does
+          not sit quiet and light up, it is simply part of the row. The hover mechanic below is
+          unchanged and still does the work it was added for: the GROUND and the BORDER arrive on
+          hover, which is what makes it read as a control. Only the resting ink moved. */}
       <span
         aria-hidden
-        className="text-muted group-hover:text-text group-hover:bg-surface group-hover:border-border group-active:bg-bg group-active:shadow-[var(--shadow-press)] flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent transition max-md:hidden"
+        className="text-text group-hover:bg-surface group-hover:border-border group-active:bg-bg group-active:shadow-[var(--shadow-press)] flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent transition max-md:hidden"
       >
         <Icon name="chevron" size={16} className="-rotate-90" />
       </span>
