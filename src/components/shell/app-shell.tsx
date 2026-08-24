@@ -291,9 +291,23 @@ export function AppShell({
             className="flex shrink-0 items-center justify-between pr-3 pl-5"
             style={{ height: SHELL_HEADER_H }}
           >
-            <Link href="/">
+            {/* NOT A LINK ON A PHONE (2026-08-24, Luke: "clicking on the wordmark should not do
+                anything at all. do not let that route the user to the homepage"). `/` is the
+                MARKETING door, not a destination inside the product - so on a desktop, where the
+                mark sits in a sidebar beside the nav, it is a way back out and that is legible.
+                On a phone the mark lives inside the drawer the trader just opened to navigate, and
+                a tap there ejects them from the app they are using into a landing page. There is no
+                equivalent of "home" for a signed-in trader; the bottom bar carries the four places
+                that exist.
+                A `<span>` below `md` rather than a disabled link, because a link that does nothing
+                is still announced as a link and still offers a context menu full of ways to follow
+                it. Two elements, one visible at a time, so neither has to pretend. */}
+            <Link href="/" className="max-md:hidden">
               <Wordmark />
             </Link>
+            <span className="md:hidden">
+              <Wordmark />
+            </span>
             {/* THE PRIMITIVES THIS REPO ALREADY OWNS, which the shell was hand-rolling past.
                 `icon-button.tsx`'s own note settles the shape and names this exact control: "A
                 CIRCLE SINCE 2026-08-01, and it is a rule rather than a preference: shape follows the

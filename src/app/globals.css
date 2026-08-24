@@ -997,6 +997,17 @@
   overflow-clip-margin: 8px;
 }
 
+/* THE UA'S OWN SEARCH CLEAR IS SUPPRESSED, because this app draws its own (2026-08-24).
+   `input[type=search]` gets a `::-webkit-search-cancel-button` in Chrome and Safari on a desktop,
+   nothing on Android Chrome, and something different again elsewhere - unstyleable in all of them,
+   and clearing it changes the DOM value without telling React, so the component's state and the
+   field disagree until the next keystroke. Two clear buttons side by side, one of which half works,
+   is worse than either. See `TradesSearchPill`. */
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-decoration {
+  appearance: none;
+}
+
 /* AN INVISIBLE 44px TARGET AROUND A 36px CONTROL, without any of the chip chrome.
    `.lift-press` already does this (`::after { inset: -4px }`) and has since 2026-07-30, but it does
    it as one line in a class that also brings a border, a ground, a press inset and a transition -

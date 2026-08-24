@@ -70,14 +70,21 @@ function useParamWriter() {
   const router = useRouter();
   const params = useSearchParams();
   return useCallback(
-    (patch: Record<string, string | null>) => {
+    /* `replace` FOR ANYTHING THAT FIRES WHILE THE TRADER IS STILL TYPING. Every other control here
+       commits once on a deliberate press, which is a history entry worth having - back should undo
+       "I applied a filter". Search-as-you-type is not that: pushing per keystroke would make the
+       back button walk backwards through "Culver'", "Culver", "Culve"... and bury the page the
+       trader actually came from under a dozen entries of their own spelling. */
+    (patch: Record<string, string | null>, mode: 'push' | 'replace' = 'push') => {
       const next = new URLSearchParams(params.toString());
       for (const [k, v] of Object.entries(patch)) {
         if (v === null || v === '') next.delete(k);
         else next.set(k, v);
       }
       const qs = next.toString();
-      router.push(qs ? `/trades?${qs}` : '/trades', { scroll: false });
+      const href = qs ? `/trades?${qs}` : '/trades';
+      if (mode === 'replace') router.replace(href, { scroll: false });
+      else router.push(href, { scroll: false });
     },
     [params, router]
   );
@@ -154,6 +161,24 @@ export function TradesSearchPill({
   // Re-seed when the applied term changes from anywhere else — the band's Clear, or a back button.
   useEffect(() => setDraft(applied.q ?? ''), [applied.q]);
 
+  /* THE SEARCH RUNS AS YOU TYPE (2026-08-24, Luke: "the search should start working automatically
+     after every character typed ... there should be no need to click enter"). The keyboard's search
+     key still works and now does the only thing left to do, which is put the keyboard away.
+     DEBOUNCED, because each write is a round trip: the URL is the state, the page is a Server
+     Component, and a query per keystroke would have the tape re-fetching six times for one word.
+     250ms is below the threshold where a list stops feeling live and comfortably above a fast
+     typist's inter-key gap.
+     IT COMPARES AGAINST WHAT IS APPLIED before writing. Without that, the re-seed effect above and
+     this one form a loop: applied changes -> draft is set -> this fires -> writes the same value.
+     Trimmed on both sides of the comparison so trailing whitespace mid-word does not trigger a
+     round trip that changes nothing. */
+  useEffect(() => {
+    const term = draft.trim();
+    if (term === (applied.q ?? '')) return;
+    const id = setTimeout(() => write({ q: term || null }, 'replace'), 250);
+    return () => clearTimeout(id);
+  }, [draft, applied.q, write]);
+
   return (
     /* THE BOTTOM OF THE PAGE HEADER, AND IT STAYS PUT (Luke, 2026-08-20: "as the user scrolls, the
        main header with the search bar remains on the screen").
@@ -196,9 +221,14 @@ export function TradesSearchPill({
           right edge of the search field rather than beside it, which is what keeps the row to a
           single object instead of two competing ones. */}
       <form
+        /* THE SEARCH KEY DISMISSES THE KEYBOARD, because the search already happened. It used to be
+           the only way to run one; now the debounce above has committed the term before a finger
+           reaches the key, so submitting has nothing left to apply. Blurring is the honest response
+           to a press that would otherwise be a no-op - and it is what the trader wants anyway,
+           which is to see the results they just typed. */
         onSubmit={(e) => {
           e.preventDefault();
-          write({ q: draft.trim() || null });
+          (e.currentTarget.querySelector('input') as HTMLInputElement | null)?.blur();
         }}
         /* NOT A PILL (Luke, 2026-08-20: "the search bar is the same shape as the Text field or
            button. stay consistent with the app"). It shipped `rounded-full`, which is a shape this
@@ -220,6 +250,30 @@ export function TradesSearchPill({
           aria-label="Search trades"
           className="text-body-lg text-text placeholder:text-muted h-full min-w-0 flex-1 bg-transparent outline-none"
         />
+        {/* CLEAR, AND IT IS OURS RATHER THAN THE UA'S (2026-08-24, Luke: "implement the 'x' button
+            to actually clear the search"). `type="search"` draws a `::-webkit-search-cancel-button`
+            in some engines and none at all in others - it is unstyleable, absent on Android Chrome,
+            and clearing it does not tell React anything. This one owns the state.
+            IT CLEARS IMMEDIATELY, bypassing the debounce: clearing is a deliberate press, not a
+            keystroke, and waiting 250ms to empty a list reads as a stuck button.
+            BOTH CONTROLS STAY VISIBLE, which is where this diverges from the reference. Monarch
+            SWAPS its filter icon for the clear - but its filter icon does not carry a count, and
+            ours does. Hiding the one mark that says how much of the tape is hidden, at the moment a
+            search is narrowing it further, trades an honest number for a tidier row. The field is
+            358px at 390 and the two controls take 72 of it. */}
+        {draft && (
+          <IconButton
+            onClick={() => {
+              setDraft('');
+              write({ q: null }, 'replace');
+            }}
+            aria-label="Clear search"
+            className="-mr-1"
+          >
+            <Icon name="close" size={18} />
+          </IconButton>
+        )}
+
         {/* THE SHEET, NOT THE POPOVER (`S5d`, 2026-08-21). The desktop panel is a three-column rail
             anchored to a chip and none of it survives 390px; `FilterSheet` is the same axes as a
             full screen of rows. The trigger keeps its dot, which is the only thing that says a
