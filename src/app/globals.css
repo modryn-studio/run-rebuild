@@ -997,6 +997,32 @@
   overflow-clip-margin: 8px;
 }
 
+/* AN INVISIBLE 44px TARGET AROUND A 36px CONTROL, without any of the chip chrome.
+   `.lift-press` already does this (`::after { inset: -4px }`) and has since 2026-07-30, but it does
+   it as one line in a class that also brings a border, a ground, a press inset and a transition -
+   everything a control acting ON the shell wants and a full-width footer button does not. So the
+   expander is available on its own.
+   WHY THIS AND NOT A BIGGER BUTTON (2026-08-24). `Button md` is 36px and Luke chose that on looks
+   after `lg` at 48 read heavy on a phone. 36 clears WCAG 2.5.8 Target Size (Minimum, AA, 24x24 CSS
+   px) several times over and misses 2.5.5 Target Size (Enhanced, AAA, 44x44) - which is the bar
+   this project holds itself to, and the bar Apple's HIG states as 44pt. Growing the button to meet
+   it would undo a deliberate visual decision; growing the TARGET costs nothing on screen. That is
+   the same trade `.lift-press` made for the icon chips.
+   `inset: -4px 0`, NOT `-4px`. Vertical only: these buttons are already `flex-1` wide, so there is
+   nothing to gain horizontally and a 4px bleed each side would eat into the `gap-3` between Clear
+   and Apply. 36 + 4 + 4 = 44 exactly.
+   `position: relative` IS THE TRAP `icon-button.tsx` records: it is unlayered here, so a caller
+   passing `absolute` through `className` would silently resolve to relative. Nothing needs that
+   today; if something ever does, it has to position a wrapper instead. */
+.hit-44 {
+  position: relative;
+}
+.hit-44::after {
+  content: '';
+  position: absolute;
+  inset: -4px 0;
+}
+
 /* THE SPACED-CAPS EYEBROW: a section label, not fine print. Both are 11px - the size step that
    used to separate them (`--text-micro` at 10px) was invisible and is gone - so what makes this a
    different object is the tracking, the weight and the case, which is what it always was.

@@ -52,6 +52,9 @@ export default [
             // different object from `text-caption` is tracking, weight and CASE, not size - the two
             // used to be separate sizes (10px vs 11px) and that step was invisible. It reads its
             // size from `--text-caption`, so the tier below `small` stays single. globals.css.
+            // An invisible 44px target around a 36px control, without `.lift-press`'s chip chrome.
+            // WCAG 2.5.5 (AAA) and Apple's HIG both state 44; 2.5.8 (AA) asks only 24. globals.css.
+            'hit-44',
             'eyebrow',
             // The instrument mark's type: caption size, tabular, and a MEASURED -0.01em that buys
             // 1px of clearance for "MNQ" inside a 28px disc. globals.css shows the measurement.

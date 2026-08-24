@@ -504,20 +504,23 @@ export function FilterSheet({
           className="border-rule flex shrink-0 gap-3 border-t px-4 pt-3"
           style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
         >
-          {/* `md`, NOT `lg` (2026-08-21, Luke: "the 'Clear all' and 'Apply' buttons seem kind of
-              large for the screen"). `lg` is 48px, the full-width CTA that `Input` pairs with;
-              `md` is the app's 36px standard action. FLAGGED RATHER THAN SETTLED: 36px is under the
-              44px touch floor this build holds every other phone target to, and these are the two
-              most consequential taps on the screen. */}
+          {/* 36px THAT TARGETS 44 (2026-08-24). `md` is the app's 36px standard action and Luke
+              chose it on looks after `lg` at 48 read heavy here. That was flagged as a compromise
+              against the 44px target this build holds every other phone control to - and it is not
+              one, because the project already had the answer: `.lift-press` expands a 36px icon
+              chip to a 44px target invisibly, and `.hit-44` is that expander on its own. The two
+              most consequential taps on the phone now read at 36 and are hit at 44.
+              (For the record: 36 clears WCAG 2.5.8 AA, 24x24, several times over. 44 is 2.5.5 AAA
+              and Apple's HIG. This meets the stricter one at no visual cost.) */}
           <Button
             variant="secondary"
             size="md"
-            className="flex-1"
+            className="hit-44 flex-1"
             onClick={() => onApply(NOTHING)}
           >
             Clear all
           </Button>
-          <Button size="md" className="flex-1" onClick={() => onApply(draft)}>
+          <Button size="md" className="hit-44 flex-1" onClick={() => onApply(draft)}>
             Apply
           </Button>
         </div>
