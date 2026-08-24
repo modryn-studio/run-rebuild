@@ -151,6 +151,7 @@ export function FilterSheet({
   accounts,
   facetRows,
   onApply,
+  className,
 }: {
   open: boolean;
   onClose: () => void;
@@ -159,6 +160,13 @@ export function FilterSheet({
   accounts: FacetAccount[];
   facetRows: FacetRow[];
   onApply: (d: FilterSheetDraft) => void;
+  /* WHERE THIS IS ALLOWED TO EXIST IS THE CALLER'S CALL, NOT THIS COMPONENT'S. `md:hidden` used to
+     be baked into the root, which is a component deciding its own breakpoint — and it made the sheet
+     impossible to put in `/kitchen-sink`, because the rack runs at desktop width and the component
+     erased itself there. That is not a small thing: CLAUDE.md requires a component in the rack in
+     every state IN THE SAME COMMIT, and the state that would have been visible there is the CLOSED
+     one, which is precisely the state that broke in production. */
+  className?: string;
 }) {
   const [draft, setDraft] = useState<FilterSheetDraft>(() => ({
     range: applied.range,
@@ -244,7 +252,7 @@ export function FilterSheet({
 
   return (
     <div
-      className={cn('fixed inset-0 z-[70] md:hidden', !open && 'pointer-events-none')}
+      className={cn('fixed inset-0 z-[70]', !open && 'pointer-events-none', className)}
       aria-hidden={!open}
     >
       {/* The sheet covers the screen, so this is only ever seen during the travel. It still earns
@@ -264,6 +272,11 @@ export function FilterSheet({
         aria-modal="true"
         aria-label="Filters"
         data-open={open}
+        /* `translate-y-full` HERE, NOT IN `.sheet-transition`. The class owns the timing and this
+           owns the position, which is the contract `.drawer-transition` and `.panel-transition`
+           already keep. It used to live in the stylesheet, and on 2026-08-24 a deploy that shipped
+           a stale stylesheet therefore rendered this panel over the entire app, inert, on a phone
+           that could not be used. A dismissed overlay must not depend on a hand-written rule. */
         /* THE DRILL-IN IS DROPPED WHEN THE SHEET HAS FINISHED LEAVING, not when it starts.
            `seed()` below resets `page` on OPEN, and that is one frame too late to be invisible:
            `useEffect` runs after paint, so a sheet reopened from a sub-page began its entrance
@@ -274,7 +287,10 @@ export function FilterSheet({
         onTransitionEnd={(e) => {
           if (!open && e.target === panel.current) setPage(null);
         }}
-        className="sheet-transition bg-surface absolute inset-0 flex flex-col outline-none"
+        className={cn(
+          'sheet-transition bg-surface absolute inset-0 flex flex-col outline-none',
+          !open && 'translate-y-full'
+        )}
       >
         {/* NO BOTTOM BORDER ON THE HEADER (Luke's spec). The first thing under it is a grey section
             band, which is already a ground change — a rule between them would be a second answer to
@@ -344,7 +360,10 @@ export function FilterSheet({
             ref={sub}
             data-open={page !== null}
             inert={page === null}
-            className="sheet-transition bg-surface absolute inset-0 overflow-y-auto"
+            className={cn(
+              'sheet-transition bg-surface absolute inset-0 overflow-y-auto',
+              page === null && 'translate-y-full'
+            )}
           >
             {shown === 'date' && (
               <>

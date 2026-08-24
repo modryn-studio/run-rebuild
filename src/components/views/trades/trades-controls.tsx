@@ -251,6 +251,9 @@ export function TradesSearchPill({
         through a full-screen sheet.
         As a sibling it competes in the root context, where 70 actually means 70. */}
     <FilterSheet
+      /* The breakpoint gate lives HERE now, with the surface that knows this is the phone's
+         control. See the prop's note in `filter-sheet.tsx`. */
+      className="md:hidden"
         open={sheet}
         onClose={() => setSheet(false)}
         applied={applied}

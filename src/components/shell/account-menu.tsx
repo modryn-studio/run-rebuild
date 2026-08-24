@@ -110,7 +110,18 @@ export function AccountMenu({ user }: { user: SessionUser | null }) {
       <div
         role="menu"
         data-open={open}
-        className="menu-panel border-border bg-surface absolute bottom-full left-0 z-50 mb-2 w-full overflow-hidden rounded-[var(--radius)] border p-1 shadow-[var(--shadow-card)]"
+        /* `hidden` ALONGSIDE `.menu-panel[data-open='false']`, and it is belt to that rule's braces.
+           The class ends a closed panel at `display: none` through `transition-behavior:
+           allow-discrete`, which is the right mechanism and stays the one doing the work — but it
+           is a hand-written rule, and on 2026-08-24 a deploy shipped a stylesheet that was missing
+           its hand-written rules. `.sheet-transition` was the one that bricked the phone; this is
+           the same shape with a smaller blast radius (a popover stuck open over the sidebar's nav
+           rows). Both say `display: none` for the same state, so they cannot disagree, and the
+           utility survives in any stylesheet that has utilities at all. */
+        className={cn(
+          'menu-panel border-border bg-surface absolute bottom-full left-0 z-50 mb-2 w-full overflow-hidden rounded-[var(--radius)] border p-1 shadow-[var(--shadow-card)]',
+          !open && 'hidden'
+        )}
       >
         {/* EVERY ITEM CLOSES THE MENU, the theme toggle included — it used to flip the theme and
             leave the menu open, which reads as "that did not take". */}

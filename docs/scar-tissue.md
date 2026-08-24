@@ -137,12 +137,34 @@ declares, so the check silently covered 19 classes out of 40, and `.sheet-transi
 rule it exists to protect - was one it missed. It reported success. A check that under-reports is
 worse than no check, so comments are stripped before the scan now.
 
-**The fragility that remains, deliberately not fixed.** A full-screen, always-mounted,
-`pointer-events-none` overlay whose dismissal depends on one external CSS rule fails
-catastrophically rather than gracefully. With a deterministic build and a build-time gate, a stale
-stylesheet can no longer ship, so this is third-order - but if the sheet is ever touched again, the
-robust shape is to drive the dismissed position from an inline style (which beats classes and needs
-no stylesheet) or to unmount it when closed.
+**The third rule, and the one that was hiding in plain sight.** An audit of every overlay found that
+the codebase ALREADY had the right convention and `.sheet-transition` was the only thing breaking
+it. `.drawer-transition` and `.panel-transition` name only `transition` and `transition-property`,
+and leave the displacing to a Tailwind utility at the call site (`max-md:-translate-x-full`,
+`translate-x-full`). `.sheet-transition` carried `translate: 0 100%` for the dismissed state, so the
+one thing holding a full-screen panel off the screen lived in a hand-written rule. That is why the
+sidebar, the summary rail, the trade drawer and every popover survived the same broken stylesheet
+untouched, and this one did not.
+
+**The class owns the TIMING. The call site owns the POSITION.** `translate-y-full` moved to
+`filter-sheet.tsx`, and the rule now carries only `transition-duration`. Verified in the emitted
+CSS: `.sheet-transition[data-open=false]{transition-duration:.2s}` with the position coming from
+`.translate-y-full{--tw-translate-y:100%;translate:...}` in the utilities layer. If the hand-written
+rule vanished now, the sheet would lose its animation and stay hidden.
+
+`.menu-panel[data-open='false']` is the same shape one order of magnitude smaller - a popover that
+would stick open over the sidebar's nav rows. It keeps its `display: none` through
+`transition-behavior: allow-discrete`, which is the right mechanism, and now carries a plain
+`hidden` utility alongside it. Checked rather than assumed: the exit still creates a
+`CSSTransition` on `display`, and the computed value stays `block` through the exit, so
+`allow-discrete` is intact.
+
+**And the process gap that let it ship.** `FilterSheet` never entered `/kitchen-sink`, which
+CLAUDE.md requires in the same commit. That is not bookkeeping: the rack is the one place a CLOSED
+overlay gets rendered where someone is looking, and closed was the state that broke. It could not be
+racked at all while `md:hidden` was baked into the component, because the rack runs at desktop width
+and the sheet erased itself there - so the breakpoint gate moved to the call site, and the rack now
+renders a permanently-closed sheet whose whole specimen is the absence of one.
 
 ### TypeScript stays on 6
 

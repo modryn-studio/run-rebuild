@@ -17,6 +17,7 @@ import { FiltersSection } from './sections/filters';
 import { BrandSection } from './sections/brand';
 import { InstrumentMarkSection } from './sections/instrument-mark';
 import { ColumnsMenuSection } from './sections/columns-menu';
+import { FilterSheetSection } from './sections/filter-sheet';
 import { TradeDetailSection } from './sections/trade-detail';
 import { V2ReferenceSection } from './sections/v2-reference';
 import { TradesSection } from './sections/trades';
@@ -87,6 +88,7 @@ export default function KitchenSinkPage() {
         <CardSection />
         <SwitchMenuSection />
         <FiltersSection />
+        <FilterSheetSection />
         <NavRowSection />
         <FeedbackSection />
         <BrandSection />

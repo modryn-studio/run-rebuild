@@ -975,12 +975,21 @@
    already decided on. 0.3s in against 0.2s out.
    `--ease-sheet` rather than `--ease-out`: see the token's note. A panel crossing the whole screen
    is the one case where the difference between those two curves is visible. */
+/* THE CLASS OWNS THE TIMING. THE CALL SITE OWNS THE POSITION. That split is the convention
+   `.drawer-transition` and `.panel-transition` already follow — both name only `transition` and
+   `transition-property`, and let a Tailwind utility at the call site do the displacing
+   (`max-md:-translate-x-full`, `translate-x-full`). This rule broke it, and on 2026-08-24 that cost
+   a production outage: it carried `translate: 0 100%` for the dismissed state, so the ONE thing
+   keeping a `fixed inset-0 z-[70]` always-mounted panel off the screen lived in a hand-written rule.
+   A deploy shipped a stale stylesheet, the rule was not in it, and the sheet painted over the whole
+   app while `pointer-events-none` made it inert. Every other panel in the product survived the same
+   stylesheet untouched, because none of them put STATE in here.
+   `translate-y-full` at the call site now. Timing here, position there. See `docs/scar-tissue.md`. */
 .sheet-transition {
   transition: 0.3s var(--ease-sheet);
   transition-property: translate;
 }
 .sheet-transition[data-open='false'] {
-  translate: 0 100%;
   transition-duration: 0.2s;
 }
 
