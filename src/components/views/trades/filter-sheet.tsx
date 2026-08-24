@@ -135,7 +135,9 @@ function PickRow({
       className="border-rule active:bg-hover flex min-h-14 w-full items-center gap-3 border-b px-4 text-left transition-colors"
     >
       <span className={cn('text-body-lg text-text flex-1', on && 'font-medium')}>{label}</span>
-      {trailing && <span className="text-body text-muted shrink-0 tabular-nums">{trailing}</span>}
+      {/* `text-body-lg` to match this row's own label, for the reason `filter-rows.tsx` gives:
+          a row is one size, and muted is what marks the count as secondary. */}
+      {trailing && <span className="text-body-lg text-muted shrink-0 tabular-nums">{trailing}</span>}
       <span className="text-accent flex w-5 shrink-0 justify-center">
         {on && <Icon name="check" size={18} />}
       </span>

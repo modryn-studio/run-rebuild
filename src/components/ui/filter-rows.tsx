@@ -12,11 +12,23 @@
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/ui/icon';
 
-/** A column header. Fixed 50px so the three columns' heads line up across the divider. */
+/* A column header. `h-12` so the three columns' heads line up across the divider.
+ *
+ * `h-12`, NOT `h-[50px]` (2026-08-24). 50 was off every scale in this system, and it was written
+ * TWICE - here and on the centre column's header in `trades-controls.tsx` - because the two have
+ * to align. Two copies of a magic number is a drift waiting to happen. 48px is the app's tallest
+ * control height (`Button lg`, `Input`), so both now say `h-12` and the constraint is expressed in
+ * a step rather than in a coincidence.
+ *
+ * `text-body` FULL INK, not `text-small text-muted`: this was the last 12px anywhere on /trades,
+ * hiding inside a closed popover. Measured on the reference, a label over a CONTROL you operate is
+ * 14px/500 full ink (its search popover's "Search"), while a label in a data READOUT is 14px muted
+ * (its summary panel's "Total transactions"). A column header over a list of options is the first
+ * kind. See `design-system.md` §2a. */
 export function Head({ children }: { children: React.ReactNode }) {
   return (
-    <div className="border-rule flex h-[50px] shrink-0 items-center border-b px-3">
-      <span className="text-small text-muted truncate font-medium">{children}</span>
+    <div className="border-rule flex h-12 shrink-0 items-center border-b px-3">
+      <span className="text-body text-text truncate font-medium">{children}</span>
     </div>
   );
 }
@@ -80,7 +92,12 @@ export function Row({
       <span className={cn('text-body text-text min-w-0 flex-1 truncate', strong && 'font-medium')}>
         {label}
       </span>
-      {trailing && <span className="text-small text-muted shrink-0 tabular-nums">{trailing}</span>}
+      {/* A ROW IS ONE SIZE. The count was `text-small` (12) against this row's 14px label, which
+          is the same split the tape row had before 2026-08-24 - a count read as an annotation on
+          the label rather than as the row's other field. It is muted, which is what marks it as
+          secondary; it does not also need to be smaller. This was also the last 12px anywhere on
+          /trades. See `design-system.md` §2a. */}
+      {trailing && <span className="text-body text-muted shrink-0 tabular-nums">{trailing}</span>}
     </button>
   );
 }

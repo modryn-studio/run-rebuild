@@ -165,6 +165,12 @@ colour tell them apart.
    above the chips beside it, and the popover's `Clear` a size above `Cancel` and `Apply`.
 3. **A label/value pair is 14 muted over 16 ink.** The summary rail does this; so does the
    reference's summary panel and its detail drawer.
+3a. **But a label over a CONTROL is 14 full ink.** Both were measured on the reference and they
+   genuinely differ: its summary panel's `Total transactions` is 14/400 **muted** above a value,
+   while its search popover's `Search` is 14/500 **full ink** above the field you type in. So the
+   rule is about what the label sits over, not about where it sits: a readout mutes its labels, a
+   panel you operate does not. `Head`, `Group` and the filter panel's axis labels are the second
+   kind; the rail's `dt` is the first.
 4. **Peers in a button row are one component at one size.** Clear / Cancel / Apply are all
    `Button size="sm"`; only `variant` changes. `Clear` is `variant="ghost"` — no border, no resting
    ground, ink only — which is what "it must not read as a third equal button" always meant.

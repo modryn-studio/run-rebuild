@@ -821,7 +821,9 @@ function FiltersPopover({
             {/* CENTRE: the selected dimension's options. The search field IS the header, and only
                 the account tree has one — a list of two results is not something you search. */}
             <div className="flex min-w-0 flex-1 flex-col">
-              <div className="border-rule flex h-[50px] shrink-0 items-center gap-2 border-b px-3">
+              {/* `h-12` MUST MATCH `Head`'s, or the two columns’ headers stop lining up. Both
+                  were `h-[50px]`, the same magic number typed twice. See `filter-rows.tsx`. */}
+              <div className="border-rule flex h-12 shrink-0 items-center gap-2 border-b px-3">
                 {dim === 'accounts' && accounts.length >= SEARCHABLE_FROM ? (
                   <>
                     <Icon name="search" size={15} className="text-muted shrink-0" />

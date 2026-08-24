@@ -569,7 +569,11 @@ function AccountName({ name, logo }: { name: string; logo: string | null }) {
     <>
       {logo && (
         <span
-          className="border-border flex size-[18px] shrink-0 items-center justify-center overflow-hidden rounded-full border"
+          /* `size-5` (20px), NOT `size-[18px]`. 18 is on no scale in this system - the nearest
+             steps are 16 and 20 - and the modal’s version of this same tile is `h-8 w-8`. 20 over
+             16 because the tile is bordered: at 16px the ring eats 2px and the mark inside it stops
+             being a logo and starts being a smudge. */
+          className="border-border flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full border"
           style={{ background: 'var(--color-logo-tile)' }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- a static local mark, not content */}
