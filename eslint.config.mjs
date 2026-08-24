@@ -86,6 +86,18 @@ export default [
             // only make sense together, so they live in globals.css rather than as a pair of
             // arbitrary utilities at the call site.
             'clip-allow-shadow',
+            // The icon button's PHONE treatment: full ink, no chip, no border, muted while held.
+            // Lives in CSS because it overrides `.lift-press`, a hand-written class that no Tailwind
+            // variant can reach. globals.css argues why a touch screen needs a different gesture.
+            'icon-btn',
+            // The mobile filter sheet's arrival: translate on Vaul's iOS curve, enter slow / leave
+            // quick. A class rather than utilities because the two durations and the data-attribute
+            // state only make sense together. globals.css argues the curve.
+            'sheet-transition',
+            // The content pane's clearance for the phone's bottom bar: a calc() around
+            // env(safe-area-inset-bottom) plus the desktop value it reverts to at md. Two
+            // breakpoints in one declaration, which no pair of utilities can express.
+            'pane-bottom-clearance',
             // The confirming gesture on a selected chip. globals.css:754, and already in the
             // reduced-motion block. Belongs to the TRADER's choice, never to system progress.
             'select-pop',

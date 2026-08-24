@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TextField } from '@/components/ui/text-field';
 import { Textarea } from '@/components/ui/textarea';
+import { DateFieldDemo } from '../_components/date-demo';
 import { Note, Row, Section } from '../_components/section';
 
 export function InputsSection() {
@@ -56,6 +57,17 @@ export function InputsSection() {
           Both are 48px because both say so, not because padding and line-height happened to add up.
           They did not: this field was 46px against a 56px button on /login, in the same card,
           with nothing in the code claiming they should match.
+        </Note>
+      </Row>
+
+      <Row label="Date field" note="the empty state is the whole component">
+        <DateFieldDemo />
+        <Note>
+          A native date input cannot take a placeholder, so an unset end of a window reads
+          mm/dd/yyyy. That is a format hint where the thing being chosen is a meaning: Earliest and
+          Latest say this window has no start, or no end. The picker underneath is still the one
+          the platform supplies, which is what keeps it localised, keyboard operable and right about
+          leap years. Tab into one and press the down arrow to see that nothing was taken away.
         </Note>
       </Row>
 

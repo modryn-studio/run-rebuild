@@ -42,7 +42,12 @@ export function TradesRail({
   const scope = filter.from || filter.to ? customLabel(filter) : filter.range !== 'all' ? RANGE_LABEL[filter.range] : null;
 
   return (
-    <Card className="overflow-hidden">
+    /* A FULL-HEIGHT PANEL ON A PHONE, a card above `md` (`S5d`, 2026-08-20). Same reasoning as the
+       tape's full-bleed treatment: below `md` this is not an object sitting on a page, it is a
+       drawer that IS the screen for as long as it is open, so the radius and the shadow come off and
+       the ground runs to every edge. `h-full` is what makes it fill the drawer rather than hanging
+       from the top of it with the tape visible underneath. */
+    <Card className="overflow-hidden max-md:h-full max-md:rounded-none max-md:shadow-none">
       <div className="flex items-baseline justify-between gap-3 px-5 py-4">
         <h2 className="text-title text-text font-medium">Summary</h2>
         {scope && <span className="text-body text-muted">{scope}</span>}

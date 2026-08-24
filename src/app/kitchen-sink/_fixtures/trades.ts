@@ -164,3 +164,27 @@ export const DRAWER_TRADE_BARE = row('d4', {
   buyFillId: null,
   sellFillId: null,
 });
+
+/* ─── THREE ACCOUNTS, FOR THE HEADER'S SELECTOR ───────────────────────────────────────────────
+ *
+ * `AccountSelect` renders NOTHING below two accounts, on the same rule the Filters panel's own
+ * Accounts axis follows: a filter offering one choice cannot change anything, and here it would
+ * additionally light the "narrowed" dot without narrowing. The real corpus has exactly one account,
+ * so the control is invisible on live data and the rack is the only place it can be judged.
+ *
+ * FIXTURES RATHER THAN SEEDED ACCOUNTS (Luke, 2026-08-20: "we dont have to create a bunch of fake
+ * accounts right now do we? that is what run-trading@v2 did but then things got messed up"). Right,
+ * and the reason is the doctrine: a seeded account with invented trades produces figures that
+ * reconcile against NOTHING, on a product whose one claim is that it never shows a number it cannot
+ * reconcile. A rack fixture makes no such claim — it is scenery for a control, and it never touches
+ * the corpus.
+ *
+ * The shapes are real: `firm` and `short` are what `getFacets` returns, and the short is the tail
+ * of a Tradovate external id, which is the part a copy-trader running one strategy across twelve
+ * accounts is actually reading.
+ */
+export const ACCOUNTS_FIXTURE = [
+  { id: 'fixture-acct-1', name: 'Tradeify 50K', firm: 'Tradeify', short: '50K (...4873)' },
+  { id: 'fixture-acct-2', name: 'Tradeify 100K', firm: 'Tradeify', short: '100K (...5120)' },
+  { id: 'fixture-acct-3', name: 'Apex 150K', firm: 'Apex', short: '150K (...7731)' },
+];

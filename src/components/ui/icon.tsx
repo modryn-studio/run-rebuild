@@ -127,6 +127,39 @@ function DrawnFilter(props: DrawnProps) {
   );
 }
 
+/* A BAR CHART: THE SUMMARY PANEL. Drawn here rather than borrowed (Luke, 2026-08-21: "i would
+ * rather not use a lucide. i would rather create a custom icon"), in the same shape every other
+ * hand-drawn mark takes — the `Drawn` wrapper supplies `viewBox 0 0 24 24`, stroke 1.5 and round
+ * caps, and this contributes geometry only.
+ *
+ * WHY THE SUMMARY TOGGLE STOPPED USING `collapse`. That mark is a DOUBLE CHEVRON, and a chevron is
+ * a DIRECTIONAL sign: on a desktop it is literally true, because the rail collapses sideways and
+ * the arrows point the way it travels, flipping 180 degrees when it opens. On a phone the rail is
+ * not a column that collapses, it is a drawer that arrives, and a direction stops describing it —
+ * the mark answers "which way" when the only question left is "what is this".
+ * It also lands in the top-right corner, which on every phone screen is where a screen's own action
+ * lives (the reference puts bulk-edit and add there). A pair of left-pointing chevrons in that
+ * corner reads as "back", which is the one thing it must not say next to a real back gesture.
+ * So the phone gets a mark that names the CONTENT — figures — and the desktop keeps the one that
+ * names the DIRECTION, because there each is true.
+ *
+ * IT DRAWS THE PANEL, NOT THE FIGURES (redrawn 2026-08-21; the first attempt was a bar chart and
+ * Luke rejected it). A chart says what is INSIDE the drawer, which is a guess — the rail holds a
+ * label/value list, not a graph, so the mark was promising something the panel does not contain.
+ * A screen with its right edge partitioned says what the control DOES, and it is also the mark the
+ * reference uses for exactly this job: its desktop header carries the same rounded-rect-with-a-rule
+ * at the far right, toggling its own right-hand panel.
+ * The divider sits RIGHT of centre because that is the side the drawer arrives from. Mirrored, it
+ * would describe the nav drawer instead. */
+function DrawnSummary(props: DrawnProps) {
+  return (
+    <Drawn {...props}>
+      <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+      <path d="M15 4.5v15" />
+    </Drawn>
+  );
+}
+
 /* An eye: VISIBILITY, ported verbatim from v2's `icons.tsx`.
  *
  * ADDED 2026-08-20 BECAUSE TWO CONTROLS ON ONE PAGE WORE ONE MARK (Luke: "do we really want the
@@ -353,6 +386,8 @@ const MARKS = {
   filter: DrawnFilter,
   // Which COLUMNS are drawn, never which trades are kept. See DrawnEye for why it is not `filter`.
   eye: DrawnEye,
+  // The summary panel, on a phone. See DrawnSummary for why the chevron does not travel there.
+  summary: DrawnSummary,
 
   // ── the account menu (S5c) ────────────────────────────────────────────────────────────────
   bolt: DrawnBolt,

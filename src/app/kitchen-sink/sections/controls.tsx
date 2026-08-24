@@ -43,11 +43,53 @@ export function ControlsSection() {
           </IconButton>
         </div>
         <Note>
-          Rest is bare: no border, no ground, no shadow. Hover gains the exact border a secondary
-          Button shows at rest (border-border) plus the elevated ground - never a DROP shadow,
-          because only Card floats in this system. Press drops the ground toward the page and adds
-          the INSET shadow, the same press every other button makes. The last one is disabled. Tab
-          through them to see the one focus ring the whole app uses.
+          Rest is bare and FULL INK: no border, no ground, no shadow. It was `muted` until
+          2026-08-20, which put every icon control in the product one ink tier down until a pointer
+          arrived. Muted is the METADATA role, and a control is not a property of anything. Hover
+          gains the exact border a secondary Button shows at rest (border-border) plus the elevated
+          ground, never a DROP shadow, because only Card floats in this system. Press drops the
+          ground toward the page and adds the INSET shadow, the same press every other button makes.
+          The last one is disabled. Tab through them to see the one focus ring the whole app uses.
+        </Note>
+      </Row>
+
+      {/* ADDED 2026-08-20. A phone gets a DIFFERENT control, not a smaller one, and the rack has to
+          hold both or the mobile treatment is a rule nobody has looked at. */}
+      <Row
+        label="Icon button on a phone"
+        note="narrow the window under 768px: the chip goes away entirely"
+      >
+        <div className="flex flex-wrap items-center gap-4">
+          <IconButton aria-label="Settings, phone">
+            <Icon name="settings" />
+          </IconButton>
+          <IconButton aria-label="Notifications, phone">
+            <Icon name="bell" />
+          </IconButton>
+          <IconButton aria-label="Back, phone">
+            <Icon name="back" />
+          </IconButton>
+          <IconButton aria-label="Disabled, phone" disabled>
+            <Icon name="close" />
+          </IconButton>
+        </div>
+        <Note>
+          These are the same four buttons as the row above. Below 768px they lose the circle, the
+          border, the ground and the inset entirely and become the glyph at full ink; held down, the
+          ink drops to muted and comes straight back on release. The 44px hit area stays, invisible.
+        </Note>
+        <Note>
+          THE REASON IS THAT THE CHIP IS BUILT OUT OF HOVER. Rest is nothing, hover raises the chip,
+          press pushes it in. A touch screen has no hover, so two of those three states are
+          unreachable and a trader only ever sees the third: a control that is invisible until the
+          instant it is pressed. An ink change gives touch the two states it can actually express.
+        </Note>
+        <Note>
+          It is a media query in `globals.css`, not a `max-md:` utility, and that is not a style
+          choice: the states being overridden belong to `.lift-press`, a hand-written class, and a
+          Tailwind variant can only modify a Tailwind utility. `max-md:lift-press` compiles to
+          nothing at all, and the same mistake was made on the summary rail the same day and lint caught
+          it there.
         </Note>
       </Row>
 

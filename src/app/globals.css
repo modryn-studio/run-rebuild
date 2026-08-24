@@ -462,10 +462,20 @@
      the same 40% would not separate them. Same shape as the shadow tokens' 0.10 -> 0.40 jump.
 
      --scrim      the modal dim: the page is unreachable and should read that way.
-     --scrim-nav  the mobile sidebar's underlay: the panel slides OVER the page rather than
-                  replacing it, so this only has to say "there is something on top", not "stop". */
+     --scrim-nav  a drawer's underlay: the panel slides OVER the page rather than replacing it.
+
+     `--scrim-nav` WENT FROM 0.08 TO 0.40 (Luke, 2026-08-21: "i feel like the scrim should be
+     darker"). 8% is a tint you have to look for — on a `#f6f5f3` page it composites to roughly
+     `#e3e3e3`, which reads as the page having gone slightly grey rather than as a panel having
+     opened over it. Measured on the reference's own mobile drawer, the list behind it is dimmed to
+     around mid-grey, near a modal's.
+     It stays a STEP BELOW `--scrim` on purpose, and that is what keeps the two tokens distinct: a
+     modal says "this page is unreachable", a drawer says "this page is behind something and still
+     there". 0.40 against 0.50 is that difference stated in one number.
+     Dark moves with it. A scrim on a near-black ground has less room to work, so the dark value
+     runs slightly heavier than light at both tiers — the same asymmetry the shadow tokens carry. */
   --scrim: rgba(34, 32, 29, 0.5);   /* theirs, measured */
-  --scrim-nav: rgba(28, 36, 48, 0.08);
+  --scrim-nav: rgba(28, 36, 48, 0.4);
 
   /* --switch-off  the resting track of a switch (components/ui/switch.tsx).
      A literal per-mode value for exactly the reason --scrim is one: anything mixed off an ink
@@ -550,6 +560,28 @@
   --color-accent-active: color-mix(in oklab, var(--color-accent-hover) 97%, black);
   /* The third curve. See the motion block above for which job each one has. */
   --ease-in-out: cubic-bezier(0.645, 0.045, 0.355, 1);
+  /* THE PHONE'S BOTTOM NAV BAR, CONTENT HEIGHT ONLY (`S3d`, 2026-08-20). The safe-area inset is
+     added on top of it wherever it is consumed, never baked in here — a device reports that inset
+     at runtime and it is 0 on a desktop browser, so folding it into the token would make this
+     number mean two different things.
+     IT LIVES IN THE STYLESHEET RATHER THAN IN `lib/shell.ts`, and that is the fix for a real bug
+     rather than tidying. It started as a JS constant applied through an inline `style`, which
+     always beats a class — so the `md:pb-12` meant to restore the desktop value on `<main>` was
+     dead, and the pane carried a phone's clearance at every width. A token can be read by BOTH a
+     hand-written media query and an inline style, which is what lets one number answer two
+     breakpoints. `@theme static` because nothing spells it as a utility class, so the compiler
+     cannot see the consumers and would prune it. */
+  --bottom-bar-h: 3.5rem;
+  /* VAUL'S iOS SHEET CURVE, taken the moment the project earned it (2026-08-21).
+     `modryn-hq@v4:playbooks/ui-ux-sources.md` filed this under "Not yet" with the note: "worth
+     having the moment any project builds a drawer or bottom sheet, and worth knowing it exists
+     rather than inventing one." The mobile filter sheet is that moment, so it arrives from the
+     record instead of being guessed at.
+     WHY NOT `--ease-out`. A sheet travels most of the screen's height, which is far enough that the
+     curve stops being a detail — this one decelerates harder and later, so a tall panel settles
+     rather than coasting the last third. It is Emil Kowalski's own value, shipped in Vaul, which is
+     the library the reference's own sheets behave like. */
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
   /* THE ROW RULE, a SECOND border weight and the thing that was missing (Luke, 2026-08-05: "look at
      the lines in light mode... you see how the lines are distinctly visible on Run's page. then look
      at monarch's. you see how they are harder to see. is that because the the color, weight, or
@@ -704,7 +736,7 @@
   /* Black, not the dark ink token - see the note beside the light values. A dark page dimmed by its
      own near-white text colour gets BRIGHTER, which is the failure this replaces. */
   --scrim: rgba(0, 0, 0, 0.62);
-  --scrim-nav: rgba(0, 0, 0, 0.32);
+  --scrim-nav: rgba(0, 0, 0, 0.5);
   /* MIGRATED 2026-08-14, #4a4f57 -> #888680. Two bugs in one line, and the first is why the second
      survived: #4a4f57 is a COOL SLATE in a palette that is warm-neutral everywhere else, left over
      from the pre-Monarch ink (the same family as `--scrim-nav`'s rgba(28,36,48) two lines up). It
@@ -937,6 +969,37 @@
   overflow-clip-margin: 8px;
 }
 
+/* A FULL-SCREEN SHEET THAT ARRIVES FROM THE BOTTOM (`S5d`, 2026-08-21).
+   Enter slow, leave quick — the asymmetry `modal-shell.tsx` already argues for and the account
+   menu already ships: an arrival is an event worth watching, a dismissal is something the user
+   already decided on. 0.3s in against 0.2s out.
+   `--ease-sheet` rather than `--ease-out`: see the token's note. A panel crossing the whole screen
+   is the one case where the difference between those two curves is visible. */
+.sheet-transition {
+  transition: 0.3s var(--ease-sheet);
+  transition-property: translate;
+}
+.sheet-transition[data-open='false'] {
+  translate: 0 100%;
+  transition-duration: 0.2s;
+}
+
+/* THE CONTENT PANE CLEARS THE PHONE'S BOTTOM BAR (`S3d`, 2026-08-20).
+   A hand-written rule rather than two Tailwind utilities, because the phone value needs `calc()`
+   around `env(safe-area-inset-bottom)` and the desktop value has to win at `md` — and the version
+   that used an inline style for the first could never be overridden by a class for the second.
+   One declaration, both breakpoints, one source for the height. */
+.pane-bottom-clearance {
+  padding-bottom: calc(var(--bottom-bar-h) + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  /* No bar above `md`, so this is just the pane's own foot of breathing room — the `pb-12` this
+     replaced, stated here so the two values live together rather than one in a class list. */
+  .pane-bottom-clearance {
+    padding-bottom: 3rem;
+  }
+}
+
 /* ── The compact icon button's chip (components/ui/icon-button.tsx) ────────────────────
    REST = nothing, HOVER = a raised chip appears, PRESS = the same chip pushes in. Harvested from
    a measured reference; the full measurement and the dark-mode reasoning live in the component,
@@ -1085,6 +1148,58 @@
 .lift-press:not(:disabled)[data-active='true'] { background-color: var(--press-bg); box-shadow: var(--shadow-press); }
 .lift-press:not(:disabled):active { background-color: var(--press-bg); box-shadow: var(--shadow-press); }
 @media (prefers-reduced-motion: reduce) { .lift-press { transition: none; } }
+
+/* ── AN ICON BUTTON ON A PHONE IS THE GLYPH, AND NOTHING ELSE ─────────────────────────────────
+   Luke, 2026-08-20: "mobile icon buttons will be full ink and will not have the pushed in look.
+   they will not have a circle border either. it will just be the icon itself at full ink and when
+   the icon is tapped, it will be muted until it is released from tap."
+
+   WHY A PHONE WANTS A DIFFERENT CONTROL, rather than this being a preference. The chip mechanic
+   above is built out of HOVER: rest is nothing, hover raises a chip, press pushes that chip in.
+   A touch screen has no hover, so two of those three states are unreachable and the trader only
+   ever sees the third — a control that is invisible until the instant it is pressed. Replacing the
+   whole gesture with an INK change gives touch the two states it can actually express: full ink at
+   rest, muted while held.
+
+   IT HAS TO BE CSS RATHER THAN A `max-md:` UTILITY. The states being overridden live in
+   `.lift-press`, a hand-written class, and a Tailwind variant can only modify a Tailwind utility —
+   `max-md:lift-press` generates nothing at all. (That exact mistake was made and caught by lint on
+   the summary rail the same day.)
+
+   SOURCE ORDER IS WHAT MAKES IT WIN, not `!important`. Every selector below matches `.lift-press`'s
+   own specificity — `.icon-btn:not(:disabled):active` is (0,3,0) against
+   `.lift-press:not(:disabled):active` — and this block sits AFTER it, unlayered, exactly as the
+   `.lift-rest` overrides do. Keep it below them or the chip comes back on a phone. */
+@media (max-width: 767px) {
+  .icon-btn {
+    /* The 44px hit expander from `.lift-press::after` STAYS. Losing the chrome must not lose the
+       target — a 36px glyph is under the touch floor and the invisible padding is the only reason
+       it clears it. */
+    color: var(--color-text);
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  /* Hover is unreachable on touch, but a stylus, a trackpad on a small window, or a device that
+     reports both will still fire it — so it is neutralised rather than left to the chip rules. */
+  .icon-btn:not(:disabled):hover {
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  /* THE ONE STATE A PHONE CAN SHOW: held. Ink drops to `muted` and comes straight back on release.
+     No ground, no inset, no border — the glyph dims and that is the whole gesture.
+     `[data-active='true']` is included because a control holding a panel open (the summary toggle,
+     Date, Filters) would otherwise keep the pressed GROUND from the chip rules while showing none
+     of the rest of it, which reads as a rectangle of ground behind a bare icon. */
+  .icon-btn:not(:disabled):active,
+  .icon-btn:not(:disabled)[data-active='true'] {
+    color: var(--color-muted);
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+}
 
 /* A quiet settle when a selectable card becomes active - just enough weight to confirm the choice,
    never a bounce. Pair with the accent border/tint, which transition on their own. */

@@ -26,7 +26,9 @@ import { productName } from '@/lib/instruments';
 import { InstrumentMark } from './instrument-mark';
 import { ColumnsMenu, useTapeColumns, type TapeColumn } from './columns-menu';
 import { displayTime, displaySessionDate } from '@/lib/time/session';
-import type { SessionGroup, TapeRow } from '@/lib/trades/read';
+import type { FacetAccount, SessionGroup, TapeRow } from '@/lib/trades/read';
+import { useRouter } from 'next/navigation';
+import { AccountSelect } from './account-select';
 import { TradeDrawer } from './trade-drawer';
 
 /** How many rows are IN THE DOM. 361 rows became ~5,000 nodes on v2 and cost ~2 of its 4.5s to
@@ -54,6 +56,8 @@ export function TradesTape({
   sessions,
   total,
   displayTimezone,
+  accounts,
+  selectedAccounts,
   narrowed,
   rest,
 }: {
@@ -61,6 +65,10 @@ export function TradesTape({
   /** Every trade the filter selected, which is not the number of rows sent. */
   total: number;
   displayTimezone: string;
+  /** Every account the trader owns, for the header's selector. From `getFacets`. */
+  accounts: FacetAccount[];
+  /** The ids in the `accounts` param right now. Empty means every account. */
+  selectedAccounts: string[];
   /** Whether anything is narrowing, which decides which empty state is honest. */
   narrowed: boolean;
   /** The ids of every trade the filter selects, so the client can ask for the rest by id. */
@@ -70,6 +78,28 @@ export function TradesTape({
      walk the list: "the next trade" is a position, and resolving an id back to one on every arrow
      press would be the same lookup done later and worse. -1 is closed. */
   const [open, setOpen] = useState(-1);
+  const router = useRouter();
+
+  /* ONE ROW, TWO DESTINATIONS, DECIDED AT THE MOMENT OF THE TAP (`S5d`, 2026-08-20).
+   *
+   * A phone navigates to `/trades/<id>`; a desktop opens the drawer in place. Both render the same
+   * `TradeDetail`, so this chooses a CONTAINER rather than a screen — the facts are identical
+   * either way.
+   *
+   * MEASURED AT THE TAP, not at render, and that is deliberate. Reading the viewport during render
+   * means the server and the first client pass disagree (the server has no viewport at all), which
+   * is a hydration mismatch and a visible flash. A click handler runs only in the browser and only
+   * when it is needed, so the question is asked at the one moment the answer is knowable.
+   *
+   * `md`, THE SAME 768px BOUNDARY the shell already draws for the sidebar and the bottom bar. A
+   * third breakpoint for "is this a phone" is a third answer to one question. */
+  const openTrade = (row: TapeRow, index: number) => {
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      router.push(`/trades/${row.id}`);
+      return;
+    }
+    setOpen(index);
+  };
 
   /* ENDLESS SCROLL, WINDOWED ON THE CLIENT. Two mechanics and they are not redundant: `limit`
      governs how many rows are in the DOM, `extra` governs how many have crossed the wire. */
@@ -199,19 +229,39 @@ export function TradesTape({
   /* `@container` so a column can be gated on the CARD's width rather than the viewport's.
      `overflow-clip`, not `hidden` — it clips without creating a scroll container, which is what
      lets the header and the bands inside it stay sticky. */
+  /* FULL-BLEED BELOW `md`, A CARD ABOVE IT (`S5d`, 2026-08-20, Luke: "full-bleed, no card below
+     md"). The reference's mobile list runs wall to wall — no radius, no shadow, no side gutter, and
+     its date bands bleed too. A 375px screen cannot afford 32px of gutter plus 40px of card padding
+     to make a list of five-word rows look like an object; at that width the list IS the screen.
+     `max-md:` unsets the three things `cardSurface` gives: the radius, the shadow and the ground
+     step. The ground stays `surface` because the rows still need to sit on white against the grey
+     bands between them — what goes is the OBJECT, not the paper.
+     The negative margin cancels `PAGE_COLUMN`'s `px-4` from the inside, which is what lets the rows
+     reach the screen edges without the page column having to know a phone is looking at it. */
   return (
-    <Card className="@container overflow-clip">
+    <Card className="@container overflow-clip max-md:-mx-4 max-md:rounded-none max-md:shadow-none">
       {/* STICKY, so the count and the tape's identity survive the scroll. The two masking spans are
           the craft detail that makes it work: a sticky header inside a rounded card lets rows show
           through the corner radius as they pass under it, so one span paints the page ground behind
           the corner and the other paints the card's own ground back over it with the radius. */}
-      <div className="border-rule bg-surface sticky top-0 z-20 flex min-h-15 items-center gap-3 border-b px-5 py-2">
+      {/* THE WHOLE HEADER ROW GOES ON A PHONE (`S5d`, 2026-08-20, Luke: "drop the whole header row
+          on mobile"). The reference has no equivalent — its screen title lives in the top bar, and
+          Run's does too now, so a second "Trades" directly under it says it twice.
+          `ColumnsMenu` goes with it rather than being kept, and that is the honest call rather than
+          a space-saving one: it toggles ACCOUNT and TIME, and both are already off the row at this
+          width. A control whose two options are both already applied has no job here. */}
+      <div className="border-rule bg-surface sticky top-0 z-20 flex min-h-15 items-center gap-3 border-b px-5 py-2 max-md:hidden">
         <span aria-hidden className="bg-bg pointer-events-none absolute inset-x-0 top-0 h-3" />
         <span
           aria-hidden
           className="bg-surface pointer-events-none absolute inset-x-0 top-0 h-3 rounded-t-[var(--radius)]"
         />
-        <span className="text-title text-text font-medium">Trades</span>
+        {/* THE SELECTOR STANDS WHERE THE TITLE DID (Luke, 2026-08-20). The shell's band already
+            prints "Trades" from the route, so a card header repeating it said one word twice, 64px
+            apart. It renders NOTHING below two accounts — see `account-select.tsx` for why that is
+            correctness rather than tidiness — which leaves this header carrying only `ColumnsMenu`
+            on the current one-account corpus. That is the honest state of it, not an oversight. */}
+        <AccountSelect accounts={accounts} selected={selectedAccounts} />
         {/* THE COUNT CAME OUT (2026-08-20). It read "360 trades" here, and the summary rail beside
             it already says `Trades 360` off the same filtered set - `getDigest` and the tape count
             one set by construction, so the two can never disagree and the second was pure redundancy
@@ -238,7 +288,13 @@ export function TradesTape({
                   competes with the results it is only summarising. A ground change is enough to
                   separate a label from a list, which is why no rule is needed.
                   `top-15` matches the header's own `min-h-15`, so the band rests exactly beneath. */}
-              <div className="bg-band sticky top-15 z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-2">
+              {/* `top-15` matches the header's `min-h-15` so the band rests beneath it — but the
+                  header is GONE below `md`. There the band rests under the sticky SEARCH row
+                  instead: `top-14` is 56px, which is that row's exact total height (8 top + 36
+                  field + 12 bottom). The two numbers have to agree — a band that sticks too high
+                  slides under the search field, too low and a strip of tape shows through the gap.
+                  See `TradesSearchPill`. */}
+              <div className="bg-band sticky top-15 z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-2 max-md:top-14 max-md:px-4">
                 <span className="text-body text-muted font-medium">
                   {displaySessionDate(d.sessionDate)}
                 </span>
@@ -267,7 +323,7 @@ export function TradesTape({
                     key={row.id}
                     trade={row}
                     zone={displayTimezone}
-                    onOpen={() => setOpen(flat.indexOf(row))}
+                    onOpen={() => openTrade(row, flat.indexOf(row))}
                   />
                 ))}
               </div>
@@ -364,23 +420,37 @@ function Row({
       // A durable probe target. Verifying a tape by guessing markup selectors is how a session
       // spends an hour proving a page rendered nothing when it rendered fine.
       data-trade={t.id}
-      className="group hover:bg-hover flex min-h-13 w-full items-center gap-4 px-5 py-2 text-left transition-colors"
+      /* `px-4` AND A TIGHTER MARK GAP ON A PHONE (2026-08-21). Measured against the reference's own
+         mobile screen, taken as ratios of screen width so the device scale cannot skew it: its row
+         label starts at 11.7% of the width, Run's started at 15.4% — 45px against 60px at 390. The
+         heights were already right (row 52 against 51, band 36 against 37); the whole difference was
+         horizontal.
+         `px-4` also gives the screen ONE left edge: the search field above sits at 16 because the
+         page column does, and the band and row content now start there too. Three surfaces that
+         each began at a different x (16, 20, 20) is what made the column read as slightly loose
+         rather than as a list. The `px-5` card gutter stays above `md`, where it is measured off
+         the reference's desktop card and where a 20px inset has room to be one. */
+      className="group hover:bg-hover flex min-h-13 w-full items-center gap-4 px-5 py-2 text-left transition-colors max-md:gap-3 max-md:px-4"
     >
       {/* THE INSTRUMENT, and the first of the two flexible columns. `min-w-0` on both is what stops
           either from pushing the figures off their shared right edge.
           AN EQUAL CLAIM ON THE SLACK, not a 2:1 one. Measured at 1440 with the rail and sidebar
           open, which leaves the tape 689px: a 2:1 split handed this column 230px to render a name
           needing 131, while the account beside it truncated to "FTDFYL..." inside 115. */}
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3 max-md:gap-2">
         <InstrumentMark symbol={contract} />
         <div className="min-w-0">
           <p className="text-body-lg text-text truncate">{name ?? contract}</p>
-          {/* The phone's version of the two columns to its right: one line on a desktop, two here.
-              Reads "2 short", the way a trader says a position, rather than "short 2". */}
-          <p className="text-body text-muted truncate sm:hidden">
-            {t.qty}
-            {t.direction ? ` ${t.direction}` : ''} · {displayTime(t.entryAt, zone)}
-          </p>
+          {/* THE PHONE'S SECOND LINE IS GONE (`S5d`, 2026-08-20). This read
+              `{qty} {direction} · {time}` below `sm`, standing in for the two columns to its right.
+              The reference's mobile row is strictly ONE line — its category mark, the merchant, the
+              amount — and Luke's call is to copy that screen.
+              WHAT IT COSTS, STATED: direction and time come off the row on a phone. That is
+              defensible only because the DETAIL SCREEN carries both, which is the same split the
+              reference makes — the list is for scanning, the detail is for checking. It is also the
+              position the `Columns` control already takes on desktop, where account and time are
+              exactly the two fields a trader is allowed to drop.
+              Nothing replaces it: a row that is one line is one line. */}
         </div>
       </div>
 
@@ -437,9 +507,13 @@ function Row({
           three states `.lift-press` declares: nothing at rest, the border a secondary button shows
           at rest plus the raised ground on hover, and the pressed ground plus the INSET on press.
           `border-transparent` at rest so only the COLOUR moves and the disc never resizes. */}
+      {/* GONE ON A PHONE (`S5d`, 2026-08-20). The reference's mobile row has no chevron: the whole
+          row is the target and a tap is the affordance. It earns its place on a DESKTOP, where a
+          pointer needs somewhere to aim and a hover state to answer it — neither of which exists on
+          a touch screen, where it is 32px of chrome that never lights up. */}
       <span
         aria-hidden
-        className="text-muted group-hover:text-text group-hover:bg-surface group-hover:border-border group-active:bg-bg group-active:shadow-[var(--shadow-press)] flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent transition"
+        className="text-muted group-hover:text-text group-hover:bg-surface group-hover:border-border group-active:bg-bg group-active:shadow-[var(--shadow-press)] flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent transition max-md:hidden"
       >
         <Icon name="chevron" size={16} className="-rotate-90" />
       </span>

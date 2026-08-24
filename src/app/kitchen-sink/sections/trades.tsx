@@ -19,6 +19,7 @@ import {
   DIGEST_FIXTURE,
   DIGEST_FIXTURE_IDS,
   TAPE_FIXTURE,
+  ACCOUNTS_FIXTURE,
 } from '../_fixtures/trades';
 
 export function TradesSection() {
@@ -32,7 +33,14 @@ export function TradesSection() {
         label="The tape"
         note="sessions descend, rows descend by ENTRY inside one"
       >
-        <TradesTape sessions={TAPE_FIXTURE} total={7} displayTimezone="UTC" narrowed={false} />
+        <TradesTape
+          sessions={TAPE_FIXTURE}
+          total={7}
+          displayTimezone="UTC"
+          narrowed={false}
+          accounts={ACCOUNTS_FIXTURE}
+          selectedAccounts={[]}
+        />
         <Note>
           Rows order by the ENTRY rather than the exit: a position scaled out in three pieces closes
           on a single stamp, so ordering by the exit prints one time on three rows and the sequence
@@ -87,8 +95,8 @@ export function TradesSection() {
 
       <Row label="Empty and excluded" note="two empties, two different sentences">
         <div className="flex flex-col gap-4">
-          <TradesTape sessions={[]} total={0} displayTimezone="UTC" narrowed={false} />
-          <TradesTape sessions={[]} total={0} displayTimezone="UTC" narrowed />
+          <TradesTape sessions={[]} total={0} displayTimezone="UTC" narrowed={false} accounts={[]} selectedAccounts={[]} />
+          <TradesTape sessions={[]} total={0} displayTimezone="UTC" narrowed accounts={[]} selectedAccounts={[]} />
           <QuarantineNotice quarantined={3} excluded={0} />
           <QuarantineNotice quarantined={0} excluded={7} />
         </div>

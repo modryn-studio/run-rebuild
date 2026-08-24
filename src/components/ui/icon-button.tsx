@@ -64,8 +64,24 @@ import { cn } from '@/lib/cn';
  * which left it worse than before: it no longer moved, but it still looked exactly like a live
  * control and the cursor never said otherwise. Matches Button ghost, its closest sibling - a bare
  * control with no ground of its own. */
-const ICON_BUTTON =
-  'lift-press text-muted hover:text-text flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-50';
+/* EXPORTED FOR THE ONE CASE THIS COMPONENT CANNOT COVER (2026-08-20): a control that is a LINK
+ * rather than a button. `/trades/[id]`'s back control navigates, so it has to be an `<a>` — a
+ * `<button>` with an onClick would lose middle-click, cmd-click and "copy link address", and
+ * wrapping a Link in a button is invalid HTML besides.
+ * The class is the export rather than an `asChild` prop, because `asChild` needs a slot
+ * implementation and this is one call site. Anything wearing it is still the same 36px circle with
+ * the same `lift-press` mechanic, which is the whole point of having the string in one place. */
+/* FULL INK AT REST (Luke, 2026-08-20: "the Icon button should be full ink"). This was
+ * `text-muted hover:text-text`, so every icon control in the product sat one ink tier down until a
+ * pointer arrived. That is the METADATA ink, and `design-system.md` is explicit about what it is
+ * for: "a property of the object beside it, scanned not read". An icon button is not a property of
+ * anything — it is a control, and a control that is quiet until hovered is a control a touch device
+ * never sees at full strength at all, because there is no hover on a phone.
+ * The hover step is gone with it: there is nothing left to step UP to, and the chip's ground and
+ * border are what answer the pointer now. `.icon-btn` carries the phone treatment — see globals.css.
+ */
+export const ICON_BUTTON =
+  'lift-press icon-btn text-text flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-50';
 
 /* `className` CANNOT RE-POSITION THIS ONE, and it fails silently, so it is stated here rather than
  * learned twice. `.lift-press` sets `position: relative` to anchor the invisible 44px hit expander,

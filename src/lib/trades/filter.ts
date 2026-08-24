@@ -178,6 +178,20 @@ export function rangeWindow(
 export const activeCount = (f: TradesFilter): number =>
   f.products.length + f.results.length + f.accounts.length;
 
+/* WHAT THE PHONE'S ONE FILTER CONTROL IS CARRYING, as a number for its badge (`S5d`, 2026-08-21).
+ *
+ * IT COUNTS THE DATE WINDOW AND `activeCount` DOES NOT, and that is the difference between the two
+ * surfaces rather than an inconsistency between two counts. The desktop band gives the window its
+ * OWN button with its own dot, so counting it in the Filters chip's badge there would light two
+ * marks for one narrowing. The phone has a single control opening a sheet that holds every axis
+ * INCLUDING the window, so a badge that ignored the window would read `0` on a screen showing
+ * "Last 30 days" — the one state where the trader most needs the mark.
+ *
+ * The window is ONE, however it was set: a custom `from`/`to` pair is a single answer to a single
+ * question, and counting two would say a trader had applied two filters by naming one range. */
+export const sheetCount = (f: TradesFilter): number =>
+  activeCount(f) + (f.range !== DEFAULT_RANGE || f.from || f.to ? 1 : 0);
+
 /** Whether anything at all is narrowing the tape, which decides the empty state's wording: "no
  *  trades in this range" is a different sentence from "no trades yet". */
 export const isNarrowed = (f: TradesFilter): boolean =>

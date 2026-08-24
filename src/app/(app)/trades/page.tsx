@@ -5,7 +5,7 @@ import { HeaderSlot } from '@/components/shell/header-slot';
 import { WithSummaryRail } from '@/components/shell/summary-rail';
 import { TradesTape } from '@/components/views/trades/trades-tape';
 import { TradesRail } from '@/components/views/trades/trades-rail';
-import { TradesControls } from '@/components/views/trades/trades-controls';
+import { TradesControls, TradesSearchPill } from '@/components/views/trades/trades-controls';
 import { QuarantineNotice } from '@/components/views/trades/quarantine-notice';
 import { readTradesFilter, rangeWindow, isNarrowed, isResultFiltered } from '@/lib/trades/filter';
 import { getTape, getTapeIds, getDigest, getFacets, getFacetRows, getExcluded } from '@/lib/trades/read';
@@ -92,11 +92,23 @@ export default async function TradesPage({
         }
       >
         <div className="flex flex-col gap-4">
+          {/* THE PHONE'S SEARCH ROW, in the page body rather than the header band — a full row of
+              its own directly under the title, the way the reference has it. Desktop keeps its
+              chips in the band; this is `md:hidden` and that one is `max-md:hidden`, so exactly one
+              set of controls is on screen at any width. */}
+          <TradesSearchPill
+            applied={filter}
+            products={facets.products}
+            accounts={facets.accounts}
+            facetRows={facetRows}
+          />
           <QuarantineNotice
             quarantined={excluded.quarantined}
             excluded={excluded.excluded}
           />
           <TradesTape
+            accounts={facets.accounts}
+            selectedAccounts={filter.accounts}
             sessions={sessions}
             total={ids.length}
             displayTimezone={trader.displayTimezone}

@@ -651,7 +651,7 @@ quarantine with S9b's two actions, provenance line.
 > grade. A quarantine row is the sharpest test of it — it reports a fact about a record, not a
 > verdict about a trader.
 
-### S5d — /trades on a phone *(planned 2026-08-20, not started)*
+### S5d — /trades on a phone *(2026-08-20 — 🔶 built and merged; the DEVICE check is still outstanding)*
 
 Derived from **Monarch's native mobile app**, not its web app — which matters, because the web at a
 390px viewport does NOT do any of this: it keeps the 224px sidebar and the desktop table. Measured,
@@ -699,6 +699,84 @@ on a page they cannot leave.
 - The steppers become the route's own prev/next. `position` (`3 of 4`) already exists for it.
 - Slides up: `translate-y-full` → `0` on `.drawer-transition`, which is already the enter/leave curve.
 
+#### What shipped, and the two things it changed on the way
+
+**The detail body is now shared.** `TradeDetail` (`trade-detail.tsx`) holds the header block and every
+fact section and owns NO chrome — no panel, no scrollport, no close control, no width. The drawer and
+the route are two containers around it. That was the point: this body is the only surface showing
+gross, fees and net together, so a fork here is a fork in the reconcile claim itself.
+
+**`routeTitle` became an exact match, and that was a real bug.** It prefix-matched so `/trades/<id>`
+would read "Trades" — written before any drill-down existed, to avoid an empty band. With the route
+built, it rendered TWO title bars: the shell's at y=0 and the page's own at y=84. That is precisely
+what `header-slot.tsx` was written to prevent, in its own words *"a page needing a title and controls
+has to build a SECOND band underneath it"*. The old comment's next sentence already described the
+right answer, so the fix was the design arriving rather than changing: a drill-down yields the band,
+and the page portals a trail — the way back plus which trade — into `HEADER_TITLE_SLOT_ID`.
+**The contract this creates:** any route below a NAV href owes the title slot a trail, or its band
+renders nameless. One such route exists today and it does.
+
+**Verified at 390px:** one-line rows at 52px (down from 61), rail absent, tap navigates to
+`/trades/<id>`, one `<h1>` in the band, back link to `/trades`, no horizontal overflow. At 1280px the
+tap still opens the drawer in place and the band still reads "Trades".
+
+#### The phone's query controls, and where they diverge from the desktop
+
+Built 2026-08-21. `Search`, `Date` and `Filters` no longer render as three band chips below `md`.
+
+- **One search row under the title band**, sticky against `<main>` so it stays put as the tape
+  scrolls, with the filter mark inside the field at its right edge. `-mx-4` reaches the screen
+  edges; `-mb-4` cancels the page column's gap, without which the first session band appeared to
+  change height the moment it stuck (measured y=137 then y=120).
+- **`FilterSheet`** is the desktop rail's three columns re-containered as a screen of rows with one
+  level of drill-in. Two screens, one sheet: the drill-in is a second layer over the list on the
+  same `.sheet-transition`, not a second sheet.
+- **Single-select commits on the tap and takes the sheet down**; multi-select still stages a draft
+  and commits on Apply. The split is by axis, not by screen: a range is a whole answer, "ES and NQ"
+  is two taps. `Clear all` commits like a range does, for the same reason.
+- **The filter mark carries a COUNT, not a dot**, and it is the only control in the app that does.
+  Everywhere else the count is already on screen beside the mark. `sheetCount` in `filter.ts`
+  counts the date window and `activeCount` does not, which is the difference between one control
+  holding every axis and a band where the window has its own button.
+- **All time is a quick range here and is not one on the desktop panel.** A list of ticks with no
+  tick anywhere reads as "nothing selected" rather than "everything", so the tape's resting state
+  would be the one state that screen could not describe.
+
+#### Two panel bugs this turn found by measuring rather than looking
+
+- **The summary rail opened itself on every phone load** — measured at 390px sitting at x=70, over
+  the tape, on first paint. Two effects held two booleans that both defaulted to the DESKTOP answer,
+  so the phone override and the storage restore raced and storage won. One breakpoint value that
+  starts `null` removes the race by construction: nothing acts on an answer it has not read.
+- **The sidebar had the same bug by another route.** "On mobile it stays closed regardless" was only
+  true when nothing was stored, so a trader who leaves the sidebar open on a desktop got a drawer
+  over the page on their phone. The overlay test now comes first, because it is not a default — it
+  is a rule about what the panel IS at that width.
+- Related, and fixed in both: closing either panel on a phone wrote the SHARED preference, so
+  dismissing a drawer collapsed the desktop rail on the next visit. A phone no longer writes it.
+
+#### Still open — not built, deliberately
+
+- **No prev/next on the route.** The drawer's steppers walk the tape because the tape is loaded
+  beside them. Here the neighbours are whatever the trader's CURRENT FILTER says they are, which the
+  route cannot know without carrying the filter in the URL and reading a window around the id.
+  Half-building it would give a phone two arrows that disagree with the list behind them.
+- **The amount is not centred** the way the reference's detail screen has it. `TradeDetail` puts the
+  mark left and the figure top-right, which is `run-trading@v2`'s measured layout, ported "exactly"
+  at Luke's request. Changing it would fork the one body both containers share. Its own change.
+- **Scroll restoration on back has not been proven on a device.** Next restores scroll on browser
+  back by default; whether that survives a 360-row tape that windows 60 at a time is a question only
+  a real phone answers.
+- **The footer buttons are under the touch floor.** `Clear all` and `Apply` moved from `lg` (48px) to
+  `md` (36px) on 2026-08-21 because 48 read heavy on a 390px screen. 36 is correct against the
+  system and wrong against the 44px target floor every other phone control here holds to, and there
+  is no size between them. The honest fix is a new size in the system, not a height at this call
+  site — so it is a decision, not a bug, and it is Luke's.
+- **The date picker is native.** `ui/date-input.tsx` replaces the UA's `mm/dd/yyyy` mask with
+  "Earliest" / "Latest" and keeps the platform's own calendar underneath. A hand-drawn calendar
+  would have to re-earn localisation, keyboard operation and both modes to be no better at the one
+  job asked of it. Revisit only if a real need appears.
+
 #### Open, and worth deciding inside the slice rather than now
 
 - **The rail's figures have nowhere else to go yet.** Net P&L, win rate, average session and the rest
@@ -709,7 +787,7 @@ on a page they cannot leave.
   the ICON instead. Run draws one weight of icon and has no filled variants, so the likely answer is
   ink plus weight — which is the one place the ground rule does not reach. Record the exception.
 
-### S3d — The bottom bar *(planned 2026-08-20, not started)*
+### S3d — The bottom bar *(2026-08-20 — ✅ built)*
 
 The shell half of `S5d`, split out because it changes every signed-in page rather than one.
 
@@ -724,6 +802,17 @@ The shell half of `S5d`, split out because it changes every signed-in page rathe
   is thin until `S6`–`S8` add secondary surfaces (Luke, 2026-08-20: *"the left sidebar might be kind
   of empty right now but that's okay"*).
 - `main`'s bottom padding has to clear the bar, or the last tape row sits under it.
+
+**WHAT IT COST TO GET THE CLEARANCE RIGHT, because it is a scar rather than a detail.** The bar's
+height started as a TypeScript constant applied through an inline `style`, with `md:pb-12` beside it
+to restore the desktop value. An inline style always beats a class, so that override was dead on
+arrival and the pane carried a phone's clearance at 1280px — measured, not guessed. The height is now
+`--bottom-bar-h` in `globals.css`, read by BOTH the bar's inline height and
+`.pane-bottom-clearance`'s media query. A token can be read by a media query; a TS constant cannot.
+
+**Built and verified at 390px:** bar fixed at the foot, four tabs at 98px each, `aria-current` on the
+active one, drawer nav hidden, account row still anchored, desktop untouched (bar hidden, four rows
+in the drawer, 48px pane padding).
 
 ### S6 — Accounts ⭐
 
