@@ -101,6 +101,12 @@ Each is load-bearing on the product's one claim: **never show a number you canno
 - **No state may represent absence.** No "you haven't imported in 9 days", no backlog, no catch-up,
   no streak — every surface reopens where it was left. Investors check **9.5% less the day after a
   loss**, so the trader who has been away is the one the read is worth most to (`psychology.md`).
+- **Never fetch what the client is already holding**, and check before designing any wait. The phone
+  round-tripped the server for the `TapeRow` the tapped row was rendering: 305ms before anything
+  moved, plus a skeleton for data already in memory. Deleting the fetch deleted the loading state.
+- **Any overlay with an `x` or a back arrow answers the device back button** — `useOverlayBack`, one
+  tagged history entry per level, innermost consumed first. A phone modal that lets the OS gesture
+  leave the page instead of closing it is a bug.
 
 ---
 

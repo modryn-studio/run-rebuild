@@ -27,11 +27,10 @@ import { InstrumentMark } from './instrument-mark';
 import { ColumnsMenu, useTapeColumns, type TapeColumn } from './columns-menu';
 import { displayTime, displaySessionDate } from '@/lib/time/session';
 import type { FacetAccount, SessionGroup, TapeRow } from '@/lib/trades/read';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { markArrivedFromTape } from '@/lib/trades/arrival';
 import { AccountSelect } from './account-select';
 import { TradeDrawer } from './trade-drawer';
+import { TradeSheet } from './trade-sheet';
 
 /** How many rows are IN THE DOM. 361 rows became ~5,000 nodes on v2 and cost ~2 of its 4.5s to
  *  interactive, so the window governs the DOM while the fetch below governs the wire. */
@@ -80,11 +79,15 @@ export function TradesTape({
      walk the list: "the next trade" is a position, and resolving an id back to one on every arrow
      press would be the same lookup done later and worse. -1 is closed. */
   const [open, setOpen] = useState(-1);
-  const router = useRouter();
+
+  /* THE PHONE'S SHEET HOLDS A ROW, NOT AN INDEX, and the difference is the point: it has no
+     steppers, so it never needs to ask "what is next" - it needs the trade itself, which the tape
+     is already holding. `null` is closed. */
+  const [sheetRow, setSheetRow] = useState<TapeRow | null>(null);
 
   /* ONE ROW, TWO DESTINATIONS, DECIDED AT THE MOMENT OF THE TAP (`S5d`, 2026-08-20).
    *
-   * A phone navigates to `/trades/<id>`; a desktop opens the drawer in place. Both render the same
+   * A phone opens the sheet; a desktop opens the drawer in place. Both render the same
    * `TradeDetail`, so this chooses a CONTAINER rather than a screen — the facts are identical
    * either way.
    *
@@ -97,11 +100,11 @@ export function TradesTape({
    * third breakpoint for "is this a phone" is a third answer to one question. */
   const openTrade = (row: TapeRow, index: number) => {
     if (window.matchMedia('(max-width: 767px)').matches) {
-      /* RECORD THAT THE SHEET WAS ENTERED FROM HERE, so its Back can be a real `back()` - which
-         restores this page from the router's client cache instantly, at the scroll position it was
-         left at, instead of building it again. See `lib/trades/arrival.ts`. */
-      markArrivedFromTape();
-      router.push(`/trades/${row.id}`);
+      /* NO `router.push` HERE ANY MORE (2026-08-25). It used to navigate, which unmounted this
+         entire tape and made the trader wait on a server round trip for a row already sitting in
+         `flat` - see `trade-sheet.tsx` for the measurements. The sheet takes the row directly and
+         changes the URL itself, so the tape stays mounted and Back costs nothing. */
+      setSheetRow(row);
       return;
     }
     setOpen(index);
@@ -353,7 +356,8 @@ export function TradesTape({
       {(more || unfetched > 0) && !failed && (
         <div ref={sentinel} aria-hidden className="flex h-13 items-center justify-center">
           <span className="text-body text-muted">
-            {(total - limit).toLocaleString('en-US')} more {total - limit === 1 ? 'trade' : 'trades'}
+            {(total - limit).toLocaleString('en-US')} more{' '}
+            {total - limit === 1 ? 'trade' : 'trades'}
           </span>
         </div>
       )}
@@ -396,6 +400,17 @@ export function TradesTape({
           position={{ index: open, of: rest?.ids.length ?? flat.length }}
         />
       )}
+
+      {/* THE PHONE'S CONTAINER, AND IT IS MOUNTED WHETHER OR NOT A TRADE IS OPEN. That is what
+          lets it travel in both directions, and it is why tapping a row moves something on the
+          same frame instead of after a navigation. The breakpoint gate lives HERE, with the surface
+          that knows this is the phone's container - see the prop's note in `trade-sheet.tsx`. */}
+      <TradeSheet
+        className="md:hidden"
+        row={sheetRow}
+        zone={displayTimezone}
+        onClose={() => setSheetRow(null)}
+      />
     </Card>
   );
 }
@@ -545,7 +560,9 @@ function Row({
         <span
           className={cn('text-body-lg font-medium tabular-nums', excluded && 'text-muted')}
           style={
-            excluded ? undefined : { color: t.netCents >= 0 ? 'var(--color-pos)' : 'var(--color-neg)' }
+            excluded
+              ? undefined
+              : { color: t.netCents >= 0 ? 'var(--color-pos)' : 'var(--color-neg)' }
           }
         >
           {signed(t.netCents)}
@@ -578,7 +595,7 @@ function Row({
           hover, which is what makes it read as a control. Only the resting ink moved. */}
       <span
         aria-hidden
-        className="text-text group-hover:bg-surface group-hover:border-border group-active:bg-bg group-active:shadow-[var(--shadow-press)] flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent transition max-md:hidden"
+        className="text-text group-hover:bg-surface group-hover:border-border group-active:bg-bg flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent transition group-active:shadow-[var(--shadow-press)] max-md:hidden"
       >
         <Icon name="chevron" size={16} className="-rotate-90" />
       </span>

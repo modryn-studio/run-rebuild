@@ -21,6 +21,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useOverlayBack } from '@/lib/overlay-back';
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/ui/icon';
 import { IconButton } from '@/components/ui/icon-button';
@@ -121,6 +122,13 @@ export function WithSummaryRail({
   useEffect(() => {
     if (ready && bp === 'phone') setCollapsed(true);
   }, [ready, bp]);
+
+  /* THE DEVICE BACK BUTTON CLOSES THE DRAWER RATHER THAN LEAVING THE PAGE (2026-08-25, Luke). It
+     has a close control and a scrim below `md`, so it is a modal, and the OS gesture used to walk
+     straight past it and off `/trades`.
+     PHONE ONLY, which is exactly the width at which this is a drawer at all. At `stack` it never
+     collapses and at `rail` it is a column - neither is something Back should be undoing. */
+  useOverlayBack(!collapsed && bp === 'phone', () => setCollapsed(true));
 
   const toggle = useCallback(() => {
     setCollapsed((c) => {

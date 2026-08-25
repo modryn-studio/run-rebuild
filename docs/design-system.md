@@ -590,7 +590,16 @@ hard way: a `useLinkStatus` spinner sat in the tape row for a day before being r
 are different subtrees, so any chrome rendered by both mounts twice and any entrance animation runs
 twice. Put persistent chrome in a **`layout.tsx`**, which does not re-render when a child segment
 resolves, and let the boundary and the page be its children. *(The trade sheet slid up twice before
-this was understood.)*
+this was understood. It no longer lives in a route at all — see the rule below — but the rule stands
+for any chrome a boundary and a page could both render.)*
+
+**The fastest loading state is the one you do not need.** Before designing a wait, check whether the
+client already holds the answer. The phone's trade sheet had a skeleton, a `loading.tsx` and a
+portal feeding its title, and every one of them was scaffolding around a fetch for a `TapeRow` the
+tape was **already rendering on the row that had just been tapped**. Deleting the fetch deleted the
+wait: 305ms before anything moved became one frame, and the skeleton became nothing at all. A
+skeleton for data you already have is a skeleton for nothing. *(2026-08-25; the numbers are in
+`build-plan.md` S5d.)*
 
 **A segment that needs a boundary declares its own.** A `loading.tsx` higher up is already mounted
 once you are inside it, and React will not re-show an existing fallback during a transition — so an

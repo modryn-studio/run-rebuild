@@ -36,6 +36,8 @@ import { Icon } from '@/components/ui/icon';
 import { IconButton } from '@/components/ui/icon-button';
 import { Button } from '@/components/ui/button';
 import { DateInput } from '@/components/ui/date-input';
+import { BOTTOM_BAR_H } from '@/lib/shell';
+import { useOverlayBack } from '@/lib/overlay-back';
 import type { FacetAccount } from '@/lib/trades/read';
 import type { FacetRow } from '@/lib/trades/facets';
 import { productName } from '@/lib/instruments';
@@ -82,17 +84,21 @@ const PAGE_TITLE: Record<SubPage, string> = {
 /* THE GREY SECTION BAND. The same object the tape's session band is: a LABEL for the rows beneath
  * it, so it takes `band` ground and muted ink. `.eyebrow` is the ramp's spaced-caps role. */
 function SectionBand({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="eyebrow bg-band text-muted border-rule border-y px-4 py-3">
-      {children}
-    </p>
-  );
+  return <p className="eyebrow bg-band text-muted border-rule border-y px-4 py-3">{children}</p>;
 }
 
 /* A ROW THAT DRILLS IN. `min-h-14` (56px) is the reference's row height on this screen and well
  * over the 44px touch floor. The label is full ink and the current value muted beside it — the
  * label is the thing you are choosing, the value is a property of it. */
-function DrillRow({ label, value, onClick }: { label: string; value?: string; onClick: () => void }) {
+function DrillRow({
+  label,
+  value,
+  onClick,
+}: {
+  label: string;
+  value?: string;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
@@ -101,7 +107,7 @@ function DrillRow({ label, value, onClick }: { label: string; value?: string; on
     >
       <span className="text-body-lg text-text flex-1">{label}</span>
       {value && <span className="text-body text-muted shrink-0 truncate">{value}</span>}
-      <Icon name="chevron" size={18} className="text-muted -rotate-90 shrink-0" />
+      <Icon name="chevron" size={18} className="text-muted shrink-0 -rotate-90" />
     </button>
   );
 }
@@ -137,7 +143,9 @@ function PickRow({
       <span className={cn('text-body-lg text-text flex-1', on && 'font-medium')}>{label}</span>
       {/* `text-body-lg` to match this row's own label, for the reason `filter-rows.tsx` gives:
           a row is one size, and muted is what marks the count as secondary. */}
-      {trailing && <span className="text-body-lg text-muted shrink-0 tabular-nums">{trailing}</span>}
+      {trailing && (
+        <span className="text-body-lg text-muted shrink-0 tabular-nums">{trailing}</span>
+      )}
       <span className="text-accent flex w-5 shrink-0 justify-center">
         {on && <Icon name="check" size={18} />}
       </span>
@@ -226,6 +234,18 @@ export function FilterSheet({
     setShown(page);
     if (sub.current) sub.current.scrollTop = 0;
   }, [page]);
+
+  /* THE DEVICE BACK BUTTON DOES WHAT ESCAPE DOES, ONE LEVEL AT A TIME (2026-08-25, Luke: "if the
+     page has a back arrow or 'x' button, the back button on the user's device should take the user
+     back a step or close the modal/page"). Until now it did neither: this sheet is client state, so
+     the OS back gesture walked straight past a full-screen panel and out of `/trades`.
+     TWO REGISTRATIONS, INNERMOST LAST, because the entries stack the way the screens do. Opening
+     pushes one; drilling in pushes a second on top of it. So back from Date Range lands on the axis
+     list, and back again takes the sheet down - the same two steps the header's own controls make.
+     NO URL for either: a staged, uncommitted draft is not a place, and writing one would make a
+     half-finished filter shareable. The trade sheet passes one because a trade IS a place. */
+  useOverlayBack(open, onClose);
+  useOverlayBack(page !== null, () => setPage(null));
 
   /* ESCAPE BACKS OUT ONE LEVEL, THEN CLOSES. Dismissing the whole sheet from a sub-page would throw
      away the screen the trader was reading rather than the one they opened. */
@@ -404,12 +424,22 @@ export function FilterSheet({
                   <Icon
                     name="chevron"
                     size={18}
-                    className={cn('text-muted shrink-0 transition-transform', customOpen && 'rotate-180')}
+                    className={cn(
+                      'text-muted shrink-0 transition-transform',
+                      customOpen && 'rotate-180'
+                    )}
                   />
                 </button>
+                {/* COLLAPSED MEANS OUT OF THE TAB ORDER TOO (2026-08-25). A `0fr` track plus
+                    `overflow-hidden` hides PIXELS; both date fields and both picker buttons stayed
+                    focusable behind it, so tabbing through a closed Date Range walked into eight
+                    stops nobody could see. Same fix, same reason, as the collapsed sidebar and this
+                    sheet's own footer: `inert` is the only one of the three attributes that touches
+                    the tab order. */}
                 <div
                   className="border-rule grid border-b transition-[grid-template-rows] duration-300 ease-out"
                   style={{ gridTemplateRows: customOpen ? '1fr' : '0fr' }}
+                  inert={!customOpen}
                 >
                   <div className="overflow-hidden">
                     {/* THE ONLY PART OF THIS SCREEN THAT KEEPS AN APPLY, and that is the difference
@@ -521,11 +551,22 @@ export function FilterSheet({
             leave the sheet standing, which put the trader one Apply away from a tape that already
             looked cleared on the screen in front of them — two states for one word. Clearing is a
             whole answer, the same as picking a range is, so it commits like one. */}
+        {/* THE SAME HEIGHT AS THE BOTTOM BAR, OFF THE SAME TOKEN (2026-08-25, Luke: "we should make
+            the Filters page footer the same height as the /trades page footer for consistency").
+            It was 60px against the bar's 56 - 12 + 36 + 12, arrived at from padding rather than
+            from the thing it sits in for. A sheet that covers the tape puts its footer exactly
+            where the tape's bar was, so a 4px step made the bar appear to twitch as the sheet
+            landed on top of it.
+            THE ARRANGEMENT IS THE BAR'S OWN, not a copy of its numbers: `--bottom-bar-h` is the
+            CONTENT box on an inner row, and `env(safe-area-inset-bottom)` is padding on the
+            element that actually touches the home indicator, so the painted ground runs through
+            the inset. See `BottomBar` in `app-shell.tsx`, which states the same split. */}
         <div
-          className="border-rule flex shrink-0 gap-3 border-t px-4 pt-3"
-          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+          className="border-rule shrink-0 border-t px-4"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
-          {/* 36px THAT TARGETS 44 (2026-08-24). `md` is the app's 36px standard action and Luke
+          <div className="flex items-center gap-3" style={{ height: BOTTOM_BAR_H }}>
+            {/* 36px THAT TARGETS 44 (2026-08-24). `md` is the app's 36px standard action and Luke
               chose it on looks after `lg` at 48 read heavy here. That was flagged as a compromise
               against the 44px target this build holds every other phone control to - and it is not
               one, because the project already had the answer: `.lift-press` expands a 36px icon
@@ -533,17 +574,18 @@ export function FilterSheet({
               most consequential taps on the phone now read at 36 and are hit at 44.
               (For the record: 36 clears WCAG 2.5.8 AA, 24x24, several times over. 44 is 2.5.5 AAA
               and Apple's HIG. This meets the stricter one at no visual cost.) */}
-          <Button
-            variant="secondary"
-            size="md"
-            className="hit-44 flex-1"
-            onClick={() => onApply(NOTHING)}
-          >
-            Clear all
-          </Button>
-          <Button size="md" className="hit-44 flex-1" onClick={() => onApply(draft)}>
-            Apply
-          </Button>
+            <Button
+              variant="secondary"
+              size="md"
+              className="hit-44 flex-1"
+              onClick={() => onApply(NOTHING)}
+            >
+              Clear all
+            </Button>
+            <Button size="md" className="hit-44 flex-1" onClick={() => onApply(draft)}>
+              Apply
+            </Button>
+          </div>
         </div>
       </div>
     </div>

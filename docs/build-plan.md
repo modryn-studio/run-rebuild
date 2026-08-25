@@ -675,7 +675,7 @@ something else carries them.
 | Date group header: date left, day's net right, on a grey band | **Already built.** Run's session bands are this exactly — `bg-band`, date left, net right, muted |
 | Row: category emoji · merchant · amount. One line | Instrument mark · product name · result. One line. **Account, direction and time come off the row** and live in the detail screen |
 | No summary panel anywhere on the list screen | The summary rail does not render below `md` |
-| Tap a row → full screen, animated up from the bottom | A real route, `/trades/[id]` (Luke's call, 2026-08-20) |
+| Tap a row → full screen, animated up from the bottom | A sheet opened from client state, with `/trades/[id]` kept as the address (2026-08-25; it was a plain route from 2026-08-20 to 08-25, see below) |
 
 #### The row loses three fields, and that is the trade
 
@@ -685,17 +685,46 @@ is a complete fact list — and because the `Columns` control already establishe
 are the two fields a trader can live without. What it means in practice is that the phone is for
 *scanning* and the detail screen is for *checking*, which is the same split the reference makes.
 
-#### `/trades/[id]` — a route, not the drawer
+#### `/trades/[id]` — a route, then an overlay that keeps the address (revised 2026-08-25)
 
-Chosen over restyling the existing drawer because the phone's back gesture has to work. An overlay
-would need history interception to answer the back button, and getting that wrong strands the user
-on a page they cannot leave.
+**The original call, 2026-08-20.** Chosen over restyling the existing drawer because the phone's back
+gesture has to work. An overlay would need history interception to answer the back button, and
+getting that wrong strands the user on a page they cannot leave.
+
+**What that cost, measured 2026-08-25.** The reasoning held; the price was not visible until the
+screen existed. Because the sheet lived inside the segment, nothing could move until the navigation
+committed: **250ms before the panel existed and 305ms before it began to travel**, warm, on
+localhost with no network at all. `FilterSheet`, which is client state, starts moving in **34ms**.
+Closing was worse — the body was off-screen at 183ms but the route did not commit until **600ms**,
+leaving 417ms of the tape sitting under a trade-detail header. Luke, on the phone: *"i dont like the
+way it opens. it doesn't feel smooth like the filters page."*
+
+And the wait bought nothing. `TradeDetail` takes a `TapeRow`, the tape is holding the row that was
+tapped, and `TradeDrawer` has rendered the identical screen from that same object with no fetch
+since the day it shipped. The phone was round-tripping the server for an object already in memory,
+**including the contract name the tapped row was rendering on screen at that moment**.
+
+**What it is now.** The tape opens `TradeSheet` from client state and `useOverlayBack` writes
+`/trades/<id>` with the native History API — which Next supports, and which was measured before it
+was relied on: all 60 tape rows stayed mounted and **zero network requests fired**. The route still
+exists and still renders the whole screen on its own; it is the cold path for a pasted link, a
+bookmark or a refresh. So the back gesture, the shareable URL and surviving a reload all still hold,
+and the tape never unmounts — which is what makes Back free.
+
+**The history-interception objection was answered, not waived.** It is real, and `overlay-back.ts`
+carries the symmetry argument: one tagged entry per overlay, consumed by whichever of popstate or
+the in-app control gets there first, and never consumed if the trader left by another route. It was
+wrong on the first attempt in exactly the predicted way — one Back from the Date Range screen closed
+the drill-in *and* the sheet under it, because `popstate` is a window event and both listeners
+answered it. Monotonic tokens order the stack so only the innermost responds.
 
 - The existing `TradeDrawer` body is already the right content and should be **shared, not forked** —
   `Section`, `Row`, `CopyButton` and the header block are all in `trade-drawer-body.tsx` for exactly
   this reason. Desktop keeps the drawer; the phone gets the route; both render the same parts.
 - **The tape has to restore scroll position on return**, or every back tap dumps the trader at the
   top of 360 trades. This is the part most likely to be missed and the most annoying if it is.
+  *(Answered for free by the 2026-08-25 revision: the tape is never unmounted, so there is no scroll
+  position to restore.)*
 - The steppers become the route's own prev/next. `position` (`3 of 4`) already exists for it.
 - Slides up: `translate-y-full` → `0` on `.drawer-transition`, which is already the enter/leave curve.
 

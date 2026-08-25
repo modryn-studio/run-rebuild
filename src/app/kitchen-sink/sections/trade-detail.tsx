@@ -15,7 +15,12 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { TradeDrawer } from '@/components/views/trades/trade-drawer';
-import { Row as FactRow, Section as FactSection, Stepper } from '@/components/views/trades/trade-drawer-body';
+import { TradeSheet } from '@/components/views/trades/trade-sheet';
+import {
+  Row as FactRow,
+  Section as FactSection,
+  Stepper,
+} from '@/components/views/trades/trade-drawer-body';
 import type { TapeRow } from '@/lib/trades/read';
 import { Note, Row, Section } from '../_components/section';
 import {
@@ -28,7 +33,11 @@ import {
 const CASES: { label: string; trade: TapeRow; note: string }[] = [
   { label: 'A win', trade: DRAWER_TRADE, note: 'fees, all three broker ids' },
   { label: 'A short, at a loss', trade: DRAWER_TRADE_SHORT, note: 'held two hours, 7 contracts' },
-  { label: 'Quarantined', trade: DRAWER_TRADE_QUARANTINED, note: 'unknown root, direction unknown' },
+  {
+    label: 'Quarantined',
+    trade: DRAWER_TRADE_QUARANTINED,
+    note: 'unknown root, direction unknown',
+  },
   { label: 'No broker ids', trade: DRAWER_TRADE_BARE, note: 'and no fees imported' },
 ];
 
@@ -36,6 +45,10 @@ export function TradeDetailSection() {
   // Which case is open, as an index into CASES — so the steppers below can be real rather than
   // decorative, and the panel can be walked exactly the way it is walked on the tape.
   const [open, setOpen] = useState<number | null>(null);
+  /* The phone's container, kept separate from `open` deliberately: the two are different objects
+     with different affordances (the drawer steps, the sheet does not), and one index driving both
+     would put `TradeDetail` in the document twice. */
+  const [sheet, setSheet] = useState<number | null>(null);
 
   return (
     <Section
@@ -63,16 +76,58 @@ export function TradeDetailSection() {
           animate, because the panel stays mounted and only its contents swap, which is what makes
           walking the tape read as one surface rather than a panel that leaves and comes back.
           Closing does animate, on the same `.panel-transition` declaration the sidebar and the
-          summary rail use, because two panels framing the work that arrive at different speeds read as two
-          different products.
+          summary rail use, because two panels framing the work that arrive at different speeds read
+          as two different products.
         </Note>
         <Note>
           It is read-only and the option to edit is not offered anywhere in it, which is a doctrine
-          rather than an omission: the claim is that our numbers are the broker&apos;s numbers, and a
-          DISABLED edit control would still say the idea had been entertained. Four things v2&apos;s
-          drawer has are absent here because their surfaces do not exist yet in this build (the
-          per-product link, the account link, notes, classification), not because they were
+          rather than an omission: the claim is that our numbers are the broker&apos;s numbers, and
+          a DISABLED edit control would still say the idea had been entertained. Four things
+          v2&apos;s drawer has are absent here because their surfaces do not exist yet in this build
+          (the per-product link, the account link, notes, classification), not because they were
           reconsidered.
+        </Note>
+      </Row>
+
+      <Row label="The phone's container" note="the same four shapes, as a sheet">
+        <div className="flex flex-wrap gap-3">
+          {CASES.map((c, i) => (
+            <Button key={c.label} variant="secondary" onClick={() => setSheet(i)}>
+              {c.label}
+            </Button>
+          ))}
+        </div>
+        <Note>
+          Same facts, same component, different container: below <code>md</code> a trade is a full
+          screen that arrives from the bottom, above it a drawer beside the tape. The tape picks one
+          at the moment of the tap, so <code>TradeDetail</code> is never in the document twice.
+        </Note>
+        <Note>
+          Opening it here really does push a history entry and change the address bar, because that
+          is what it does on the tape. Press the browser&apos;s Back button rather than the arrow
+          and the sheet closes instead of leaving the rack, which is the whole of{' '}
+          <code>useOverlayBack</code> demonstrated in one press.
+        </Note>
+      </Row>
+
+      <Row label="Closed is a state, and it is the one that broke" note="rendered, not assumed">
+        {/* THE SPECIMEN IS THE ABSENCE, and the filter sheet earned this row the hard way on
+            2026-08-24: a deploy served a stale stylesheet, the single rule holding a
+            `fixed inset-0 z-[70]` panel off-screen was missing from it, and the panel painted over
+            the whole app while `pointer-events-none` made everything under it inert. The phone
+            could not be used, and every gate was green.
+            `TradeSheet` is the same shape and was NEVER racked at all, which is worse than being
+            racked wrong. It is rendered here unconditionally so that a build which fails to hide it
+            turns this row into a full-screen panel the moment anyone loads the page. */}
+        <div className="text-small text-muted">
+          A closed trade sheet is rendered directly below this line. If you can see a panel, the
+          build is wrong, and that is the entire point of this row.
+        </div>
+        <TradeSheet row={null} zone="America/Chicago" onClose={() => {}} />
+        <Note>
+          The position it is dismissed to is a Tailwind utility at the call site; the class only
+          owns the timing. A dismissed overlay must never depend on a hand-written rule surviving
+          the build.
         </Note>
       </Row>
 
@@ -95,11 +150,11 @@ export function TradeDetailSection() {
           </FactSection>
         </div>
         <Note>
-          A rule between GROUPS, not between rows. The rows are already grouped by a spaced uppercase
-          label, so a hairline between each one is a second answer to a question the label has
-          answered. Dropping it let the row padding come down from 10px to 6px, because without a
-          line to stand clear of, 10px reads as a gap rather than as a list, and it is the same figure the
-          summary rail uses, so both label/value lists sit on one rhythm.
+          A rule between GROUPS, not between rows. The rows are already grouped by a spaced
+          uppercase label, so a hairline between each one is a second answer to a question the label
+          has answered. Dropping it let the row padding come down from 10px to 6px, because without
+          a line to stand clear of, 10px reads as a gap rather than as a list, and it is the same
+          figure the summary rail uses, so both label/value lists sit on one rhythm.
         </Note>
         <Note>
           `strong` is the one row that is the answer rather than the working. `CopyButton` has no
@@ -137,8 +192,8 @@ export function TradeDetailSection() {
           float over the PAGE with nothing behind them to bound against, which is the Card case
           rather than the button case: it is the one control in the product that is genuinely a
           sheet. They sit over the LIST rather than inside the panel because they are controls for
-          the tape behind it, and they are hidden below `sm`, where 96px of furniture floating over a
-          390px screen would cover the thing it navigates.
+          the tape behind it, and they are hidden below `sm`, where 96px of furniture floating over
+          a 390px screen would cover the thing it navigates.
         </Note>
       </Row>
 
@@ -150,6 +205,13 @@ export function TradeDetailSection() {
           onPrev={open > 0 ? () => setOpen(open - 1) : undefined}
           onNext={open < CASES.length - 1 ? () => setOpen(open + 1) : undefined}
           position={{ index: open, of: CASES.length }}
+        />
+      )}
+      {sheet !== null && (
+        <TradeSheet
+          row={CASES[sheet].trade}
+          zone="America/Chicago"
+          onClose={() => setSheet(null)}
         />
       )}
     </Section>

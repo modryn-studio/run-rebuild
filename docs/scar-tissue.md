@@ -286,3 +286,72 @@ tab".
 Trust `evaluate_script` for verification and treat screenshots as illustration. The daemon can also
 time out with "Timeout waiting for daemon response" and recover on its own within a few seconds;
 retry once. **Never run `chrome-devtools stop`.**
+
+---
+
+## Surfaces
+
+### The phone fetched a trade it was already holding
+
+`/trades/[id]` shipped as a route on 2026-08-20 for a good reason — the phone's back gesture has to
+work, and an overlay owes it an answer. The presentation later became a sheet, but the mechanism
+stayed a route, so the sheet lived in `[id]/layout.tsx` and could not exist until the navigation
+committed.
+
+Measured on 2026-08-25 against the dev server at 390×844, warm, three consecutive runs:
+
+| | tap → first movement | tap → settled |
+|---|---|---|
+| `FilterSheet` (client state) | **34ms** | 283ms |
+| its drill-in | **43ms** | ~290ms |
+| the trade sheet (a route) | **305ms** | 555ms |
+| the trade sheet, cold | **834ms** | 1087ms |
+
+On **localhost, with no network**. Closing was worse: the body was fully off-screen at 183ms, but
+`router.back()` did not commit until 600ms, so for **417ms** the tape sat on screen underneath a
+trade-detail header still reading the contract name. That is the "weird in between screen" Luke
+screenshotted, and removing the container's background had made it *more* confusing rather than
+less — it stopped being a blank rectangle and became the wrong header on the right page.
+
+**The wait bought nothing.** `TradeDetail` takes a `TapeRow`. `getTradesByIds` returns `TapeRow[]`.
+`TradeDrawer` renders the identical screen on the desktop from a row already in `flat`, with no
+fetch, and always has. The phone was round-tripping the server for an object in memory — including
+the contract name, which `trades-tape.tsx` computes on the row itself and was painting on screen at
+the moment of the tap.
+
+So the skeleton, `[id]/loading.tsx` and the title portal were all scaffolding around a fetch that
+should not have existed. They were deleted, not improved.
+
+**The fix, and why it keeps the URL.** `window.history.pushState` writes `/trades/<id>` without
+re-running the router. Next documents this ("update the browser's history stack without reloading
+the page... integrate into the Next.js Router"), and it was measured before being relied on: pushing
+a different **pathname** left all 60 tape rows mounted and fired **zero** network requests, and so
+did the `back()` that undid it. Shareable, reload-survivable, and the tape never unmounts — which is
+what makes Back cost nothing, and which also answered the "restore scroll position on return" item
+in `build-plan.md` by removing the problem.
+
+Rebuilt, same harness: **header swaps in ~60ms, body settles in ~230ms**, in a dev build.
+
+### One `popstate`, every overlay listening
+
+The first `useOverlayBack` closed too much: one press of the device Back button from the Date Range
+screen dismissed the drill-in **and** the sheet underneath it. `popstate` is a *window* event, so
+every mounted overlay hears every pop, and both listeners closed.
+
+Each entry is tagged with a monotonic token, and `popstate` reports the entry you **landed on**, so
+anything issued after it has just been discarded. `token > landed` is the test. `!==` is not enough:
+with three levels open it is true for the outermost as well, and one press would collapse the stack.
+
+Verified over 16 open/close cycles mixing in-app controls and the device button: `history.state`
+returns to no-overlay every time, the URL returns to `/trades`, and four consecutive drill-in round
+trips produce byte-identical state.
+
+### `tradeTitle` was exported from a `'use client'` file
+
+Straight into the rule CLAUDE.md already states — *every export of a `'use client'` module becomes a
+client reference*. `generateMetadata` in the route called it and the page 500'd with:
+
+> Attempted to call tradeTitle() from the server but tradeTitle is on the client.
+
+A pure helper shared across the boundary needs a file with **no directive on it** (`lib/trades/title.ts`),
+the same reason `src/lib/shell.ts` exists. Re-exporting from a client module does not launder it.

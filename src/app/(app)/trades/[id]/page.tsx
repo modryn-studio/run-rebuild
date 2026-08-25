@@ -3,32 +3,34 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { requireTrader } from '@/lib/trader';
 import { getTradesByIds } from '@/lib/trades/read';
-import { productName } from '@/lib/instruments';
 import { TradeDetail } from '@/components/views/trades/trade-detail';
+import { SheetHeader } from '@/components/views/trades/sheet-header';
+import { tradeTitle } from '@/lib/trades/title';
 import { ICON_BUTTON } from '@/components/ui/icon-button';
 import { Icon } from '@/components/ui/icon';
 import { HeaderSlot } from '@/components/shell/header-slot';
-import { TradeSheetTitle } from '@/components/views/trades/trade-sheet-title';
 
-/* ONE TRADE, AS A ROUTE (`S5d`, 2026-08-20) THAT PRESENTS AS A SHEET (2026-08-24).
+/* ONE TRADE, AS A ROUTE — AND SINCE 2026-08-25, THE COLD PATH ONLY.
  *
- * WHY A ROUTE AND NOT THE DRAWER (Luke's call). On a phone the reference opens a transaction as a
- * full screen that animates up, and the phone's BACK GESTURE has to answer it. An overlay would
- * need history interception to do that, and getting it wrong strands someone on a screen they
- * cannot leave. A route gets back, back-swipe, a shareable URL and survives a reload for free.
+ * WHAT CHANGED. This used to be how the tape opened a trade, and that made every tap wait on a
+ * navigation: the sheet lived in this segment's layout, so nothing could move until the route
+ * committed. Measured warm on localhost, 250ms before the panel existed and 305ms before it
+ * travelled, against `FilterSheet`'s 34ms. The tape now opens `TradeSheet` from client state and
+ * changes the URL underneath it with the History API, so the row it already holds is the whole
+ * transaction. See `trade-sheet.tsx` for the measurements and the reasoning.
  *
- * AND IT NOW ARRIVES LIKE ONE (Luke: "this page should pop up from the bottom of the screen just
- * like the filter screen ... you get this point. consistency"). `TradeSheet` gives it the filter
- * sheet's entrance, header and scrollport below `md` while leaving the mechanism alone - the
- * presentation changed, the router did not.
+ * WHAT THIS IS FOR NOW: a pasted link, a bookmark, a refresh, and any desktop that reaches the URL.
+ * That is why it still exists and why it still renders the complete screen on its own — the sheet's
+ * `pushState` writes a URL, and a URL that only works if you arrived by tapping is a broken URL.
  *
- * THE DESKTOP KEEPS THE DRAWER. Above `sm` a trader opening a trade is reading one against the tape
- * behind it and stepping through several — that is what a drawer is for, and `trade-drawer.tsx`
- * says so at length. This route is the phone's answer to the same question, not a replacement.
- * Both render `TradeDetail`; neither owns a copy of the facts.
+ * NOTHING HERE ANIMATES, and that is correct rather than a regression. An entrance says "this
+ * arrived over what you were looking at"; someone opening this address cold was not looking at
+ * anything. The sheet's travel belongs to the tape's tap, not to the address.
  *
- * IT IS REACHABLE ON A DESKTOP TOO, deliberately. A URL that only works at one viewport is a URL
- * somebody will paste and someone else will open on a laptop. It renders the same screen there.
+ * ONE `TradeDetail`, IN A RESPONSIVE CONTAINER. Rendering a phone version and a desktop version
+ * would put the facts in the document twice and give two elements the same `id`. So the container
+ * switches at `md` instead: below it a full-screen panel that covers the shell, from it an ordinary
+ * page column.
  *
  * ─── WHAT THIS DOES NOT DO YET ────────────────────────────────────────────────────────────────
  *
@@ -40,8 +42,7 @@ import { TradeSheetTitle } from '@/components/views/trades/trade-sheet-title';
  *
  * THE AMOUNT IS NOT CENTRED the way the reference's detail screen has it. `TradeDetail` puts the
  * mark left and the figure top-right, which is `run-trading@v2`'s measured layout and was ported
- * "exactly" at Luke's request. Changing it here would fork the one body both containers share — the
- * whole reason this file renders a shared component. Worth deciding as its own change.
+ * "exactly" at Luke's request. Changing it here would fork the one body every container shares.
  */
 export async function generateMetadata({
   params,
@@ -52,8 +53,7 @@ export async function generateMetadata({
   const trader = await requireTrader();
   const [t] = await getTradesByIds(trader.id, [id]);
   if (!t) return { title: 'Trade' };
-  const contract = t.contract ?? t.symbolRoot;
-  return { title: productName(contract) ?? contract };
+  return { title: tradeTitle(t) };
 }
 
 export default async function TradePage({ params }: { params: Promise<{ id: string }> }) {
@@ -69,28 +69,19 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
      "not found" message that only appears for real ids would confirm which ids exist. */
   if (!t) notFound();
 
-  const contract = t.contract ?? t.symbolRoot;
-
-  const title = productName(contract) ?? contract;
+  const title = tradeTitle(t);
 
   return (
     <>
-      {/* THE SHEET IS THE LAYOUT'S NOW, so it animates once instead of twice - see `layout.tsx`.
-          This page is its child, and hands it the one fact the layout could not know without
-          suspending the very panel that has to arrive instantly. */}
-      <TradeSheetTitle>{title}</TradeSheetTitle>
       {/* THE TRAIL GOES IN THE SHELL'S OWN BAND, not in a second one underneath it (`S5d`,
           2026-08-20). This first shipped as a `sticky top-0` bar inside the page, which put the
           shell's title at y=0 and this one at y=84 — two stacked title bars, and exactly the bug
-          `header-slot.tsx` exists to prevent. `HEADER_TITLE_SLOT_ID` is the slot written for this
-          case, and its own note names it: "what belongs there is usually not a title anyway but a
-          TRAIL — the way back plus which row you drilled into".
-          `routeTitle` now yields for any route below a NAV href, so the band's left is empty and
-          this fills it.
-          A LINK, NOT `router.back()`. Back depends on how the trader ARRIVED — opening this URL
-          cold, or landing here from a shared link, would send them wherever they were before Run.
-          `/trades` is where this screen belongs regardless, and the phone's own back gesture still
-          does the history thing for anyone who wants it. */}
+          `header-slot.tsx` exists to prevent. Above `md` this is the only trail; below it the panel
+          covers the shell entirely and carries its own.
+          A LINK, NOT `router.back()`. Back depends on how the trader ARRIVED, and this route now
+          exists precisely for the traders who did NOT arrive from the tape — a shared link or a
+          bookmark would send them wherever they were before Run. `/trades` is where this screen
+          belongs regardless, and the phone's own back gesture still does the history thing. */}
       <HeaderSlot slot="title">
         {/* A LINK WEARING THE ICON BUTTON, not an `IconButton` with an onClick: this NAVIGATES, so
             it owes middle-click, cmd-click and "copy link address", none of which a button gives.
@@ -101,7 +92,40 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
         <h1 className="text-title text-text ml-1 min-w-0 truncate font-medium">{title}</h1>
       </HeaderSlot>
 
-      <TradeDetail trade={t} zone={trader.displayTimezone} titleId="trade-title" showTitle={false} />
+      {/* `md:px-4`, NOT `PAGE_COLUMN` VERBATIM (2026-08-24, Luke: "we are not using the full width
+          of the screen"). `PAGE_COLUMN` is `mx-auto w-full px-4`, and that `px-4` applied at every
+          width — on top of the scrollport's own below `md`. Measured at 390: content began at x=32
+          in a 358px box, against the tape rows it was drilled from at x=16.
+          A phone screen is FULL BLEED and its children own their insets. The column and its gutter
+          belong to the desktop page only. */}
+      <div className="bg-bg mx-auto w-full max-md:fixed max-md:inset-0 max-md:z-[70] max-md:flex max-md:flex-col md:px-4 md:pb-8">
+        <SheetHeader
+          className="md:hidden"
+          title={title}
+          lead={
+            <Link href="/trades" aria-label="Back to trades" className={ICON_BUTTON}>
+              <Icon name="back" size={22} />
+            </Link>
+          }
+        />
+        {/* `min-h-0` is what lets a flex child actually shrink and scroll; without it this grows to
+            its content and the header above scrolls away with the body.
+            `scroll-thin` UNPREFIXED, because a Tailwind VARIANT cannot modify a hand-written class:
+            `max-md:scroll-thin` compiles to nothing at all, silently. Harmless above `md`, where
+            this element has no overflow and therefore no bar to thin. */}
+        <div className="scroll-thin max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:px-4 max-md:pb-8">
+          {/* `max-w-[560px]`, the drawer's own width, so the fact list has the same measure at every
+              viewport rather than stretching a label/value pair across a 1600px monitor. */}
+          <div className="mx-auto w-full max-w-[560px]">
+            <TradeDetail
+              trade={t}
+              zone={trader.displayTimezone}
+              titleId="trade-title"
+              showTitle={false}
+            />
+          </div>
+        </div>
+      </div>
     </>
   );
 }

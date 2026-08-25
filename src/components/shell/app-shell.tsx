@@ -35,6 +35,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useOverlayBack } from '@/lib/overlay-back';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
@@ -158,6 +159,16 @@ export function AppShell({
       return next;
     });
   }, []);
+
+  /* THE DEVICE BACK BUTTON CLOSES THE DRAWER RATHER THAN LEAVING THE PAGE (2026-08-25, Luke: "if
+     the page has a back arrow or 'x' button, the back button on the user's device should take the
+     user back a step or close the modal/page that has the 'x' button"). It has a close control and
+     a scrim, so it is a modal, and the OS gesture used to walk straight past it.
+     ONLY IN OVERLAY MODE. On a desktop this is the app's spine, not a modal, and giving a permanent
+     layout choice a history entry would make Back toggle furniture.
+     `mdUp` RATHER THAN `isOverlay()`, because this runs during render and `isOverlay()` reads
+     `matchMedia` - the hydration mismatch this file already keeps `mdUp` in state to avoid. */
+  useOverlayBack(!collapsed && !mdUp, () => setCollapsed(true));
 
   // Close on navigation, but only in overlay mode: on desktop the sidebar is the app's spine and
   // collapsing it every time you clicked a row would be hostile.
