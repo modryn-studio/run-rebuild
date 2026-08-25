@@ -1008,6 +1008,30 @@ input[type='search']::-webkit-search-decoration {
   appearance: none;
 }
 
+/* A WAITING MARK THAT NEVER FLASHES: invisible for 300ms, then fades in over 200ms.
+   THE RESEARCH IS THE REASON, not taste. NN/g finds a skeleton improves perceived performance only
+   when the real wait falls between roughly 400ms and 3s; below about 300ms a person does not
+   perceive the delay at all, so a mark that appears and vanishes inside it ADDS a flicker to a
+   load that felt instant. Most navigations in this app are prefetched and land well inside that
+   window.
+   `both` FILL IS THE LOAD-BEARING PART. Without it the element is fully opaque during the delay and
+   the whole point is lost - `both` makes the from-state (opacity 0) apply before the animation
+   starts. If the real content arrives first, the fallback unmounts having never been painted.
+   NOT IN THE REDUCED-MOTION BLOCK BELOW, deliberately. Killing this would make the mark appear
+   INSTANTLY, which is the flicker it exists to prevent - the opposite of the accommodation. A 200ms
+   opacity fade has no vestibular component; it is the delay that matters and the delay stays. */
+.wait-reveal {
+  animation: wait-reveal 0.2s var(--ease-out) 0.3s both;
+}
+@keyframes wait-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* AN INVISIBLE 44px TARGET AROUND A 36px CONTROL, without any of the chip chrome.
    `.lift-press` already does this (`::after { inset: -4px }`) and has since 2026-07-30, but it does
    it as one line in a class that also brings a border, a ground, a press inset and a transition -

@@ -26,7 +26,11 @@ import { cn } from '@/lib/cn';
 
 export function StickyRail({ className, children, ...props }: React.ComponentProps<'aside'>) {
   const ref = useRef<HTMLElement>(null);
-  const [fits, setFits] = useState(false);
+  /* HOW FAR ABOVE THE SCROLLPORT'S TOP THIS PINS, in px, and `null` until measured.
+     0 when the rail fits: it pins the moment it reaches the top, which is what it always did.
+     NEGATIVE when it does not: `scrollport - rail`, so the rail travels up with the tape until its
+     BOTTOM lands on the scrollport's bottom, and pins there. */
+  const [top, setTop] = useState<number | null>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -47,7 +51,19 @@ export function StickyRail({ className, children, ...props }: React.ComponentPro
        change when it becomes sticky, so the observer below cannot feed itself. */
     const check = () => {
       const port = el.closest('main') ?? el.parentElement;
-      setFits(el.offsetHeight <= (port?.clientHeight ?? window.innerHeight));
+      const available = port?.clientHeight ?? window.innerHeight;
+      /* A TALL RAIL STICKS TOO, IT JUST STICKS LATER (2026-08-25, Luke: "the main goal is to get the
+         card to stick during scroll. but some screens like laptops are shorter and then the bottom
+         of the summary card is cut off").
+         The old test was all-or-nothing - pin at the top, or give up and scroll away for the rest of
+         the tape - which made the card's HEIGHT a budget: every row added moved the cliff closer,
+         and the only lever left was deleting facts to satisfy a layout rule.
+         A negative `top` removes the budget. The rail scrolls up with the tape until its bottom
+         reaches the scrollport's bottom, then holds for the rest of the scroll. The whole card is
+         reachable, nothing is clipped, and there is no second scrollbar - which Luke ruled out in
+         v2 and which is the textbook "fix" for this that we are deliberately not using.
+         `Math.min(0, ...)` so a rail that fits keeps `top: 0` and the old behaviour exactly. */
+      setTop(Math.min(0, available - el.offsetHeight));
     };
     check();
     // The rail's own height changes when its content does — a filter that drops the trade count
@@ -78,7 +94,16 @@ export function StickyRail({ className, children, ...props }: React.ComponentPro
          `className` LAST so a caller's width utilities win — the collapsing `lg:w-76` / `lg:w-0`
          pair are both width utilities under one modifier, and twMerge has to see the caller's as
          the later argument or the closed state never applies. */
-      className={cn('max-lg:order-last lg:self-start', fits && 'lg:sticky lg:top-0', className)}
+      /* THE OFFSET RIDES A CUSTOM PROPERTY, NOT AN INLINE `top`, and that is not style preference.
+         Below `md` this same element is the phone's summary DRAWER - `max-md:fixed max-md:inset-y-0`
+         - where `top` is load-bearing and an inline value would beat the class and break it. A
+         variable is inert until a rule reads it, and only the `lg:` rule does. */
+      style={top === null ? undefined : ({ '--rail-top': `${top}px` } as React.CSSProperties)}
+      className={cn(
+        'max-lg:order-last lg:self-start',
+        top !== null && 'lg:sticky lg:top-[var(--rail-top)]',
+        className
+      )}
     >
       {children}
     </aside>

@@ -54,6 +54,9 @@ export default [
             // size from `--text-caption`, so the tier below `small` stays single. globals.css.
             // An invisible 44px target around a 36px control, without `.lift-press`'s chip chrome.
             // WCAG 2.5.5 (AAA) and Apple's HIG both state 44; 2.5.8 (AA) asks only 24. globals.css.
+            // A waiting mark that stays invisible for 300ms so a fast load never flickers one.
+            // NN/g: a skeleton only helps between ~400ms and 3s; below ~300ms nothing should show.
+            'wait-reveal',
             'hit-44',
             'eyebrow',
             // The instrument mark's type: caption size, tabular, and a MEASURED -0.01em that buys

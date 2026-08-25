@@ -20,7 +20,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
-import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/cn';
 import { fmtMoney } from '@/lib/format';
 import { productName } from '@/lib/instruments';
@@ -29,7 +28,7 @@ import { ColumnsMenu, useTapeColumns, type TapeColumn } from './columns-menu';
 import { displayTime, displaySessionDate } from '@/lib/time/session';
 import type { FacetAccount, SessionGroup, TapeRow } from '@/lib/trades/read';
 import { useRouter } from 'next/navigation';
-import Link, { useLinkStatus } from 'next/link';
+import Link from 'next/link';
 import { AccountSelect } from './account-select';
 import { TradeDrawer } from './trade-drawer';
 
@@ -401,32 +400,6 @@ function groupBySession(rows: TapeRow[]): { sessionDate: string; trades: TapeRow
   return out;
 }
 
-/* THE ROW'S OWN WAITING MARK, and it is a Spinner rather than the wordmark on purpose.
- * `loading-mark.tsx` draws the line and this is the other side of it: the wordmark is for a whole
- * surface arriving, the spinner is for A REQUEST IN FLIGHT. A tapped row is a request - the tape is
- * still on screen, still readable, and one row of it is fetching.
- *
- * `useLinkStatus()` REPORTS FOR THE ENCLOSING `<Link>` ONLY, which is why the row had to become one.
- * It is a separate component because the hook must run INSIDE the link's subtree.
- *
- * PHONE ONLY, and that is not an omission. Above `md` this row does not navigate at all - it opens
- * the drawer from data already in memory, which is instant and has nothing to wait for. A spinner
- * there would be a promise the desktop never needs to keep.
- * It takes the chevron's own 32px box so the row's geometry does not move when it appears; on a
- * phone that box is empty anyway, since the chevron is `max-md:hidden`. */
-function RowPending() {
-  const { pending } = useLinkStatus();
-  if (!pending) return null;
-  return (
-    <span
-      aria-hidden
-      className="text-muted flex size-8 shrink-0 items-center justify-center md:hidden"
-    >
-      <Spinner className="size-4" />
-    </span>
-  );
-}
-
 /* A LINK THAT SOMETIMES REFUSES TO NAVIGATE, which is the honest shape of this control
  * (2026-08-24). The row DOES go somewhere on a phone - `/trades/[id]` - so it owes the things only
  * a real anchor gives: middle-click, cmd-click, "open in new tab", and a status bar that shows the
@@ -436,8 +409,10 @@ function RowPending() {
  * The `href` stays regardless: it is a true statement about where this row's trade lives, and it is
  * what makes cmd-click work on a desktop even though a plain click does not.
  *
- * IT ALSO BUYS THE LOADING STATE. `useLinkStatus()` only reports for a `<Link>`, so the pending
- * spinner below could not exist while this was a button. */
+ * THE LINK EARNS ITS PLACE ON THE AFFORDANCES ALONE. It was converted partly to enable a
+ * `useLinkStatus` spinner in the row, and that spinner has since been removed as the wrong mark for
+ * the event - the wait belongs at the destination, in the shape of what is arriving. The anchor
+ * stays regardless: middle-click and cmd-click are reason enough for a control that navigates. */
 function Row({
   trade: t,
   zone,
@@ -580,7 +555,11 @@ function Row({
           row is the target and a tap is the affordance. It earns its place on a DESKTOP, where a
           pointer needs somewhere to aim and a hover state to answer it — neither of which exists on
           a touch screen, where it is 32px of chrome that never lights up. */}
-      <RowPending />
+      {/* AND NO PENDING SPINNER HERE (2026-08-25, reversing 2026-08-24). A `useLinkStatus` spinner
+          sat in this slot for a day. The mark was wrong for the event: a spinner means A REQUEST IN
+          FLIGHT, and tapping a row opens a whole SCREEN. That screen now states its own waiting
+          shape in `[id]/loading.tsx`, which is where the wait belongs - at the destination, in the
+          shape of what is arriving, rather than as a bead on the thing you just left. */}
       {/* FULL INK AT REST (2026-08-24). Monarch's own chevron measures `rgb(255,255,255)` — it does
           not sit quiet and light up, it is simply part of the row. The hover mechanic below is
           unchanged and still does the work it was added for: the GROUND and the BORDER arrive on

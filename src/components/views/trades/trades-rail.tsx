@@ -138,27 +138,24 @@ export function TradesRail({
             readout card"). This card is a ledger of label/value pairs; a sentence at the foot of it
             was the one thing in it that was not. The reference does the same thing the same way -
             its summary panel carries `First transaction` and `Last transaction` as plain rows.
-            FIRST AND LAST TRADE DESCRIBE THE FILTERED SET, so they move with the filter and answer
-            "what am I actually looking at". `Last import` describes the RECORD and does not, which
-            is the pairing that makes a gap visible: data through June under a filter asking for
-            August is a fact the trader can see rather than one they have to infer. */}
+            THEY DESCRIBE THE FILTERED SET, so they move with the filter and answer "what am I
+            actually looking at" - the range half of P8. The freshness half (`Last import`) was here
+            for a day and came out again; see the note below the rows. */}
         <Line label="First trade">
           <Day iso={digest.firstDay} />
         </Line>
         <Line label="Last trade">
           <Day iso={digest.lastDay} />
         </Line>
-        {/* THE ONLY ROW HERE THAT IS NOT ABOUT THE TRADES. It is the answer to "how current is
-            this", which is the half of P8 the accounts page cannot give a filtered tape. */}
-        <Line label="Last import">
-          {digest.lastImportAt ? (
-            <span className="text-text tabular-nums">
-              {displayInstantDay(digest.lastImportAt, zone)}
-            </span>
-          ) : (
-            <span className="text-muted">Never</span>
-          )}
-        </Line>
+        {/* NO `Last import` ROW (2026-08-25, Luke: "i know for a fact we dont need it on the
+            /trades page summary card"). It was the only row here not about the trades, it did not
+            move with the filter, and `/accounts/details` carries it per-account where it has one
+            value instead of a summary of several.
+            CUT ON MERIT, NOT TO FIT. The sticky rail no longer has a height budget - a tall card
+            pins by its bottom edge rather than giving up - so this is the row earning least, not
+            the row that would not fit. `digest.lastImportAt` stays: it is one indexed row per
+            query, /accounts/details needs it, and deleting a correct read to save nothing is how
+            a page ends up re-deriving it later. */}
       </dl>
 
       {/* Deliberately BELOW the ledger, at the foot of the card: it is what you do with these
