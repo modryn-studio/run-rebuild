@@ -95,6 +95,16 @@ const isRange = (v: unknown): v is Range => RANGES.includes(v as Range);
  *  Session dates are plain calendar strings throughout this codebase and compare correctly as text,
  *  which is why the window below never needs to build a `Date`. */
 const isDay = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+/* AN ACCOUNT ID IS A UUID OR IT IS NOT AN ACCOUNT ID (2026-08-25, postcheck). `accounts` was the one
+   list here that reached SQL unchecked, and `trade.account_id` is a `uuid` column - so `?accounts=x`
+   made Postgres answer "invalid input syntax for type uuid", the Server Component throw, and the
+   trader meet Next's bare error screen. There is no `error.tsx` under `src/app` to soften it.
+   That is the exact failure this module's own docblock promises cannot happen: "everything
+   unrecognised falls back to the resting state, so a hand-edited URL narrows nothing rather than
+   erroring". `results` was already guarded against `RESULT_TOKENS` one line below. Both API routes
+   carry this same check, each with a note recording that they verified the 500 live. */
+const isUuid = (v: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 
 const list = (v: string | string[] | undefined): string[] =>
   (Array.isArray(v) ? v : typeof v === 'string' ? v.split(',') : []).map((s) => s.trim()).filter(Boolean);
@@ -108,7 +118,7 @@ export function readTradesFilter(params: Record<string, string | string[] | unde
   return {
     products: list(params.products),
     results: list(params.results).filter((r): r is ResultToken => RESULT_TOKENS.includes(r as ResultToken)),
-    accounts: list(params.accounts),
+    accounts: list(params.accounts).filter(isUuid),
     range: isRange(range) ? range : DEFAULT_RANGE,
     from: isDay(from) ? from : null,
     to: isDay(to) ? to : null,

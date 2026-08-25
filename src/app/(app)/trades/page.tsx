@@ -44,13 +44,11 @@ const FIRST_PAGE = 300;
  * scroll, so re-querying here would trade one wait for two. */
 async function RailFigures({
   traderId,
-  zone,
   filter,
   window,
   ids,
 }: {
   traderId: string;
-  zone: string;
   filter: TradesFilter;
   window: { from: string | null; to: string | null };
   ids: string[];
@@ -59,7 +57,6 @@ async function RailFigures({
   return (
     <TradesRail
       digest={digest}
-      zone={zone}
       filter={filter}
       resultFiltered={isResultFiltered(filter)}
       ids={ids}
@@ -131,7 +128,6 @@ export default async function TradesPage({
           <Suspense fallback={<TradesRailSkeleton />}>
             <RailFigures
               traderId={trader.id}
-              zone={trader.displayTimezone}
               filter={filter}
               window={window}
               ids={ids}

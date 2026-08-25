@@ -76,14 +76,12 @@ export function TradesSection() {
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <TradesRail
-            zone="America/Chicago"
             digest={DIGEST_FIXTURE}
             filter={EMPTY_FILTER}
             resultFiltered={false}
             ids={DIGEST_FIXTURE_IDS}
           />
           <TradesRail
-            zone="America/Chicago"
             digest={{
               ...DIGEST_FIXTURE,
               winRatePct: null,

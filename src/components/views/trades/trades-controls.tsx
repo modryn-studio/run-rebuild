@@ -28,7 +28,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { HeaderControl, HeaderSlot } from '@/components/shell/header-slot';
-import { FilterSheet } from './filter-sheet';
+import { FilterSheet, type FilterSheetDraft } from './filter-sheet';
 import { IconButton } from '@/components/ui/icon-button';
 import { DateInput } from '@/components/ui/date-input';
 import { cn } from '@/lib/cn';
@@ -96,11 +96,14 @@ function usePopover(onOpen?: () => void) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
+  /* WHERE FOCUS CAME FROM, so it can go back. See the restore below. */
+  const opener = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
     // Focus moves INTO the panel. v2 shipped these without it (its #95), so a keyboard user opened
     // a dialog and stayed on the page behind it.
+    opener.current = document.activeElement as HTMLElement | null;
     panel.current?.focus();
     const onDown = (e: PointerEvent) => {
       if (!root.current?.contains(e.target as Node)) setOpen(false);
@@ -111,6 +114,17 @@ function usePopover(onOpen?: () => void) {
     return () => {
       document.removeEventListener('pointerdown', onDown);
       document.removeEventListener('keydown', onKey);
+      /* AND FOCUS GOES BACK WHERE IT CAME FROM (2026-08-25, postcheck). Moving focus IN was only
+         half of issue #17's second defect: a dialog that dismisses into nowhere strands the keyboard
+         at the top of the document, so Escape out of Filters left the trader tabbing from the
+         wordmark to get back to the control they had just used. `button.tsx` already carries a `ref`
+         prop added for exactly this and nothing was using it.
+         GUARDED ON `isConnected`, because the trigger is not always still there: `Clear` unmounts
+         when the last filter is removed, and focusing a detached node silently sends focus to
+         <body> - the very failure this is fixing, with an extra step. */
+      const back = opener.current;
+      opener.current = null;
+      if (back?.isConnected) back.focus();
     };
   }, [open]);
 
@@ -139,6 +153,15 @@ function usePopover(onOpen?: () => void) {
  * IT WRITES THE SAME `q` PARAM the desktop panel does, through the same `useParamWriter`, so the
  * two are one narrowing rather than two that happen to agree.
  */
+/** True only for the draft `Clear all` commits: every axis at its resting value. */
+const isNothing = (d: FilterSheetDraft) =>
+  d.range === DEFAULT_RANGE &&
+  !d.from &&
+  !d.to &&
+  d.products.length === 0 &&
+  d.results.length === 0 &&
+  d.accounts.length === 0;
+
 export function TradesSearchPill({
   applied,
   products,
@@ -158,8 +181,26 @@ export function TradesSearchPill({
      desktop band is the surface where the window has its own button and its own dot. */
   const count = sheetCount(applied);
 
+  /* WHAT THIS COMPONENT LAST WROTE, so it can tell its own echo from someone else's change.
+     Without it the re-seed below destroys keystrokes: the debounced write lands, the RSC
+     round-trips, `applied.q` comes back, and the seed overwrites `draft` UNCONDITIONALLY - taking
+     every character typed during the round trip with it. Type "trad", pause past the debounce, keep
+     typing "eify", and when the response for `q=trad` commits the field snaps back to "trad" with
+     the caret at the end. The debounce then sees `draft === applied.q` and never writes again, so it
+     stalls on a prefix with no indication. The window is the whole round trip - 200ms to 1s against
+     Neon - which a normal typist crosses on most words. (2026-08-25, postcheck.) */
+  const echo = useRef<string | null>(null);
+
   // Re-seed when the applied term changes from anywhere else — the band's Clear, or a back button.
-  useEffect(() => setDraft(applied.q ?? ''), [applied.q]);
+  useEffect(() => {
+    const next = applied.q ?? '';
+    if (echo.current === next) {
+      // Our own write coming back. The field already says this; do not touch what is being typed.
+      echo.current = null;
+      return;
+    }
+    setDraft(next);
+  }, [applied.q]);
 
   /* THE SEARCH RUNS AS YOU TYPE (2026-08-24, Luke: "the search should start working automatically
      after every character typed ... there should be no need to click enter"). The keyboard's search
@@ -172,12 +213,21 @@ export function TradesSearchPill({
      this one form a loop: applied changes -> draft is set -> this fires -> writes the same value.
      Trimmed on both sides of the comparison so trailing whitespace mid-word does not trigger a
      round trip that changes nothing. */
+  /* `write` IS HELD IN A REF, NOT LISTED AS A DEPENDENCY. It is rebuilt on every navigation
+     (`useSearchParams()` returns a new object each time), so as a dep it cancelled the pending
+     timer on ANY url change - a filter applied elsewhere could starve the search write entirely. */
+  const writeRef = useRef(write);
+  writeRef.current = write;
+
   useEffect(() => {
     const term = draft.trim();
     if (term === (applied.q ?? '')) return;
-    const id = setTimeout(() => write({ q: term || null }, 'replace'), 250);
+    const id = setTimeout(() => {
+      echo.current = term;
+      writeRef.current({ q: term || null }, 'replace');
+    }, 250);
     return () => clearTimeout(id);
-  }, [draft, applied.q, write]);
+  }, [draft, applied.q]);
 
   return (
     /* THE BOTTOM OF THE PAGE HEADER, AND IT STAYS PUT (Luke, 2026-08-20: "as the user scrolls, the
@@ -332,7 +382,21 @@ export function TradesSearchPill({
             to: d.to,
             products: d.products.join(',') || null,
             results: d.results.join(',') || null,
-            accounts: d.accounts.join(',') || null,
+            /* EVERY ACCOUNT TICKED IS NOT A FILTER, and the phone was the only surface that did not
+               know it (2026-08-25, postcheck). The desktop panel normalises this away; this path
+               joined unconditionally, so ticking all three accounts wrote `accounts=a,b,c`, lit the
+               narrowed dot, showed Clear and flipped the empty state to "No trades in this range"
+               for a filter that narrows nothing - and the two surfaces produced different URLs for
+               an identical tape. */
+            accounts:
+              d.accounts.length === accounts.length ? null : d.accounts.join(',') || null,
+            /* CLEAR ALL DROPS THE SEARCH TERM TOO (2026-08-25, postcheck). The band's `Clear` does,
+               with a note saying that otherwise "the one button that promises to clear everything
+               leaves the search term narrowing the tape". The phone's `Clear all` did not, so it
+               left a term applied while `sheetCount` read 0 - the button lying in exactly the way
+               the desktop note forbids. Detected by the draft being empty on every axis, which is
+               what `Clear all` commits and what nothing else can produce. */
+            q: isNothing(d) ? null : applied.q,
           });
           setSheet(false);
         }}

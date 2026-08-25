@@ -32,15 +32,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { IconButton } from '@/components/ui/icon-button';
 import { Icon } from '@/components/ui/icon';
 import { cn } from '@/lib/cn';
-import { fmtMoney, fmtPriceDecimal, fmtDuration } from '@/lib/format';
-import { productName } from '@/lib/instruments';
-import { displayClock } from '@/lib/time/session';
 import type { TapeRow } from '@/lib/trades/read';
-import { InstrumentMark } from './instrument-mark';
 import { Stepper } from './trade-drawer-body';
 import { TradeDetail } from './trade-detail';
 
-const signed = (cents: number): string => (cents > 0 ? `+${fmtMoney(cents)}` : fmtMoney(cents));
 
 /* MATCHES `.drawer-transition`'s 0.3s (globals.css), and it has to: the panel slides on that
    declaration, and this is how long the parent waits before unmounting it. Two numbers describing
@@ -144,8 +139,12 @@ export function TradeDrawer({
     [requestClose, onPrev, onNext]
   );
 
-  const contract = t.contract ?? t.symbolRoot;
-  const held = t.exitAt.getTime() - t.entryAt.getTime();
+  /* DEAD SINCE THE `TradeDetail` EXTRACTION, REMOVED 2026-08-25 (postcheck). `contract`, `held`,
+     `signed` and five imports all survived the move to the shared body and were each referenced
+     exactly once - at their own declaration. `held` was the live one: it called `.getTime()` on
+     `t.exitAt` every render for a value nobody read, which is a standing tripwire for the
+     JSON-Date class of bug this file's own header warns about. `tsc` and `eslint` are both clean
+     on unused locals here, so nothing caught them. */
 
   return (
     <div

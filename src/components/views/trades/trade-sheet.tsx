@@ -39,8 +39,9 @@
  * NO PREV/NEXT ARROWS, and that is unchanged rather than unconsidered - see the route's own note.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { consumeArrivedFromTape } from '@/lib/trades/arrival';
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/ui/icon';
 import { ICON_BUTTON } from '@/components/ui/icon-button';
@@ -76,9 +77,28 @@ export function TradeSheet({ children }: { children: React.ReactNode }) {
      THE OS BACK GESTURE STILL GOES STRAIGHT BACK, and that is correct rather than a gap: the
      browser draws its own page transition for that, and overriding it would make Run's animation
      fight the platform's. Our control animates our way; the system's animates its way. */
+  /* BACK IF WE CAME FROM THE TAPE, PUSH IF WE DID NOT (2026-08-25, Luke: "when i click on a row ...
+     then click the back button, it takes a second to load the trades page. why is that different
+     than returning from the filter page?").
+     Because the filter sheet is client state and this is a ROUTE - and `push` builds `/trades`
+     again, server round trip and all. `back()` restores it from the router's client cache, at the
+     scroll position it was left at, with no fetch. That is the second the trader was waiting on.
+     It is not unconditional: back is wrong for someone who opened this URL from a message, whose
+     previous entry is wherever they were before Run. `arrival.ts` records which happened, because
+     neither `document.referrer` nor `history.length` can tell them apart.
+     GUARDED AGAINST A SECOND TAP. Two timers meant two pushes and a history entry the trader then
+     had to press back through twice - `trade-drawer.tsx` already solved this with a ref and a
+     cleanup, and this had neither. */
+  const leaving = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (leaving.current) clearTimeout(leaving.current); }, []);
+
   const leave = () => {
+    if (leaving.current) return;
     setOpen(false);
-    setTimeout(() => router.push('/trades'), 220);
+    leaving.current = setTimeout(() => {
+      if (consumeArrivedFromTape()) router.back();
+      else router.push('/trades');
+    }, 220);
   };
 
   return (
@@ -89,9 +109,12 @@ export function TradeSheet({ children }: { children: React.ReactNode }) {
            class - `max-md:sheet-transition` compiles to nothing, which this codebase has been
            caught by twice. It is harmless above `md`: the class names only a transition, and
            nothing up there ever changes `translate`. */
-        'sheet-transition bg-bg',
+        /* NO `.sheet-transition` AND NO GROUND ON THE CONTAINER. It is a frame now, not the moving
+           part: the header paints its own `bg-bg` and the scrollport paints its own, and between
+           them the container is transparent so the tape shows through while the body travels. A
+           ground here would blank the page to an empty rectangle the instant the route committed,
+           which is the "weird in between screen" this is fixing rather than causing. */
         'max-md:fixed max-md:inset-0 max-md:z-[70] max-md:flex max-md:flex-col',
-        !open && 'max-md:translate-y-full',
         /* `md:px-4`, NOT `PAGE_COLUMN` VERBATIM (2026-08-24, Luke: "we are not using the full width
            of the screen"). `PAGE_COLUMN` is `mx-auto w-full px-4`, and that `px-4` applied at every
            width - on top of the scrollport's own `px-4` below `md`. Measured at 390: content began
@@ -102,9 +125,17 @@ export function TradeSheet({ children }: { children: React.ReactNode }) {
         'mx-auto w-full md:px-4 md:pb-8'
       )}
     >
-      {/* PHONE ONLY. Above `md` the shell's own band carries the trail, which is where a route
-          below a NAV href is supposed to put it (`header-slot.tsx`). */}
-      <div className="relative flex h-16 shrink-0 items-center justify-center px-2 md:hidden">
+      {/* THE HEADER DOES NOT TRAVEL WITH THE PANEL (2026-08-25, Luke: "the header should just change
+          ... that header should not pop up with the trade details page ... exactly like how we have
+          it work with the Filters page").
+          He is describing the filter sheet's DRILL-IN, which is the right model: its header swaps in
+          place while only the new screen slides. This header used to sit inside the translating
+          element, so the whole screen including its chrome flew up as one - a second header arriving
+          over the one already there rather than replacing it.
+          It is a sibling of the scrollport now, outside `.sheet-transition`, so it is simply THERE
+          the moment the route commits. Only the body moves.
+          PHONE ONLY: above `md` the shell's band carries the trail instead (`header-slot.tsx`). */}
+      <div className="bg-bg relative flex h-16 shrink-0 items-center justify-center px-2 md:hidden">
         {/* THE WRAPPER IS POSITIONED, NOT THE CONTROL, and `icon-button.tsx` documents why in its
             own header: `.lift-press` sets `position: relative` UNLAYERED to anchor its 44px hit
             expander, so an `absolute` passed through `className` silently resolves to relative. It
@@ -143,7 +174,18 @@ export function TradeSheet({ children }: { children: React.ReactNode }) {
           UTILITY, and `scroll-thin` is hand-written in globals.css, so the prefixed form compiles
           to nothing at all - silently. Unprefixed it is harmless above `md`, where this element has
           no overflow and therefore no bar to thin. */}
-      <div className="scroll-thin max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:px-4 max-md:pb-8">
+      <div
+        data-open={open}
+        className={cn(
+          /* THE BODY IS THE THING THAT SLIDES. `.sheet-transition` is unprefixed because a Tailwind
+             variant cannot modify a hand-written class - `max-md:sheet-transition` compiles to
+             nothing, a trap this codebase has hit twice. Harmless above `md`, where nothing here
+             ever changes `translate`. */
+          'sheet-transition bg-bg scroll-thin',
+          'max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:px-4 max-md:pb-8',
+          !open && 'max-md:translate-y-full'
+        )}
+      >
         {/* `max-w-[560px]`, the drawer's own width, so the fact list has the same measure at every
             viewport rather than stretching a label/value pair across a 1600px monitor. */}
         <div className="mx-auto w-full max-w-[560px]">{children}</div>

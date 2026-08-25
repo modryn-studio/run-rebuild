@@ -1500,6 +1500,28 @@ input[type='search']::-webkit-search-decoration {
     animation-iteration-count: 1 !important;
   }
 
+  /* THE FIVE PANELS THAT MOVE ARE TRANSITIONS, NOT ANIMATIONS, AND WERE NOT COVERED (2026-08-25,
+     postcheck). Everything in the allowlist above is an `animation`; `.sheet-transition`,
+     `.drawer-transition` and `.panel-transition` are `transition`s, so the sidebar, the summary
+     drawer, the trade drawer, the filter sheet and the trade sheet all slid at full 300ms for a
+     trader who had asked the OS for less motion. These are the LARGEST moving surfaces in the
+     product - a full-screen panel crossing the viewport is exactly what the vestibular
+     accommodation is for, and it was the one thing the block missed.
+     IT ALSO INVALIDATED A STATED RATIONALE. `trade-sheet.tsx` justifies a timeout over
+     `transitionend` on the grounds that "reduced motion collapses the duration to zero and a
+     `transitionend` may never fire", and `filter-sheet.tsx` leans on the same assumption. In this
+     stylesheet it did not collapse, so both were describing behaviour that was not there. Now it
+     does, and both notes become true - the timeout stays, since a 0.01ms transition may still not
+     fire an event and a timer always resolves.
+     0.01ms rather than `none`, so the state change still commits and anything listening still
+     hears it; the travel is what goes, not the transition. */
+  .sheet-transition,
+  .drawer-transition,
+  .panel-transition,
+  .menu-panel {
+    transition-duration: 0.01ms !important;
+  }
+
   /* THE SKELETON GOES STILL, NOT SLOW. Timing it to 0.01ms like the entrances above would park the
      sheen wherever the sweep happened to stop, leaving a bright band frozen across the block - a
      placeholder that looks broken rather than one that is waiting. Dropping the gradient leaves a

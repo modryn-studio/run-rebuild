@@ -17,7 +17,7 @@
 
 import { Card } from '@/components/ui/card';
 import { fmtMoney } from '@/lib/format';
-import { displayDayShort, displayInstantDay } from '@/lib/time/session';
+import { displayDayShort } from '@/lib/time/session';
 import { RANGE_LABEL, type TradesFilter } from '@/lib/trades/filter';
 import type { TradesDigest } from '@/lib/trades/read';
 import { DownloadCsv } from '@/components/views/trades/download-csv';
@@ -25,16 +25,11 @@ import { DownloadCsv } from '@/components/views/trades/download-csv';
 export function TradesRail({
   digest,
   filter,
-  zone,
   resultFiltered,
   ids,
 }: {
   digest: TradesDigest;
   filter: TradesFilter;
-  /* DISPLAY ONLY, and only for the import timestamp. A session date is already bucketed and stays
-     in UTC; an import is a real instant and belongs to the trader's own clock. CLAUDE.md: display
-     timezone must never reach the bucketing code, and it does not - it reaches one formatter. */
-  zone: string;
   /** What the blank rows below are explained by. */
   resultFiltered: boolean;
   /** The ordered ids of the whole filtered selection, for the export. Not the page's slice: a file

@@ -201,12 +201,23 @@ export function FilterSheet({
     setCustomOpen(Boolean(applied.from || applied.to));
   }, [applied]);
 
-  // Re-seeded on every OPEN, so a cancelled sheet never reopens holding the abandoned edit.
+  /* SEEDED ON THE OPEN EDGE ONLY, not whenever `seed` changes identity (2026-08-25, postcheck).
+     `seed` closes over `applied`, which is a fresh object on every server render - so this effect
+     re-ran WHILE THE SHEET WAS OPEN every time the RSC returned, resetting the draft and throwing
+     the trader out of a drill-in back to the axis list. Search-as-you-type makes that routine:
+     type in the pill, open Filters within the debounce, tick a product, and the staged tick
+     disappears when the write lands.
+     The ref tracks the previous `open`, so the body runs on false -> true and nothing else. `seed`
+     stays out of the deps deliberately; it is read, not observed. */
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!open) return;
-    seed();
-    panel.current?.focus();
-  }, [open, seed]);
+    if (open && !wasOpen.current) {
+      seed();
+      panel.current?.focus();
+    }
+    wasOpen.current = open;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see the note above: edge-triggered.
+  }, [open]);
 
   /* A DRILL-IN ALWAYS ARRIVES AT ITS TOP. The layer stays mounted between visits, so a trader who
      scrolled to "Last year", went back, and opened Product would find Product already scrolled. */
@@ -256,6 +267,14 @@ export function FilterSheet({
     <div
       className={cn('fixed inset-0 z-[70]', !open && 'pointer-events-none', className)}
       aria-hidden={!open}
+      /* THE WHOLE SHEET LEAVES THE TAB ORDER WHEN CLOSED, and the guard belongs HERE rather than on
+         the two content layers (2026-08-25, postcheck). Putting it on those covered the drill rows
+         and missed the FOOTER, which is their sibling - so `Clear all` and `Apply` stayed focusable
+         off-screen, and Enter on an invisible control wiped every filter including the date window.
+         The close button in the header was outside it too.
+         `aria-hidden` and `pointer-events-none` beside it hide the panel from readers and the
+         pointer; neither touches the tab order. Three attributes, three different audiences. */
+      inert={!open}
     >
       {/* The sheet covers the screen, so this is only ever seen during the travel. It still earns
           its place: without it the tape shows through under a sheet that has not landed. */}
@@ -334,6 +353,8 @@ export function FilterSheet({
             the layer travels out of, and the footer below stays put because it is identical on both
             screens and animating something that does not change is just motion. */}
         <div className="relative min-h-0 flex-1 overflow-hidden">
+          {/* These two separate the two SCREENS from each other. "Closed" is the ROOT's job - see
+              the `inert` there, and why putting it here instead missed the footer. */}
           <div className="absolute inset-0 overflow-y-auto" inert={page !== null}>
             <SectionBand>Date range</SectionBand>
             <DrillRow label={rangeLabel} onClick={() => setPage('date')} />

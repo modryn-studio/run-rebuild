@@ -29,6 +29,7 @@ import { displayTime, displaySessionDate } from '@/lib/time/session';
 import type { FacetAccount, SessionGroup, TapeRow } from '@/lib/trades/read';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { markArrivedFromTape } from '@/lib/trades/arrival';
 import { AccountSelect } from './account-select';
 import { TradeDrawer } from './trade-drawer';
 
@@ -96,6 +97,10 @@ export function TradesTape({
    * third breakpoint for "is this a phone" is a third answer to one question. */
   const openTrade = (row: TapeRow, index: number) => {
     if (window.matchMedia('(max-width: 767px)').matches) {
+      /* RECORD THAT THE SHEET WAS ENTERED FROM HERE, so its Back can be a real `back()` - which
+         restores this page from the router's client cache instantly, at the scroll position it was
+         left at, instead of building it again. See `lib/trades/arrival.ts`. */
+      markArrivedFromTape();
       router.push(`/trades/${row.id}`);
       return;
     }

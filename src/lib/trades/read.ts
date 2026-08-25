@@ -544,7 +544,17 @@ export async function getFacetRows(traderId: string): Promise<FacetRow[]> {
       accountId: trade.accountId,
       product: trade.symbolRoot,
       wins: sql<number>`count(*) filter (where ${NET} > 0)`.mapWith(Number),
-      losses: sql<number>`count(*) filter (where ${NET} < 0)`.mapWith(Number),
+      /* A SCRATCH COUNTS HERE, and that is not a judgement about the trade - it is the only way the
+         number reconciles (2026-08-25, postcheck). Both consumers render `wins + losses` as a row's
+         trailing count, so a net-zero trade counted in NEITHER made the filter panel read 358 beside
+         a tape and a rail that both said 360.
+         NOT RARE: with no Cash History imported every fee is 0, so every flat trade is net exactly
+         zero. This function's own note says a count resolving to a different number of rows "would
+         be a number that cannot be reconciled against the tape it filters" - which is this.
+         `<= 0` rather than a third bucket, because these two exist to be SUMMED into a row count.
+         The win/loss split that feeds a FIGURE is `getDigest`'s, which keeps scratches out of both
+         and must go on doing so. */
+      losses: sql<number>`count(*) filter (where ${NET} <= 0)`.mapWith(Number),
     })
     .from(trade)
     .where(and(eq(trade.traderId, traderId), eq(trade.state, 'ok')))

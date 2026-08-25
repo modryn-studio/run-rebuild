@@ -660,8 +660,8 @@ this slice can be re-derived from the live site later.
 
 **Nothing here is broken today.** Measured at 390px: no horizontal overflow, 61px rows, the rail
 stacked below the tape. This is a redesign, not a repair, and the honest reason to do it is that
-`app-shell.tsx` still says *"MOBILE IS DELIBERATELY UNFINISHED ... what is here is 'not broken', not
-'designed'"*. This slice is what lets that paragraph be deleted.
+`app-shell.tsx` said *"MOBILE IS DELIBERATELY UNFINISHED ... what is here is 'not broken', not
+'designed'"*. This slice is what let that paragraph be deleted, and it was, on 2026-08-25.
 
 **Depends on `S3d`** (the bottom bar) landing first — the drawer cannot lose its nav rows until
 something else carries them.
@@ -767,11 +767,12 @@ Built 2026-08-21. `Search`, `Date` and `Filters` no longer render as three band 
 - **Scroll restoration on back has not been proven on a device.** Next restores scroll on browser
   back by default; whether that survives a 360-row tape that windows 60 at a time is a question only
   a real phone answers.
-- **The footer buttons are under the touch floor.** `Clear all` and `Apply` moved from `lg` (48px) to
-  `md` (36px) on 2026-08-21 because 48 read heavy on a 390px screen. 36 is correct against the
-  system and wrong against the 44px target floor every other phone control here holds to, and there
-  is no size between them. The honest fix is a new size in the system, not a height at this call
-  site — so it is a decision, not a bug, and it is Luke's.
+- ~~**The footer buttons are under the touch floor.**~~ **CLOSED 2026-08-25.** They stay at `md`
+  (36px) and now carry `.hit-44`, which expands the target to 44 invisibly - the same technique
+  `.lift-press` has used for the icon chips since 2026-07-30. Luke's 36px stops being a compromise.
+  For the record, checked rather than assumed: 44x44 is Apple's HIG and WCAG 2.5.5 (AAA); the AA
+  criterion is 2.5.8 at 24x24 with a spacing exception, which these cleared several times over
+  already. The house rule is the stricter one and it is now met at no visual cost.
 - **The date picker is native.** `ui/date-input.tsx` replaces the UA's `mm/dd/yyyy` mask with
   "Earliest" / "Latest" and keeps the platform's own calendar underneath. A hand-drawn calendar
   would have to re-earn localisation, keyboard operation and both modes to be no better at the one

@@ -50,7 +50,17 @@ export function useTapeColumns() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORE_KEY);
-      if (raw) setHidden(JSON.parse(raw) as TapeColumn[]);
+      /* PARSED AND THEN CHECKED, because `as TapeColumn[]` is a cast and casts do not run
+         (2026-08-25, postcheck). The try/catch below covers blocked storage and malformed JSON; it
+         does NOT cover VALID json of the wrong shape. `run_tape_columns` holding `5` or `{}` made
+         `hidden.includes(...)` throw inside `TradesTape`'s render and took the whole page down -
+         and a stale key survives a rename of the column set, so this is reachable without anyone
+         editing storage by hand. Unknown tokens are dropped rather than kept: a column that no
+         longer exists cannot be hidden, and keeping it would only preserve a ghost. */
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(parsed)) {
+        setHidden(parsed.filter((c): c is TapeColumn => COLUMNS.some((k) => k.key === c)));
+      }
     } catch {
       // Private mode or blocked storage. Every column shows, which is the safe direction.
     }

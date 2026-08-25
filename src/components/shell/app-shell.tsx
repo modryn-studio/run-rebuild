@@ -22,10 +22,16 @@
  * toggle gives up: it holds one position, so from the collapsed state it sits diagonally
  * opposite the panel it is about to open. `[` toggles from either state.
  *
- * MOBILE IS DELIBERATELY UNFINISHED (Luke, 2026-08-13). Desktop is being built first and mobile
- * gets its own pass later, so what is here is "not broken", not "designed": the overlay keeps a
- * phone usable without pretending the layout has been thought through at that width. Do not read
- * the mobile behaviour as a settled decision.
+ * MOBILE IS DESIGNED NOW (`S3d` and `S5d`, 2026-08-20 to 08-25). This paragraph used to say the
+ * opposite - "deliberately unfinished ... not broken, not designed", Luke 2026-08-13 - and
+ * `build-plan.md` quoted it as the case FOR scheduling the pass. The pass happened, so the note
+ * has to stop claiming otherwise: a stale disclaimer telling the next session that a settled
+ * decision is provisional is worse than no note.
+ * What is settled at this width: the sidebar is a DRAWER that translates rather than narrowing,
+ * dismissed by scrim tap or a leftward swipe; `BottomBar` carries the four destinations in flow
+ * below `<main>`; page chrome that must not scroll lives in `HEADER_BAND_SLOT_ID` rather than
+ * sticky inside the pane. Below `md` the drawer never restores a stored open state and never
+ * writes one, so a phone cannot clobber the desktop's preference.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -253,6 +259,13 @@ export function AppShell({
           // Overlay below md: fixed, full height, never in flow.
           'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50',
         )}
+        /* A COLLAPSED SIDEBAR IS INVISIBLE AND WAS STILL FULLY TABBABLE (2026-08-25, postcheck).
+           `overflow-hidden` + `w-0` on desktop and `-translate-x-full` on a phone hide PIXELS, not
+           the accessibility tree - so Shift+Tab from the header walked into a 0px panel through
+           Notifications, Settings, Collapse, four nav rows and the account trigger, seven stops with
+           nothing on screen, and Enter opened a menu inside a zero-width box.
+           `summary-rail.tsx` already states this rule and obeys it; the panel beside it did not. */
+        inert={collapsed}
         /* SWIPE IT AWAY (Luke, 2026-08-21). A drawer that only closes by tapping a scrim is a
            drawer that ignores the one gesture every phone user already has for it. Horizontal only,
            and only leftward: a vertical drag is the page scrolling and must pass straight through.
