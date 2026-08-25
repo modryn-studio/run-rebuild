@@ -122,7 +122,7 @@ with a rule. The rules stay HERE, because this file is loaded into every session
 - **TypeScript stays on 6**; 7.0 breaks typescript-eslint and takes `npm run lint` down.
 - **Tailwind v4 has no config file.** `@theme` in `src/app/globals.css`, never `:root`, never `tailwind.config.*`.
 - **API routes use `createRouteLogger`**; env vars go in `src/lib/env.ts` (zod, fail-fast).
-- **NO `loading.tsx` AT THE APP ROOT.** Past ~50KB of streamed payload its boundary stops hydrating, silently. Put one on a segment that waits on data and nowhere else; a route needing a Suspense boundary declares its own. **`src/app/loading.tsx` currently violates this** — inherited from `modryn-base`'s scar list, not yet acted on here.
+- **NO `loading.tsx` AT THE APP ROOT.** Past ~50KB of streamed payload its boundary stops hydrating, silently. Put one on a segment that waits on data and nowhere else; a route needing a Suspense boundary declares its own. Acted on 2026-08-20: the boundary moved from `src/app/loading.tsx` to `src/app/(app)/loading.tsx`, so it wraps the page rather than the shell.
 
 **Auth**
 - **No pinned `BETTER_AUTH_URL` in dev** — `baseURL` resolves per request from `Host`. Production keeps a pinned string. **Reproduce auth bugs in a browser or not at all**; the origin check only runs on requests carrying a Cookie header.
