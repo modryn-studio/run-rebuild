@@ -217,7 +217,14 @@ export function TradesSearchPill({
      (`useSearchParams()` returns a new object each time), so as a dep it cancelled the pending
      timer on ANY url change - a filter applied elsewhere could starve the search write entirely. */
   const writeRef = useRef(write);
-  writeRef.current = write;
+  /* ASSIGNED IN AN EFFECT, NOT DURING RENDER. The first version wrote `writeRef.current = write`
+     in the component body and `react-hooks` rejected it: a render must be pure, and mutating a ref
+     there is a side effect that breaks under Strict Mode's double render and React Compiler's
+     memoisation both. The effect runs after commit, which is before any timer this ref serves
+     could fire. (2026-08-25, caught by lint immediately after the fix that introduced it.) */
+  useEffect(() => {
+    writeRef.current = write;
+  }, [write]);
 
   useEffect(() => {
     const term = draft.trim();
