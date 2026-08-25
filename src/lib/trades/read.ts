@@ -220,7 +220,14 @@ async function selectTapeRows(
     .from(trade)
     .innerJoin(account, eq(account.id, trade.accountId))
     .where(extra ? and(predicate, extra) : predicate)
-    .orderBy(desc(trade.sessionDate), desc(trade.entryAt));
+    /* `trade.id` IS A TIE-BREAK, NOT DECORATION (2026-08-25). `(session_date, entry_at)` is not
+       unique: two contracts entered on the same stamp and paired into two round trips share both
+       columns, and SQL leaves the order of ties undefined. Two queries with this same ORDER BY may
+       therefore disagree about which came first - and `getTapeIds` below IS that second query, so
+       the ordered id list the client pages through could interleave differently from the rows
+       rendered here. A trade shown twice, or skipped, in a product whose one claim is that its
+       numbers reconcile. Any keyset cursor over this ordering needs the unique column too. */
+    .orderBy(desc(trade.sessionDate), desc(trade.entryAt), desc(trade.id));
 
   const rows = await (limit === undefined ? q : q.limit(limit));
 
@@ -255,7 +262,10 @@ export async function getTapeIds(
     .select({ id: trade.id })
     .from(trade)
     .where(where(traderId, f, window))
-    .orderBy(desc(trade.sessionDate), desc(trade.entryAt));
+    /* THE SAME THREE COLUMNS AS THE TAPE, and they have to be the same three. This list is what the
+       client pages through; the tape above is what it renders. A tie broken differently by the two
+       is a row fetched twice or never. See the note there. */
+    .orderBy(desc(trade.sessionDate), desc(trade.entryAt), desc(trade.id));
   return rows.map((r) => r.id);
 }
 

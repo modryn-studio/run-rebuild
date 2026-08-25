@@ -78,7 +78,14 @@ export function DownloadCsv({
         type="button"
         onClick={save}
         disabled={busy}
-        className="text-link text-body disabled:cursor-not-allowed disabled:opacity-60"
+        /* `.hit-44` BECAUSE THIS IS THE ONE CONTROL ON `/trades` THAT STILL WASN'T (2026-08-25).
+           A text link is ~80x16 at this size, well under the 44px touch floor, and v2 measured
+           exactly this control at 80x16 before it was carried forward. The class expands the hit
+           area invisibly from the control's own size, so nothing about the link moves.
+           `disabled:opacity-60` is a hand-rolled value where `button.tsx` uses 50; left alone here
+           rather than changed in passing, since the four disabled treatments app-wide are one
+           decision and not this one. */
+        className="hit-44 text-link text-body disabled:cursor-not-allowed disabled:opacity-60"
       >
         {busy ? 'Preparing...' : failed ? 'Try again' : 'Download CSV'}
       </button>
