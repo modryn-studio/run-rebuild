@@ -12,6 +12,7 @@
 
 import { TradesTape } from '@/components/views/trades/trades-tape';
 import { TradesRail } from '@/components/views/trades/trades-rail';
+import { TradesRailSkeleton } from '@/components/views/trades/trades-rail-skeleton';
 import { QuarantineNotice } from '@/components/views/trades/quarantine-notice';
 import { EMPTY_FILTER } from '@/lib/trades/filter';
 import { Note, Row, Section } from '../_components/section';
@@ -52,6 +53,20 @@ export function TradesSection() {
           The third row is quarantined: marked, muted rather than coloured, still listed, and absent
           from its own band&apos;s figures. That is the whole of &ldquo;an exclusion may never
           silently shrink the record&rdquo; in one row: 3 trades in the band, 4 rows under it.
+        </Note>
+      </Row>
+
+      <Row label="The summary rail, waiting" note="the shape it holds before its figures arrive">
+        <div className="max-w-76">
+          <TradesRailSkeleton />
+        </div>
+        <Note>
+          A skeleton rather than a spinner, because nothing about this panel&rsquo;s shape depends on
+          the data: twelve rows in five groups, always. It mirrors the real rail row for row on
+          purpose, since a skeleton whose shape does not match reflows the moment the content lands,
+          which reads worse than the spinner it replaced. The bar widths are deliberately ragged: a
+          column of identical bars reads as a placeholder graphic, an uneven one reads as text that
+          has not arrived. It also holds itself invisible for 300ms, so a fast load never flashes it.
         </Note>
       </Row>
 

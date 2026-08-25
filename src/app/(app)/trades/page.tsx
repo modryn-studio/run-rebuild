@@ -7,9 +7,17 @@ import { TradesTape } from '@/components/views/trades/trades-tape';
 import { TradesRail } from '@/components/views/trades/trades-rail';
 import { TradesControls, TradesSearchPill } from '@/components/views/trades/trades-controls';
 import { QuarantineNotice } from '@/components/views/trades/quarantine-notice';
-import { readTradesFilter, rangeWindow, isNarrowed, isResultFiltered } from '@/lib/trades/filter';
+import {
+  readTradesFilter,
+  rangeWindow,
+  isNarrowed,
+  isResultFiltered,
+  type TradesFilter,
+} from '@/lib/trades/filter';
 import { getTape, getTapeIds, getDigest, getFacets, getFacetRows, getExcluded } from '@/lib/trades/read';
 import { sessionDateFor } from '@/lib/time/session';
+import { Suspense } from 'react';
+import { TradesRailSkeleton } from '@/components/views/trades/trades-rail-skeleton';
 
 export const metadata: Metadata = { title: 'Trades' };
 
@@ -29,6 +37,36 @@ const FIRST_PAGE = 300;
  * tape uses, so the page's cap can never quietly become the summary's scope — `spec.md` §S3 (P6),
  * and the defect that produced the rule is recorded on `getDigest`.
  */
+/* THE ONE THING THAT WAITS. An async child inside `<Suspense>` is how a Server Component defers a
+ * single slow read without deferring the page: everything outside this streams immediately, and
+ * this arrives when its query does.
+ * It takes `ids` rather than reading them again - the tape already needs that list for its endless
+ * scroll, so re-querying here would trade one wait for two. */
+async function RailFigures({
+  traderId,
+  zone,
+  filter,
+  window,
+  ids,
+}: {
+  traderId: string;
+  zone: string;
+  filter: TradesFilter;
+  window: { from: string | null; to: string | null };
+  ids: string[];
+}) {
+  const digest = await getDigest(traderId, filter, window);
+  return (
+    <TradesRail
+      digest={digest}
+      zone={zone}
+      filter={filter}
+      resultFiltered={isResultFiltered(filter)}
+      ids={ids}
+    />
+  );
+}
+
 export default async function TradesPage({
   searchParams,
 }: {
@@ -59,9 +97,13 @@ export default async function TradesPage({
      Ids rather than an offset: the server never re-derives the filter, so no row can appear twice or
      be skipped because the second derivation differed. A uuid is 36 bytes, so even a two-year corpus
      is well under a megabyte of ids against roughly ten of rows. */
-  const [sessions, digest, facets, excluded, ids, facetRows] = await Promise.all([
+  /* THE DIGEST IS NOT AWAITED HERE, and that is the point of the Suspense boundary below. It is the
+     heaviest read on the page - it aggregates the whole filtered set and groups it by session, where
+     the tape only reads the first 60 rows - so awaiting it with everything else made the tape wait
+     on a figure that sits beside it rather than inside it. Split out, the record paints as soon as
+     it is ready and the summary fills in after. */
+  const [sessions, facets, excluded, ids, facetRows] = await Promise.all([
     getTape(trader.id, filter, window, { limit: FIRST_PAGE }),
-    getDigest(trader.id, filter, window),
     getFacets(trader.id),
     getExcluded(trader.id, filter, window),
     getTapeIds(trader.id, filter, window),
@@ -83,13 +125,18 @@ export default async function TradesPage({
 
       <WithSummaryRail
         rail={
-          <TradesRail
-            digest={digest}
-            zone={trader.displayTimezone}
-            filter={filter}
-            resultFiltered={isResultFiltered(filter)}
-            ids={ids}
-          />
+          /* THE FALLBACK IS THE RAIL'S OWN SHAPE, twelve rows in five groups, because that shape is
+             known before the numbers are. A skeleton that does not match reflows on arrival, which
+             reads worse than the spinner it replaced. */
+          <Suspense fallback={<TradesRailSkeleton />}>
+            <RailFigures
+              traderId={trader.id}
+              zone={trader.displayTimezone}
+              filter={filter}
+              window={window}
+              ids={ids}
+            />
+          </Suspense>
         }
       >
         <div className="flex flex-col gap-4">

@@ -555,6 +555,47 @@ Three named mechanics, defined once in `globals.css` so a control cannot invent 
 > `data-[active=true]:` utility on purpose: a real rule beats a utility regardless of source
 > order, so it cannot be re-broken by reordering classes in a component.
 
+### Loading — three marks, and which one is decided by what you know
+
+**One question settles it: do you know the SHAPE of what is arriving?** Everything else follows.
+
+| Mark | Means | Use it for |
+|---|---|---|
+| `Skeleton` | the shape is known, content is filling in | the summary rail, the trade detail body, any list or card whose layout does not depend on the data |
+| `Spinner` | a bounded action you triggered | **inside buttons only** — Apply, Download CSV, sign in, upload |
+| `LoadingMark` (wordmark) | a whole surface is arriving and its shape is not known yet | a cold entry into the app (`(app)/loading.tsx`), and nothing else |
+
+**The skeleton is the default, not the fallback.** Users perceive skeleton-loaded content as up to
+**50% faster** than spinner-loaded at identical real load times, because it states the layout before
+the content exists. NN/g finds the benefit lands specifically in the **400ms–3s** band.
+
+**A skeleton must mirror its content row for row.** One that does not match reflows the moment the
+content lands, which reads worse than the spinner it replaced. Copy the real component's spacing
+classes; if they change, the skeleton moves with them. Bar widths should be **ragged**, roughly the
+measure of the real labels — a column of identical bars reads as a placeholder graphic, an uneven
+one reads as text that has not arrived.
+
+**Below ~300ms, show nothing.** `.wait-reveal` holds any waiting mark invisible for 300ms and then
+fades it in over 200ms. Most navigations in this app are prefetched and land inside that window,
+where a mark that appears and vanishes **adds** a flicker to a load that already felt instant. It is
+deliberately absent from the reduced-motion block: killing it would make the mark appear *instantly*,
+which is the flicker it exists to prevent.
+
+**The spinner does not belong on a navigation.** A tap that opens a screen is not "a request in
+flight" — it is a surface arriving, and the wait belongs at the destination in the shape of what is
+coming. A spinner beaded onto the control you just left answers the wrong question. *(Learned the
+hard way: a `useLinkStatus` spinner sat in the tape row for a day before being removed.)*
+
+**Where a route boundary lives decides how many times it animates.** `loading.tsx` and `page.tsx`
+are different subtrees, so any chrome rendered by both mounts twice and any entrance animation runs
+twice. Put persistent chrome in a **`layout.tsx`**, which does not re-render when a child segment
+resolves, and let the boundary and the page be its children. *(The trade sheet slid up twice before
+this was understood.)*
+
+**A segment that needs a boundary declares its own.** A `loading.tsx` higher up is already mounted
+once you are inside it, and React will not re-show an existing fallback during a transition — so an
+app-level boundary never fires for navigation between sibling pages.
+
 ### Disabled
 
 **An ink swap at opacity 1 wherever the control has an edge to keep crisp; a fade where it does

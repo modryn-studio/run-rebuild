@@ -145,6 +145,7 @@ does not exist. The ones that bite hardest:
 - **A control gets a border OR a drop shadow, never both**, and only `Card` gets the shadow.
 - **One icon set, one wrapper** (`src/components/ui/icon.tsx`). Never inline an `<svg>`.
 - **Both modes, always.** The `.dark` block is per-mode literals, not inversions.
+- **Three loading marks, and the shape decides.** `Skeleton` when you know what is coming (the default), `Spinner` inside buttons only, the wordmark for a cold entry. Below 300ms show nothing (`.wait-reveal`). **Persistent chrome goes in `layout.tsx`**, or a `loading.tsx` and its page each mount it and the entrance runs twice. `design-system.md` §7.
 - **A component isn't done until it appears in `/kitchen-sink` in every state**, in the same commit. The rack holds **no literal values** — no hex, px, font name or arbitrary Tailwind.
 - **"Works on mobile" means a deployed build on a real phone.** A 375px desktop viewport has a mouse, so `:hover` fires and every touch target passes. It is a width check, not the gate.
 
