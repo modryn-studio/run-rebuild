@@ -578,15 +578,27 @@ untouched, and that is exactly the seam:**
   flagging one already written to an append-only log, where it cannot be corrected. The tape keeps
   its copy on purpose; a read should not trust its input either
 - **S4d** — ✅ **CLOSED 2026-08-14.** `lib/intake/accounts.ts` (`#59`/`#80`)
-- **S4e** — 🔶 **in progress, on `worktree-s4e-intake`.** Ported v2's actual flow rather than the
+- **S4e** — ✅ **BUILT AND MERGED** (`fcae90c` carries its own postcheck), ⚠️ **but not yet
+  REACHABLE**, and the two are worth stating separately. Ported v2's actual flow rather than the
   plan drafted before it (Luke, 2026-08-15: "if i approved a confirm step, that was my mistake... i
   do not want to change the flow the v2 has") — two doors (Brokers, disabled; Import trades), a
   drop zone with header-detected file typing, determinate progress with a minimum-visible floor,
   and an unlabelled account as a normal state rather than a pre-upload type question. The refusal
   screen replaces the progress panel outright on failure rather than squeezing findings under it
-  (measured: 34px → 234px at the same viewport). Remaining before it closes: the mobile pass, the
-  design-system token scan, merge, deploy. **"Add manually" is explicitly NOT part of this slice**
-  — see the S6 note below.
+  (measured: 34px → 234px at the same viewport). **"Add manually" is explicitly NOT part of this
+  slice** — see the S6 note below.
+
+  **What remains is a DOOR, and it is `S6`'s to build, not this slice's** (recorded 2026-08-25).
+  `AddAccountModal` was mounted on `/accounts` and only there, so clearing that page to an empty
+  shell on 2026-08-20 took the product's one route into the three-file ingest with it. The flow
+  itself is intact and gated; `/kitchen-sink/demo` still mounts the real modal under `dryRun`, which
+  is why this reads as merged rather than unfinished. But an import nobody can reach is not
+  delivered, so `S4` does not close until `S6` puts the control back.
+  That is not a deferral of convenience: `/accounts` is where the launcher belongs, because
+  launching an import from a specific account's own page is the context v2's adoption path depends
+  on — the same reason "Add manually" was pushed to `S6` in the first place.
+  **`S4e` is a MODAL, not a page** (Luke, 2026-08-25), and it never was one; `add-account-modal.tsx`
+  over `modal-shell.tsx`, opened from a roster surface.
 
 **`scripts/s4-gate.mts` — 68 assertions, re-runnable, run against the real ten-day export**, not
 fixtures. `tsc` and `eslint` clean; `S1`, `S2` and `S3a` gates all still pass.
@@ -882,10 +894,32 @@ arrival and the pane carried a phone's clearance at 1280px — measured, not gue
 active one, drawer nav hidden, account row still anchored, desktop untouched (bar hidden, four rows
 in the drawer, 48px pane padding).
 
-### S6 — Accounts ⭐
+### S6 — Accounts ⭐ — ⚠️ **now blocks `S4` from closing**
 
 Hero metric selector, groups by state with own totals, **freshness stamp on every row**,
 `CLOSED` as a permanent group, summary rail.
+
+**IT ALSO CARRIES THE PRODUCT'S ONLY DOOR INTO THE INGEST, and that moved here by accident rather
+than by design** (recorded 2026-08-25). `AddAccountModal` was mounted on `/accounts` and nowhere
+else, so clearing that page to an empty shell on 2026-08-20 left `S4e`'s whole flow built, merged,
+gated and unreachable. Until this slice ships a launcher, a trader cannot get data into Run at all.
+That makes the roster the first thing to build here, not the last.
+
+`run-trading@v2` is the reference and its arrangement is worth copying rather than re-deciding:
+
+- **`AccountsHeader` puts `Add account` in the shell's header band as the single brand-filled
+  primary** — *"a roster page has exactly one action"*. It is portalled into the band, not drawn as
+  a second one.
+- **An `AccountModalsProvider` wraps the page content and owns the open state**, because the
+  controls that open it sit in unrelated subtrees — the header is portalled out, the empty-roster
+  CTA is inside a card, and every roster row is inside a collapsible group. Their common ancestor is
+  the page, which is a Server Component and cannot hold state. The alternative, one modal per
+  control, puts a copy on the page per roster row each with its own request in flight.
+- **TWO openers, not one**, and this is the distinction `run-rebuild` does not have yet. `add()`
+  asks WHICH account to create. `importTrades(accountId)` brings fills into an account that already
+  exists — v2: *"a question with no meaning when the trader is standing on one."* Rebuild ships
+  `AddAccountModal` only; v2's second modal is `AddTradesModal`, and the per-account opener is
+  exactly the context the adoption path below depends on.
 
 **"Add manually" lands after this slice, not inside `S4e` (Luke, 2026-08-17).** `S4e`'s modal ships
 two doors only — Brokers and Import trades — and that omission is deliberate
@@ -896,8 +930,9 @@ columns it needs (`brokerAccountId`, `firmSource`, added ahead of time in `S4e`)
 have anywhere to stand on is a launch surface: v2's adoption path is trustworthy only because the
 import is launched *from that specific account's own page* — that context is the signal that the
 file belongs to it, not an inference. `run-rebuild` has no per-account page until this slice builds
-one; the current `/accounts` is a documented throwaway that `S6` replaces wholesale
-(`accounts-view.tsx`). Building manual-add before `S6` means either standing up a real per-account
+one; the current `/accounts` is an empty shell, cleared on 2026-08-20 at Luke's request, and the
+roster that briefly stood there (`accounts-view.tsx`) was deleted rather than left to negotiate
+with. Building manual-add before `S6` means either standing up a real per-account
 page early, out of order, or launching the adopt action from the global modal with none of the
 context v2's fix depended on. `S6`'s own page is where "Add manually" becomes a door with something
 to stand on.
@@ -1057,7 +1092,7 @@ they don't share a surface.
 |---|---|
 | 1 | `S0` skeleton · `S1` data layer + read engine · `S2` primitives (mostly folded into `S1`) |
 | 2 | ✅ `S3a` auth · ✅ `S3b` shell · ✅ `S3c` kitchen sink + ported primitives |
-| 3 | `S4` alone — everything downstream depends on its shape. **Backend closed 2026-08-14; `S4e` (the UI) is what remains** |
+| 3 | `S4` alone — everything downstream depends on its shape. **Backend closed 2026-08-14; `S4e` built and merged. What remains is its DOOR, which `S6` builds on `/accounts`** |
 | 4 | `S5` · `S6` (different pages, same projections) |
 | 5 | `S8` · `S7` **only once the pattern-vs-reading decision is made** |
 | 6 | `S8b` settings + what's new · `S9` polish |
@@ -1088,9 +1123,9 @@ drawer cannot give up its nav rows until the bottom bar carries them.
 
 ## Phase 5 gate
 
-*Status as of 2026-08-25. `S0`–`S3c` merged; waves 1 and 2 complete. **`S4`'s backend
-(`S4a`–`S4d`) is closed; `S4e`, the UI, is what keeps the slice open.** `S3d`, `S5` and `S5d`
-are closed — the record and the phone both. `S6`–`S9` untouched, and `S7` is blocked on a
+*Status as of 2026-08-25. `S0`–`S3c` merged; waves 1 and 2 complete. **`S4` is built end to end,
+backend and UI both — what keeps it open is that `S4e`'s modal has no door in the product, and
+`S6` builds it.** `S3d`, `S5` and `S5d` are closed — the record and the phone both. `S6`–`S9` untouched, and `S7` is blocked on a
 product decision rather than on engineering ([#2](https://github.com/modryn-studio/run-rebuild/issues/2)).*
 
 - [x] **`S1` fired or cleared the kill signal, and the result is recorded** — CLEARED. The MNQ→NQ
