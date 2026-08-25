@@ -41,10 +41,22 @@ export function QuarantineNotice({
             else does not know whether the numbers beside it are affected. */}
         {/* 14px, matching its own title and every other secondary line on this page. It was 12px,
             which was the last thing on /trades still using that step. */}
+        {/* PLAIN WORDS (2026-08-25, Luke: "nobody knows what this means ... that is bad language
+            for traders. and the general public to be honest").
+            It read: "These are still listed below. Open one to see what could not be reconciled."
+            Two problems. "Reconciled" is this codebase's own word for an internal process, not
+            anything a trader does or sees - `spec.md` uses it to mean matching our arithmetic to
+            the broker's, and nothing on screen ever taught it. And the passive "could not be
+            reconciled" names no actor and no cause, so it says something went wrong without saying
+            what or whose.
+            The replacement says the two things the trader needs: WHERE the rows are, and WHY they
+            are out. "We could not match" names us as the actor, which is honest - the trade is fine
+            and our read of it is not. Prose is right here, unlike in the summary card: this is an
+            alert about an abnormal state and it has to explain itself. */}
         <p className="text-body text-muted mt-0.5">
           {quarantined > 0
-            ? 'These are still listed below. Open one to see what could not be reconciled.'
-            : 'These are still listed below, with the reason you gave.'}
+            ? 'They are in the list below, marked. Open one to see what we could not match.'
+            : 'They are in the list below, marked, with the reason you gave.'}
         </p>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import 'server-only';
 import { and, asc, desc, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm';
-import { db, trade, account } from '@/lib/db';
+import { db, trade, account, importBatch } from '@/lib/db';
 import type { TradeState } from '@/lib/db';
 import { firmLogoSrc, accountRowTitle, accountShortTitle, UNLABELLED_FIRM } from '@/lib/prop-firms';
 import { rootsMatchingName } from '@/lib/instruments';
@@ -90,6 +90,10 @@ export interface TradesDigest {
   lastDay: string | null;
   /** False when no Cash History has ever been imported, so every figure is gross and must say so. */
   hasFees: boolean;
+  /* WHEN THE RECORD BEHIND THESE FIGURES WAS LAST READ (P8). Null before anything has been
+     imported for the accounts in view. Scoped to those accounts rather than the trader, or a
+     filtered tape would report an import that contributed nothing to it. */
+  lastImportAt: Date | null;
 }
 
 /* NET IS AN EXPRESSION, NOT A COLUMN, and it is written once here so no caller can spell it
@@ -367,7 +371,15 @@ export async function getDigest(
 ): Promise<TradesDigest> {
   const scoped = and(where(traderId, f, window), eq(trade.state, 'ok'))!;
 
-  const [[totals], days] = await Promise.all([
+  /* THE ACCOUNTS THESE FIGURES ACTUALLY COVER. An empty `accounts` filter means every account, so
+     the import lookup below is scoped by the trader alone in that case - matching what the tape
+     itself did. */
+  const accountScope =
+    f.accounts.length > 0
+      ? and(eq(importBatch.traderId, traderId), inArray(importBatch.accountId, f.accounts))!
+      : eq(importBatch.traderId, traderId);
+
+  const [[totals], days, [lastImport]] = await Promise.all([
     db
       .select({
         trades: sql<number>`count(*)`.mapWith(Number),
@@ -404,6 +416,20 @@ export async function getDigest(
       .from(trade)
       .where(scoped)
       .groupBy(trade.sessionDate),
+    /* WHEN THE RECORD WAS LAST READ (P8). One row: the newest completed import touching the
+       accounts in view.
+       `status = 'complete'` MATTERS. A pending or failed import contributed no trades, so dating
+       the tape by it would claim a freshness the figures do not have - which is the exact failure
+       P8 exists to prevent, told backwards.
+       Deliberately NOT filtered by the date window: the question is when the DATA was last read,
+       not when the trades in it happened. A trader looking at March wants to know their last import
+       was Tuesday, not that nothing was imported in March. */
+    db
+      .select({ uploadedAt: importBatch.uploadedAt })
+      .from(importBatch)
+      .where(and(accountScope, eq(importBatch.status, 'complete')))
+      .orderBy(desc(importBatch.uploadedAt))
+      .limit(1),
   ]);
 
   const resultFiltered = isResultFiltered(f);
@@ -434,6 +460,7 @@ export async function getDigest(
     firstDay: totals.firstDay,
     lastDay: totals.lastDay,
     hasFees: totals.feeRows > 0,
+    lastImportAt: lastImport?.uploadedAt ?? null,
   };
 }
 

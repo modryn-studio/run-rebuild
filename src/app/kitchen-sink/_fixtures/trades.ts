@@ -98,6 +98,7 @@ export const DIGEST_FIXTURE: TradesDigest = {
   worstSessionCents: -33_300,
   firstDay: '2027-03-03',
   lastDay: '2027-03-07',
+  lastImportAt: new Date('2027-03-08T14:12:00Z'),
   hasFees: true,
 };
 

@@ -390,7 +390,29 @@ Acceptance criteria:
 - `THE SYSTEM SHALL group trades under session headers carrying that session's net P&L` — *amended 2026-08-19: was "net P&L, trade count, and win rate". See the note in §3 on why the rate came out.*
 - `THE SYSTEM SHALL display fees per round trip, and SHALL NOT present a net figure that excludes them` — **amended 2026-08-11: per round trip, not per fill.** Fees arrive on a separate export that names no fill id; they resolve to round trips by an exact per-contract-per-side split. A per-fill fee figure would be a fabrication.
 - `THE SYSTEM SHALL indicate, on any surface showing a net figure, whether fees were imported for that range` — the alternative is a gross number labelled net
-- `THE SYSTEM SHALL display, on every page presenting computed figures, the provenance of those figures — the source file or connection, the account, the range covered, and when it was last read` (P8)
+- `THE SYSTEM SHALL display, on every page presenting computed figures, the provenance of those figures` (P8) — *amended 2026-08-25: was "— the source file or connection, the account, the range covered, and when it was last read". The four facts stand where they belong; what changed is that they do not all belong on every surface. See the note below.*
+
+> **Amended 2026-08-25 (Luke): the four facts split by surface, and none of them is prose.**
+>
+> **On a surface presenting ONE account's record** — `/accounts/details` — all four, as a Data card:
+> source, account, range, last import. That page has one account, so each fact has one value.
+>
+> **On an AGGREGATE surface** — `/trades`, and `/today` when it lands — **the range covered and when
+> it was last read**. The other two are per-account facts that an aggregate can only list or lose:
+> a tape filtered across three accounts has three source files and three accounts, and printing
+> them turns a summary into a manifest. It is also the wrong question. What an aggregate uniquely
+> can answer, and what `/accounts/details` cannot, is whether THIS filtered view is backed by data
+> that stops short of what was asked for — data through June under a filter asking for August. That
+> gap is what P8 exists to prevent someone acting on.
+>
+> **They are ROWS, not sentences.** The summary card is a ledger of label/value pairs, and a
+> paragraph at the foot of it was the only thing in it that was not one. `First trade`, `Last trade`
+> and `Last import` state the same facts in the card's own grammar. Monarch's summary panel carries
+> `First transaction` and `Last transaction` exactly this way.
+>
+> This also retired the fees footnote — *"No Cash History covers these trades, so every figure here
+> is before costs"* — which was the same fact a third time in prose, naming a file the trader has to
+> already recognise. The `Net P&L` / `Gross P&L` label already says it, in the place the number is.
 - `WHEN a trade is quarantined, THE SYSTEM SHALL show it visibly excluded rather than omitting it silently`
 - `THE SYSTEM SHALL recompute the summary digest against the current filter, not the full dataset` (P6)
 - `THE SYSTEM SHALL NOT display any figure it cannot reconcile against the broker record` (P12)

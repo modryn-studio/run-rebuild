@@ -17,6 +17,7 @@
 
 import { Card } from '@/components/ui/card';
 import { fmtMoney } from '@/lib/format';
+import { displayDayShort, displayInstantDay } from '@/lib/time/session';
 import { RANGE_LABEL, type TradesFilter } from '@/lib/trades/filter';
 import type { TradesDigest } from '@/lib/trades/read';
 import { DownloadCsv } from '@/components/views/trades/download-csv';
@@ -24,11 +25,16 @@ import { DownloadCsv } from '@/components/views/trades/download-csv';
 export function TradesRail({
   digest,
   filter,
+  zone,
   resultFiltered,
   ids,
 }: {
   digest: TradesDigest;
   filter: TradesFilter;
+  /* DISPLAY ONLY, and only for the import timestamp. A session date is already bucketed and stays
+     in UTC; an import is a real instant and belongs to the trader's own clock. CLAUDE.md: display
+     timezone must never reach the bucketing code, and it does not - it reaches one formatter. */
+  zone: string;
   /** What the blank rows below are explained by. */
   resultFiltered: boolean;
   /** The ordered ids of the whole filtered selection, for the export. Not the page's slice: a file
@@ -109,8 +115,11 @@ export function TradesRail({
         {/* NO SEPARATE FEES ROW, matching v2 (2026-08-19). Fees are carried by this LABEL, not by a
             line of their own: the label is already the load-bearing statement (`Net` means costs
             are in the figure, `Gross` means they are not), so a Fees row underneath restates what
-            the word above it just said. The doctrine that matters is that fees are IN the net
-            number, which the label asserts and the footnote below covers when they are missing. */}
+            the word above it just said.
+            AND NO FOOTNOTE EITHER (2026-08-25). A sentence used to sit under this ledger reading
+            "No Cash History covers these trades, so every figure here is before costs" - the same
+            fact a third time, in prose, in a card made of rows, using a filename the trader has to
+            already know. `Gross P&L` says it, and it says it in the place the number is. */}
         <Line label={digest.hasFees ? 'Net P&L' : 'Gross P&L'}>
           <Money cents={digest.netCents} strong />
         </Line>
@@ -119,13 +128,38 @@ export function TradesRail({
         <Line label="Accounts">
           <Count n={digest.accounts} />
         </Line>
-      </dl>
 
-      {!digest.hasFees && digest.trades > 0 && (
-        <p className="border-rule text-caption text-muted border-t px-5 py-3">
-          No Cash History covers these trades, so every figure here is before costs.
-        </p>
-      )}
+        <Group />
+
+        {/* WHERE THESE FIGURES CAME FROM, AS ROWS (P8, 2026-08-25). `spec.md` §S3 asks every surface
+            presenting computed figures to state the provenance of them, and this card presented
+            none: nothing here said what range the data covers or how current it is.
+            ROWS, NOT PROSE (Luke: "prose is acceptable where needed. it is not needed in a data
+            readout card"). This card is a ledger of label/value pairs; a sentence at the foot of it
+            was the one thing in it that was not. The reference does the same thing the same way -
+            its summary panel carries `First transaction` and `Last transaction` as plain rows.
+            FIRST AND LAST TRADE DESCRIBE THE FILTERED SET, so they move with the filter and answer
+            "what am I actually looking at". `Last import` describes the RECORD and does not, which
+            is the pairing that makes a gap visible: data through June under a filter asking for
+            August is a fact the trader can see rather than one they have to infer. */}
+        <Line label="First trade">
+          <Day iso={digest.firstDay} />
+        </Line>
+        <Line label="Last trade">
+          <Day iso={digest.lastDay} />
+        </Line>
+        {/* THE ONLY ROW HERE THAT IS NOT ABOUT THE TRADES. It is the answer to "how current is
+            this", which is the half of P8 the accounts page cannot give a filtered tape. */}
+        <Line label="Last import">
+          {digest.lastImportAt ? (
+            <span className="text-text tabular-nums">
+              {displayInstantDay(digest.lastImportAt, zone)}
+            </span>
+          ) : (
+            <span className="text-muted">Never</span>
+          )}
+        </Line>
+      </dl>
 
       {/* Deliberately BELOW the ledger, at the foot of the card: it is what you do with these
           numbers, not one of them. */}
@@ -137,6 +171,14 @@ export function TradesRail({
 function customLabel(f: TradesFilter): string {
   if (f.from && f.to) return `${f.from} to ${f.to}`;
   return f.from ? `Since ${f.from}` : `Up to ${f.to}`;
+}
+
+/* A SESSION DATE, SHORT, or an em-less dash when the filter matched nothing. `-` rather than
+   "None": the row is a fact about a set, and an empty set has no first day rather than a day called
+   None. Same mark the blanked figures above use. */
+function Day({ iso }: { iso: string | null }) {
+  if (!iso) return <span className="text-muted">-</span>;
+  return <span className="text-text tabular-nums">{displayDayShort(iso)}</span>;
 }
 
 function Count({ n }: { n: number }) {

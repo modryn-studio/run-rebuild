@@ -85,6 +85,7 @@ export default async function TradesPage({
         rail={
           <TradesRail
             digest={digest}
+            zone={trader.displayTimezone}
             filter={filter}
             resultFiltered={isResultFiltered(filter)}
             ids={ids}

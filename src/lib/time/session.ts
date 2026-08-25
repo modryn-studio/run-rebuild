@@ -153,6 +153,41 @@ export function displaySessionDate(sessionDate: string): string {
   }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
+/* THE SAME DAY, SHORT: "Jul 26, 2026". For a label/value row, where `displaySessionDate`'s
+ * "Tuesday, July 21, 2026" is longer than the column it has to sit in.
+ *
+ * IT LIVES HERE FOR THE REASON EVERY OTHER TIME FUNCTION DOES. This module owns time, and a second
+ * place formatting a session date is a second place that can disagree about which day it is - the
+ * UTC note above is exactly the trap a call site would fall into. One module, both lengths.
+ *
+ * UTC, and for the identical reason: a session date is a plain calendar string that already went
+ * through the bucketer, so re-localising it near midnight moves the printed day by one. */
+export function displayDayShort(sessionDate: string): string {
+  const [y, m, d] = sessionDate.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(Date.UTC(y, m - 1, d)));
+}
+
+/* AN INSTANT, AS A SHORT DAY IN THE TRADER'S OWN ZONE. Distinct from `displayDayShort` and the
+ * difference is load-bearing: that takes a SESSION DATE, a calendar string the bucketer already
+ * settled, and must stay in UTC. This takes a real timestamp - when an import ran - which has no
+ * session and belongs to whoever is reading it.
+ *
+ * `trader.display_timezone` IS ALLOWED HERE and nowhere near the bucketing, which is the rule
+ * stated in CLAUDE.md. "When did I last import" is a wall-clock question about the trader's day. */
+export function displayInstantDay(at: Date, zone: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(at);
+}
+
 // ── THE COARSER BUCKETS — week, month, year to date ──────────────────────────────────────
 // S2, 2026-08-12. `architecture.md` §4 names day, week, month and year-to-date as belonging to
 // this module; until now only the session date existed, which is the half that would have made
