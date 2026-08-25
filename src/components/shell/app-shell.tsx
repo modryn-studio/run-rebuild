@@ -135,8 +135,35 @@ export function AppShell({
     return () => mq.removeEventListener('change', sync);
   }, []);
 
+  /* THE STORED WIDTH HAS TO LAND BEFORE THE TRANSITION DOES, and setting both in one effect does
+   * the opposite (2026-08-25, issue #26). A transition that is present when a value changes is a
+   * transition that RUNS, so `setCollapsed` and `setReady` in one batched commit made the sidebar
+   * visibly glide open on every full page load for anyone whose preference is open - which is every
+   * first-time desktop visitor too, since a stored `null` defaults to open. Restored correctly and
+   * wrong at the same time, which is why reading the code never showed it: the FINAL state is
+   * right, and only the first second of a real reload is wrong.
+   *
+   * Measured before the fix, sampling from document start: the panel sat at 0px until 726ms, the
+   * transition armed at 726ms, and the width then walked 0 -> 224 over the next ~250ms.
+   *
+   * `summary-rail.tsx` already carries this repair and its own note claimed the sidebar had it too;
+   * it did not, and that discrepancy is what the issue found. The approach is deliberately not a
+   * timing guess - `run-trading@v2` tried `requestAnimationFrame` for this and it failed, because
+   * rAF is a guess and React schedules its own re-render from an effect on its own terms.
+   *
+   * So this asks the only question that matters, after every commit, until it is settled: does what
+   * is on screen already agree with storage? Until it does, apply the width and return WITHOUT
+   * arming the transition. Once it does, arm it - by which point there is no pending change left to
+   * animate. Bounded by the `ready` guard: at most two passes, after which the first line returns
+   * immediately on every later render, including every toggle. */
   useEffect(() => {
-    const stored = localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
+    if (ready) return;
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
+    } catch {
+      // Private mode or blocked storage. The default stands rather than the shell throwing.
+    }
     /* On desktop, default to OPEN when nothing is stored — the nav is the app's spine and a
        first-time visitor should see it.
        ON MOBILE IT STAYS CLOSED REGARDLESS, and until 2026-08-24 this line only managed that when
@@ -144,9 +171,14 @@ export function AppShell({
        and the phone restored it and opened a drawer over the page on load. The overlay test has to
        come FIRST, because it is not a default — it is a rule about what this panel IS at that
        width. The summary rail carries the same repair, measured. */
-    setCollapsed(isOverlay() ? true : stored !== null ? stored === '1' : false);
-    setReady(true);
-  }, []);
+    const want = isOverlay() ? true : stored !== null ? stored === '1' : false;
+    if (collapsed !== want) {
+      setCollapsed(want);
+      return;
+    }
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, [ready, collapsed]);
 
   const toggle = useCallback(() => {
     setCollapsed((c) => {
@@ -268,7 +300,7 @@ export function AppShell({
              `max-md:w-56` re-asserts the width the desktop branch would otherwise zero out. */
           collapsed ? 'w-0 max-md:w-56 max-md:-translate-x-full' : SIDEBAR_W,
           // Overlay below md: fixed, full height, never in flow.
-          'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50',
+          'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50'
         )}
         /* A COLLAPSED SIDEBAR IS INVISIBLE AND WAS STILL FULLY TABBABLE (2026-08-25, postcheck).
            `overflow-hidden` + `w-0` on desktop and `-translate-x-full` on a phone hide PIXELS, not
@@ -387,7 +419,11 @@ export function AppShell({
                   no longer a tint a trader might miss. If the drawer ever starts feeling like a
                   trap on a device, this is the line that made it one. */}
               <Tooltip label="Collapse" shortcut="[">
-                <IconButton onClick={toggle} aria-label="Collapse sidebar" className="hidden md:flex">
+                <IconButton
+                  onClick={toggle}
+                  aria-label="Collapse sidebar"
+                  className="hidden md:flex"
+                >
                   {/* ONE MARK AT EVERY BREAKPOINT, matching v2 exactly (2026-08-19). This carried
                       two — `close` below `md`, `collapse` above — on the reasoning that a modal
                       overlay wants an explicit dismiss. v2 considered the same split and rejected
@@ -540,7 +576,7 @@ export function AppShell({
                title is the largest thing in its band and reads as the name of the screen; at 18px
                beside a 16px nav row it read as a label. Both are roles from the ramp — this is a
                step up the scale, not a hand-picked size. */
-            <h1 className="text-h3 text-text pointer-events-none absolute left-1/2 max-w-[50%] -translate-x-1/2 truncate font-medium sm:text-title sm:pointer-events-auto sm:static sm:max-w-none sm:min-w-0 sm:translate-x-0">
+            <h1 className="text-h3 text-text sm:text-title pointer-events-none absolute left-1/2 max-w-[50%] -translate-x-1/2 truncate font-medium sm:pointer-events-auto sm:static sm:max-w-none sm:min-w-0 sm:translate-x-0">
               {routeTitle(pathname)}
             </h1>
           )}
@@ -663,7 +699,7 @@ function BottomBar({ pathname }: { pathname: string }) {
                whose items size to their text shifts every time a destination is renamed. */
             className={cn(
               'text-caption flex flex-1 flex-col items-center justify-center gap-1 transition-colors',
-              active ? 'text-text font-medium' : 'text-muted',
+              active ? 'text-text font-medium' : 'text-muted'
             )}
             style={{ height: BOTTOM_BAR_H }}
           >
@@ -721,7 +757,7 @@ function NavRow({
            GROUND ALONE and the pointer already disambiguates the moment two rows match, so a
            separate hover value is one channel more than the job needs. Ink stays full on every
            row - a destination is not metadata. */
-        active ? 'bg-selected text-text' : 'text-text hover:bg-selected',
+        active ? 'bg-selected text-text' : 'text-text hover:bg-selected'
       )}
     >
       {/* HOVER THICKENS THE STROKE, 1.5 -> 1.8. claude.ai's move translated: their sidebar icons are
