@@ -640,7 +640,7 @@ paid for itself every time).
   what makes that non-obvious: one failed run left events behind that then blocked the next run's
   setup
 
-### S5 — Trades ⭐ *the record*
+### S5 — Trades ⭐ *the record* — ✅ **CLOSED 2026-08-25**
 
 Session headers carrying the session net (count and win rate came out 2026-08-19 — see spec.md §3), read-only rows, filtered-set digest, visible
 quarantine with S9b's two actions, provenance line.
@@ -651,7 +651,41 @@ quarantine with S9b's two actions, provenance line.
 > grade. A quarantine row is the sharpest test of it — it reports a fact about a record, not a
 > verdict about a trader.
 
-### S5d — /trades on a phone *(2026-08-20 — 🔶 built and merged; the DEVICE check is still outstanding)*
+#### Closed against the seven-point bar, 2026-08-25
+
+CLAUDE.md: *"it works, handles its error case, handles its empty case, works on mobile, matches the
+design system, is merged, and is deployed. Not before."*
+
+| | evidence |
+|---|---|
+| it works | `scripts/s5-gate.mts` green end to end — reconciliation, narrowing applied in SQL, the window cutting on session date, scratches counted as neither win nor loss, a quarantined trade staying on the tape and out of the figures |
+| error case | tape fetch failure names its cause and offers the retry; CSV export says *"That did not download"* beside a Try again; an id that resolves to nothing 404s rather than confirming which ids exist |
+| empty case | two empty states, and which one is honest depends on whether anything is narrowing |
+| works on mobile | **a real phone, on the deployed build, confirmed by Luke** — not a 375px desktop viewport, which has a mouse and passes every touch target by default |
+| design system | `/postcheck` token scan run twice; the second pass is `c8ae529` |
+| merged + deployed | `main`, and `main` is live |
+
+**What is deliberately NOT in this slice, and is tracked rather than forgotten.** None of it blocks
+the bar above; all of it is real.
+
+- **Launch scale, not this corpus.** [#23](https://github.com/modryn-studio/run-rebuild/issues/23)
+  (the tape ships every id on every load, and its DOM window only grows) and
+  [#25](https://github.com/modryn-studio/run-rebuild/issues/25) (the export has no `maxDuration` and
+  its chunks run serially) are both measured against the stated 20,000-trade target against a
+  360-trade dogfooding corpus. #23 is a paging-strategy rewrite — a keyset cursor over
+  `(session_date, entry_at, id)`, windowed rendering, session totals off the API — which is its own
+  slice and not a loose end on this one. [#19](https://github.com/modryn-studio/run-rebuild/issues/19)
+  was closed as superseded by the two of them.
+- **Quality, not correctness.** [#18](https://github.com/modryn-studio/run-rebuild/issues/18) export
+  filename collision, [#22](https://github.com/modryn-studio/run-rebuild/issues/22) the sheets'
+  `fixed` depending on no ancestor gaining a containing block,
+  [#24](https://github.com/modryn-studio/run-rebuild/issues/24) the hue invariant having no build
+  gate, [#27](https://github.com/modryn-studio/run-rebuild/issues/27) the popovers claiming
+  `aria-modal` without trapping Tab.
+- **Product decisions the issues themselves defer to `S7`:** #10 per-trade note, #11 trade
+  classification, #13 scaling in and out, #15 a per-product page.
+
+### S5d — /trades on a phone *(2026-08-20 — ✅ **CLOSED 2026-08-25**, device check cleared)*
 
 Derived from **Monarch's native mobile app**, not its web app — which matters, because the web at a
 390px viewport does NOT do any of this: it keeps the 224px sidebar and the desktop table. Measured,
@@ -793,9 +827,10 @@ Built 2026-08-21. `Search`, `Date` and `Filters` no longer render as three band 
 - **The amount is not centred** the way the reference's detail screen has it. `TradeDetail` puts the
   mark left and the figure top-right, which is `run-trading@v2`'s measured layout, ported "exactly"
   at Luke's request. Changing it would fork the one body both containers share. Its own change.
-- **Scroll restoration on back has not been proven on a device.** Next restores scroll on browser
-  back by default; whether that survives a 360-row tape that windows 60 at a time is a question only
-  a real phone answers.
+- ~~**Scroll restoration on back has not been proven on a device.**~~ **MOOT 2026-08-25.** The
+  question was whether Next's scroll restoration survives a 360-row tape that windows 60 at a time.
+  It no longer arises: opening a trade is client state now, so the tape is never unmounted and there
+  is no scroll position to restore. The rebuild that removed the wait removed this with it.
 - ~~**The footer buttons are under the touch floor.**~~ **CLOSED 2026-08-25.** They stay at `md`
   (36px) and now carry `.hit-44`, which expands the target to 44 invisibly - the same technique
   `.lift-press` has used for the icon chips since 2026-07-30. Luke's 36px stops being a compromise.
@@ -809,13 +844,16 @@ Built 2026-08-21. `Search`, `Date` and `Filters` no longer render as three band 
 
 #### Open, and worth deciding inside the slice rather than now
 
-- **The rail's figures have nowhere else to go yet.** Net P&L, win rate, average session and the rest
-  are only on `/trades`; hiding the rail below `md` makes them unreachable on a phone until `S8`
-  builds Today. Either Today carries them, or the mobile header keeps a way back to the rail.
-- **The tab bar's active state fights a doctrine line.** `design-system.md` says a nav row's rank is
-  carried by the GROUND alone. A 64px tab bar has no room for a ground pill, and the reference fills
-  the ICON instead. Run draws one weight of icon and has no filled variants, so the likely answer is
-  ink plus weight — which is the one place the ground rule does not reach. Record the exception.
+- ~~**The rail's figures have nowhere else to go yet.**~~ **DECIDED 2026-08-25: the mobile header
+  keeps a way back to the rail**, which is the second of the two options this raised. `Show summary`
+  opens it as a drawer below `md`; measured at 390px, all five figures the concern named (Net P&L,
+  Win rate, Trades, Best session, Worst session) are reachable in one tap. `S8` is free to carry
+  them on Today as well, but is no longer load-bearing for reaching them.
+- ~~**The tab bar's active state fights a doctrine line.**~~ **RECORDED 2026-08-25**, which is all
+  this item asked for. The answer went the way it predicted — ink plus weight, because a 64px tab
+  has no room for a ground pill and Run draws one icon weight with no filled variants. The exception
+  is written down twice, at the point of use in `app-shell.tsx` and in `design-system.md`, rather
+  than left as a silent divergence from the ground rule.
 
 ### S3d — The bottom bar *(2026-08-20 — ✅ built)*
 
@@ -1050,8 +1088,10 @@ drawer cannot give up its nav rows until the bottom bar carries them.
 
 ## Phase 5 gate
 
-*Status as of 2026-08-14. `S0`–`S3c` merged; waves 1 and 2 complete. **`S4`'s backend (`S4a`–`S4d`) is
-closed; `S4e`, the UI, is what keeps the slice open.** `S5`–`S9` untouched.*
+*Status as of 2026-08-25. `S0`–`S3c` merged; waves 1 and 2 complete. **`S4`'s backend
+(`S4a`–`S4d`) is closed; `S4e`, the UI, is what keeps the slice open.** `S3d`, `S5` and `S5d`
+are closed — the record and the phone both. `S6`–`S9` untouched, and `S7` is blocked on a
+product decision rather than on engineering ([#2](https://github.com/modryn-studio/run-rebuild/issues/2)).*
 
 - [x] **`S1` fired or cleared the kill signal, and the result is recorded** — CLEARED. The MNQ→NQ
       multiplier finding, confirmed by Luke as something he did not already know
