@@ -437,7 +437,13 @@ export async function getDigest(
     db
       .select({ uploadedAt: importBatch.uploadedAt })
       .from(importBatch)
-      .where(and(accountScope, eq(importBatch.status, 'complete')))
+      /* `'committed'`, NOT `'complete'` (2026-08-25). `'complete'` is not a value this column can
+         hold: the CHECK permits `pending | committed | rejected` and `commit.ts` writes exactly
+         those three. So this predicate matched nothing, ever, and `lastImportAt` was permanently
+         null - invisibly, because the `Last import` row that rendered it was cut the same week.
+         `S6` is where it would have surfaced: P5 requires a freshness stamp on EVERY account row,
+         and it would have been blank on every one of them with nothing to point at. */
+      .where(and(accountScope, eq(importBatch.status, 'committed')))
       .orderBy(desc(importBatch.uploadedAt))
       .limit(1),
   ]);
