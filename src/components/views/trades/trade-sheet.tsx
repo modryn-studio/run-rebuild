@@ -4,6 +4,19 @@
  * `FilterSheet` does (2026-08-24, Luke: "this page should pop up from the bottom of the screen just
  * like the filter screen and the date range screen... you get this point. consistency").
  *
+ * IT IS RENDERED BY THE SEGMENT'S LAYOUT, AND THAT IS THE FIX FOR A REAL BUG (2026-08-25, Luke:
+ * "now when i click, i see some sort of loading state then the panel slides up. is like a hiccup or
+ * a double screen"). It was right: THE SHEET SLID TWICE.
+ * `loading.tsx` rendered one of these, which mounted closed and animated up with the skeleton. When
+ * the data landed, `page.tsx` rendered ANOTHER - a different element in a different subtree, so
+ * React unmounted the first and mounted the second, which also started closed and also animated up.
+ * A layout does not re-render when a child segment resolves. So the sheet mounts once, animates
+ * once, and the skeleton is replaced by the facts INSIDE a panel that never moves - which is what
+ * the screen did before there was a loading state at all, minus the blank wait.
+ * THE LAYOUT MUST NOT FETCH. Awaiting the trade there would suspend the sheet itself, and the sheet
+ * arriving instantly is the entire point. So it renders chrome only, and the title arrives by
+ * portal from the page that already has it.
+ *
  * IT IS STILL A ROUTE, AND THAT IS THE WHOLE TRICK. The obvious way to get a sheet is an overlay
  * over `/trades`, and `[id]/page.tsx` argues at length why this build refused that: an overlay owes
  * the phone's BACK GESTURE an answer, which means intercepting history, and getting that wrong
@@ -32,16 +45,12 @@ import { cn } from '@/lib/cn';
 import { Icon } from '@/components/ui/icon';
 import { ICON_BUTTON } from '@/components/ui/icon-button';
 
-export function TradeSheet({
-  title,
-  children,
-}: {
-  /* OPTIONAL, BECAUSE THE LOADING BOUNDARY DOES NOT KNOW IT YET. `[id]/loading.tsx` renders this
-     same shell before the trade has been read, and inventing a placeholder title there would be a
-     label that changes into a different label - worse than a header that fills in. */
-  title?: string;
-  children: React.ReactNode;
-}) {
+/* WHERE THE PAGE PUTS THE CONTRACT NAME. The sheet lives in a LAYOUT now and layouts must not
+ * fetch here (see the file header), so it cannot know the title - the page does, and portals it in.
+ * Same content-here/position-there split `HEADER_SLOT_ID` makes for the shell's band. */
+export const TRADE_SHEET_TITLE_SLOT_ID = 'trade-sheet-title-slot';
+
+export function TradeSheet({ children }: { children: React.ReactNode }) {
   /* IT ARRIVES CLOSED AND OPENS ON THE NEXT FRAME, which is what makes it animate at all. A sheet
      that renders already-open has nothing to transition FROM: the browser paints the final state
      once and the travel never happens. `requestAnimationFrame` rather than a timeout because the
@@ -114,7 +123,13 @@ export function TradeSheet({
             <Icon name="back" size={22} />
           </button>
         </div>
-        <h2 className="text-h3 text-text min-w-0 truncate px-12 font-medium">{title ?? ''}</h2>
+        {/* EMPTY UNTIL THE PAGE FILLS IT, which is correct rather than a gap: during the wait the
+            trade has not been read, and a placeholder would be a label that changes into a
+            different label. `px-12` keeps the centred text clear of the back arrow at either end. */}
+        <h2
+          id={TRADE_SHEET_TITLE_SLOT_ID}
+          className="text-h3 text-text min-w-0 truncate px-12 font-medium"
+        />
       </div>
 
       {/* THE SCROLLPORT IS THIS, NOT THE PANE BEHIND IT. `min-h-0` is what lets a flex child

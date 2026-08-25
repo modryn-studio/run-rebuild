@@ -1,5 +1,4 @@
 import { Skeleton } from '@/components/ui/skeleton';
-import { TradeSheet } from '@/components/views/trades/trade-sheet';
 
 /* THIS ROUTE DECLARES ITS OWN BOUNDARY, and that is the whole reason it exists (2026-08-24, Luke:
  * "sometimes when i click on a trade row to open the trade details screen, it takes a little bit to
@@ -32,12 +31,13 @@ import { TradeSheet } from '@/components/views/trades/trade-sheet';
  * label that changes into a different label.
  */
 export default function Loading() {
+  /* `.wait-reveal` HOLDS IT INVISIBLE FOR 300ms. Most of these navigations are prefetched and land
+     inside that window, where a mark that appears and vanishes is a flicker added to a load that
+     already felt instant. See globals.css for the measurement behind the number.
+     (A JSX comment cannot be the first thing inside `return (` - it is an expression, and the
+     parenthesis wants exactly one element. Caught by tsc twice this session.) */
   return (
-    <TradeSheet>
-      {/* `.wait-reveal` HOLDS IT INVISIBLE FOR 300ms. Most of these navigations are prefetched and
-          land inside that window, where a mark that appears and vanishes is a flicker added to a
-          load that already felt instant. See globals.css for the measurement behind the number. */}
-      <div className="wait-reveal pt-2">
+    <div className="wait-reveal pt-2">
         {/* THE SHAPE IS `TradeDetail`'S, ROW FOR ROW, and it has to be: a skeleton that does not
             match its content reflows the moment the content lands, which reads worse than the
             spinner it replaced. The rack's own intro says exactly that. */}
@@ -60,8 +60,7 @@ export default function Loading() {
               ))}
             </div>
           </div>
-        ))}
-      </div>
-    </TradeSheet>
+      ))}
+    </div>
   );
 }

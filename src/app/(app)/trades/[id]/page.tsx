@@ -8,7 +8,7 @@ import { TradeDetail } from '@/components/views/trades/trade-detail';
 import { ICON_BUTTON } from '@/components/ui/icon-button';
 import { Icon } from '@/components/ui/icon';
 import { HeaderSlot } from '@/components/shell/header-slot';
-import { TradeSheet } from '@/components/views/trades/trade-sheet';
+import { TradeSheetTitle } from '@/components/views/trades/trade-sheet-title';
 
 /* ONE TRADE, AS A ROUTE (`S5d`, 2026-08-20) THAT PRESENTS AS A SHEET (2026-08-24).
  *
@@ -74,7 +74,11 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
   const title = productName(contract) ?? contract;
 
   return (
-    <TradeSheet title={title}>
+    <>
+      {/* THE SHEET IS THE LAYOUT'S NOW, so it animates once instead of twice - see `layout.tsx`.
+          This page is its child, and hands it the one fact the layout could not know without
+          suspending the very panel that has to arrive instantly. */}
+      <TradeSheetTitle>{title}</TradeSheetTitle>
       {/* THE TRAIL GOES IN THE SHELL'S OWN BAND, not in a second one underneath it (`S5d`,
           2026-08-20). This first shipped as a `sticky top-0` bar inside the page, which put the
           shell's title at y=0 and this one at y=84 — two stacked title bars, and exactly the bug
@@ -98,6 +102,6 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
       </HeaderSlot>
 
       <TradeDetail trade={t} zone={trader.displayTimezone} titleId="trade-title" showTitle={false} />
-    </TradeSheet>
+    </>
   );
 }
