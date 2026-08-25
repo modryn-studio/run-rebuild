@@ -150,7 +150,7 @@ export function ColumnsMenu({
         <div
           role="dialog"
           aria-label="Columns"
-          className="pop-in border-border bg-surface absolute top-full right-0 z-30 mt-1.5 w-56 rounded-[var(--radius)] border p-1 shadow-[var(--shadow-card)]"
+          className="pop-in bg-surface absolute top-full right-0 z-30 mt-1.5 w-56 rounded-[var(--radius)] p-1 shadow-[var(--shadow-card)]"
         >
           {/* NO HOVER FILL ON THE ROW (Luke, 2026-08-20 - "this is a pop up menu, not a modal, there
               is a difference"). It read `Switch`, whose `slotSurface` ground-plus-hover-step is

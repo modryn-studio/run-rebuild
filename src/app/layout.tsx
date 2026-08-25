@@ -50,6 +50,14 @@ export const viewport: Viewport = {
    * not a risk for the surface that prompted this, since the phone's search row sits in the header
    * band at the very top. */
   interactiveWidget: 'overlays-content',
+  /* WITHOUT THIS, EVERY `env(safe-area-inset-*)` IN THE CODEBASE RESOLVES TO ZERO (2026-08-25,
+   * postcheck). iOS only reports the insets when the page opts into the full display area, and this
+   * export set `interactiveWidget` alone - so three carefully-argued call sites were decoration:
+   * the bottom bar's home-indicator clearance (`app-shell.tsx`), the filter sheet's footer
+   * (`filter-sheet.tsx`) and `.pane-bottom-clearance` (globals.css). Each reads an inset that was
+   * always 0, which is the silent kind of wrong: correct on every device without a notch, and on
+   * the ones with it the failure looks like a design choice. */
+  viewportFit: 'cover',
 };
 
 export const metadata: Metadata = {

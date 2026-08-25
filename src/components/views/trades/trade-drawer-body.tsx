@@ -94,7 +94,17 @@ function CopyButton({ value }: { value: string }) {
           .then(() => setDone(true))
           .catch(() => {});
       }}
-      className={cn('shrink-0 transition-colors', done ? 'text-accent' : 'text-muted hover:text-text')}
+      /* `.hit-44` (2026-08-25, postcheck). The glyph is 14px and this button had no padding, no min
+         size and no hit expander - measured 14x14 on `/trades/[id]`, three of them, under even
+         WCAG 2.5.8's 24px AA floor and less than a third of the 44 every other icon control in this
+         product meets. `.lift-press` gives the shell's chips their invisible 44 and this one was
+         simply missed; `.hit-44` is that expander without the chip chrome, which is right here
+         because a copy affordance inside a fact row should not draw a raised control.
+         `relative` comes from `.hit-44` itself, which anchors the `::after`. */
+      className={cn(
+        'hit-44 shrink-0 transition-colors',
+        done ? 'text-accent' : 'text-muted hover:text-text'
+      )}
     >
       <Icon name={done ? 'check' : 'copy'} size={14} />
     </button>
@@ -131,7 +141,7 @@ export function Stepper({
       /* IT KEEPS ITS SHADOW, and that is not a violation of the no-drop-shadow rule: this floats
          over the PAGE with nothing behind it to bound against, which is the Card case rather than
          the button case. It is the one control in the product that is genuinely a sheet. */
-      className="bg-surface border-border flex size-12 items-center justify-center rounded-full border shadow-[var(--shadow-card)] transition active:shadow-[var(--shadow-press)] disabled:cursor-not-allowed"
+      className="bg-surface flex size-12 items-center justify-center rounded-full shadow-[var(--shadow-card)] transition active:shadow-[var(--shadow-press)] disabled:cursor-not-allowed disabled:opacity-50"
     >
       {children}
     </button>

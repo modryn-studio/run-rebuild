@@ -175,7 +175,7 @@ export function Menu<T extends string>({
         <div
           role="listbox"
           aria-label={label}
-          className="pop-in border-border bg-surface absolute top-full right-0 z-50 mt-1.5 min-w-full rounded-[var(--radius)] border p-1 shadow-[var(--shadow-card)]"
+          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 min-w-full rounded-[var(--radius)] p-1 shadow-[var(--shadow-card)]"
         >
           {options.map((o, i) => (
             <button

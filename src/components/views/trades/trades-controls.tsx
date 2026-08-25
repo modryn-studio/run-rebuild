@@ -533,7 +533,7 @@ function SearchPopover({ applied }: { applied: TradesFilter }) {
           role="dialog"
           aria-modal="true"
           aria-label="Search trades"
-          className="pop-in border-border bg-surface absolute top-full right-0 z-50 mt-1.5 w-80 overflow-hidden rounded-[var(--radius)] border shadow-[var(--shadow-card)] outline-none"
+          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 w-80 overflow-hidden rounded-[var(--radius)] shadow-[var(--shadow-card)] outline-none"
         >
           <div className="p-4">
             <Group label="Search">
@@ -615,7 +615,7 @@ function DatePopover({ applied }: { applied: TradesFilter }) {
           role="dialog"
           aria-modal="true"
           aria-label="Date range"
-          className="pop-in border-border bg-surface absolute top-full right-0 z-50 mt-1.5 w-[26rem] overflow-hidden rounded-[var(--radius)] border shadow-[var(--shadow-card)] outline-none"
+          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 w-[26rem] overflow-hidden rounded-[var(--radius)] shadow-[var(--shadow-card)] outline-none"
         >
           <div className="flex">
             {/* THE SHORTCUT RAIL. Picking one CLEARS the custom dates: a shortcut and a custom
@@ -931,7 +931,7 @@ function FiltersPopover({
           role="dialog"
           aria-modal="true"
           aria-label="Filter trades"
-          className="pop-in border-border bg-surface absolute top-full right-0 z-50 mt-1.5 w-[min(44rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--radius)] border shadow-[var(--shadow-card)] outline-none"
+          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 w-[min(44rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--radius)] shadow-[var(--shadow-card)] outline-none"
         >
           <div className="divide-rule flex flex-col sm:flex-row sm:divide-x">
             {/* LEFT: the dimensions. A count rather than a tick, because a rail row is not a choice

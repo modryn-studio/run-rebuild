@@ -86,7 +86,7 @@ export function Row({
              strong edge because they have no label and no fill of their own." A checkbox is the
              smallest member of that family, so it had the weakest possible edge on the element
              that needed the firmest. */
-          'flex size-4 shrink-0 items-center justify-center rounded-[4px] border transition-colors',
+          'flex size-4 shrink-0 items-center justify-center rounded-[var(--radius-xs)] border transition-colors',
           state === 'off' ? 'border-border-strong' : 'border-accent bg-accent text-accent-fg'
         )}
       >

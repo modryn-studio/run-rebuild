@@ -386,7 +386,14 @@ export function TradesTape({
           onClose={() => setOpen(-1)}
           onPrev={open > 0 ? () => setOpen(open - 1) : undefined}
           onNext={open < flat.length - 1 ? () => setOpen(open + 1) : undefined}
-          position={{ index: open, of: flat.length }}
+          /* `rest.ids.length`, NOT `flat.length` (2026-08-25, postcheck). `flat` is the RENDERED
+             WINDOW, so a 360-trade tape said "1 of 60" beside a rail saying `Trades 360` and a
+             footer saying "300 more trades" - and the denominator GREW as the trader scrolled, so
+             the same trade read "1 of 60" and then "1 of 120". Under "never show a number you
+             cannot reconcile" that was the one unreconcilable figure on the page.
+             `rest.ids` is the ordered id list for the whole filtered selection, which is the set
+             the stepper actually walks. */
+          position={{ index: open, of: rest?.ids.length ?? flat.length }}
         />
       )}
     </Card>

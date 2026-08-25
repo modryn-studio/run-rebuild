@@ -1055,7 +1055,15 @@ input[type='search']::-webkit-search-decoration {
 .hit-44::after {
   content: '';
   position: absolute;
-  inset: -4px 0;
+  /* THE INSET IS COMPUTED FROM THE CONTROL, not fixed at -4px (2026-08-25). The first version was
+     written for a 36px full-width footer button, where 4px a side lands on 44 and horizontal
+     expansion would have eaten the gap between Clear and Apply. Then a 14px copy glyph took the
+     class and got 22x14 - still under the floor, and silently, which is the failure mode this
+     whole class exists to remove.
+     `calc((2.75rem - 100%) / -2)` is "however far it is from 44, halved, outwards" on each axis
+     independently: a 36px-tall control gets -4px vertically, a 14px one gets -15px, and anything
+     already 44 or wider gets a positive inset that expands nothing. One rule, every size. */
+  inset: calc((2.75rem - 100%) / -2) calc((2.75rem - 100%) / -2);
 }
 
 /* THE SPACED-CAPS EYEBROW: a section label, not fine print. Both are 11px - the size step that
@@ -1120,7 +1128,18 @@ input[type='search']::-webkit-search-decoration {
    that used an inline style for the first could never be overridden by a class for the second.
    One declaration, both breakpoints, one source for the height. */
 .pane-bottom-clearance {
-  padding-bottom: calc(var(--bottom-bar-h) + env(safe-area-inset-bottom));
+  /* NO `--bottom-bar-h` ANY MORE (2026-08-25, postcheck). This padding existed because the bar was
+     `position: fixed` and overlapped the pane. The bar joined the flex column on 2026-08-24 - which
+     is what stopped the scrollbar running behind it - so `<main>` already ends exactly where the bar
+     begins, and the padding was compensating for an overlap that no longer exists: 56px of dead
+     scroll at the foot of every tape. The safe area stays on the BAR, which is the element that
+     actually touches the home indicator.
+     What remains is the pane's own foot of breathing room, so the last row is not flush. */
+  /* A literal, because the spacing scale is Tailwind's and has no custom property to read - the
+     first attempt wrote `var(--space-8, 2rem)` and `verify-css` refused the build over a token that
+     does not exist. The fallback would have rendered correctly and left a dangling reference in the
+     stylesheet forever, which is precisely what that gate is for. */
+  padding-bottom: 2rem;
 }
 @media (min-width: 768px) {
   /* No bar above `md`, so this is just the pane's own foot of breathing room — the `pb-12` this

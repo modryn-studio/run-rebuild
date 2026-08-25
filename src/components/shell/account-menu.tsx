@@ -119,7 +119,7 @@ export function AccountMenu({ user }: { user: SessionUser | null }) {
            rows). Both say `display: none` for the same state, so they cannot disagree, and the
            utility survives in any stylesheet that has utilities at all. */
         className={cn(
-          'menu-panel border-border bg-surface absolute bottom-full left-0 z-50 mb-2 w-full overflow-hidden rounded-[var(--radius)] border p-1 shadow-[var(--shadow-card)]',
+          'menu-panel bg-surface absolute bottom-full left-0 z-50 mb-2 w-full overflow-hidden rounded-[var(--radius)] p-1 shadow-[var(--shadow-card)]',
           !open && 'hidden'
         )}
       >
