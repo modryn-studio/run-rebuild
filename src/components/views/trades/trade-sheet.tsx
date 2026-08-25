@@ -32,7 +32,16 @@ import { cn } from '@/lib/cn';
 import { Icon } from '@/components/ui/icon';
 import { ICON_BUTTON } from '@/components/ui/icon-button';
 
-export function TradeSheet({ title, children }: { title: string; children: React.ReactNode }) {
+export function TradeSheet({
+  title,
+  children,
+}: {
+  /* OPTIONAL, BECAUSE THE LOADING BOUNDARY DOES NOT KNOW IT YET. `[id]/loading.tsx` renders this
+     same shell before the trade has been read, and inventing a placeholder title there would be a
+     label that changes into a different label - worse than a header that fills in. */
+  title?: string;
+  children: React.ReactNode;
+}) {
   /* IT ARRIVES CLOSED AND OPENS ON THE NEXT FRAME, which is what makes it animate at all. A sheet
      that renders already-open has nothing to transition FROM: the browser paints the final state
      once and the travel never happens. `requestAnimationFrame` rather than a timeout because the
@@ -105,7 +114,7 @@ export function TradeSheet({ title, children }: { title: string; children: React
             <Icon name="back" size={22} />
           </button>
         </div>
-        <h2 className="text-h3 text-text min-w-0 truncate px-12 font-medium">{title}</h2>
+        <h2 className="text-h3 text-text min-w-0 truncate px-12 font-medium">{title ?? ''}</h2>
       </div>
 
       {/* THE SCROLLPORT IS THIS, NOT THE PANE BEHIND IT. `min-h-0` is what lets a flex child

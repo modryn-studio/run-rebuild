@@ -20,6 +20,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
+import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/cn';
 import { fmtMoney } from '@/lib/format';
 import { productName } from '@/lib/instruments';
@@ -28,6 +29,7 @@ import { ColumnsMenu, useTapeColumns, type TapeColumn } from './columns-menu';
 import { displayTime, displaySessionDate } from '@/lib/time/session';
 import type { FacetAccount, SessionGroup, TapeRow } from '@/lib/trades/read';
 import { useRouter } from 'next/navigation';
+import Link, { useLinkStatus } from 'next/link';
 import { AccountSelect } from './account-select';
 import { TradeDrawer } from './trade-drawer';
 
@@ -399,6 +401,43 @@ function groupBySession(rows: TapeRow[]): { sessionDate: string; trades: TapeRow
   return out;
 }
 
+/* THE ROW'S OWN WAITING MARK, and it is a Spinner rather than the wordmark on purpose.
+ * `loading-mark.tsx` draws the line and this is the other side of it: the wordmark is for a whole
+ * surface arriving, the spinner is for A REQUEST IN FLIGHT. A tapped row is a request - the tape is
+ * still on screen, still readable, and one row of it is fetching.
+ *
+ * `useLinkStatus()` REPORTS FOR THE ENCLOSING `<Link>` ONLY, which is why the row had to become one.
+ * It is a separate component because the hook must run INSIDE the link's subtree.
+ *
+ * PHONE ONLY, and that is not an omission. Above `md` this row does not navigate at all - it opens
+ * the drawer from data already in memory, which is instant and has nothing to wait for. A spinner
+ * there would be a promise the desktop never needs to keep.
+ * It takes the chevron's own 32px box so the row's geometry does not move when it appears; on a
+ * phone that box is empty anyway, since the chevron is `max-md:hidden`. */
+function RowPending() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return (
+    <span
+      aria-hidden
+      className="text-muted flex size-8 shrink-0 items-center justify-center md:hidden"
+    >
+      <Spinner className="size-4" />
+    </span>
+  );
+}
+
+/* A LINK THAT SOMETIMES REFUSES TO NAVIGATE, which is the honest shape of this control
+ * (2026-08-24). The row DOES go somewhere on a phone - `/trades/[id]` - so it owes the things only
+ * a real anchor gives: middle-click, cmd-click, "open in new tab", and a status bar that shows the
+ * destination. It was a `<button>` calling `router.push`, which had none of them.
+ *
+ * ABOVE `md` IT OPENS THE DRAWER IN PLACE and navigates nowhere, so there the click is prevented.
+ * The `href` stays regardless: it is a true statement about where this row's trade lives, and it is
+ * what makes cmd-click work on a desktop even though a plain click does not.
+ *
+ * IT ALSO BUYS THE LOADING STATE. `useLinkStatus()` only reports for a `<Link>`, so the pending
+ * spinner below could not exist while this was a button. */
 function Row({
   trade: t,
   zone,
@@ -416,9 +455,19 @@ function Row({
   const excluded = t.state !== 'ok';
 
   return (
-    <button
-      type="button"
-      onClick={onOpen}
+    <Link
+      href={`/trades/${t.id}`}
+      /* `onOpen` DECIDES, AND IT ALREADY KNEW HOW. It measures the viewport at the tap and either
+         pushes the route or opens the drawer - see its own note upstream. The only new part is that
+         when it opens the drawer, the anchor's default navigation has to be cancelled, or the
+         desktop would open the drawer AND leave for the route.
+         Modified clicks are left alone: cmd/ctrl/shift/middle must reach the browser, or the
+         affordances this element became a Link for are the ones it swallows. */
+      onClick={(e) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
+        onOpen();
+      }}
       // A durable probe target. Verifying a tape by guessing markup selectors is how a session
       // spends an hour proving a page rendered nothing when it rendered fine.
       data-trade={t.id}
@@ -531,6 +580,7 @@ function Row({
           row is the target and a tap is the affordance. It earns its place on a DESKTOP, where a
           pointer needs somewhere to aim and a hover state to answer it — neither of which exists on
           a touch screen, where it is 32px of chrome that never lights up. */}
+      <RowPending />
       {/* FULL INK AT REST (2026-08-24). Monarch's own chevron measures `rgb(255,255,255)` — it does
           not sit quiet and light up, it is simply part of the row. The hover mechanic below is
           unchanged and still does the work it was added for: the GROUND and the BORDER arrive on
@@ -541,7 +591,7 @@ function Row({
       >
         <Icon name="chevron" size={16} className="-rotate-90" />
       </span>
-    </button>
+    </Link>
   );
 }
 
