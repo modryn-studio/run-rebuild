@@ -40,7 +40,7 @@ export function TradesRail({
      "Worst session -$5,120" reads as the worst ever when it is the worst in ninety days, and a money
      surface that overstates its own scope is worse than one that is narrow. All time makes no claim
      to qualify, so it prints no caption. */
-  const scope = filter.from || filter.to ? customLabel(filter) : filter.range !== 'all' ? RANGE_LABEL[filter.range] : null;
+  const scope = railScope(filter);
 
   return (
     /* A FULL-HEIGHT PANEL ON A PHONE, a card above `md` (`S5d`, 2026-08-20). Same reasoning as the
@@ -158,6 +158,17 @@ export function TradesRail({
       <DownloadCsv name="trades" ids={ids} />
     </Card>
   );
+}
+
+/* EXPORTED SO THE SKELETON CAN RENDER THE REAL THING (2026-08-25, postcheck). This caption depends
+ * on the FILTER, which the page knows before the digest resolves - only the twelve figures are
+ * waiting. The skeleton used to draw a grey bar here unconditionally, so on an unfiltered tape a bar
+ * appeared and then vanished on arrival, and on a filtered one a bar became text of a different
+ * width. Both are the reflow `trades-rail-skeleton.tsx` promises not to cause.
+ * Skeleton what is unknown; render what is known. */
+export function railScope(f: TradesFilter): string | null {
+  if (f.from || f.to) return customLabel(f);
+  return f.range !== 'all' ? RANGE_LABEL[f.range] : null;
 }
 
 function customLabel(f: TradesFilter): string {

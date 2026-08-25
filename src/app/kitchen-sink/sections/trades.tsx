@@ -56,9 +56,15 @@ export function TradesSection() {
         </Note>
       </Row>
 
-      <Row label="The summary rail, waiting" note="the shape it holds before its figures arrive">
-        <div className="max-w-76">
-          <TradesRailSkeleton />
+      <Row
+        label="The summary rail, waiting"
+        note="unfiltered and filtered: the caption and the footer are not waiting on anything"
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TradesRailSkeleton filter={EMPTY_FILTER} hasIds />
+          {/* A narrowed tape, so the caption renders for real, and a filter that selected nothing,
+              so the footer is absent exactly as `DownloadCsv` would be. */}
+          <TradesRailSkeleton filter={{ ...EMPTY_FILTER, range: 'last30' }} hasIds={false} />
         </div>
         <Note>
           A skeleton rather than a spinner, because nothing about this panel&rsquo;s shape depends on
@@ -67,6 +73,10 @@ export function TradesSection() {
           which reads worse than the spinner it replaced. The bar widths are deliberately ragged: a
           column of identical bars reads as a placeholder graphic, an uneven one reads as text that
           has not arrived. It also holds itself invisible for 300ms, so a fast load never flashes it.
+          The caption beside &ldquo;Summary&rdquo; and the Download CSV footer are rendered rather
+          than skeletonised: both depend on the filter and the id list, which the page has before the
+          digest resolves. Drawing bars for them meant one vanished and the other jumped to centre
+          when the figures landed: the reflow this component promises not to cause.
         </Note>
       </Row>
 

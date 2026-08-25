@@ -1,5 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { railScope } from '@/components/views/trades/trades-rail';
+import type { TradesFilter } from '@/lib/trades/filter';
 
 /* THE SUMMARY RAIL, BEFORE ITS FIGURES ARRIVE.
  *
@@ -62,7 +64,20 @@ const GROUPS: { label: number; value: number }[][] = [
   ],
 ];
 
-export function TradesRailSkeleton() {
+export function TradesRailSkeleton({
+  filter,
+  hasIds,
+}: {
+  /* THE CAPTION IS NOT WAITING ON ANYTHING. `railScope` reads the FILTER, which the page has before
+     the digest resolves - so the skeleton renders the real text rather than a bar that would either
+     vanish (unfiltered) or become text of a different width (filtered) when the figures land. */
+  filter: TradesFilter;
+  /* NOR IS THE FOOTER. `DownloadCsv` returns null at zero ids and takes its `border-t` with it, so a
+     skeleton that always drew one added a rule that then disappeared. `ids` is known outside the
+     Suspense boundary too. */
+  hasIds: boolean;
+}) {
+  const scope = railScope(filter);
   return (
     /* THE CARD'S OWN CHROME IS REAL, not skeletonised. The panel's border, ground and radius are not
        waiting on anything - only its contents are - and drawing a grey block where a card will be is
@@ -73,7 +88,7 @@ export function TradesRailSkeleton() {
           {/* The heading is a constant, so it is TEXT rather than a bar. "Summary" is true before
               the figures land and stays true after; blanking it would be pretending otherwise. */}
           <h2 className="text-title text-text font-medium">Summary</h2>
-          <Skeleton className="h-4 w-16" />
+          {scope && <span className="text-body text-muted">{scope}</span>}
         </div>
 
         <div className="border-rule border-t pb-2">
@@ -87,9 +102,15 @@ export function TradesRailSkeleton() {
           ))}
         </div>
 
-        <div className="border-rule border-t px-5 py-3">
-          <Skeleton className="h-4 w-28" />
-        </div>
+        {/* CENTRED, MATCHING `DownloadCsv`'s own `text-center`. Left-aligned, the bar jumped to the
+            middle the moment the button replaced it. */}
+        {hasIds && (
+          <div className="border-rule border-t px-5 py-3 text-center">
+            <span className="inline-block w-28">
+              <Skeleton className="h-4 w-full" />
+            </span>
+          </div>
+        )}
       </div>
     </Card>
   );

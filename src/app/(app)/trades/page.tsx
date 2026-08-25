@@ -125,7 +125,7 @@ export default async function TradesPage({
           /* THE FALLBACK IS THE RAIL'S OWN SHAPE, twelve rows in five groups, because that shape is
              known before the numbers are. A skeleton that does not match reflows on arrival, which
              reads worse than the spinner it replaced. */
-          <Suspense fallback={<TradesRailSkeleton />}>
+          <Suspense fallback={<TradesRailSkeleton filter={filter} hasIds={ids.length > 0} />}>
             <RailFigures
               traderId={trader.id}
               filter={filter}
