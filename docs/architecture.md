@@ -150,8 +150,18 @@ write path:
 |---|---|
 | `null` (unlabelled) | `active` only — nothing has happened to it yet |
 | `evaluation` | `active` · `passed` · `failed` |
-| `sim_funded` | `active` · `passed` · `failed` — `passed` here reads "ended in good standing" |
+| `sim_funded` | `active` · `failed` · **`closed`** |
 | `personal` | `active` · `closed` |
+
+**`sim_funded` takes `closed`, not `passed`, and both halves were researched** (2026-08-26). A
+funded account has no "pass" event — `prop-firm-identity.md` §5: *"you get paid, you don't 'pass'"*.
+But it does end well, and the ending is a CLOSE: Topstep documents that *"when you receive a Live
+Funded Account, all Express Funded Accounts are closed"*. Filing a promotion to live capital under
+`failed` would put the best outcome in the product under its worst word.
+
+An evaluation that merely ran out of time is still `failed` here, which is an approximation
+recorded rather than hidden: Apex expires an evaluation after 30 days with no rule breached. A
+fifth value (`expired`) is the honest split and waits for a real one to exist.
 
 A deliberate consequence: relabelling a passed evaluation as personal is **refused** until the
 status moves with it. v2 left this pairing to its UI and its own route accepted

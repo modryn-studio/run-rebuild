@@ -243,9 +243,30 @@ export const ACCOUNT_TYPES = ['evaluation', 'sim_funded', 'personal'] as const;
  * a value that can be mistaken for running.
  *
  * WHICH VALUES BELONG TO WHICH TYPE, and the CHECK below enforces it rather than trusting a writer:
+ *
  *   evaluation  active | passed | failed
- *   sim_funded  active | passed | failed   (`passed` here is "ended in good standing", not a pass)
+ *   sim_funded  active | failed | closed
  *   personal    active | closed
+ *
+ * `sim_funded` TAKES `closed` AND NOT `passed`, and both halves of that were researched rather than
+ * assumed (2026-08-26, at Luke's request because he was unsure).
+ *
+ *   NO `passed`. `prop-firm-identity.md` §5 is explicit that a funded account has no "ended well"
+ *   event of that shape: "you get paid, you don't 'pass'". Offering the word would put a milestone
+ *   on the roster that the firms do not award.
+ *
+ *   BUT IT DOES CLOSE, WITHOUT FAILING, and that is the case the first pass here got wrong. Topstep
+ *   documents it outright: "When you receive a Live Funded Account, all Express Funded Accounts are
+ *   closed" (help.topstep.com, Live Funded Account Parameters). Promotion to live capital ends the
+ *   sim account, and calling that `failed` would file the best outcome in the product under the
+ *   worst word it has.
+ *
+ * AN EVALUATION THAT RAN OUT OF TIME IS STILL `failed` HERE, and that is a known approximation.
+ * Apex's current model expires an evaluation if the target is not met inside 30 days - no rule was
+ * breached, so "failed" is the firm's ledger word rather than a description of what happened. A
+ * fifth value (`expired`) would be the honest split; it is not added until a real expired account
+ * exists to look at, because a status nothing can produce is a status nothing tests.
+ *
  * A NULL type is an account nobody has labelled yet, which is a normal state (see `accountType`),
  * and it may only be `active` - nothing has happened to it yet by definition. */
 export const ACCOUNT_STATUSES = ['active', 'passed', 'failed', 'closed'] as const;
@@ -335,7 +356,8 @@ export const account = pgTable(
       'account_type_status_check',
       sql`(${t.accountType} is null and ${t.status} = 'active')
           or (${t.accountType} = 'personal' and ${t.status} in ('active', 'closed'))
-          or (${t.accountType} in ('evaluation', 'sim_funded') and ${t.status} in ('active', 'passed', 'failed'))`
+          or (${t.accountType} = 'evaluation' and ${t.status} in ('active', 'passed', 'failed'))
+          or (${t.accountType} = 'sim_funded' and ${t.status} in ('active', 'failed', 'closed'))`
     ),
     // The natural key. Two firms can issue the same account name, so platform is part of it.
     uniqueIndex('account_identity_uq').on(t.traderId, t.platform, t.externalAccountId),
