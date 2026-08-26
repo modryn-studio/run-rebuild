@@ -13,23 +13,47 @@
  * It arrives with the connection that gives it something to do. Dropping it also removes the reason
  * for v2's phone overflow menu, whose only item was Refresh.
  *
- * FILTERS ARRIVES IN `S6f`, with the panel behind it.
+ * FILTERS IS THE SAME OBJECT `/trades` PUTS IN THIS BAND - `HeaderControl` trigger, `usePopover`
+ * state, `Head`/`Row`/`Chip` panel - rather than a lookalike. It renders itself away when the
+ * roster cannot answer either of its axes.
  */
 
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { HeaderSlot } from '@/components/shell/header-slot';
 import { useAddAccount } from './account-modals';
+import { RosterFilters } from './roster-filters';
+import type { RosterFilter } from '@/lib/accounts/roster-filter';
+import type { AccountStatus, AccountType } from '@/lib/db/schema';
 
-export function AccountsHeader() {
+export function AccountsHeader({
+  filter,
+  options,
+}: {
+  filter: RosterFilter;
+  options: {
+    status: { value: AccountStatus; count: number }[];
+    types: { value: AccountType; count: number }[];
+    hasStatus: boolean;
+    hasTypes: boolean;
+  };
+}) {
   const add = useAddAccount();
 
   return (
     <HeaderSlot slot="controls">
+      {/* FILTERS SITS BEFORE THE CTA, which is the order every header in this app uses and v2's
+          too: chrome first, then the one thing wearing the accent. */}
+      <RosterFilters applied={filter} options={options} />
       {/* The label goes below `sm` and the mark carries it, but `aria-label` is UNCONDITIONAL -
           a control whose name disappears at one width is nameless to a screen reader at that
           width. */}
-      <Button size="sm" aria-label="Add account" onClick={add}>
+      {/* `size="md"` (h-9), NOT `sm` (h-8), and the header is what decides it. Every other control
+          in this band is 36px tall - `HeaderControl` on `/trades` (Search, Date, Filters), every
+          `IconButton` including Notifications, and v2's own Add account. At `sm` this button sat
+          4px short of the row it lives in, which reads as a slightly sunken CTA rather than as a
+          deliberate size. One band, one control height. */}
+      <Button size="md" aria-label="Add account" onClick={add}>
         <Icon name="add" size={16} />
         <span className="max-sm:hidden">Add account</span>
       </Button>

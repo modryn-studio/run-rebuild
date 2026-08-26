@@ -1,4 +1,5 @@
 import 'server-only';
+import type { AccountStatus, AccountType } from '@/lib/db/schema';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { account, importBatch, trade } from '@/lib/db/schema';
@@ -45,10 +46,10 @@ export interface RosterAccount {
   propFirm: string | null;
   firmSource: string | null;
   sizeDollars: number | null;
-  accountType: string | null;
+  accountType: AccountType | null;
   productName: string | null;
   displayName: string | null;
-  status: string;
+  status: AccountStatus;
   closedOn: string | null;
   hidden: boolean;
   excludedFromTotals: boolean;

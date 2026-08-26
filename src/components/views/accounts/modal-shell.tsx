@@ -82,7 +82,11 @@ export function useModalClose(onClosed: () => void) {
  * inherit the same bug silently. Callers passing their own `pb-*` still win (cn is tailwind-merge).
  */
 export function ModalBody({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn('scroll-thin min-h-0 flex-1 overflow-y-auto pb-4', className)}>{children}</div>;
+  return (
+    <div className={cn('scroll-thin min-h-0 flex-1 overflow-y-auto pb-4', className)}>
+      {children}
+    </div>
+  );
 }
 
 /* Pinned under the scroll, so the one action a screen exists to reach never scrolls away.
@@ -223,7 +227,10 @@ export function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-labelledby={MODAL_TITLE_ID}
-        className={cn(cardSurface, 'relative z-10 flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden')}
+        className={cn(
+          cardSurface,
+          'relative z-10 flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden'
+        )}
       >
         {children}
       </div>

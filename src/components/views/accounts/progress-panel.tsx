@@ -80,7 +80,8 @@ export function ProgressPanel({
         className="relative overflow-hidden"
         style={{
           height: ROW_H * VISIBLE_ROWS,
-          maskImage: 'linear-gradient(to bottom, transparent 2%, #000 34%, #000 66%, transparent 98%)',
+          maskImage:
+            'linear-gradient(to bottom, transparent 2%, #000 34%, #000 66%, transparent 98%)',
           WebkitMaskImage:
             'linear-gradient(to bottom, transparent 2%, #000 34%, #000 66%, transparent 98%)',
         }}
@@ -151,7 +152,9 @@ function Row({ step }: { step: Step }) {
         >
           {step.label}
         </span>
-        {step.detail && failed && <span className="text-small text-neg block truncate">{step.detail}</span>}
+        {step.detail && failed && (
+          <span className="text-small text-neg block truncate">{step.detail}</span>
+        )}
       </span>
     </li>
   );

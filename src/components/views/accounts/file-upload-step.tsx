@@ -97,7 +97,9 @@ export function FileUploadStep({
     const csvs = all.filter((f) => f.name.toLowerCase().endsWith('.csv'));
     // Non-CSV files used to be discarded in silence. Say so instead of doing nothing.
     setNotice(all.length > csvs.length ? 'Only CSV files are supported.' : null);
-    const picked = await Promise.all(csvs.map(async (file) => ({ file, type: await readType(file) })));
+    const picked = await Promise.all(
+      csvs.map(async (file) => ({ file, type: await readType(file) }))
+    );
     /* Dedupe on name + size: the exact same file re-dropped is ignored, but same-type files from
        different days (`Fills (1).csv`, `Fills (2).csv`) are distinct names and both kept. */
     setFiles((prev) => {
@@ -269,7 +271,9 @@ export function FileUploadStep({
                     className="border-border bg-surface flex items-center gap-2 rounded-[var(--radius-sm)] border px-3 py-2"
                   >
                     <Icon name="file" size={15} className="text-muted shrink-0" />
-                    <span className="text-body text-text min-w-0 flex-1 truncate">{f.file.name}</span>
+                    <span className="text-body text-text min-w-0 flex-1 truncate">
+                      {f.file.name}
+                    </span>
                     <span
                       className="text-caption shrink-0"
                       style={{ color: bad ? 'var(--color-neg)' : 'var(--color-muted)' }}

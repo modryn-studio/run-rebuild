@@ -30,7 +30,8 @@ const usd = (cents: number | undefined) => {
   const v = (cents ?? 0) / 100;
   return `${v < 0 ? '-' : ''}$${Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
-const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many = `${one}s`) =>
+  `${n.toLocaleString()} ${n === 1 ? one : many}`;
 /* "7 of your 77 trades", never "7 trades of 77". Rule 2 above asks for the number to be named and
    the first draft of every one of these put the noun in the wrong half of the sentence — which only
    became visible reading all thirteen side by side in the rack. */
@@ -90,7 +91,9 @@ export function findingCopy(f: PreflightFinding): FindingCopy {
       return {
         title: 'Some trades have no matching fills.',
         detail: `${outOf(d.blocked ?? 0, d.total ?? 0, 'trade')} cannot be matched${
-          d.fillRange && d.otherRange ? `. Your fills cover ${d.fillRange}, these cover ${d.otherRange}` : ''
+          d.fillRange && d.otherRange
+            ? `. Your fills cover ${d.fillRange}, these cover ${d.otherRange}`
+            : ''
         }. Re-export both over the same range.`,
       };
 
@@ -144,7 +147,10 @@ export function findingCopy(f: PreflightFinding): FindingCopy {
        groups by session date. The days are named, not just counted. */
     case 'statement_unreconciled': {
       const days = d.days ?? [];
-      const named = days.slice(0, 3).map((x) => x.sessionDate).join(', ');
+      const named = days
+        .slice(0, 3)
+        .map((x) => x.sessionDate)
+        .join(', ');
       return {
         title: 'Your net does not match the broker statement.',
         detail: days.length
@@ -180,11 +186,11 @@ export function FindingNotice({ finding }: { finding: PreflightFinding }) {
   const { title, detail } = findingCopy(finding);
   return (
     <div className="flex gap-2.5 text-left">
-      {finding.blocking && (
-        <Icon name="warn" size={16} className="text-neg mt-0.5 shrink-0" />
-      )}
+      {finding.blocking && <Icon name="warn" size={16} className="text-neg mt-0.5 shrink-0" />}
       <div className="min-w-0">
-        <p className={`text-body font-medium ${finding.blocking ? 'text-text' : 'text-muted'}`}>{title}</p>
+        <p className={`text-body font-medium ${finding.blocking ? 'text-text' : 'text-muted'}`}>
+          {title}
+        </p>
         <p className="text-small text-muted mt-0.5">{detail}</p>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { cn } from '@/lib/cn';
 import { getDailySeries, getFreshness, getRoster } from '@/lib/accounts/read';
 import { AccountsView } from '@/components/views/accounts/accounts-view';
 import { AccountsRail } from '@/components/views/accounts/accounts-rail';
+import { applyRosterFilter, readRosterFilter, rosterOptions } from '@/lib/accounts/roster-filter';
 
 /* ACCOUNTS — "what I have" (`S6`).
  *
@@ -41,14 +42,27 @@ import { AccountsRail } from '@/components/views/accounts/accounts-rail';
  */
 export const metadata: Metadata = { title: 'Accounts' };
 
-export default async function AccountsPage() {
+export default async function AccountsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; types?: string }>;
+}) {
   const trader = await requireTrader();
 
-  const [accounts, freshness, days] = await Promise.all([
+  const filter = readRosterFilter(await searchParams);
+
+  const [all, freshness, days] = await Promise.all([
     getRoster(trader.id),
     getFreshness(trader.id),
     getDailySeries(trader.id),
   ]);
+
+  /* NARROWED HERE, BEFORE ANYTHING RENDERS, so the chart, the roster and the rail all receive the
+     same set and cannot disagree about what "your accounts" means. The OPTIONS are counted off the
+     UNFILTERED roster - otherwise filtering to Closed would hide the Status control that got you
+     there, and the panel would offer only the option already picked. */
+  const options = rosterOptions(all);
+  const accounts = applyRosterFilter(all, filter);
 
   /* A `Map` DOES NOT CROSS THE RSC BOUNDARY AS ONE. It arrives as `{}` with no error and no type
      complaint, which is the same silent-shape trap `reviveTrade` exists for on the tape. Serialised
@@ -67,6 +81,8 @@ export default async function AccountsPage() {
         freshness={stamps}
         days={days}
         rail={<AccountsRail accounts={accounts} />}
+        filter={filter}
+        options={options}
       />
     </div>
   );

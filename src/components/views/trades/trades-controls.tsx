@@ -28,6 +28,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { HeaderControl, HeaderSlot } from '@/components/shell/header-slot';
+import { usePopover } from '@/components/ui/use-popover';
 import { FilterSheet, type FilterSheetDraft } from './filter-sheet';
 import { IconButton } from '@/components/ui/icon-button';
 import { DateInput } from '@/components/ui/date-input';
@@ -90,50 +91,9 @@ function useParamWriter() {
   );
 }
 
-/* Open state, an outside-click close and Escape. `onOpen` re-seeds the draft from what is APPLIED,
- * so re-opening a panel never shows an abandoned edit from last time. */
-function usePopover(onOpen?: () => void) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-  const panel = useRef<HTMLDivElement>(null);
-  /* WHERE FOCUS CAME FROM, so it can go back. See the restore below. */
-  const opener = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    // Focus moves INTO the panel. v2 shipped these without it (its #95), so a keyboard user opened
-    // a dialog and stayed on the page behind it.
-    opener.current = document.activeElement as HTMLElement | null;
-    panel.current?.focus();
-    const onDown = (e: PointerEvent) => {
-      if (!root.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('pointerdown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onDown);
-      document.removeEventListener('keydown', onKey);
-      /* AND FOCUS GOES BACK WHERE IT CAME FROM (2026-08-25, postcheck). Moving focus IN was only
-         half of issue #17's second defect: a dialog that dismisses into nowhere strands the keyboard
-         at the top of the document, so Escape out of Filters left the trader tabbing from the
-         wordmark to get back to the control they had just used. `button.tsx` already carries a `ref`
-         prop added for exactly this and nothing was using it.
-         GUARDED ON `isConnected`, because the trigger is not always still there: `Clear` unmounts
-         when the last filter is removed, and focusing a detached node silently sends focus to
-         <body> - the very failure this is fixing, with an extra step. */
-      const back = opener.current;
-      opener.current = null;
-      if (back?.isConnected) back.focus();
-    };
-  }, [open]);
-
-  const toggle = () => {
-    if (!open) onOpen?.();
-    setOpen((o) => !o);
-  };
-  return { open, setOpen, toggle, root, panel };
-}
+/* `usePopover` MOVED TO `ui/use-popover.ts` (2026-08-26), when `/accounts` needed the same
+ * control and the alternative was a second copy of the focus-in / focus-restore / Escape /
+ * outside-click logic. Its own notes travelled with it. */
 
 /* THE PHONE'S SEARCH ROW (`S5d`, 2026-08-20).
  *
@@ -265,49 +225,49 @@ export function TradesSearchPill({
        `rgb(246,245,243)` on `rgb(246,245,243)`: invisible. This line BOUNDS the header against the
        content scrolling under it, which is an edge. See `design-system.md` §3. */
     <>
-    {/* IT PORTALS INTO THE SHELL'S BAND, so it is no longer inside the thing that scrolls
+      {/* IT PORTALS INTO THE SHELL'S BAND, so it is no longer inside the thing that scrolls
         (2026-08-24). It was `sticky top-0 z-20 -mx-4 -mb-4` in the page body: the sticky pinned it,
         the negative margins reached back out to the screen edges and cancelled the page column's
         `gap-4`. All three were compensating for being in the wrong box. In the band it is simply a
         full-width row above the scroller, so `<main>`'s scrollbar starts beneath it.
         `z-20` goes too: the band is a sibling of `<main>` rather than a child, so nothing in the
         pane can paint over it and there is no stack to win. */}
-    <HeaderSlot slot="band">
-    <div className="bg-bg border-border border-b px-4 pt-2 pb-3 md:hidden">
-      {/* ONE FIELD, WITH THE FILTER MARK INSIDE IT. The reference puts its filter control at the
+      <HeaderSlot slot="band">
+        <div className="bg-bg border-border border-b px-4 pt-2 pb-3 md:hidden">
+          {/* ONE FIELD, WITH THE FILTER MARK INSIDE IT. The reference puts its filter control at the
           right edge of the search field rather than beside it, which is what keeps the row to a
           single object instead of two competing ones. */}
-      <form
-        /* THE SEARCH KEY DISMISSES THE KEYBOARD, because the search already happened. It used to be
+          <form
+            /* THE SEARCH KEY DISMISSES THE KEYBOARD, because the search already happened. It used to be
            the only way to run one; now the debounce above has committed the term before a finger
            reaches the key, so submitting has nothing left to apply. Blurring is the honest response
            to a press that would otherwise be a no-op - and it is what the trader wants anyway,
            which is to see the results they just typed. */
-        onSubmit={(e) => {
-          e.preventDefault();
-          (e.currentTarget.querySelector('input') as HTMLInputElement | null)?.blur();
-        }}
-        /* NOT A PILL (Luke, 2026-08-20: "the search bar is the same shape as the Text field or
+            onSubmit={(e) => {
+              e.preventDefault();
+              (e.currentTarget.querySelector('input') as HTMLInputElement | null)?.blur();
+            }}
+            /* NOT A PILL (Luke, 2026-08-20: "the search bar is the same shape as the Text field or
            button. stay consistent with the app"). It shipped `rounded-full`, which is a shape this
            system does not have — the radius scale is slot 12 / control 8 / badge 6, and a search
            field is a CONTROL. `--radius-sm` is what `Input` and `Button` already wear.
            `h-9` (36px) matches the session band beneath it, which is the only table header visible
            at this width, and is the app's own control height (`Button md`, `HeaderControl`). It was
            48px, which read as the tallest thing on the screen. */
-        className="border-border bg-surface focus-within:border-accent flex h-9 min-w-0 items-center gap-2 rounded-[var(--radius-sm)] border px-3 transition-colors"
-      >
-        <Icon name="search" size={18} className="text-muted shrink-0" />
-        {/* `text-body-lg` (16px) IS THE iOS NO-ZOOM FLOOR, not a size preference: Safari zooms the
+            className="border-border bg-surface focus-within:border-accent flex h-9 min-w-0 items-center gap-2 rounded-[var(--radius-sm)] border px-3 transition-colors"
+          >
+            <Icon name="search" size={18} className="text-muted shrink-0" />
+            {/* `text-body-lg` (16px) IS THE iOS NO-ZOOM FLOOR, not a size preference: Safari zooms the
             whole page when a focused field is under 16px, and it does not zoom back out. */}
-        <input
-          type="search"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Search"
-          aria-label="Search trades"
-          className="text-body-lg text-text placeholder:text-muted h-full min-w-0 flex-1 bg-transparent outline-none"
-        />
-        {/* CLEAR, AND IT IS OURS RATHER THAN THE UA'S (2026-08-24, Luke: "implement the 'x' button
+            <input
+              type="search"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Search"
+              aria-label="Search trades"
+              className="text-body-lg text-text placeholder:text-muted h-full min-w-0 flex-1 bg-transparent outline-none"
+            />
+            {/* CLEAR, AND IT IS OURS RATHER THAN THE UA'S (2026-08-24, Luke: "implement the 'x' button
             to actually clear the search"). `type="search"` draws a `::-webkit-search-cancel-button`
             in some engines and none at all in others - it is unstyleable, absent on Android Chrome,
             and clearing it does not tell React anything. This one owns the state.
@@ -318,32 +278,32 @@ export function TradesSearchPill({
             ours does. Hiding the one mark that says how much of the tape is hidden, at the moment a
             search is narrowing it further, trades an honest number for a tidier row. The field is
             358px at 390 and the two controls take 72 of it. */}
-        {draft && (
-          <IconButton
-            onClick={() => {
-              setDraft('');
-              write({ q: null }, 'replace');
-            }}
-            aria-label="Clear search"
-            className="-mr-1"
-          >
-            <Icon name="close" size={18} />
-          </IconButton>
-        )}
+            {draft && (
+              <IconButton
+                onClick={() => {
+                  setDraft('');
+                  write({ q: null }, 'replace');
+                }}
+                aria-label="Clear search"
+                className="-mr-1"
+              >
+                <Icon name="close" size={18} />
+              </IconButton>
+            )}
 
-        {/* THE SHEET, NOT THE POPOVER (`S5d`, 2026-08-21). The desktop panel is a three-column rail
+            {/* THE SHEET, NOT THE POPOVER (`S5d`, 2026-08-21). The desktop panel is a three-column rail
             anchored to a chip and none of it survives 390px; `FilterSheet` is the same axes as a
             full screen of rows. The trigger keeps its dot, which is the only thing that says a
             filter is applied once the label is gone. */}
-        <IconButton
-          onClick={() => setSheet(true)}
-          aria-haspopup="dialog"
-          aria-expanded={sheet}
-          aria-label={count > 0 ? `Filters, ${count} applied` : 'Filters'}
-          className="relative -mr-1"
-        >
-          <Icon name="filter" size={20} />
-          {/* A COUNT, NOT A DOT (2026-08-21, Luke: "the filter icon needs to have a dot with the
+            <IconButton
+              onClick={() => setSheet(true)}
+              aria-haspopup="dialog"
+              aria-expanded={sheet}
+              aria-label={count > 0 ? `Filters, ${count} applied` : 'Filters'}
+              className="relative -mr-1"
+            >
+              <Icon name="filter" size={20} />
+              {/* A COUNT, NOT A DOT (2026-08-21, Luke: "the filter icon needs to have a dot with the
               number of filters applied"), and only on this control. Everywhere else in the app the
               mark is a bare dot, because everywhere else the count is ALREADY ON SCREEN — the
               desktop chips sit beside the panel that lists what they hold, so a number on the chip
@@ -351,20 +311,20 @@ export function TradesSearchPill({
               badge is the only thing that can say how much of the tape is hidden.
               `min-w-4 px-1` rather than `size-4`: at ten or more the circle grows into a stadium
               instead of clipping a digit. */}
-          {count > 0 && (
-            <span
-              aria-hidden
-              className="bg-accent text-accent-fg text-caption absolute top-0 right-0 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-medium tabular-nums"
-            >
-              {count}
-            </span>
-          )}
-        </IconButton>
-      </form>
-    </div>
-    </HeaderSlot>
+              {count > 0 && (
+                <span
+                  aria-hidden
+                  className="bg-accent text-accent-fg text-caption absolute top-0 right-0 flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-medium tabular-nums"
+                >
+                  {count}
+                </span>
+              )}
+            </IconButton>
+          </form>
+        </div>
+      </HeaderSlot>
 
-    {/* OUTSIDE THE BAND, and that is a stacking bug rather than tidying (2026-08-21). The sheet
+      {/* OUTSIDE THE BAND, and that is a stacking bug rather than tidying (2026-08-21). The sheet
         started life inside the row's container, which was `sticky` with a `z-index` and therefore
         A STACKING CONTEXT — so the sheet's `z-[70]` was scoped inside a `z-20` box and resolved
         beneath the shell's own `z-40` chrome. Measured: the hamburger and the bottom bar painted
@@ -372,10 +332,10 @@ export function TradesSearchPill({
         The sticky is gone now (the row portals into the shell's band instead), but the sheet stays
         out here for the same reason it was moved: it must render in the ROOT context, not inside
         whatever box the search row happens to occupy this month. */}
-    <FilterSheet
-      /* The breakpoint gate lives HERE now, with the surface that knows this is the phone's
+      <FilterSheet
+        /* The breakpoint gate lives HERE now, with the surface that knows this is the phone's
          control. See the prop's note in `filter-sheet.tsx`. */
-      className="md:hidden"
+        className="md:hidden"
         open={sheet}
         onClose={() => setSheet(false)}
         applied={applied}
@@ -395,8 +355,7 @@ export function TradesSearchPill({
                narrowed dot, showed Clear and flipped the empty state to "No trades in this range"
                for a filter that narrows nothing - and the two surfaces produced different URLs for
                an identical tape. */
-            accounts:
-              d.accounts.length === accounts.length ? null : d.accounts.join(',') || null,
+            accounts: d.accounts.length === accounts.length ? null : d.accounts.join(',') || null,
             /* CLEAR ALL DROPS THE SEARCH TERM TOO (2026-08-25, postcheck). The band's `Clear` does,
                with a note saying that otherwise "the one button that promises to clear everything
                leaves the search term narrowing the tape". The phone's `Clear all` did not, so it
@@ -517,12 +476,19 @@ function SearchPopover({ applied }: { applied: TradesFilter }) {
         {/* THE CONTROL NAMES ITS OWN STATE: with a term applied the button reads "tradeify" rather
             than "Search", so the band says what the tape is showing instead of only that something
             is. */}
-        {applied.q ? <span className="max-w-32 truncate">&ldquo;{applied.q}&rdquo;</span> : 'Search'}
+        {applied.q ? (
+          <span className="max-w-32 truncate">&ldquo;{applied.q}&rdquo;</span>
+        ) : (
+          'Search'
+        )}
         {/* A DOT, NOT A COUNT (Luke, 2026-08-04: "we have a number badge. why?"). A badge reading
             "1" counts a thing that cannot be more than one. Filters keeps its dot for the same
             reason every control in this band uses one. */}
         {applied.q && (
-          <span aria-hidden className="bg-accent absolute -top-0.5 -right-0.5 size-2 rounded-full" />
+          <span
+            aria-hidden
+            className="bg-accent absolute -top-0.5 -right-0.5 size-2 rounded-full"
+          />
         )}
       </HeaderControl>
 
@@ -587,7 +553,8 @@ function DatePopover({ applied }: { applied: TradesFilter }) {
     });
     setOpen(false);
   };
-  const dirty = draft.range !== applied.range || draft.from !== applied.from || draft.to !== applied.to;
+  const dirty =
+    draft.range !== applied.range || draft.from !== applied.from || draft.to !== applied.to;
 
   return (
     <div ref={root} className="relative">
@@ -604,7 +571,10 @@ function DatePopover({ applied }: { applied: TradesFilter }) {
             wording, so a control that is narrowing the tape while looking exactly like one that is
             not is the control that gets missed. */}
         {windowed(applied) && (
-          <span aria-hidden className="bg-accent absolute -top-0.5 -right-0.5 size-2 rounded-full" />
+          <span
+            aria-hidden
+            className="bg-accent absolute -top-0.5 -right-0.5 size-2 rounded-full"
+          />
         )}
       </HeaderControl>
 
@@ -815,7 +785,10 @@ function FiltersPopover({
   const toggleToken = (key: 'products' | 'results', v: string) =>
     setDraft((d) => {
       const list = d[key] as string[];
-      return { ...d, [key]: list.includes(v) ? list.filter((x) => x !== v) : [...list, v] } as Draft;
+      return {
+        ...d,
+        [key]: list.includes(v) ? list.filter((x) => x !== v) : [...list, v],
+      } as Draft;
     });
 
   /** One account means the Accounts axis is a statement rather than a choice — see the Row below. */
@@ -905,7 +878,10 @@ function FiltersPopover({
         >
           <Icon name="filter" size={20} />
           {count > 0 && (
-            <span aria-hidden className="bg-accent absolute top-0.5 right-0.5 size-2 rounded-full" />
+            <span
+              aria-hidden
+              className="bg-accent absolute top-0.5 right-0.5 size-2 rounded-full"
+            />
           )}
         </IconButton>
       ) : (
@@ -919,7 +895,10 @@ function FiltersPopover({
           <Icon name="filter" size={15} />
           Filters
           {count > 0 && (
-            <span aria-hidden className="bg-accent absolute -top-0.5 -right-0.5 size-2 rounded-full" />
+            <span
+              aria-hidden
+              className="bg-accent absolute -top-0.5 -right-0.5 size-2 rounded-full"
+            />
           )}
         </HeaderControl>
       )}
@@ -953,7 +932,9 @@ function FiltersPopover({
                       /* Same object and same contract as the Date rail above and the app's own
                          sidebar: full ink on every row, `bg-selected` carrying rank on its own. An
                          axis you have not opened yet is not metadata. */
-                      dim === d.key ? 'bg-selected text-text font-medium' : 'text-text hover:bg-selected'
+                      dim === d.key
+                        ? 'bg-selected text-text font-medium'
+                        : 'text-text hover:bg-selected'
                     )}
                   >
                     <span className="text-body min-w-0 flex-1 truncate">{d.label}</span>
@@ -1062,7 +1043,12 @@ function FiltersPopover({
                     <div key={d.key} className="mb-3 last:mb-0">
                       <div className="mb-1 flex items-center justify-between gap-2 px-1">
                         <span className="text-body text-text font-medium">{d.label}</span>
-                        <Button variant="ghost" size="sm" className="-my-1" onClick={() => clearDim(d.key)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="-my-1"
+                          onClick={() => clearDim(d.key)}
+                        >
                           Clear
                         </Button>
                       </div>

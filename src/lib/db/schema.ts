@@ -270,6 +270,8 @@ export const ACCOUNT_TYPES = ['evaluation', 'sim_funded', 'personal'] as const;
  * A NULL type is an account nobody has labelled yet, which is a normal state (see `accountType`),
  * and it may only be `active` - nothing has happened to it yet by definition. */
 export const ACCOUNT_STATUSES = ['active', 'passed', 'failed', 'closed'] as const;
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
+export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
 export const account = pgTable(
   'account',
@@ -309,7 +311,7 @@ export const account = pgTable(
      *
      * The CHECK below still constrains the three real values — `null in (...)` is NULL in
      * Postgres and a CHECK passes on NULL, so nullable and constrained are not in tension. */
-    accountType: text('account_type'),
+    accountType: text('account_type').$type<AccountType>(),
     propFirm: text('prop_firm'), // "Tradeify", "TradeDay". Null for personal, and null is normal.
     /* How we came to believe the firm. `stated` = the trader said so on THIS account, and those
        rows are what grow `CONFIRMED_PREFIXES`. `detected` = recalled from a prefix confirmed on
@@ -322,7 +324,7 @@ export const account = pgTable(
     /* The firm's own product name when the trader knows it ("Growth", "Select", "Lightning").
        Free text on purpose: every firm names its SKUs differently and the list changes monthly. */
     productName: text('product_name'),
-    status: text('status').notNull().default('active'),
+    status: text('status').$type<AccountStatus>().notNull().default('active'),
     /* A DATE, NOT A TIMESTAMP, carried over from v2 with its reasoning intact: nobody closes an
        account at a time of day. It is also the one field here the trader types rather than Run
        observing it, so a wall-clock day is the honest grain. */

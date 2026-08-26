@@ -136,13 +136,18 @@ console.log('=== 1. THE SHAPE THE ARCHITECTURE ASKED FOR ===\n');
 check('account_type is constrained', acct.accountType, 'evaluation');
 check('a new account is active', acct.status, 'active');
 
+/* THE CAST IS THE POINT OF THE TEST, not a way around the type. `account_type` is `$type<AccountType>()`
+   since S6, so TypeScript now refuses this value at compile time - which is the first of the two
+   defences working. The assertion below is about the SECOND: that the DATABASE refuses it too, for
+   every writer that never went through TypeScript at all. Casting through `never` keeps the check
+   honest rather than deleting it now that the compiler has an opinion. */
 await rejects('an unknown account_type is refused by the database', () =>
   db.insert(account).values({
     traderId: t.id,
     platform: 'tradovate',
     externalAccountId: 'BADTYPE',
     displayName: 'x',
-    accountType: 'gold_plated',
+    accountType: 'gold_plated' as never,
   }),
 );
 await rejects('the natural key (trader, platform, external id) is unique', () =>
