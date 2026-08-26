@@ -230,7 +230,25 @@ export const trader = pgTable('trader', {
  * That window does not reopen: after the first real import this is a data migration across an
  * append-only corpus instead of a one-line CHECK change. */
 export const ACCOUNT_TYPES = ['evaluation', 'sim_funded', 'personal'] as const;
-export const ACCOUNT_STATES = ['active', 'closed', 'breached'] as const;
+/* FOUR STORED VALUES, NOT THREE, AND THE FOURTH IS WHAT FIXES A BUG v2 SHIPPED (2026-08-25, S6).
+ *
+ * `run-trading@v2` stored three - `active | passed | failed` - and derived the word from the phase,
+ * so a PERSONAL account that ended was stored as `failed` and merely LABELLED "Closed"
+ * (`docs/prop-firm-identity.md` §5, researched 2026-07-30: "Failed" is the industry's own word for
+ * an evaluation that ended, but "it was never in an evaluation to fail").
+ *
+ * Deriving it cost them a real defect. `statusToken(a) === 'active'` picks the chart's window, and
+ * a personal account carrying `passed` reads as active - so a closed account was handed today's
+ * empty session instead of its own last one. Storing `closed` means a personal account never holds
+ * a value that can be mistaken for running.
+ *
+ * WHICH VALUES BELONG TO WHICH TYPE, and the CHECK below enforces it rather than trusting a writer:
+ *   evaluation  active | passed | failed
+ *   sim_funded  active | passed | failed   (`passed` here is "ended in good standing", not a pass)
+ *   personal    active | closed
+ * A NULL type is an account nobody has labelled yet, which is a normal state (see `accountType`),
+ * and it may only be `active` - nothing has happened to it yet by definition. */
+export const ACCOUNT_STATUSES = ['active', 'passed', 'failed', 'closed'] as const;
 
 export const account = pgTable(
   'account',
@@ -283,17 +301,46 @@ export const account = pgTable(
     /* The firm's own product name when the trader knows it ("Growth", "Select", "Lightning").
        Free text on purpose: every firm names its SKUs differently and the list changes monthly. */
     productName: text('product_name'),
-    state: text('state').notNull().default('active'),
-    closedAt: timestamp('closed_at', { withTimezone: true }),
+    status: text('status').notNull().default('active'),
+    /* A DATE, NOT A TIMESTAMP, carried over from v2 with its reasoning intact: nobody closes an
+       account at a time of day. It is also the one field here the trader types rather than Run
+       observing it, so a wall-clock day is the honest grain. */
+    closedOn: date('closed_on'),
+    /* HIDDEN AND EXCLUDED ARE TWO DIFFERENT QUESTIONS, and v2's schema note is the clearest
+       statement of it: one is about the LIST, the other about the MATHS.
+       `hidden` takes the row off the roster and leaves every figure alone - a trader with eleven
+       accounts tidying down to the four they trade. `excludedFromTotals` leaves the row on the
+       roster and takes its money out of the chart and the group totals - an account whose P&L
+       would drown the rest. NEITHER EVER REMOVES AN EVENT, and neither may reach `/trades`: that
+       page is a LIST of what happened, not a pool being summed. */
+    hidden: boolean('hidden').notNull().default(false),
+    excludedFromTotals: boolean('excluded_from_totals').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     check('account_type_check', sql`${t.accountType} in ('evaluation', 'sim_funded', 'personal')`),
-    check('account_state_check', sql`${t.state} in ('active', 'closed', 'breached')`),
+    check(
+      'account_status_check',
+      sql`${t.status} in ('active', 'passed', 'failed', 'closed')`
+    ),
+    /* THE TYPE AND THE STATUS HAVE TO AGREE, and the database is where that is settled. v2 left the
+       pairing to its UI and its own route accepted `{status:'active', closedOn:'2026-01-01'}`
+       happily; the close modal there has to pass the phase along precisely because "a status of
+       'passed' on a row the database still calls personal is incoherent data".
+       An UNLABELLED account may only be `active`: nothing has happened to it yet, and a status
+       arriving before a type is the write path getting ahead of the trader.
+       CONSEQUENCE, deliberate: relabelling a passed evaluation as personal is refused until the
+       status moves too. That is the constraint doing its job - the two facts changed together. */
+    check(
+      'account_type_status_check',
+      sql`(${t.accountType} is null and ${t.status} = 'active')
+          or (${t.accountType} = 'personal' and ${t.status} in ('active', 'closed'))
+          or (${t.accountType} in ('evaluation', 'sim_funded') and ${t.status} in ('active', 'passed', 'failed'))`
+    ),
     // The natural key. Two firms can issue the same account name, so platform is part of it.
     uniqueIndex('account_identity_uq').on(t.traderId, t.platform, t.externalAccountId),
     index('account_trader_idx').on(t.traderId),
-    index('account_trader_state_idx').on(t.traderId, t.state),
+    index('account_trader_status_idx').on(t.traderId, t.status),
   ],
 );
 

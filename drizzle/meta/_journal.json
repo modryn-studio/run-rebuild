@@ -78,6 +78,20 @@
       "when": 1787010168616,
       "tag": "0010_messy_vector",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1787748354855,
+      "tag": "0011_accounts_status_add",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1787748385360,
+      "tag": "0012_accounts_drop_state",
+      "breakpoints": true
     }
   ]
 }

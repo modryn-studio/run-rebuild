@@ -99,15 +99,63 @@ build the encryption is **the first user who is not Luke.**
 | `trader_id` | uuid | no | → `trader` |
 | `platform` | text | no | `tradovate`. **The platform, not the firm** |
 | `prop_firm` | text | yes | Apex, Topstep, … `null` for personal accounts |
+| `firm_source` | text | yes | `stated` (the trader said so) · `detected` (recalled from a confirmed prefix) |
 | `external_account_id` | text | no | the broker's id, e.g. `ELTDENF260623134425853685` |
-| `display_name` | text | no | |
-| `account_type` | enum | no | `evaluation` · `funded` · `personal` |
-| `state` | enum | no | `active` · `closed` · `breached` |
-| `closed_at` | timestamptz | yes | |
+| `broker_account_id` | text | yes | Tradovate's numeric id. Present in two of six exports, so never the key |
+| `display_name` | text | **yes** | the trader's own name for it. Null means nobody has named it |
+| `account_type` | text | **yes** | `evaluation` · `sim_funded` · `personal` |
+| `size_dollars` | integer | yes | whole DOLLARS, not cents — a product SKU, not money that gets arithmetic done to it |
+| `product_name` | text | yes | the firm's own SKU name ("Growth", "Select"). Free text |
+| `status` | text | no | `active` · `passed` · `failed` · `closed` |
+| `closed_on` | date | yes | a DATE: nobody closes an account at a time of day |
+| `hidden` | boolean | no | off the roster, in the arithmetic |
+| `excluded_from_totals` | boolean | no | on the roster, out of the arithmetic |
 | `created_at` | timestamptz | no | |
 
 Unique: `(trader_id, platform, external_account_id)`
-Indexes: `trader_id`, `(trader_id, state)`
+Indexes: `trader_id`, `(trader_id, status)`
+
+**`[REVISED 2026-08-25]` This table drifted from the doc twice, and both edits are now folded in.**
+The rule is that the file changes first, in the same commit as the code; that did not happen at
+`S4e` or `S5c`, so the corrections are dated rather than silently applied:
+
+- **`account_type` is NULLABLE, and required-at-creation was wrong** (`S4e`, 2026-08-15). This file
+  used to assert the opposite. An import creates the row before anyone has said what it is, and it
+  cannot be asked first: the number of accounts inside an export is unknown until it is parsed, and
+  a copy-trader's export holds many. Phase is also **not derivable, ever** — a funded account and an
+  evaluation produce byte-identical files. `spec.md` was amended for this on the day; this file was
+  not. **An unlabelled account is a normal state**, holding real fills, named afterwards.
+- **`funded` was never a stored value; it is `sim_funded`** — renamed at `S4e` while no row carried
+  it.
+- **`display_name` is NULLABLE** (`S5c`). It used to default to the raw `external_account_id`, which
+  defeated `accountRowTitle`'s first rule — that helper returns the trader's own name before
+  anything else, and a value Run wrote itself is not that. A tape row read `FTDFYL100183704873` for
+  an account whose firm was known.
+- **`state` is now `status`, with four values, and `closed_at` is now `closed_on`** (`S6`,
+  2026-08-25). Nothing consumed either column yet, so the rename was free.
+
+**`status` HAS FOUR VALUES BECAUSE THREE FORCED A DERIVED LABEL, AND THE DERIVATION WAS A BUG.**
+`run-trading@v2` stored `active | passed | failed` and rendered the word from the account's phase, so
+a **personal** account that ended was stored `failed` and merely displayed as "Closed"
+(`prop-firm-identity.md` §5: "Failed" is the industry's own word for an evaluation that ended, but a
+personal account "was never in an evaluation to fail"). Its own chart then asked
+`status === 'active'` to pick a window, and a personal account carrying `passed` answered yes — so a
+closed account was handed today's empty session instead of its own last one. Storing the fourth
+value means a personal account never holds a word that can be mistaken for running.
+
+Which values belong to which type is enforced by a CHECK (`account_type_status_check`), not by the
+write path:
+
+| `account_type` | permitted `status` |
+|---|---|
+| `null` (unlabelled) | `active` only — nothing has happened to it yet |
+| `evaluation` | `active` · `passed` · `failed` |
+| `sim_funded` | `active` · `passed` · `failed` — `passed` here reads "ended in good standing" |
+| `personal` | `active` · `closed` |
+
+A deliberate consequence: relabelling a passed evaluation as personal is **refused** until the
+status moves with it. v2 left this pairing to its UI and its own route accepted
+`{status:'active', closed_on:'2026-01-01'}` without complaint.
 
 **`platform` and `prop_firm` are two columns on purpose.** The obvious single `firm` column is a
 trap: it ends up holding the platform (`tradovate`, later `ninjatrader`) and the actual prop firm
@@ -115,8 +163,9 @@ gets recorded nowhere — which is awkward for a product whose thesis is a corpu
 *across every firm*. Splitting them costs nothing now and is a data-archaeology job later.
 Carried from `widening-plan.md` §5.5.
 
-**`account_type` is required at creation** (spec §3, personal-accounts note). Without it Run
-cannot tell a personal signup from a prop one, and admitting the segment was pointless.
+**`account_type` is asked AFTER the import that created the account, never before** — amended in
+`spec.md` on 2026-08-15 and folded in here on 2026-08-25. The original line said "required at
+creation", which the import path cannot honour; see the revision note above.
 
 **Deletion policy: there isn't one.** An account is never `DELETE`d. `closed` and `breached` are
 states, not absences. Any `ON DELETE CASCADE` reaching this table or below it is a bug.

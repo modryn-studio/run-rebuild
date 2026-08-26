@@ -134,7 +134,7 @@ const [acct] = await db
 console.log('=== 1. THE SHAPE THE ARCHITECTURE ASKED FOR ===\n');
 
 check('account_type is constrained', acct.accountType, 'evaluation');
-check('a new account is active', acct.state, 'active');
+check('a new account is active', acct.status, 'active');
 
 await rejects('an unknown account_type is refused by the database', () =>
   db.insert(account).values({
