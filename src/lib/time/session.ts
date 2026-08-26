@@ -286,3 +286,75 @@ export function yearToDateWindow(asOfSessionDate: string): { from: string; to: s
 }
 
 const isoOf = (d: Date) => iso(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+
+/* ─── THE SESSION AS TWO INSTANTS ───────────────────────────────────────────────────────────────
+ *
+ * `sessionDateFor` answers "which session is this instant in". This is the inverse: "which instants
+ * is this session made of", and the 1-day chart is what needs it — a line drawn across one session
+ * has to start at the OPEN with nothing made yet, not at the first trade, or the shape claims the
+ * trader began the day already up.
+ *
+ * A session dated D runs from (D-1) 17:00 CT to D 17:00 CT, which is `sessionDateFor`'s own rule
+ * read backwards. THE WINDOW IS `[open, end)` — open INCLUSIVE, end EXCLUSIVE — and that asymmetry
+ * is not a choice, it is the boundary `sessionDateFor` already draws: "anything at or after 17:00
+ * CT belongs to the NEXT session". So (D-1) 17:00 exactly is the first instant of session D, and
+ * D 17:00 exactly is the first instant of session D+1. Written the other way round it would count
+ * the boundary instant in two sessions, or in neither.
+ *
+ * (v2 filters its own intraday fold as `at > open && at <= end`, which is this window inverted. On
+ * real data nothing trades on the exact boundary millisecond so it never surfaced, but it puts a
+ * trade at the open in the wrong day and drops one at the close from both.)
+ *
+ * THE OFFSET IS DERIVED FROM THE ZONE, NEVER ASSUMED. "17:00 CT" is -05:00 in summer and -06:00 in
+ * winter, so a fixed offset is wrong for roughly half the year — the failure CLAUDE.md names as
+ * "an offset breaks twice a year". Two correction passes rather than one: the first uses the zone's
+ * offset at a guessed instant, which is the wrong offset when the guess lands on the far side of a
+ * DST transition from the answer; the second re-reads the offset at the corrected instant and is
+ * exact. A third pass can never change anything, because transitions are hours apart.
+ */
+const zoneParts = new Intl.DateTimeFormat('en-CA', {
+  timeZone: SESSION_BOUNDARY_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+/** How far ahead of UTC the boundary zone is, in ms, at a given instant. Negative in the Americas. */
+function zoneOffsetAt(at: Date): number {
+  const f = zoneParts.formatToParts(at);
+  const get = (t: Intl.DateTimeFormatPartTypes) => Number(f.find((p) => p.type === t)!.value);
+  const shown = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour') % 24, get('minute'));
+  // Seconds and ms are not in the format, so compare against the instant floored to the minute.
+  return shown - Math.floor(at.getTime() / 60_000) * 60_000;
+}
+
+/** The UTC instant at which the boundary zone's wall clock reads `hour:00` on calendar Y-M-D. */
+function instantAtBoundaryHour(y: number, m: number, d: number, hour: number): Date {
+  const wall = Date.UTC(y, m - 1, d, hour);
+  let guess = new Date(wall - zoneOffsetAt(new Date(wall)));
+  guess = new Date(wall - zoneOffsetAt(guess));
+  return guess;
+}
+
+/**
+ * The half-open instant window `[open, end)` a session date covers.
+ *
+ * Pair it with `exit_at`, the same column `session_date` was derived from, or the window and the
+ * bucket will disagree about which trades belong to the day.
+ */
+export function sessionWindow(sessionDate: string): { open: Date; end: Date } {
+  const [y, m, d] = sessionDate.split('-').map(Number);
+  const end = instantAtBoundaryHour(y, m, d, SESSION_BOUNDARY_HOUR);
+  // The previous calendar date at the same wall-clock hour. `Date.UTC` handles month and year ends.
+  const prev = new Date(Date.UTC(y, m - 1, d - 1));
+  const open = instantAtBoundaryHour(
+    prev.getUTCFullYear(),
+    prev.getUTCMonth() + 1,
+    prev.getUTCDate(),
+    SESSION_BOUNDARY_HOUR
+  );
+  return { open, end };
+}

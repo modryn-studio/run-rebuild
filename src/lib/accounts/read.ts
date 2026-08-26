@@ -153,6 +153,49 @@ export async function getDailySeries(
   return rows as DayPoint[];
 }
 
+/** One realised round trip, for the 1-day curve. `at` is the instant it was REALISED. */
+export interface IntradayRow {
+  accountId: string;
+  at: Date;
+  cents: number;
+}
+
+/**
+ * Every realised round trip inside ONE session, in the order it was realised.
+ *
+ * THE ONE READ THAT IS NOT BUCKETED, and it is the reason the 1-day range needs its own query at
+ * all: every other range is a projection of `session_date`, which is a stored column, so
+ * `getDailySeries` can group and be done. A day's SHAPE is what happened inside the bucket, and no
+ * amount of grouping by the bucket recovers it.
+ *
+ * SCOPED BY `session_date`, NOT BY AN INSTANT RANGE. `session_date` is the stored answer to "which
+ * session is this in", written once by `lib/time/session.ts`; asking the same question again with
+ * `exit_at BETWEEN open AND end` would be a second bucketer, which CLAUDE.md forbids and which
+ * would disagree with the tape twice a year. The window's instants are for DRAWING - anchoring the
+ * line at the open and tailing it to the close - never for selecting.
+ *
+ * NO AGGREGATION. Every other read here folds; this one hands back rows, because the curve is the
+ * sequence and summing it would be the daily figure it already has.
+ */
+export async function getIntradaySeries(
+  traderId: string,
+  sessionDate: string
+): Promise<IntradayRow[]> {
+  const rows = await db
+    .select({
+      accountId: trade.accountId,
+      at: trade.exitAt,
+      cents: NET,
+    })
+    .from(trade)
+    .where(
+      and(eq(trade.traderId, traderId), COUNTABLE, sql`${trade.sessionDate} = ${sessionDate}`)
+    )
+    .orderBy(asc(trade.exitAt));
+
+  return rows.map((r) => ({ accountId: r.accountId, at: r.at, cents: Number(r.cents) }));
+}
+
 /**
  * When Run last HEARD from each account — `max(import.uploaded_at)`, keyed by account.
  *

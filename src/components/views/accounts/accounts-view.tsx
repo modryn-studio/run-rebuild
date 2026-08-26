@@ -1,5 +1,7 @@
 'use client';
 
+import { useMemo } from 'react';
+
 /* THE CLIENT BOUNDARY FOR `/accounts`, and it holds exactly one thing: whether a modal is open.
  *
  * The page stays a Server Component that reads the corpus, because it is the only source of truth
@@ -17,7 +19,8 @@ import { ChartViewProvider } from './chart-view';
 import type { RosterFilter } from '@/lib/accounts/roster-filter';
 import { StickyRail } from '@/components/shell/sticky-rail';
 import { sizeBase } from './trend-indicator';
-import { cumulate, type Point } from '@/lib/accounts/series';
+import { cumulate, foldIntraday, type Point } from '@/lib/accounts/series';
+import { sessionWindow } from '@/lib/time/session';
 import type { DayPoint, RosterAccount } from '@/lib/accounts/read';
 
 export function AccountsView({
@@ -27,6 +30,8 @@ export function AccountsView({
   rail,
   filter,
   allAccounts,
+  intradayRows,
+  zone,
 }: {
   accounts: RosterAccount[];
   /* A PLAIN OBJECT, NOT A `Map`. `getFreshness` builds a Map because that is the right shape on the
@@ -44,6 +49,12 @@ export function AccountsView({
      other firm from the panel that got you there, and the counted axes would offer only the option
      already picked. */
   allAccounts: RosterAccount[];
+  /* THE LAST SESSION'S ROUND TRIPS, for the 1-day range. `at` arrives as a STRING: a `Date` does
+     not survive the RSC boundary and TypeScript will not say so - the same silent-shape trap
+     `reviveTrade` exists for on the tape. Revived at the boundary below, never at a call site. */
+  intradayRows: { accountId: string; at: string; cents: number }[];
+  /** `trader.display_timezone`. Labels the 1-day axis; it never reaches the bucketing. */
+  zone: string;
 }) {
   /* THE CHART COUNTS WHAT THE TOTALS COUNT. An account excluded from totals is excluded here too,
      or the line above the roster would disagree with the numbers inside it - which is exactly the
@@ -87,16 +98,40 @@ export function AccountsView({
      Luke caught. */
   const endsOn = series.length > 0 ? series[series.length - 1].day : null;
 
+  /* THE LAST SESSION'S OWN SHAPE. Folded here, beside the daily fold, for the same reason: it is
+     arithmetic over rows already on the page. The window's instants come from the ONE bucketer, so
+     the anchor and the tail sit exactly where `session_date` says the session did.
+     `endsOn` IS THE SESSION, not today - a roster whose last trade was in March gets March's day,
+     which is the only 1-day chart that could contain anything. */
+  const intraday = useMemo(() => {
+    if (endsOn === null) return { total: [] as Point[], byAccount: new Map<string, Point[]>() };
+    /* SCOPED TO THE COUNTED ACCOUNTS BEFORE FOLDING, exactly as `byDay` is above. Folding first and
+       filtering after would leave an excluded account's trades in the total - the chart-disagrees-
+       with-the-rail defect, arrived at through a different door. */
+    return foldIntraday(
+      intradayRows
+        .filter((r) => counted.has(r.accountId))
+        .map((r) => ({ ...r, at: new Date(r.at) })),
+      sessionWindow(endsOn)
+    );
+  }, [intradayRows, endsOn, counted]);
+
   return (
     <AccountModalsProvider>
-      <ChartViewProvider byAccount={byAccount} endsOn={endsOn}>
+      <ChartViewProvider byAccount={byAccount} intraday={intraday.byAccount} endsOn={endsOn}>
         <AccountsHeader filter={filter} accounts={allAccounts} />
 
         {/* THE CHART SPANS THE PAGE, ABOVE THE SPLIT — v2's arrangement, and the thing that most
             decides whether this reads as the same page. Inside the grid's left column it stops
             where the roster stops, which leaves the curve describing the whole roster drawn at the
             width of part of it. */}
-        <PnlChart series={series} counted={counted.size} baseDollars={baseDollars} />
+        <PnlChart
+          series={series}
+          intradaySeries={intraday.total}
+          counted={counted.size}
+          baseDollars={baseDollars}
+          zone={zone}
+        />
 
         {/* 304px IS FIXED, and the roster takes whatever is left. v2 measured this at a 1280
             viewport: the two columns compute to 693.8 / 304.2 with a 16px gutter. Fixed rather than

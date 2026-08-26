@@ -14,7 +14,7 @@
  * thing that reads fine and sorts wrong.
  */
 
-import { bucketStartFor, type Grain } from '@/lib/time/session';
+import { bucketStartFor, sessionWindow, type Grain } from '@/lib/time/session';
 
 /** One point on a cumulative line. `cents` is the running total AT `day`, not that day's change. */
 export interface Point {
@@ -167,11 +167,23 @@ export function bucketize(series: Point[], grain: Grain): DayCents[] {
     .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
 }
 
-/** Every range the period control offers. */
-export const RANGES = ['1w', '1m', '3m', 'ytd', '1y', 'all'] as const;
+/* Every range the period control offers.
+ *
+ * `1d` IS THE ODD ONE AND IT IS ODD ALL THE WAY DOWN. Every other range is a window over
+ * `session_date` and its points are DAYS; 1d is a window INSIDE one session and its points are
+ * INSTANTS. It reads a different query (`getIntradaySeries`), folds through `foldIntraday` rather
+ * than `cumulate`, and its `Point.day` carries an ISO timestamp instead of `YYYY-MM-DD`.
+ * Sharing the `Point` shape rather than inventing a second one is deliberate - the chart, the
+ * hover, the change and the sparklines all keep working unchanged, and the only code that has to
+ * know is whatever FORMATS a key. `isInstantKey` below is that one test. */
+export const RANGES = ['1d', '1w', '1m', '3m', 'ytd', '1y', 'all'] as const;
 export type Range = (typeof RANGES)[number];
 
+/** True for a 1-day point, whose key is an instant rather than a calendar date. */
+export const isInstantKey = (key: string) => key.includes('T');
+
 export const RANGE_LABELS: Record<Range, string> = {
+  '1d': '1 day',
   '1w': '1 week',
   '1m': '1 month',
   '3m': '3 months',
@@ -182,6 +194,7 @@ export const RANGE_LABELS: Record<Range, string> = {
 
 /** What a window's change is CALLED once it is on screen, beside the figure. */
 export const CHANGE_LABELS: Record<Range, string> = {
+  '1d': '1 day change',
   '1w': '1 week change',
   '1m': '1 month change',
   '3m': '3 month change',
@@ -201,6 +214,14 @@ export const CHANGE_LABELS: Record<Range, string> = {
  */
 export function windowStart(range: Range, endsOn: string): string | null {
   if (range === 'all') return null;
+  /* 1d RETURNS THE SESSION'S OPEN INSTANT, not the session date, and the difference is load-bearing.
+     `windowChange` finds the window's base by STRING-COMPARING keys against this value, and a 1-day
+     series is keyed by ISO instants: the open of session `2026-07-21` is `2026-07-20T22:00:00Z`,
+     which sorts BEFORE the string "2026-07-21". Returning the date would put the base at whichever
+     trade first crossed midnight UTC - a boundary that means nothing to anyone - instead of at the
+     session's own anchor. Returning the open makes the base the zero point the fold planted there,
+     so the change IS the day's P&L. */
+  if (range === '1d') return sessionWindow(endsOn).open.toISOString();
 
   const at = new Date(`${endsOn}T00:00:00Z`);
   if (range === 'ytd') return `${endsOn.slice(0, 4)}-01-01`;
@@ -224,11 +245,86 @@ export function windowStart(range: Range, endsOn: string): string | null {
  *  produces one bar. v2: an explicit grain "lets a trader pick 'yearly' on three weeks of tape and
  *  get one bar, which is a control that can produce a useless chart." */
 export function grainFor(range: Range, span: number): Grain {
-  if (range === '1w' || range === '1m') return 'day';
+  /* A 1-day BREAKDOWN is one bar, which is the useless control `grainFor` exists to prevent - so
+     the chart refuses the Breakdown view at 1d rather than drawing it. See `pnl-chart.tsx`. */
+  if (range === '1d' || range === '1w' || range === '1m') return 'day';
   if (range === '3m') return 'week';
   if (range === 'ytd' || range === '1y') return 'month';
   // All time: the corpus decides. Two years of daily bars is 500 columns nobody can read.
   if (span > 730) return 'month';
   if (span > 180) return 'week';
   return 'day';
+}
+
+
+/* ─── THE DAY'S OWN SHAPE ───────────────────────────────────────────────────────────────────────
+ *
+ * One session's realised round trips, cumulated in the order they happened, per account and in
+ * total. This is the 1-day range's `cumulate`, and it differs in three ways that all come from the
+ * x axis being TIME rather than dates.
+ *
+ * IT IS ANCHORED AT THE SESSION OPEN, at zero. A line that began at the first trade would claim the
+ * trader started the day already up or down, and would silently rescale: one trade at 09:31 would
+ * draw a full-width line across a session that had barely begun.
+ *
+ * IT IS TAILED TO THE CLOSE, so every account's series ends on one x and the chart's own span logic
+ * needs no special case. Skipped when a trade lands exactly on the close, which would duplicate the
+ * key.
+ *
+ * AN ACCOUNT THAT DID NOT TRADE GETS NO SERIES, not a flat zero line. The page sums the accounts it
+ * counts, so an empty array contributes nothing - where a zero line would contribute a point at the
+ * open competing with the real ones.
+ */
+export function foldIntraday(
+  rows: { accountId: string; at: Date; cents: number }[],
+  win: { open: Date; end: Date }
+): { total: Point[]; byAccount: Map<string, Point[]> } {
+  const openKey = win.open.toISOString();
+  const endKey = win.end.toISOString();
+
+  const ordered = [...rows].sort((a, b) => a.at.getTime() - b.at.getTime());
+
+  const byAccount = new Map<string, Point[]>();
+  const running = new Map<string, number>();
+  for (const r of ordered) {
+    if (byAccount.has(r.accountId)) continue;
+    byAccount.set(r.accountId, [{ day: openKey, cents: 0 }]);
+    running.set(r.accountId, 0);
+  }
+
+  /* THE SAME INSTANT TWICE IS ONE POINT. Two exits can share a timestamp to the millisecond - a
+     four-lot leaving as two round trips does exactly that - and a duplicate key would draw a
+     vertical segment the hover could land on either side of. The last write wins, which is the
+     running total after both, so the point is right and there is only one of it. */
+  const push = (series: Point[], key: string, cents: number) => {
+    const last = series[series.length - 1];
+    if (last && last.day === key) last.cents = cents;
+    else series.push({ day: key, cents });
+  };
+
+  let total = 0;
+  const totalSeries: Point[] = [{ day: openKey, cents: 0 }];
+  for (const r of ordered) {
+    total += r.cents;
+    const key = r.at.toISOString();
+    push(totalSeries, key, total);
+    const own = byAccount.get(r.accountId)!;
+    const n = (running.get(r.accountId) ?? 0) + r.cents;
+    running.set(r.accountId, n);
+    push(own, key, n);
+  }
+
+  const tail = (s: Point[]) => {
+    const last = s[s.length - 1];
+    if (last && last.day !== endKey) s.push({ day: endKey, cents: last.cents });
+    return s;
+  };
+
+  tail(totalSeries);
+  for (const s of byAccount.values()) tail(s);
+
+  /* NOTHING TRADED. The anchor and its tail are two points on a flat zero line, which is the honest
+     picture of a session that has not produced anything yet - and it is a DIFFERENT statement from
+     an empty array, which is what an account with no trades gets. */
+  return { total: totalSeries, byAccount };
 }

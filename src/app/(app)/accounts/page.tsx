@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { requireTrader } from '@/lib/trader';
 import { PAGE_COLUMN } from '@/lib/shell';
 import { cn } from '@/lib/cn';
-import { getDailySeries, getFreshness, getRoster } from '@/lib/accounts/read';
+import { getDailySeries, getFreshness, getIntradaySeries, getRoster } from '@/lib/accounts/read';
 import { AccountsView } from '@/components/views/accounts/accounts-view';
 import { AccountsRail } from '@/components/views/accounts/accounts-rail';
 import { applyRosterFilter, readRosterFilter } from '@/lib/accounts/roster-filter';
@@ -57,6 +57,16 @@ export default async function AccountsPage({
     getDailySeries(trader.id),
   ]);
 
+  /* THE 1-DAY RANGE'S OWN READ, and it is SECOND on purpose: the session it covers is the last day
+     anything traded, which is not known until `days` has come back. One extra round trip for one
+     range, rather than shipping every trade the trader has ever made so the client could find the
+     day itself.
+     v2 reads all-time on every render and folds intraday from that. This build refuses to: the
+     tape's rule is that nothing crosses the wire that the page will not draw, and a 1-day chart
+     draws one session. */
+  const lastSession = days.length > 0 ? days[days.length - 1].day : null;
+  const intraday = lastSession ? await getIntradaySeries(trader.id, lastSession) : [];
+
   /* NARROWED HERE, BEFORE ANYTHING RENDERS, so the chart, the roster and the rail all receive the
      same set and cannot disagree about what "your accounts" means. The panel is handed `all`
      separately - its options and its account tree are built off the UNFILTERED roster, or filtering
@@ -82,6 +92,10 @@ export default async function AccountsPage({
         rail={<AccountsRail accounts={accounts} />}
         filter={filter}
         allAccounts={all}
+        /* SERIALISED AT THE BOUNDARY. `at` is a `Date` on the server and arrives as a string on the
+           client whether or not it is spelled that way - so it is spelled that way. */
+        intradayRows={intraday.map((r) => ({ ...r, at: r.at.toISOString() }))}
+        zone={trader.displayTimezone}
       />
     </div>
   );

@@ -59,26 +59,44 @@ export function useChartView(): ChartView {
 export function ChartViewProvider({
   children,
   byAccount,
+  intraday,
   endsOn,
 }: {
   children: React.ReactNode;
   /** Each counted account's cumulative line, keyed by account id. */
   byAccount: Map<string, Point[]>;
+  /* THE SAME SHAPE OVER THE LAST SESSION, keyed by INSTANT rather than by day. A second map rather
+     than a second provider: every consumer below - the chart, the group headers' change, the row
+     sparklines - has to switch source together or the page would show a 1-day chart over week-old
+     sparklines. One `pick` decides it once, here. */
+  intraday: Map<string, Point[]>;
   /** The last day anything traded — the anchor every range is measured back from. Null when the
    *  corpus is empty, where no window is meaningful. */
   endsOn: string | null;
 }) {
-  const [kind, setKind] = useState<Kind>('cumulative');
+  const [pickedKind, setKind] = useState<Kind>('cumulative');
   const [range, setRange] = useState<Range>('all');
+
+  /* A 1-DAY BREAKDOWN IS ONE BAR, which is the useless control `grainFor` exists to prevent - the
+     breakdown buckets by DAY and a single session holds exactly one of those.
+     FORCED RATHER THAN DISABLED, and the trader's own choice is REMEMBERED: picking 1d while on
+     Breakdown draws the cumulative curve, and leaving 1d puts Breakdown back. Disabling the menu
+     entry would strand someone on a control they did not turn off; silently rewriting `kind` in
+     state would lose what they had picked. */
+  const kind: Kind = range === '1d' ? 'cumulative' : pickedKind;
 
   const start = useMemo(
     () => (endsOn === null ? null : windowStart(range, endsOn)),
     [range, endsOn]
   );
 
+  /* WHICH CORPUS THIS RANGE IS ASKING ABOUT. 1d is the only range whose points are not days, so it
+     is the only one that reads the other map. */
+  const source = range === '1d' ? intraday : byAccount;
+
   const seriesFor = useCallback(
-    (ids: string[]) => sumSeries(ids.map((id) => byAccount.get(id) ?? [])),
-    [byAccount]
+    (ids: string[]) => sumSeries(ids.map((id) => source.get(id) ?? [])),
+    [source]
   );
 
   const changeFor = useCallback(
@@ -88,7 +106,7 @@ export function ChartViewProvider({
 
   const shapeFor = useCallback(
     (id: string) => {
-      const s = byAccount.get(id) ?? [];
+      const s = source.get(id) ?? [];
       if (!start || s.length === 0) return s;
       /* ONE POINT OF LEAD-IN, so the first day inside the window draws from the level it actually
          started at rather than from wherever the slice happened to open. */
@@ -96,7 +114,7 @@ export function ChartViewProvider({
       if (from < 0) return [];
       return s.slice(from > 0 ? from - 1 : 0);
     },
-    [byAccount, start]
+    [source, start]
   );
 
   const value = useMemo<ChartView>(

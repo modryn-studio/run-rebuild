@@ -42,6 +42,7 @@ import { fmtMoney } from '@/lib/format';
 import {
   RANGES,
   RANGE_LABELS,
+  isInstantKey,
   bucketize,
   grainFor,
   windowChange,
@@ -93,7 +94,26 @@ function compactMoney(cents: number): string {
 /* A DATE THE AXIS CAN AFFORD. `displayDayShort` gives "Jul 7, 2026", which is right in a rail of
  * stated facts and too long for two ends of a plot. The year comes back only when the window
  * actually crosses one — otherwise it is the same four digits printed twice, saying nothing. */
-function axisDate(day: string, withYear: boolean): string {
+function axisDate(day: string, withYear: boolean, zone: string): string {
+  /* A 1-DAY POINT IS AN INSTANT, so its axis label is a CLOCK rather than a date - "Jul 21" printed
+     at both ends of a session would be the same three characters saying nothing about a window
+     whose whole content is the hours between them.
+     IN THE TRADER'S OWN ZONE, which is what `display_timezone` is for and the only correct answer
+     for a wall clock shown to a person. It must never reach the BUCKETING, which is why the session
+     this chart is drawing was chosen by `session_date` upstream and not by anything here. */
+  if (isInstantKey(day)) {
+    /* THE WEEKDAY COMES WITH IT, and that is not decoration. A session runs 17:00 to 17:00, so both
+       ends of the axis print "5:00 PM" - the same four characters twice, saying nothing about the
+       window between them. Measured on the running page before the weekday was added. The day is
+       what makes the two ends different, and it is also the honest shape of a futures session:
+       it starts the evening BEFORE the date it carries. */
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      weekday: 'short',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(new Date(day));
+  }
   const [y, m, d] = day.split('-').map(Number);
   return new Intl.DateTimeFormat('en-US', {
     timeZone: 'UTC',
@@ -103,14 +123,17 @@ function axisDate(day: string, withYear: boolean): string {
   }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
-/** Fractional days since epoch, so the x axis is real time rather than position in an array. */
-const dayNum = (day: string) => new Date(`${day}T00:00:00Z`).getTime() / 86_400_000;
+/** Fractional days since epoch, so the x axis is real time rather than position in an array.
+ *  An instant key already parses on its own; only a bare calendar date needs the midnight suffix. */
+const dayNum = (day: string) =>
+  (isInstantKey(day) ? new Date(day) : new Date(`${day}T00:00:00Z`)).getTime() / 86_400_000;
 
 type Kind = 'cumulative' | 'breakdown';
 
 /** The phone's chip labels. The long form stays on the desktop menu, which is the control a wide
  *  viewport meets first. */
 const SHORT_LABELS: Record<Range, string> = {
+  '1d': '1D',
   '1w': '1W',
   '1m': '1M',
   '3m': '3M',
@@ -120,6 +143,8 @@ const SHORT_LABELS: Record<Range, string> = {
 };
 
 export function PnlChart({
+  zone,
+  intradaySeries,
   series,
   counted,
   baseDollars,
@@ -128,6 +153,10 @@ export function PnlChart({
   counted: number;
   /** Total stated account size behind the figure, or null when any account in scope has none. */
   baseDollars: number | null;
+  /** `trader.display_timezone`. DISPLAY ONLY — it labels the 1-day axis and never buckets. */
+  zone: string;
+  /** The last session's cumulative curve, keyed by instant. Already windowed; never sliced here. */
+  intradaySeries: Point[];
 }) {
   /* THE PERIOD IS THE PAGE'S, NOT THIS CARD'S. It governs the group headers and every row's
      sparkline too, so it lives in `ChartViewProvider` where all three read one value. */
@@ -135,6 +164,21 @@ export function PnlChart({
   const [hover, setHover] = useState<number | null>(null);
 
   const view = useMemo(() => {
+    /* 1d IS ITS OWN SERIES, NOT A SLICE OF THIS ONE, and that is the whole reason it needed a second
+       read. Slicing the daily total by the session's open INSTANT is what this did before the branch
+       existed, and it silently half-worked: "2026-07-21" string-compares as greater than
+       "2026-07-20T22:00:00Z", so the slice landed on the last two DAILY points and drew a two-point
+       line that looked like a chart. The fold has already windowed this one exactly. */
+    if (range === '1d') {
+      return {
+        points: intradaySeries,
+        bars: [],
+        start: null as string | null,
+        total: series.length > 0 ? series[series.length - 1].cents : 0,
+        change:
+          intradaySeries.length > 0 ? intradaySeries[intradaySeries.length - 1].cents : 0,
+      };
+    }
     if (series.length === 0) {
       return { points: [], bars: [], start: null as string | null, total: 0, change: 0 };
     }
@@ -155,7 +199,7 @@ export function PnlChart({
       total: series[series.length - 1].cents,
       change: windowChange(series, start).change,
     };
-  }, [series, range, kind]);
+  }, [series, intradaySeries, range, kind]);
 
   const active = kind === 'cumulative' ? view.points : view.bars;
   /* CLAMPED DURING RENDER, not corrected in an effect. `hover` is an INDEX, and changing the range
@@ -246,7 +290,7 @@ export function PnlChart({
           )}
         </div>
 
-        <Plot kind={kind} points={view.points} bars={view.bars} at={at} onHover={setHover} />
+        <Plot kind={kind} points={view.points} bars={view.bars} at={at} onHover={setHover} zone={zone} />
 
         {/* PHONE ONLY: the period as a chip row UNDER the chart. One tap instead of two, and it
             never covers the thing it is about — which a menu opening over a 390px chart does.
@@ -279,7 +323,9 @@ function Plot({
   bars,
   at,
   onHover,
+  zone,
 }: {
+  zone: string;
   kind: Kind;
   points: Point[];
   bars: { day: string; cents: number }[];
@@ -482,6 +528,7 @@ function Plot({
             and its figure. */}
         {at !== null && hasData && (
           <Tip
+            zone={zone}
             kind={kind}
             label={kind === 'cumulative' ? points[at].day : bars[at].day}
             cents={kind === 'cumulative' ? points[at].cents : bars[at].cents}
@@ -503,11 +550,14 @@ function Plot({
             className="text-caption text-muted absolute right-0 flex justify-between tabular-nums"
             style={{ left: 'var(--axis-gutter)', top: PLOT_BOTTOM + AXIS_GAP }}
           >
-            <span>{axisDate(kind === 'cumulative' ? points[0].day : bars[0].day, multiYear)}</span>
+            <span>
+              {axisDate(kind === 'cumulative' ? points[0].day : bars[0].day, multiYear, zone)}
+            </span>
             <span>
               {axisDate(
                 kind === 'cumulative' ? points[points.length - 1].day : bars[bars.length - 1].day,
-                multiYear
+                multiYear,
+                zone
               )}
             </span>
           </div>
@@ -518,6 +568,7 @@ function Plot({
 }
 
 function Tip({
+  zone,
   kind,
   label,
   cents,
@@ -527,6 +578,7 @@ function Tip({
   label: string;
   cents: number;
   leftPct: number;
+  zone: string;
 }) {
   /* IT LEANS AWAY FROM THE EDGE IT IS NEAR, and it is offset from the column rather than centred on
      it — v2 centred the panel on the hovered x, which put it exactly over the bar it was
@@ -545,7 +597,7 @@ function Tip({
       {/* THE TOOLTIP NAMES THE BUCKET IN FULL, which the axis cannot afford. It appears one at a
           time and has the room, so the year stays: a hovered point should not make the reader work
           out which year they are looking at from the two ends of the plot. */}
-      <p className="text-caption text-muted">{axisDate(label, true)}</p>
+      <p className="text-caption text-muted">{axisDate(label, true, zone)}</p>
       <p className="text-body text-text font-medium tabular-nums">{signed(cents)}</p>
     </div>
   );
