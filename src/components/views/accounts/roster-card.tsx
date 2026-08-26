@@ -149,10 +149,10 @@ function Row({ a, freshness }: { a: RosterAccount; freshness: Date | null }) {
         </span>
         {/* THE PROMPT IS THE SUB-LINE ITSELF, never a second element beside it. An unnamed account
             asks to be named in the one slot that would otherwise repeat what the figure says. */}
-        <span className="text-body text-muted block truncate">
+        <p className="text-body text-muted truncate">
           {a.productName ??
             (named ? `${a.trades.toLocaleString('en-US')} trades` : 'Name this account')}
-        </span>
+        </p>
       </span>
 
       <span className="flex shrink-0 items-center gap-4 sm:gap-6">
@@ -168,34 +168,37 @@ function Row({ a, freshness }: { a: RosterAccount; freshness: Date | null }) {
           </span>
         )}
 
-        {/* AN EXCLUDED ROW KEEPS ITS OWN NUMBER. Its figure is real and it is the trader's; it is
+        {/* THE MARKER AND THE FIGURE TRAVEL TOGETHER (v2's own grouping). At the row's outer `gap-4`
+            the eye sat as far from the number it qualifies as the sparkline does, reading as a
+            fourth column rather than as an annotation on the money. */}
+        <span className="flex shrink-0 items-center gap-2">
+          {/* AN EXCLUDED ROW KEEPS ITS OWN NUMBER. Its figure is real and it is the trader's; it is
             simply not part of a total. Dropping it would answer a question nobody asked - marking
             it answers the one they will, which is "why doesn't this add up". */}
-        {a.excludedFromTotals && (
-          <span
-            className="text-muted shrink-0"
-            role="img"
-            aria-label="Left out of the chart and the group total"
-            title="Left out of the chart and the group total"
-          >
-            <Icon name="eye" size={16} />
-          </span>
-        )}
+          {a.excludedFromTotals && (
+            <span
+              className="text-muted shrink-0"
+              role="img"
+              aria-label="Left out of the chart and the group total"
+              title="Left out of the chart and the group total"
+            >
+              <Icon name="eye" size={16} />
+            </span>
+          )}
 
-        {/* A FLOOR, NOT A WIDTH (v2, measured). Right-aligned figures share a right edge and rag on
+          {/* A FLOOR, NOT A WIDTH (v2, measured). Right-aligned figures share a right edge and rag on
             the left, so a $54 row and a $15,030.01 row start 60px apart and anything beside them
             steps in and out down the column. A bigger number pushes past this rather than clipping. */}
-        <span className="min-w-27 text-right">
-          <span className="text-body-lg text-text block font-medium tabular-nums">
-            {signed(a.netCents)}
-          </span>
-          {/* THE STAMP ANSWERS WHAT THE FIGURE CANNOT: a number with no timestamp cannot tell you
+          <span className="min-w-27 text-right">
+            <p className="text-body-lg text-text font-medium tabular-nums">{signed(a.netCents)}</p>
+            {/* THE STAMP ANSWERS WHAT THE FIGURE CANNOT: a number with no timestamp cannot tell you
               whether it is this morning's or last month's. This is P5, the direct answer to the
               field's defining failure. */}
-          {/* A TIER BELOW THE FIGURE. v2 sets `text-small text-faint`; `faint` was deleted here
+            {/* A TIER BELOW THE FIGURE. v2 sets `text-small text-faint`; `faint` was deleted here
               (two content tiers, not three) so this is `text-caption text-muted`, which is the same
               IDEA in this build's scale. At `text-body` it competed with the money above it. */}
-          {stamp && <span className="text-caption text-muted block">{stamp}</span>}
+            {stamp && <p className="text-caption text-muted">{stamp}</p>}
+          </span>
         </span>
       </span>
     </Link>

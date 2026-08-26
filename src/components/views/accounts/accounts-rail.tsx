@@ -19,6 +19,7 @@
  */
 
 import { Card } from '@/components/ui/card';
+import { DownloadRosterCsv } from './download-roster-csv';
 import { fmtMoney } from '@/lib/format';
 import { ACCOUNT_TYPE_LABELS, type AccountTypeKey } from '@/lib/prop-firms';
 import type { RosterAccount } from '@/lib/accounts/read';
@@ -35,7 +36,7 @@ function summarize(all: RosterAccount[]): Line[][] {
   const counted = all.filter((a) => !a.excludedFromTotals);
 
   if (all.length === 0) {
-    return [[{ label: 'Accounts', value: '0' }], [{ label: 'Net P&L', value: fmtMoney(0) }]];
+    return [[{ label: 'Accounts', value: '0' }], [{ label: 'Total P&L', value: fmtMoney(0) }]];
   }
 
   const groups: Line[][] = [];
@@ -56,7 +57,16 @@ function summarize(all: RosterAccount[]): Line[][] {
 
   const made: Line[] = [
     {
-      label: 'Net P&L',
+      /* `Total P&L`, NOT `Net P&L` (2026-08-26). The chart directly above this rail carries the
+         eyebrow TOTAL P&L over the identical figure, so the page was calling one number two things
+         within 300px of itself. v2 says Total in both places.
+         `/trades` keeps `Net P&L` for a real reason that does not apply here: it flips to
+         `Gross P&L` when no Cash History covers the range, which is how that page satisfies "any
+         surface showing a net figure states whether fees were imported". This rail is a roster
+         rollup across accounts whose fee coverage can differ per account, so one label cannot make
+         that claim honestly for all of them - the per-account answer belongs on `/accounts/details`,
+         where there IS one account to answer for. */
+      label: 'Total P&L',
       value: signed(counted.reduce((n, a) => n + a.netCents, 0)),
       strong: true,
     },
@@ -107,6 +117,7 @@ export function AccountsRail({ accounts }: { accounts: RosterAccount[] }) {
           </div>
         ))}
       </dl>
+      <DownloadRosterCsv accounts={accounts} />
     </Card>
   );
 }
