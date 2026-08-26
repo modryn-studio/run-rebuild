@@ -3,7 +3,13 @@ import { and, asc, desc, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-or
 import { db, trade, account, importBatch } from '@/lib/db';
 import type { TradeState } from '@/lib/db';
 import type { AccountStatus, AccountType } from '@/lib/db/schema';
-import { firmLogoSrc, accountRowTitle, accountShortTitle, UNLABELLED_FIRM } from '@/lib/prop-firms';
+import {
+  firmLogoSrc,
+  accountRowTitle,
+  accountShortTitle,
+  accountTitleParts,
+  UNLABELLED_FIRM,
+} from '@/lib/prop-firms';
 import { rootsMatchingName } from '@/lib/instruments';
 import type { TradesFilter } from './filter';
 import type { FacetRow } from './facets';
@@ -33,6 +39,13 @@ export interface TapeRow {
   id: string;
   accountId: string;
   accountName: string;
+  /* THE TITLE'S TWO HALVES, split by `accountTitleParts` where `accountRowTitle` joined them.
+     Sent rather than re-derived on the client: the tape has to truncate this string and the ONLY
+     safe cut is the composition boundary. A client-side split would be arithmetic on a string whose
+     shape it cannot see, which is precisely the bug that shipped here once. `accountName` stays
+     because the export and the drawer want the whole thing. */
+  accountHead: string;
+  accountTail: string;
   /** The firm's mark, resolved here so the row does not have to know how logos are addressed.
    *  Null when the account is unlabelled, which is a normal state until the labelling step lands. */
   firmLogo: string | null;
@@ -265,6 +278,10 @@ async function selectTapeRows(
       ...rest,
       netCents: r.grossCents + r.feeCents,
       accountName: accountRowTitle({ displayName, externalAccountId, propFirm, sizeDollars }),
+      ...(() => {
+        const parts = accountTitleParts({ displayName, externalAccountId, propFirm, sizeDollars });
+        return { accountHead: parts.head, accountTail: parts.tail };
+      })(),
       firmLogo: propFirm ? firmLogoSrc(propFirm) : null,
     };
   });

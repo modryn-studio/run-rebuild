@@ -315,6 +315,33 @@ export function accountShortTitle(a: AccountName): string {
   return [size, last4].filter(Boolean).join(' ') || a.propFirm;
 }
 
+/* THE TITLE, SPLIT WHERE IT IS ALLOWED TO BREAK. One definition, because more than one surface has
+ * to truncate this string and each of them must cut in the SAME place.
+ *
+ *   head  the firm - "Apex Trader Funding". This is the half that gives way.
+ *   tail  "50K (...4021)" - the size and the last four. This NEVER truncates.
+ *
+ * WHY THE TAIL IS SACRED: a plain `truncate` eats from the RIGHT, taking exactly the characters
+ * that say WHICH account. A copy-trader running one strategy across twelve Apex accounts is reading
+ * those four digits and nothing else; the firm is the half they already know.
+ *
+ * NOT A CHARACTER COUNT. The tape shipped `name.slice(0, -4)` / `name.slice(-4)` for one release,
+ * which split "Apex Trader Funding 50K (...4021)" into head "…50K (...4" and tail "021)" - so a
+ * squeezed row lost the size AND half the digits while the code comment above it claimed the digits
+ * could not truncate. Splitting at the composition boundary cannot do that, because the boundary is
+ * where `accountRowTitle` JOINED the two halves in the first place.
+ *
+ * A DISPLAY NAME HAS NO TAIL. It is the name the trader typed; there is nothing to protect from
+ * truncation and no boundary to split on. Same for a placeholder key.
+ */
+export function accountTitleParts(a: AccountName): { head: string; tail: string } {
+  if (a.displayName) return { head: a.displayName, tail: '' };
+  if (!a.propFirm) return { head: placeholderAccountTitle(a.externalAccountId), tail: '' };
+  const size = a.sizeDollars ? sizeLabel(a.sizeDollars) : '';
+  const last4 = accountLast4(a.externalAccountId).trim();
+  return { head: a.propFirm, tail: [size, last4].filter(Boolean).join(' ') };
+}
+
 /** " (...3685)", or nothing for one of Run's own placeholder keys — those digits are a uuid
  *  fragment and would read as an account number the trader could go and check. */
 export function accountLast4(externalAccountId: string): string {

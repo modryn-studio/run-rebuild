@@ -26,6 +26,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
+import { IconButton } from '@/components/ui/icon-button';
+import { AddSlot } from '@/components/ui/add-slot';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
 import { fmtMoney } from '@/lib/format';
@@ -194,10 +196,16 @@ function Row({ a, freshness }: { a: RosterAccount; freshness: Date | null }) {
             {/* THE STAMP ANSWERS WHAT THE FIGURE CANNOT: a number with no timestamp cannot tell you
               whether it is this morning's or last month's. This is P5, the direct answer to the
               field's defining failure. */}
-            {/* A TIER BELOW THE FIGURE. v2 sets `text-small text-faint`; `faint` was deleted here
-              (two content tiers, not three) so this is `text-caption text-muted`, which is the same
-              IDEA in this build's scale. At `text-body` it competed with the money above it. */}
-            {stamp && <p className="text-caption text-muted">{stamp}</p>}
+            {/* `text-body` (14px), THE SAME TIER AS THE ROW'S OTHER METADATA (2026-08-26, Luke:
+              "check the size of text on the account cards like the prices and the last updated
+              times"). It was `text-caption` (11px), which made one row carry THREE sizes - 16 for
+              the name and figure, 14 for the sub-line, 11 for this - against the house rule that a
+              row is ONE type size with metadata one tier under it, not two. 11px is also smaller
+              than anything `/trades` prints; that page deleted its last 12px for this exact reason.
+              Monarch, the reference for this card, sets its "21 hours ago" at 14px - identical to
+              its own sub-label - beside an 18px figure. Muted is what marks this secondary; it does
+              not also need to be smaller. */}
+            {stamp && <p className="text-body text-muted">{stamp}</p>}
           </span>
         </span>
       </span>
@@ -252,19 +260,20 @@ function Group({
         />
         {/* DESKTOP: a real button, so it is reachable by keyboard and cannot be swallowed by a drag
             that starts on the bar beside it. */}
-        <button
-          type="button"
+        {/* `IconButton`, NOT A HAND-ROLLED COPY OF IT (2026-08-26, Luke: "the account cards
+            show/hide button. that should be icon button. that doesn't have a muted icon"). This was
+            `lift-press ... h-9 w-9 ... rounded-full` re-typed by hand WITH `text-muted
+            hover:text-text` - which is the exact ink `icon-button.tsx` carries a comment about
+            having removed, because it "sat every icon control in the product one ink tier down".
+            The hand-rolled copy had preserved the bug the primitive was fixed to kill. */}
+        <IconButton
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-label={`${open ? 'Collapse' : 'Expand'} ${title}`}
-          className="lift-press text-muted hover:text-text hidden h-9 w-9 shrink-0 items-center justify-center rounded-full sm:flex"
+          className="hidden sm:flex"
         >
-          <Icon
-            name="chevron"
-            size={16}
-            className={cn('transition-transform', !open && '-rotate-90')}
-          />
-        </button>
+          <Icon name="chevron" className={cn('transition-transform', !open && '-rotate-90')} />
+        </IconButton>
         {/* ONE SET OF NODES, TWO LAYOUTS. Rendering the total twice behind visibility classes puts
             the same money on the page twice and invites the two copies to drift. */}
         <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 sm:flex">
@@ -369,16 +378,7 @@ export function RosterCard({
         <Group key={g.key} title={g.title} rows={g.rows} freshness={freshness} />
       ))}
 
-      {/* THE ONLY DASHED THING ON THE PAGE, and it earns it: a dashed edge reads as a slot waiting
-          to be filled rather than as an object that exists. */}
-      <button
-        type="button"
-        onClick={onAdd}
-        className="border-border text-body text-muted hover:text-text hover:border-muted flex min-h-14 w-full items-center justify-center gap-2 rounded-[var(--radius)] border border-dashed font-medium transition-colors"
-      >
-        <Icon name="add" size={16} />
-        Add an account
-      </button>
+      <AddSlot onClick={onAdd}>Add an account</AddSlot>
     </div>
   );
 }

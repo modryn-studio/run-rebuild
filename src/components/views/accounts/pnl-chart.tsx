@@ -58,6 +58,24 @@ const PLOT_BOTTOM = 234;
 const GRIDLINES = 6;
 const AXIS_GAP = 17;
 
+/* THE GUTTER FITS ITS LABELS RATHER THAN BEING A CONSTANT (2026-08-26, Luke: "why are we not
+ * utilizing the full width of the /accounts page's chart... why do we have a gap there on the left
+ * side?").
+ *
+ * IT WAS A HARD 70px, ported from v2 where it is correct: v2's corpus is 29 accounts and its axis
+ * reads "-$26.4K", which very nearly fills 70. Measured on this build's roster the widest label is
+ * "-$1.3K" at 33px, so 25px of every chart was dead air pinned to the card's left edge - a constant
+ * measured against one corpus's digit count, applied to another's.
+ *
+ * `ch` ON A TABULAR FIGURE IS EXACT FOR THE DIGITS, which are the characters that vary: the labels
+ * render `tabular-nums`, so every digit is one `ch` wide. The punctuation ($ - . K) is not, and is
+ * mostly NARROWER, so this rounds up - which is the safe direction, since a gutter one pixel short
+ * clips the label and a gutter one pixel long is invisible.
+ *
+ * THE FLOOR IS THE LABEL'S OWN PADDING. With no data there are no labels and the gutter collapses
+ * to the 12px breathing room, which is what lets an empty chart use its whole card. */
+const AXIS_PAD = 12;
+
 const signed = (cents: number) => (cents > 0 ? `+${fmtMoney(cents)}` : fmtMoney(cents));
 
 /* THE AXIS SPEAKS IN THOUSANDS. Six gridlines carrying `-$19,732.41` each is six long strings the
@@ -282,6 +300,16 @@ function Plot({
 
   const yPct = (c: number) => ((max - c) / (max - min)) * 100;
 
+  /* THE WIDEST LABEL THE AXIS WILL ACTUALLY PRINT, computed from the same expression that renders
+     them below - so the gutter and its contents cannot disagree. Not the longest of `max`/`min`:
+     the widest string is often an INTERIOR gridline ("-$1.3K" beats "$612"), and taking the ends
+     would clip it. */
+  const axisChars = hasData
+    ? Array.from({ length: GRIDLINES }, (_, i) =>
+        compactMoney(Math.round(max - (i * (max - min)) / (GRIDLINES - 1))).length
+      ).reduce((w, n) => (n > w ? n : w), 0)
+    : 0;
+
   const spanStart = points.length > 0 ? dayNum(points[0].day) : 0;
   const spanDays = points.length > 0 ? dayNum(points[points.length - 1].day) - spanStart : 0;
   const xPct = (day: string) => (spanDays === 0 ? 0 : ((dayNum(day) - spanStart) / spanDays) * 100);
@@ -298,7 +326,14 @@ function Plot({
     /* FULL BLEED ON A PHONE. `max-sm:-mx-4` cancels the page column's own 16px gutter so the plot
        runs edge to edge - at 390px the card has no chrome anyway, and 32px of the width is a lot to
        spend on air beside a line whose shape is the whole point. */
-    <div className="relative mt-4 w-full [--axis-gutter:0px] [--chart-h:242px] max-sm:-mx-4 max-sm:w-auto sm:[--axis-gutter:70px] sm:[--chart-h:275px]">
+    /* `--axis-w` IS SET INLINE, `--axis-gutter` PICKS IT UP AT `sm`. An inline style cannot carry a
+       media query, and the gutter has to be 0 on a phone (no labels) and content-sized above it -
+       so the measured value goes in its own variable and the responsive class does the switching.
+       Both still resolve on the FIRST paint, which is why this is CSS rather than a width check. */
+    <div
+      className="relative mt-4 w-full [--axis-gutter:0px] [--chart-h:242px] max-sm:-mx-4 max-sm:w-auto sm:[--axis-gutter:var(--axis-w)] sm:[--chart-h:275px]"
+      style={{ '--axis-w': `calc(${axisChars}ch + ${AXIS_PAD}px)` } as React.CSSProperties}
+    >
       {/* THE PHONE'S ONLY AXIS. Six gridlines and their labels are desktop-only, so without this a
           390px chart draws a line floating in nothing with no baseline to read it against. Dashed
           rather than solid so it reads as a reference rather than as data. */}
@@ -343,7 +378,7 @@ function Plot({
             <div key={i} className="absolute right-0 left-0 flex items-center" style={{ top }}>
               <span
                 className="text-caption text-muted hidden shrink-0 -translate-y-1/2 text-right tabular-nums sm:block"
-                style={{ width: 'var(--axis-gutter)', paddingRight: 12 }}
+                style={{ width: 'var(--axis-gutter)', paddingRight: AXIS_PAD }}
               >
                 {hasData ? compactMoney(Math.round(value)) : ''}
               </span>

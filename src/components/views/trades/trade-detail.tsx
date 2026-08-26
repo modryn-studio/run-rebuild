@@ -77,7 +77,12 @@ export function TradeDetail({
                   // eslint-disable-next-line @next/next/no-img-element -- see above
                   <img src={t.firmLogo} alt="" className="size-5 shrink-0 rounded-full" />
                 )}
-                <span className="text-body truncate">{t.accountName}</span>
+                {/* THE SAME CUT THE TAPE MAKES. Truncating the whole composed name here ate the
+                    size and the digits - the only half that says WHICH account. */}
+                <span className="text-body flex min-w-0 gap-1">
+                  <span className="truncate">{t.accountHead}</span>
+                  {t.accountTail && <span className="shrink-0">{t.accountTail}</span>}
+                </span>
               </span>
             </div>
           </div>

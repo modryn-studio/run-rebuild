@@ -519,7 +519,7 @@ function Row({
           `text-body-lg` on the instrument. */}
       {!hidden.includes('account') && (
         <span className="text-body-lg text-text hidden min-w-0 flex-1 items-center gap-1.5 sm:flex">
-          <AccountName name={t.accountName} logo={t.firmLogo} />
+          <AccountName head={t.accountHead} tail={t.accountTail} logo={t.firmLogo} />
         </span>
       )}
 
@@ -605,26 +605,23 @@ function Row({
 
 /* WHICH ACCOUNT: the firm's mark, its name, and the four digits that identify the row.
  *
- * THE DIGITS NEVER TRUNCATE, THE FIRM DOES. A plain `truncate` eats from the RIGHT, which cuts
- * exactly the tail that says WHICH account — and for a copy-trader running one strategy across
- * twelve of them, that tail is the only part they are reading. So the tail is its own `shrink-0`
- * span and the head takes the squeeze.
+ * THE SIZE AND THE DIGITS NEVER TRUNCATE, THE FIRM DOES. A plain `truncate` eats from the RIGHT,
+ * which cuts exactly the tail that says WHICH account — and for a copy-trader running one strategy
+ * across twelve of them, that tail is the only part they are reading. So the tail is its own
+ * `shrink-0` span and the head takes the squeeze. It is the same cut the filter panel's `Chip`
+ * makes, from the same `accountTitleParts`, so a chip and the rows it selects shorten identically.
  *
- * NOT `accountLast4`, WHICH IS A DIFFERENT JOB and reaching for it here shipped a real defect for
- * one render: that helper COMPOSES a bracketed suffix for a firm name, so using it to SPLIT a
- * string made the head `name.slice(0, len - 9)` and the row read "FTDFYL100 (...4873)" — the middle
- * digits dropped by arithmetic rather than by truncation, which is a wrong string rather than a
- * shortened one. Splitting the name itself cannot do that: every character is still rendered, and
- * the browser decides what fits.
+ * THE SPLIT COMES FROM THE SERVER, WHERE THE TITLE WAS COMPOSED (2026-08-26, Luke: "keep the size
+ * and account number untouched. truncate the name only"). This shipped as `name.slice(0, -4)` /
+ * `name.slice(-4)` — a blind FOUR-CHARACTER count that cut "Apex Trader Funding 50K (...4021)" into
+ * head "…50K (...4" and tail "021)". So a squeezed row lost the size and half the digits, while the
+ * comment sitting right here claimed the digits could not truncate. Any arithmetic split has this
+ * failure mode; the composition boundary is the only cut that does not.
  *
  * THE LOGO IS ON A PERMANENTLY LIGHT TILE, the same `--color-logo-tile` the Add-account modal uses:
  * a firm ships one asset that assumes a light ground, so theming the tile would put a light-only
  * mark on a dark chip. */
-function AccountName({ name, logo }: { name: string; logo: string | null }) {
-  const TAIL = 4;
-  const long = name.length > 8;
-  const head = long ? name.slice(0, -TAIL) : name;
-  const tail = long ? name.slice(-TAIL) : '';
+function AccountName({ head, tail, logo }: { head: string; tail: string; logo: string | null }) {
   return (
     <>
       {logo && (
@@ -640,10 +637,11 @@ function AccountName({ name, logo }: { name: string; logo: string | null }) {
           <img src={logo} alt="" aria-hidden className="h-full w-full object-contain" />
         </span>
       )}
-      {/* HEAD AND TAIL IN THEIR OWN GAPLESS BOX. They are two halves of ONE token, and the row's
-          `gap-1.5` (which exists to space the logo off the name) was landing between them too:
-          "FTDFYL10018370 4873", which reads as two fields rather than one truncated id. */}
-      <span className="flex min-w-0">
+      {/* HEAD AND TAIL IN ONE BOX WITH A SINGLE SPACE. The row's `gap-1.5` exists to space the logo
+          off the name and was landing between these two as well, which read as two fields rather
+          than as one name. `gap-1` is the space the string itself would have carried — flex trims
+          whitespace at an item's edge, so it has to be put back by the layout. */}
+      <span className="flex min-w-0 gap-1">
         <span className="truncate">{head}</span>
         {tail && <span className="shrink-0">{tail}</span>}
       </span>

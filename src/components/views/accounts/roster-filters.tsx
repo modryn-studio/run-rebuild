@@ -31,7 +31,7 @@ import { usePopover } from '@/components/ui/use-popover';
 import { Head, Row, Chip, PanelFooter } from '@/components/ui/filter-rows';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
-import { accountShortTitle } from '@/lib/prop-firms';
+import { accountShortTitle, accountTitleParts } from '@/lib/prop-firms';
 import {
   STATUS_LABELS,
   TYPE_LABELS,
@@ -372,14 +372,17 @@ export function RosterFilters({
                             /* THE FIRM COMES BACK HERE, unlike the tree rows: a chip sits outside
                                the tree with no group header above it. It is the head that gives way
                                when the column is tight, never the digits. */
-                            return a ? (
+                            if (!a) return null;
+                            // ONE definition of where this string may break, shared with the tape.
+                            const { head, tail } = accountTitleParts(a);
+                            return (
                               <Chip
                                 key={id}
-                                label={a.propFirm ?? 'Unlabelled'}
-                                tail={accountShortTitle(a)}
+                                label={head}
+                                tail={tail}
                                 onRemove={() => toggleAccounts([id], 'off')}
                               />
-                            ) : null;
+                            );
                           })
                         : d.key === 'types'
                           ? draft.types.map((v) => (

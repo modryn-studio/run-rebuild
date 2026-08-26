@@ -50,7 +50,12 @@ export function TrendIndicator({
        that happens to produce the same figure is not a change. */
     <div
       key={`${cents}:${periodLabel}`}
-      className="value-fade text-body flex flex-wrap items-center gap-x-1.5 gap-y-0.5"
+      /* `text-body-lg` (16px), NOT `text-body` (2026-08-26). Measured on Monarch, the reference for
+         this card: its change line is 16px/600 beside a 24px figure on the chart, and 16px again
+         beside an 18px title on each group header - the same size in both places, one step under
+         the number it qualifies rather than two. At 14px this line was the same size as the row
+         METADATA two tiers below it, so the chart's headline had nothing supporting it. */
+      className="value-fade text-body-lg flex flex-wrap items-center gap-x-1.5 gap-y-0.5"
     >
       <span
         className={cn(

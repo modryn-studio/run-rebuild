@@ -26,6 +26,11 @@ export const row = (
   id,
   accountId: 'demo',
   accountName: 'Tradeify 50K (...0007)',
+  /* THE TWO HALVES THE TAPE TRUNCATES BETWEEN. A long firm name on purpose: the rack's job is to
+     show the row under squeeze, and "Tradeify" alone never reaches the width where the cut
+     happens. */
+  accountHead: 'Tradeify',
+  accountTail: '50K (...0007)',
   // A real firm mark, because the row's account cell is one of the things being reviewed here and
   // an unlabelled account renders the half of it without a logo.
   firmLogo: '/firms/tradeify.jpeg',

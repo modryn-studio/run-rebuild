@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { AddSlot } from '@/components/ui/add-slot';
 import { Note, Row, Section } from '../_components/section';
 
 const VARIANTS = ['primary', 'secondary', 'ghost'] as const;
@@ -104,6 +105,29 @@ export function ButtonsSection() {
           left and the right with no ellipsis anywhere.
         </Note>
       </Row>
+      {/* THE DASHED ADD ROW HAD NEVER BEEN ON THE RACK (2026-08-26, Luke: "it's probably hand
+          rolled. i like it. i just dont like that it's muted. and it's not in the kitchen-sink").
+          It was a raw <button> living inside `roster-card.tsx`, so nothing measured it against the
+          buttons it sits near - which is how it kept `text-muted` long after `IconButton` had that
+          same ink removed for being one tier down. */}
+      <Row label="Add slot" note="the dashed row that appends one more of whatever a list holds">
+        <div className="max-w-md">
+          <AddSlot>Add an account</AddSlot>
+        </div>
+        <Note>
+          The only dashed object in the product, and it earns the exception to &ldquo;a border or a
+          shadow, never both&rdquo;: a solid edge draws a thing that EXISTS, a dashed one draws the
+          outline of a thing that does not yet. That is the whole claim it makes, and it is why it
+          can end a list of real cards without being mistaken for one.
+        </Note>
+        <Note>
+          Full ink, not muted. Muted is this system&apos;s metadata role, and this is an action, not
+          a note about one. Its quietness comes from the ground it does not have and from the dash.
+          56px rather than the 36px control height, because a full-width control as short as a
+          button reads as a stretched button rather than as a row.
+        </Note>
+      </Row>
+
     </Section>
   );
 }

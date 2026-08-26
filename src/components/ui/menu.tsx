@@ -161,10 +161,16 @@ export function Menu<T extends string>({
         </span>
         {/* Chevron is drawn pointing down, so the resting state needs no rotation; flipping it while
             open is the one bit of state the trigger shows about itself. */}
+        {/* FULL INK (2026-08-26, Luke: "chevrons should be full ink. check the buttons on the
+            chart"). It was `text-muted` beside a full-ink label inside one control - chrome quieter
+            than the thing it operates, which is the rule `design-system.md` states as "chrome is
+            never smaller than the content it controls" and the same tier error `icon-button.tsx`
+            was fixed for. Measured on Monarch, whose menu chevrons are its full-ink value.
+            `size={14}` GOES TOO: 14 is a real step here but the mark reads with a 14px label, and
+            `ICON_SIZE` (16) is the documented partner for `text-body`. */}
         <Icon
           name="chevron"
-          size={14}
-          className={cn('text-muted shrink-0 transition-transform', open && 'rotate-180')}
+          className={cn('shrink-0 transition-transform', open && 'rotate-180')}
         />
       </button>
 
