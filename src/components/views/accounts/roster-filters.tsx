@@ -2,23 +2,23 @@
 
 /* THE ROSTER'S FILTER, AND IT IS THE SAME OBJECT `/trades` PUTS IN THIS BAND.
  *
- * NOT A LOOKALIKE. `HeaderControl` is the trigger, `usePopover` is the open state, and `Head`, `Row`
- * and `Chip` are the panel's parts — every one of them the file `/trades` already uses. A page that
- * draws its own version of a control the app already has is how two headers drift apart while both
- * look "right" in isolation, which is exactly what Luke caught here.
- *
- * TWO COLUMNS, NOT THREE. `/trades` runs a dimension rail because it has five axes and a searchable
- * firm tree; this has two, and a rail naming two destinations is furniture. The right-hand
- * "selected" column stays, because it is what keeps the evidence of a choice visible after the
- * middle list has scrolled — v2's own reason for it.
+ * NOT A LOOKALIKE. `HeaderControl` is the trigger, `usePopover` is the open state, `Head`/`Row`/
+ * `Chip` are the panel's parts, and the panel itself is `/trades`' THREE-COLUMN DIMENSION RAIL —
+ * left the axis names, centre the selected axis's options, right everything picked, grouped by
+ * axis. A prior version of this file stacked Type and Status into one scrolling column and argued
+ * two axes were too few to earn a rail. That argument does not survive a diff: v2's OWN accounts
+ * panel runs the rail down to two axes (Status, Phase, on a roster with one Accounts-tree hidden
+ * by a single-firm gate), and `/trades` runs it at two as well the moment Products drops out. The
+ * rail is the object at every axis count above one; a flat stack is a second, different control
+ * this page had drawn for itself, which is exactly the drift Luke was pointing at.
  *
  * NOTHING IS OFFERED UNLESS THE ROSTER CAN ANSWER IT. An axis holding one distinct value is a
- * statement rather than a choice, so the gate is two-or-more (`rosterOptions`), and the whole
- * control does not render when neither axis clears it. A menu that cannot change anything is the
- * inert-control failure v2 records against its own Refresh button.
+ * statement rather than a choice, so the gate is two-or-more (`rosterOptions`), and a dimension
+ * that fails it drops out of the rail the same way Products drops out of `/trades`'. The whole
+ * control does not render when neither axis clears it.
  */
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Icon } from '@/components/ui/icon';
 import { HeaderControl } from '@/components/shell/header-slot';
@@ -34,6 +34,8 @@ import {
 } from '@/lib/accounts/roster-filter';
 import type { AccountStatus, AccountType } from '@/lib/db/schema';
 
+type Dim = 'types' | 'status';
+
 type Options = {
   status: { value: AccountStatus; count: number }[];
   types: { value: AccountType; count: number }[];
@@ -46,10 +48,27 @@ export function RosterFilters({ applied, options }: { applied: RosterFilter; opt
   const params = useSearchParams();
 
   const [draft, setDraft] = useState<RosterFilter>(applied);
+
+  /* THE RAIL, same shape as `/trades`': a dimension drops out the moment its own axis cannot
+     answer anything, and the order (Type, then Status) is what the stacked version already used —
+     nothing about which axis reads first was the part Luke flagged. */
+  const dims = (
+    [
+      { key: 'types' as const, label: 'Type', picked: draft.types.length, has: options.hasTypes },
+      { key: 'status' as const, label: 'Status', picked: draft.status.length, has: options.hasStatus },
+    ] satisfies { key: Dim; label: string; picked: number; has: boolean }[]
+  ).filter((d) => d.has);
+
+  const [dim, setDim] = useState<Dim>(dims[0]?.key ?? 'types');
+
   /* RESEEDED ON OPEN, not on every render. `applied` is a fresh object each time the server
      responds, so watching it would reset a staged tick the moment an unrelated navigation landed —
-     the defect `filter-sheet.tsx` had to be dug out of. */
-  const { open, setOpen, toggle, root, panel } = usePopover(() => setDraft(applied));
+     the defect `filter-sheet.tsx` had to be dug out of. The rail resets to its first axis too, or a
+     panel closed on Status would reopen there instead of at the top. */
+  const { open, setOpen, toggle, root, panel } = usePopover(() => {
+    setDraft(applied);
+    setDim(dims[0]?.key ?? 'types');
+  });
 
   const count = activeCount(applied);
   const total = draft.status.length + draft.types.length;
@@ -80,24 +99,11 @@ export function RosterFilters({ applied, options }: { applied: RosterFilter; opt
       types: d.types.includes(v) ? d.types.filter((x) => x !== v) : [...d.types, v],
     }));
 
-  const chips = useMemo(
-    () => [
-      ...draft.status.map((v) => ({
-        key: `s:${v}`,
-        label: STATUS_LABELS[v],
-        drop: () => toggleStatus(v),
-      })),
-      ...draft.types.map((v) => ({
-        key: `t:${v}`,
-        label: TYPE_LABELS[v],
-        drop: () => toggleType(v),
-      })),
-    ],
-    [draft]
-  );
+  const clearDim = (key: Dim) =>
+    setDraft((d) => (key === 'types' ? { ...d, types: [] } : { ...d, status: [] }));
 
-  // Neither axis can answer anything: the control itself is the thing that should not be here.
-  if (!options.hasStatus && !options.hasTypes) return null;
+  // No axis can answer anything: the control itself is the thing that should not be here.
+  if (dims.length === 0) return null;
 
   return (
     <div ref={root} className="relative">
@@ -127,16 +133,50 @@ export function RosterFilters({ applied, options }: { applied: RosterFilter; opt
           role="dialog"
           aria-modal="true"
           aria-label="Filter accounts"
-          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 w-[min(32rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--radius)] shadow-[var(--shadow-card)] outline-none"
+          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 w-[min(44rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--radius)] shadow-[var(--shadow-card)] outline-none"
         >
           <div className="divide-rule flex flex-col sm:flex-row sm:divide-x">
-            <div className="flex min-w-0 flex-1 flex-col">
+            {/* LEFT: the axes. A count rather than a tick — a rail row is not a choice you make,
+                it is a place you go, and what it reports is how much is waiting there. */}
+            <div className="flex shrink-0 flex-col sm:w-[8.75rem]">
               <Head>Filters</Head>
-              <div className="scroll-thin max-h-[20.625rem] overflow-y-auto overscroll-contain p-2">
-                {options.hasTypes && (
-                  <>
-                    <p className="text-body text-muted px-1 pt-1 pb-1.5 font-medium">Type</p>
-                    {options.types.map((o) => (
+              <div className="p-2">
+                {dims.map((d) => (
+                  <button
+                    key={d.key}
+                    type="button"
+                    aria-pressed={dim === d.key}
+                    onClick={() => setDim(d.key)}
+                    className={cn(
+                      'flex min-h-9 w-full items-center gap-2 rounded-[var(--radius-sm)] px-2 text-left transition-colors',
+                      dim === d.key
+                        ? 'bg-selected text-text font-medium'
+                        : 'text-text hover:bg-selected'
+                    )}
+                  >
+                    <span className="text-body min-w-0 flex-1 truncate">{d.label}</span>
+                    {d.picked > 0 && (
+                      <span className="bg-accent text-accent-fg text-caption shrink-0 rounded-full px-1.5 font-semibold tabular-nums">
+                        {d.picked}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* CENTRE: the selected axis's options. Neither axis is an account tree, so the header
+                is just the axis name — the search field `/trades` puts here belongs to a list too
+                long to scan, and Type and Status never grow past four rows. */}
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="border-rule flex h-12 shrink-0 items-center gap-2 border-b px-3">
+                <span className="text-body text-text font-medium">
+                  {dims.find((d) => d.key === dim)?.label}
+                </span>
+              </div>
+              <div className="scroll-thin h-[20.625rem] overflow-y-auto overscroll-contain p-2">
+                {dim === 'types'
+                  ? options.types.map((o) => (
                       <Row
                         key={o.value}
                         label={TYPE_LABELS[o.value]}
@@ -144,13 +184,8 @@ export function RosterFilters({ applied, options }: { applied: RosterFilter; opt
                         state={draft.types.includes(o.value) ? 'on' : 'off'}
                         onClick={() => toggleType(o.value)}
                       />
-                    ))}
-                  </>
-                )}
-                {options.hasStatus && (
-                  <>
-                    <p className="text-body text-muted px-1 pt-3 pb-1.5 font-medium">Status</p>
-                    {options.status.map((o) => (
+                    ))
+                  : options.status.map((o) => (
                       <Row
                         key={o.value}
                         label={STATUS_LABELS[o.value]}
@@ -159,19 +194,43 @@ export function RosterFilters({ applied, options }: { applied: RosterFilter; opt
                         onClick={() => toggleStatus(o.value)}
                       />
                     ))}
-                  </>
-                )}
               </div>
             </div>
 
-            {/* THE SELECTED COLUMN IS NOT DECORATION. The list beside it scrolls, so once a trader
-                has picked three of six the evidence of what they picked can scroll away. */}
-            <div className="hidden shrink-0 flex-col sm:flex sm:w-56">
+            {/* RIGHT: everything picked, GROUPED BY AXIS with a Clear each — not decoration, since
+                the centre list scrolls and the evidence of what was picked would scroll with it. */}
+            <div className="hidden shrink-0 flex-col sm:flex sm:w-64">
               <Head>{total > 0 ? `${total} selected` : '0 selected'}</Head>
-              <div className="scroll-thin max-h-[20.625rem] overflow-y-auto overscroll-contain p-2">
-                {chips.map((c) => (
-                  <Chip key={c.key} label={c.label} onRemove={c.drop} />
-                ))}
+              <div className="scroll-thin h-[20.625rem] overflow-y-auto overscroll-contain p-2">
+                {dims.map((d) => {
+                  if (d.picked === 0) return null;
+                  return (
+                    <div key={d.key} className="mb-3 last:mb-0">
+                      <div className="mb-1 flex items-center justify-between gap-2 px-1">
+                        <span className="text-body text-text font-medium">{d.label}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="-my-1"
+                          onClick={() => clearDim(d.key)}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                      {d.key === 'types'
+                        ? draft.types.map((v) => (
+                            <Chip key={v} label={TYPE_LABELS[v]} onRemove={() => toggleType(v)} />
+                          ))
+                        : draft.status.map((v) => (
+                            <Chip
+                              key={v}
+                              label={STATUS_LABELS[v]}
+                              onRemove={() => toggleStatus(v)}
+                            />
+                          ))}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
