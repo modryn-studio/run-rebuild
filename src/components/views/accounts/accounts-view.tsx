@@ -13,6 +13,8 @@ import { AccountModalsProvider, useAddAccount } from './account-modals';
 import { AccountsHeader } from './accounts-header';
 import { RosterCard } from './roster-card';
 import { PnlChart } from './pnl-chart';
+import { ChartViewProvider } from './chart-view';
+import { sizeBase } from './trend-indicator';
 import { cumulate, type Point } from '@/lib/accounts/series';
 import type { DayPoint, RosterAccount } from '@/lib/accounts/read';
 
@@ -42,6 +44,11 @@ export function AccountsView({
   }
   const series = cumulate([...byDay.entries()].map(([day, cents]) => ({ day, cents })));
 
+  /* THE PERCENTAGE'S DENOMINATOR, or null the moment one counted account has no stated size. A
+     percentage against a partial base is a wrong number rather than a partial one - and it would
+     drift toward looking right as more accounts got labelled, which is worse than being missing. */
+  const baseDollars = sizeBase(accounts.filter((a) => !a.excludedFromTotals));
+
   /* ONE CUMULATIVE LINE PER ACCOUNT, from the same read the chart above uses. Built here rather
      than on the server because it is a fold over rows already on the page - a second query would be
      the same rows a render later, with a real chance of the two disagreeing after an import lands
@@ -54,20 +61,28 @@ export function AccountsView({
     m.set(d.day, (m.get(d.day) ?? 0) + d.cents);
     perAccount.set(d.accountId, m);
   }
-  const sparks = new Map(
+  const byAccount = new Map<string, Point[]>(
     [...perAccount.entries()].map(([id, m]) => [
       id,
       cumulate([...m.entries()].map(([day, cents]) => ({ day, cents }))),
     ])
   );
 
+  /* THE ANCHOR EVERY RANGE MEASURES BACK FROM is the last day anything traded, not today. A roster
+     whose accounts all stopped in March must not have "1 month" ask for a window in August and come
+     back blank under a headline still reading a real total - which is the defect v2 shipped and
+     Luke caught. */
+  const endsOn = series.length > 0 ? series[series.length - 1].day : null;
+
   return (
     <AccountModalsProvider>
-      <AccountsHeader />
-      <div className="flex flex-col gap-4">
-        <PnlChart series={series} counted={counted.size} />
-        <Roster accounts={accounts} freshness={freshness} sparks={sparks} />
-      </div>
+      <ChartViewProvider byAccount={byAccount} endsOn={endsOn}>
+        <AccountsHeader />
+        <div className="flex flex-col gap-4">
+          <PnlChart series={series} counted={counted.size} baseDollars={baseDollars} />
+          <Roster accounts={accounts} freshness={freshness} />
+        </div>
+      </ChartViewProvider>
     </AccountModalsProvider>
   );
 }
@@ -77,15 +92,13 @@ export function AccountsView({
 function Roster({
   accounts,
   freshness,
-  sparks,
 }: {
   accounts: RosterAccount[];
   freshness: Record<string, string>;
-  sparks: Map<string, Point[]>;
 }) {
   const add = useAddAccount();
   const stamps = new Map<string, Date>(
     Object.entries(freshness).map(([id, iso]) => [id, new Date(iso)])
   );
-  return <RosterCard accounts={accounts} freshness={stamps} sparks={sparks} onAdd={add} />;
+  return <RosterCard accounts={accounts} freshness={stamps} onAdd={add} />;
 }

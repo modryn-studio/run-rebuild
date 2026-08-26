@@ -36,8 +36,9 @@ import {
   type AccountTypeKey,
 } from '@/lib/prop-firms';
 import type { RosterAccount } from '@/lib/accounts/read';
-import type { Point } from '@/lib/accounts/series';
 import { AccountLogo } from './account-logo';
+import { TrendIndicator, sizeBase } from './trend-indicator';
+import { useChartView } from './chart-view';
 
 /** Consequences first. An account with no type yet lands in its own group at the foot. */
 const GROUP_ORDER: AccountTypeKey[] = ['sim_funded', 'evaluation', 'personal'];
@@ -119,15 +120,9 @@ function Spark({ curve }: { curve: number[] }) {
   );
 }
 
-function Row({
-  a,
-  freshness,
-  spark,
-}: {
-  a: RosterAccount;
-  freshness: Date | null;
-  spark: Point[];
-}) {
+function Row({ a, freshness }: { a: RosterAccount; freshness: Date | null }) {
+  const { shapeFor } = useChartView();
+  const spark = shapeFor(a.id);
   const named = Boolean(a.displayName || a.propFirm);
   const stamp = ago(freshness);
 
@@ -205,20 +200,25 @@ function Group({
   title,
   rows,
   freshness,
-  sparks,
 }: {
   title: string;
   rows: RosterAccount[];
   freshness: Map<string, Date>;
-  sparks: Map<string, Point[]>;
 }) {
   const [open, setOpen] = useState(true);
   const [showHidden, setShowHidden] = useState(false);
+
+  const { changeFor, range, periodLabel, periodShort } = useChartView();
 
   const counted = rows.filter((a) => !a.excludedFromTotals);
   const total = counted.reduce((n, a) => n + a.netCents, 0);
   const shown = rows.filter((a) => !a.hidden);
   const hiddenRows = rows.filter((a) => a.hidden);
+  /* HIDDEN ROWS ARE STILL THIS GROUP'S ROWS — the change is over `rows`, not `shown`, for the same
+     reason the total is. Hiding tidies the list; it does not change what you made. */
+  const change = changeFor(rows.map((a) => a.id));
+  /* At All time the change IS the total beside it, so the indicator would print one figure twice. */
+  const hasWindow = range !== 'all';
 
   return (
     <Card className="overflow-hidden">
@@ -240,11 +240,26 @@ function Group({
         </span>
         {/* ONE SET OF NODES, TWO LAYOUTS. Rendering the total twice behind visibility classes puts
             the same money on the page twice and invites the two copies to drift. */}
-        <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 sm:flex">
+        <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 sm:flex">
           <span className="text-title text-text truncate font-medium sm:order-1">{title}</span>
           <span className="text-title text-text shrink-0 font-medium tabular-nums sm:order-3 sm:ml-auto">
             {signed(total)}
           </span>
+          {/* THE GROUP'S OWN CHANGE, over the same window the chart above is drawing — which is the
+              whole reason the period control lives in a provider rather than on the card.
+              PHONE: a second row under the title. DESKTOP: between the title and the total. One set
+              of nodes, one direction change; rendering the total twice behind visibility classes
+              puts the same money on the page twice and invites the two copies to drift. */}
+          {hasWindow && (
+            <span className="col-span-2 sm:order-2 sm:col-span-1">
+              <TrendIndicator
+                cents={change}
+                periodLabel={periodLabel}
+                periodShort={periodShort}
+                baseDollars={sizeBase(counted)}
+              />
+            </span>
+          )}
         </span>
       </button>
 
@@ -261,12 +276,7 @@ function Group({
         <div className={cn('overflow-hidden', !open && 'invisible')}>
           <div className="divide-rule border-rule divide-y border-t">
             {shown.map((a) => (
-              <Row
-                key={a.id}
-                a={a}
-                freshness={freshness.get(a.id) ?? null}
-                spark={sparks.get(a.id) ?? []}
-              />
+              <Row key={a.id} a={a} freshness={freshness.get(a.id) ?? null} />
             ))}
           </div>
 
@@ -284,12 +294,7 @@ function Group({
                   <div className="divide-rule border-rule bg-hover divide-y border-t">
                     {shown.length === 0 && null}
                     {hiddenRows.map((a) => (
-                      <Row
-                        key={a.id}
-                        a={a}
-                        freshness={freshness.get(a.id) ?? null}
-                        spark={sparks.get(a.id) ?? []}
-                      />
+                      <Row key={a.id} a={a} freshness={freshness.get(a.id) ?? null} />
                     ))}
                   </div>
                 </div>
@@ -315,12 +320,10 @@ function Group({
 export function RosterCard({
   accounts,
   freshness,
-  sparks,
   onAdd,
 }: {
   accounts: RosterAccount[];
   freshness: Map<string, Date>;
-  sparks: Map<string, Point[]>;
   onAdd: () => void;
 }) {
   if (accounts.length === 0) return <EmptyRoster onAdd={onAdd} />;
@@ -336,7 +339,7 @@ export function RosterCard({
   return (
     <div className="flex flex-col gap-4">
       {groups.map((g) => (
-        <Group key={g.key} title={g.title} rows={g.rows} freshness={freshness} sparks={sparks} />
+        <Group key={g.key} title={g.title} rows={g.rows} freshness={freshness} />
       ))}
 
       {/* THE ONLY DASHED THING ON THE PAGE, and it earns it: a dashed edge reads as a slot waiting

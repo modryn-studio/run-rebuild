@@ -35,11 +35,12 @@
 import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Menu } from '@/components/ui/menu';
+import { TrendIndicator } from './trend-indicator';
+import { useChartView } from './chart-view';
 import { cn } from '@/lib/cn';
 import { fmtMoney } from '@/lib/format';
 import { displayDayShort } from '@/lib/time/session';
 import {
-  CHANGE_LABELS,
   RANGES,
   RANGE_LABELS,
   bucketize,
@@ -65,9 +66,30 @@ const dayNum = (day: string) => new Date(`${day}T00:00:00Z`).getTime() / 86_400_
 
 type Kind = 'cumulative' | 'breakdown';
 
-export function PnlChart({ series, counted }: { series: Point[]; counted: number }) {
-  const [kind, setKind] = useState<Kind>('cumulative');
-  const [range, setRange] = useState<Range>('all');
+/** The phone's chip labels. The long form stays on the desktop menu, which is the control a wide
+ *  viewport meets first. */
+const SHORT_LABELS: Record<Range, string> = {
+  '1w': '1W',
+  '1m': '1M',
+  '3m': '3M',
+  ytd: 'YTD',
+  '1y': '1Y',
+  all: 'ALL',
+};
+
+export function PnlChart({
+  series,
+  counted,
+  baseDollars,
+}: {
+  series: Point[];
+  counted: number;
+  /** Total stated account size behind the figure, or null when any account in scope has none. */
+  baseDollars: number | null;
+}) {
+  /* THE PERIOD IS THE PAGE'S, NOT THIS CARD'S. It governs the group headers and every row's
+     sparkline too, so it lives in `ChartViewProvider` where all three read one value. */
+  const { kind, range, setKind, setRange, periodLabel, periodShort } = useChartView();
   const [hover, setHover] = useState<number | null>(null);
 
   const view = useMemo(() => {
@@ -102,30 +124,31 @@ export function PnlChart({ series, counted }: { series: Point[]; counted: number
 
   return (
     <Card className="p-5 max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none">
-      <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
-        <div className="min-w-0">
-          <p className="text-body-lg text-text font-medium tabular-nums">{signed(view.total)}</p>
-          {/* THE WINDOW'S CHANGE, NAMED — AND ABSENT AT ALL TIME, because there it is the headline
-              again. The headline is the all-time total by design, so at that range the two lines are
-              the same number by definition, and a card that prints one figure twice looks broken
-              rather than thorough. v2's own note names this trap from the other direction: an early
-              draft made the HEADLINE windowed, "which was defensible right up until the trend
-              indicator arrived: it would have printed the identical number twice". Same collision,
-              opposite end. Every other range answers a genuinely different question.
-              `Across N accounts` takes the slot instead, which is the fact the headline cannot
-              carry: what the figure is ABOUT. */}
-          {range === 'all' ? (
-            <p className="text-body text-muted">
-              Across {counted} {counted === 1 ? 'account' : 'accounts'}
-            </p>
-          ) : (
-            <p className="text-body text-muted">
-              {signed(view.change)} <span>{CHANGE_LABELS[range]}</span>
-            </p>
-          )}
+      {/* Title cluster left, controls right, both TOP-aligned — on a wide screen. Below `sm` the two
+          stack, because at 390px the controls take enough of the row to wrap the eyebrow onto a
+          second line, and the group below bleeds UP into this row by 16px on the assumption that it
+          is one line tall. Wrapped, that bleed pulled the figure straight through the eyebrow: a
+          measured 12px of text overlapping text on Luke's phone. `flex-wrap` alone does not fix it —
+          the collision is vertical, and it is the BLEED that has to know the header got taller. */}
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        {/* THE EYEBROW IS DESKTOP-ONLY. On a phone the figure is the first thing under the page
+            title, and a page titled "Accounts" showing one large money figure does not need a label
+            saying which money.
+            `.eyebrow` RATHER THAN v2'S THREE HAND-SET CLASSES. v2 spells it
+            `text-small font-semibold tracking-[0.1em] uppercase`, and its own comment admits the
+            tracking breaks the type-scale rule, ending "if a second card wants this eyebrow, it
+            becomes a token rather than a second copy of these three classes". This build already
+            made it one, and `/trades` uses it on the filter sheet's section bands — so the TOKEN is
+            the faithful port. Copying v2's literal classes would reintroduce `text-small`, which
+            `design-system.md` §2a says appears nowhere on `/trades` and a ported page must not bring
+            back. 11px/0.14em against 12px/0.1em: invisible, and consistent with the page beside it. */}
+        <div className="hidden items-center gap-1.5 sm:flex">
+          <span className="eyebrow text-muted whitespace-nowrap">Total P&amp;L</span>
         </div>
 
-        <div className="flex shrink-0 gap-2">
+        {/* BOTH MENUS ARE DESKTOP-ONLY. The phone takes the period as a chip row under the chart —
+            one tap instead of two, and it never covers the thing it is about. */}
+        <div className="hidden shrink-0 gap-2 sm:flex">
           <Menu
             label="What to chart"
             value={kind}
@@ -144,7 +167,66 @@ export function PnlChart({ series, counted }: { series: Point[]; counted: number
         </div>
       </div>
 
-      <Plot kind={kind} points={view.points} bars={view.bars} at={at} onHover={setHover} />
+      {/* THE BLEED IS `sm:` ONLY. It closes the gap the taller CONTROLS open beside a short title,
+          and below `sm` the controls are no longer beside the title — they are above the whole
+          group, so there is no dead band to rise into and pulling up would only collide. */}
+      <div className="sm:-mt-4">
+        {/* THE FIGURE AND ITS TRAILING CONTEXT ON ONE BASELINE ROW, wrapping to a second line only
+            when the card is too narrow for both. Beside it on a wide screen, under it on a narrow
+            one — the same flip the roster's group headers make, at the same 640px, so the two cards
+            never disagree about which shape the page is in.
+            `text-figure` (26px), and the restraint is the point: the card is calm because the number
+            does not shout. INK, NOT pos/neg — colour is reserved for the delta beside it. */}
+        <div className="flex flex-col gap-y-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-3">
+          <span className="text-figure text-text font-medium tabular-nums">
+            {fmtMoney(view.total)}
+          </span>
+          {/* TWO DIFFERENT EMPTIES, TWO SENTENCES. v2 shipped one: excluding every account empties
+              `counted` too, and the card then told a trader looking at their own roster that they
+              had no accounts. The second names the switch that caused it, so the way back is
+              obvious. */}
+          {counted === 0 ? (
+            <span className="text-body-lg text-muted font-medium">
+              {series.length === 0 ? 'No accounts yet' : 'Every account is left out of totals'}
+            </span>
+          ) : range === 'all' ? (
+            // All time: the change IS the figure above, so coverage is the useful thing to say.
+            <span className="text-body-lg text-muted font-medium">
+              Across {counted} {counted === 1 ? 'account' : 'accounts'}
+            </span>
+          ) : (
+            <TrendIndicator
+              cents={view.change}
+              periodLabel={periodLabel}
+              periodShort={periodShort}
+              baseDollars={baseDollars}
+            />
+          )}
+        </div>
+
+        <Plot kind={kind} points={view.points} bars={view.bars} at={at} onHover={setHover} />
+
+        {/* PHONE ONLY: the period as a chip row UNDER the chart. One tap instead of two, and it
+            never covers the thing it is about — which a menu opening over a 390px chart does.
+            `text-body` RATHER THAN v2'S `text-small`, same reason as the eyebrow. `min-h-11` is the
+            44px tap floor, which v2 shipped at 28px until a postcheck caught it. */}
+        <div className="mt-3 flex justify-between gap-1 sm:hidden">
+          {RANGES.map((r) => (
+            <button
+              key={r}
+              type="button"
+              aria-pressed={range === r}
+              onClick={() => setRange(r)}
+              className={cn(
+                'text-body min-h-11 flex-1 rounded-[var(--radius-sm)] font-semibold transition-colors',
+                range === r ? 'bg-surface-2 text-text select-pop' : 'text-muted'
+              )}
+            >
+              {SHORT_LABELS[r]}
+            </button>
+          ))}
+        </div>
+      </div>
     </Card>
   );
 }

@@ -67,6 +67,10 @@ export default [
             'num',
             // globals.css:386. The stylesheet names its one consumer: ui/wordmark.tsx.
             'serif',
+            // A 0.14s fade fired by REMOUNTING the element, for a figure that is replaced rather
+            // than transitioned: the text itself is different, so there is no painted FROM value
+            // for a transition to travel from. globals.css:1446, reduced-motion at :1511.
+            'value-fade',
             // globals.css:435, and already handled in the reduced-motion block at :659.
             'soft-pulse',
             // The raised-chip mechanic — rest / hover / press as one named pair, so a control

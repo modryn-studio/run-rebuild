@@ -188,6 +188,17 @@ function DrawnBolt(props: DrawnProps) {
   );
 }
 
+/* A trend arrow, ported verbatim from v2's `icons.tsx`. Drawn pointing UP-RIGHT and rotated a
+ * quarter turn clockwise at the call site to point down-right, so one mark carries both directions
+ * and the two can never be drawn at different weights. */
+function DrawnTrend(props: DrawnProps) {
+  return (
+    <Drawn {...props}>
+      <path d="M7 17 17 7M10.5 7H17v6.5" />
+    </Drawn>
+  );
+}
+
 /* Sign out — a door left open on one side, the arrow walking through it. Not a generic exit glyph:
  * ported verbatim from v2's `icons.tsx`, whose own comment names that distinction. */
 function DrawnSignOut(props: DrawnProps) {
@@ -392,6 +403,9 @@ const MARKS = {
   // ── the account menu (S5c) ────────────────────────────────────────────────────────────────
   bolt: DrawnBolt,
   'sign-out': DrawnSignOut,
+
+  // ── the accounts chart (S6c) ──────────────────────────────────────────────────────────────
+  trend: DrawnTrend,
 
   /* ── the sidebar header (2026-08-20) ──────────────────────────────────────────────────────
      A LUCIDE FALLBACK, which is the documented path rather than an exception: `run-trading@v2`
