@@ -11,6 +11,7 @@
 
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/ui/icon';
+import { Button } from '@/components/ui/button';
 
 /* A column header. `h-12` so the three columns' heads line up across the divider.
  *
@@ -145,5 +146,50 @@ export function Chip({
         <Icon name="close" size={12} />
       </button>
     </span>
+  );
+}
+
+/* THE FOOTER EVERY FILTER PANEL ENDS WITH: Clear, Cancel, Apply. Three buttons a trader recognises
+ * beats two they have to re-read, which is the call v2 landed on after shipping both shapes.
+ *
+ * SHARED HERE (2026-08-26) when `/accounts` needed the same row. It lived privately inside
+ * `trades-controls.tsx` and the roster panel had hand-rolled its own copy — which is exactly how
+ * that copy ended up with a Clear that STAGED instead of committing, six weeks after Luke settled
+ * the question on the other page.
+ *
+ * CLEAR COMMITS AND CLOSES — it does not stage (Luke, 2026-08-06: "they should not have to click
+ * 'clear' and then 'apply'"). "Clear this" is a complete instruction, and making it a draft edit
+ * turns one intent into two clicks and leaves the panel open over a result already asked for.
+ *
+ * PEERS AT ONE SIZE, varying only by variant — `design-system.md` §2a. Clear is `ghost` so it
+ * cannot read as a third equal button beside Cancel and Apply.
+ */
+export function PanelFooter({
+  onClear,
+  onCancel,
+  onApply,
+  clearDisabled,
+  applyDisabled,
+}: {
+  onClear: () => void;
+  onCancel: () => void;
+  onApply: () => void;
+  clearDisabled?: boolean;
+  applyDisabled?: boolean;
+}) {
+  return (
+    <div className="border-rule flex h-14 shrink-0 items-center justify-between gap-3 border-t px-3">
+      <Button variant="ghost" size="sm" disabled={clearDisabled} onClick={onClear}>
+        Clear
+      </Button>
+      <div className="flex items-center gap-2">
+        <Button variant="secondary" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button size="sm" disabled={applyDisabled} onClick={onApply}>
+          Apply
+        </Button>
+      </div>
+    </div>
   );
 }

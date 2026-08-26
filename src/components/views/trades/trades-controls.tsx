@@ -33,7 +33,7 @@ import { FilterSheet, type FilterSheetDraft } from './filter-sheet';
 import { IconButton } from '@/components/ui/icon-button';
 import { DateInput } from '@/components/ui/date-input';
 import { cn } from '@/lib/cn';
-import { Head, Row, Chip } from '@/components/ui/filter-rows';
+import { Head, Row, Chip, PanelFooter } from '@/components/ui/filter-rows';
 import { productName } from '@/lib/instruments';
 import { facetCounts, type FacetRow } from '@/lib/trades/facets';
 import type { FacetAccount } from '@/lib/trades/read';
@@ -1098,46 +1098,11 @@ function FiltersPopover({
   );
 }
 
-/* THE FOOTER BOTH PANELS END WITH: Clear, Cancel, Apply. Three buttons a trader recognises beats
- * two they have to re-read, which is the call v2 landed on after shipping both shapes.
- *
- * CLEAR COMMITS AND CLOSES — it does not stage (Luke, 2026-08-06: "they should not have to click
- * 'clear' and then 'apply'"). "Clear this" is a complete instruction, and making it a draft edit
- * turns one intent into two clicks and leaves the panel open over a result already asked for. */
-function PanelFooter({
-  onClear,
-  onCancel,
-  onApply,
-  clearDisabled,
-  applyDisabled,
-}: {
-  onClear: () => void;
-  onCancel: () => void;
-  onApply: () => void;
-  clearDisabled?: boolean;
-  applyDisabled?: boolean;
-}) {
-  return (
-    <div className="border-rule flex h-14 items-center justify-between gap-3 border-t px-3">
-      {/* GHOST, SO THE THREE BUTTONS IN THIS ROW ARE THE SAME OBJECT. This was a raw `<button>`
-          re-typing ghost's ink by hand, which is how it ended up at `text-body` while `Cancel` and
-          `Apply` beside it came from `Button size="sm"`. One component, one size, and the only
-          thing that varies across the row is the variant - which is the reference's own
-          discipline: its Clear / Cancel / Apply are all 14px/500 and differ only in ink. */}
-      <Button variant="ghost" size="sm" disabled={clearDisabled} onClick={onClear}>
-        Clear
-      </Button>
-      <div className="flex items-center gap-2">
-        <Button variant="secondary" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button size="sm" disabled={applyDisabled} onClick={onApply}>
-          Apply
-        </Button>
-      </div>
-    </div>
-  );
-}
+/* `PanelFooter` MOVED TO `ui/filter-rows.tsx` (2026-08-26), when `/accounts` needed the same row
+ * and the roster panel had hand-rolled its own copy instead - which is how that copy ended up with
+ * a Clear that STAGED rather than committed, six weeks after Luke settled the question here. Its
+ * own notes travelled with it.
+ */
 
 /** One labelled date input, with its own Clear — the fastest way back to a one-ended window
  *  without retyping the other end. */

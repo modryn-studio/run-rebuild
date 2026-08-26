@@ -19,7 +19,6 @@ import { StickyRail } from '@/components/shell/sticky-rail';
 import { sizeBase } from './trend-indicator';
 import { cumulate, type Point } from '@/lib/accounts/series';
 import type { DayPoint, RosterAccount } from '@/lib/accounts/read';
-import type { AccountStatus, AccountType } from '@/lib/db/schema';
 
 export function AccountsView({
   accounts,
@@ -27,7 +26,7 @@ export function AccountsView({
   days,
   rail,
   filter,
-  options,
+  allAccounts,
 }: {
   accounts: RosterAccount[];
   /* A PLAIN OBJECT, NOT A `Map`. `getFreshness` builds a Map because that is the right shape on the
@@ -40,12 +39,11 @@ export function AccountsView({
   /** The summary rail, rendered on the server and passed through. */
   rail: React.ReactNode;
   filter: RosterFilter;
-  options: {
-    status: { value: AccountStatus; count: number }[];
-    types: { value: AccountType; count: number }[];
-    hasStatus: boolean;
-    hasTypes: boolean;
-  };
+  /* THE UNFILTERED ROSTER, for the filter panel alone. Its account tree and its option lists must
+     offer what the filter is currently HIDING - narrowing to one firm would otherwise remove every
+     other firm from the panel that got you there, and the counted axes would offer only the option
+     already picked. */
+  allAccounts: RosterAccount[];
 }) {
   /* THE CHART COUNTS WHAT THE TOTALS COUNT. An account excluded from totals is excluded here too,
      or the line above the roster would disagree with the numbers inside it - which is exactly the
@@ -92,7 +90,7 @@ export function AccountsView({
   return (
     <AccountModalsProvider>
       <ChartViewProvider byAccount={byAccount} endsOn={endsOn}>
-        <AccountsHeader filter={filter} options={options} />
+        <AccountsHeader filter={filter} accounts={allAccounts} />
 
         {/* THE CHART SPANS THE PAGE, ABOVE THE SPLIT — v2's arrangement, and the thing that most
             decides whether this reads as the same page. Inside the grid's left column it stops
