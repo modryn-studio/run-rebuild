@@ -92,8 +92,7 @@ export async function getRoster(traderId: string): Promise<RosterAccount[]> {
       hidden: account.hidden,
       excludedFromTotals: account.excludedFromTotals,
       trades: sql<number>`count(${trade.id}) filter (where ${COUNTABLE})`.mapWith(Number),
-      netCents:
-        sql<number>`coalesce(sum(${NET}) filter (where ${COUNTABLE}), 0)`.mapWith(Number),
+      netCents: sql<number>`coalesce(sum(${NET}) filter (where ${COUNTABLE}), 0)`.mapWith(Number),
       lastSessionDate: sql<string | null>`max(${trade.sessionDate}) filter (where ${COUNTABLE})`,
     })
     .from(account)

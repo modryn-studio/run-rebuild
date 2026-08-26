@@ -235,6 +235,37 @@ export type AccountTypeKey = keyof typeof ACCOUNT_TYPE_LABELS;
  *  with no label could not be rendered. */
 export const ACCOUNT_TYPE_KEYS = Object.keys(ACCOUNT_TYPE_LABELS) as AccountTypeKey[];
 
+/* WHAT AN ACCOUNT'S STATUS IS CALLED, and it is a MAP rather than a derivation on purpose.
+ *
+ * `run-trading@v2` had three stored values and computed the word from the account's phase, so
+ * "Closed" existed only as a label over a stored `failed`. That is the thing this build refused:
+ * see `ACCOUNT_STATUSES` in `db/schema.ts` for the bug it caused. With four stored values the word
+ * is just the value, and nothing has to know an account's type to name its state.
+ *
+ * "FAILED" STAYS, and it was researched rather than chosen (`run-trading/docs/prop-firm-identity.md`
+ * §5, 2026-07-30): "blown" is the trader's own informal word, "breached" is the firm's word for the
+ * rule violation, and "failed" is what the firms themselves print on their dashboards. An earlier
+ * pass there softened it to "Ended", which is the product being squeamish about the trader's life
+ * on the one page that promises to hold the record without flinching. */
+export const ACCOUNT_STATUS_LABELS = {
+  active: 'Active',
+  passed: 'Passed',
+  failed: 'Failed',
+  closed: 'Closed',
+} as const;
+
+export type AccountStatusKey = keyof typeof ACCOUNT_STATUS_LABELS;
+
+export function statusLabel(status: string): string {
+  return ACCOUNT_STATUS_LABELS[status as AccountStatusKey] ?? status;
+}
+
+/** Whether an account is still being traded. The roster groups on it, and the chart uses it to
+ *  decide whether "1 month" means the last month or the last month THIS ACCOUNT was alive. */
+export function isOpenAccount(status: string): boolean {
+  return status === 'active';
+}
+
 type AccountName = {
   propFirm: string | null;
   sizeDollars: number | null;

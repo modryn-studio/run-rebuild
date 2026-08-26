@@ -2,38 +2,50 @@ import type { Metadata } from 'next';
 import { requireTrader } from '@/lib/trader';
 import { PAGE_COLUMN } from '@/lib/shell';
 import { cn } from '@/lib/cn';
+import { WithSummaryRail } from '@/components/shell/summary-rail';
+import { getFreshness, getRoster } from '@/lib/accounts/read';
+import { AccountsView } from '@/components/views/accounts/accounts-view';
+import { AccountsRail } from '@/components/views/accounts/accounts-rail';
 
-/* ACCOUNTS — CLEARED TO AN EMPTY SHELL (Luke, 2026-08-20: "delete what is on the main content.
- * im starting from scratch on this page").
+/* ACCOUNTS — "what I have" (`S6`).
  *
- * WHAT WAS HERE. `accounts-view.tsx`, the roster `S4e` built as the minimum that made the intake
- * testable, plus the server query behind it. Both are deleted rather than commented out — the whole
- * point of starting from scratch is not to negotiate with the previous attempt, and the code is one
- * `git show` away if a decision in it turns out to be worth recovering.
+ * IT IS ALSO THE PRODUCT'S ONLY DOOR INTO THE INGEST, and that is why this slice came before the
+ * rest of `S6`. `AddAccountModal` was mounted here and nowhere else, so clearing this page to an
+ * empty shell on 2026-08-20 left the whole three-file import built, merged, gated and unreachable.
+ * `S4` does not close until the control is back; this page is the control.
  *
- * `S6` in `build-plan.md` is what fills this: hero metric selector, groups by state with their own
- * totals, a freshness stamp on every row, `CLOSED` as a permanent group, summary rail. That slice
- * always said it replaces this page wholesale; this just does the deleting first.
+ * A SERVER COMPONENT THAT READS THE CORPUS, with one client boundary inside it for modal state.
+ * The roster, its totals and the rail are all derived from ONE read, so they cannot disagree about
+ * what the trader owns — the same rule `/trades` follows for its tape and digest.
  *
- * ⚠️ THE IMPORT LAUNCHER WENT WITH IT, AND NOTHING ELSE OFFERS ONE. `AddAccountModal` was mounted
- * here and only here in the shipped app, so there is currently no route from the product into the
- * three-file ingest. The flow itself is intact and unchanged — the modal, the drop zone, the
- * preflight, the write path, all of `S4e` — and `/kitchen-sink/demo` still mounts the real modal
- * under `dryRun` so it can be judged on a device. What is missing is a door in the product, and
- * `S6` builds it: per `build-plan.md`, launching an import from a specific account's own page is
- * the context v2's adoption path depends on, which is the reason "Add manually" was deferred to
- * that slice in the first place.
+ * THE RAIL IS THE SHELL'S, not a second implementation. `WithSummaryRail` already collapses rather
+ * than unmounting, measures before it pins, restores its width before arming its transition and
+ * answers the phone's back button. v2 has its own and this one is further along.
  *
- * THE ROUTE STAYS RATHER THAN 404-ING. `Accounts` is one of the four NAV rows and the sidebar links
- * to it; a destination that exists and is empty is a different statement from one that is missing,
- * and this one is being rebuilt rather than not yet started.
+ * ─── STILL TO COME IN THIS SLICE ──────────────────────────────────────────────────────────────
+ * The hero chart and per-row sparklines (`S6c`), `/accounts/details/<id>` (`S6d`) — which makes live
+ * the two account links `/trades` already renders as plain strings — editing (`S6e`), the filter
+ * panel and drag-to-reorder (`S6f`), and the mobile pass (`S6g`).
  */
 export const metadata: Metadata = { title: 'Accounts' };
 
 export default async function AccountsPage() {
-  // The gate stays. This is a signed-in surface whatever gets built on it, and losing the guard
-  // while the page is empty is how it comes back without one.
-  await requireTrader();
+  const trader = await requireTrader();
 
-  return <div className={cn(PAGE_COLUMN, 'pb-8')} />;
+  const [accounts, freshness] = await Promise.all([getRoster(trader.id), getFreshness(trader.id)]);
+
+  /* A `Map` DOES NOT CROSS THE RSC BOUNDARY AS ONE. It arrives as `{}` with no error and no type
+     complaint, which is the same silent-shape trap `reviveTrade` exists for on the tape. Serialised
+     here, rebuilt on the client. */
+  const stamps = Object.fromEntries(
+    [...freshness.entries()].map(([id, at]) => [id, at.toISOString()])
+  );
+
+  return (
+    <div className={cn(PAGE_COLUMN, 'pb-8')}>
+      <WithSummaryRail rail={<AccountsRail accounts={accounts} />}>
+        <AccountsView accounts={accounts} freshness={stamps} />
+      </WithSummaryRail>
+    </div>
+  );
 }
