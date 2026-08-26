@@ -183,9 +183,35 @@ export const DRAWER_TRADE_BARE = row('d4', {
  * The shapes are real: `firm` and `short` are what `getFacets` returns, and the short is the tail
  * of a Tradovate external id, which is the part a copy-trader running one strategy across twelve
  * accounts is actually reading.
+ *
+ * THREE STATUSES AND THREE TYPES ACROSS THREE ROWS, deliberately (2026-08-26). The filter panel
+ * drops any axis the roster answers only one way, so a fixture where every account was `active` and
+ * `evaluation` would render a rack specimen MISSING two of its five axes - and the sink would show
+ * a control the product does not have. One of each is the smallest set that opens both.
  */
 export const ACCOUNTS_FIXTURE = [
-  { id: 'fixture-acct-1', name: 'Tradeify 50K', firm: 'Tradeify', short: '50K (...4873)' },
-  { id: 'fixture-acct-2', name: 'Tradeify 100K', firm: 'Tradeify', short: '100K (...5120)' },
-  { id: 'fixture-acct-3', name: 'Apex 150K', firm: 'Apex', short: '150K (...7731)' },
+  {
+    id: 'fixture-acct-1',
+    name: 'Tradeify 50K',
+    firm: 'Tradeify',
+    short: '50K (...4873)',
+    status: 'active' as const,
+    accountType: 'sim_funded' as const,
+  },
+  {
+    id: 'fixture-acct-2',
+    name: 'Tradeify 100K',
+    firm: 'Tradeify',
+    short: '100K (...5120)',
+    status: 'failed' as const,
+    accountType: 'evaluation' as const,
+  },
+  {
+    id: 'fixture-acct-3',
+    name: 'Apex 150K',
+    firm: 'Apex',
+    short: '150K (...7731)',
+    status: 'passed' as const,
+    accountType: 'personal' as const,
+  },
 ];

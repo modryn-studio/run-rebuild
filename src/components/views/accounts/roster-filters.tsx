@@ -190,7 +190,7 @@ export function RosterFilters({
         data-active={open ? 'true' : undefined}
         className="relative"
       >
-        <Icon name="filter" size={15} />
+        <Icon name="filter" />
         Filters
         {/* A DOT, NOT A COUNT. It answers "is anything applied", which is one question however many
             boxes are ticked. */}
@@ -212,7 +212,13 @@ export function RosterFilters({
             {/* LEFT: the axes. */}
             <div className="flex shrink-0 flex-col sm:w-[8.75rem]">
               <Head>Filters</Head>
-              <div className="p-2">
+              {/* `gap-1`, BECAUSE THIS IS THE SIDEBAR'S OBJECT AND THE SIDEBAR HAS ONE
+                  (2026-08-26, Luke: "the hover bg connects with the active choice. there is more of
+                  a gap in the side bar"). `app-shell.tsx`'s nav is `flex flex-col gap-1`; this was a
+                  bare `p-2` with no gap, so two adjacent rows' `bg-selected` fills touched and read
+                  as one tall block rather than as two rows - which is exactly the state the ground
+                  is supposed to distinguish. Same 4px, so the two rails cannot drift. */}
+              <div className="flex flex-col gap-1 p-2">
                 {dims.map((d) => (
                   <button
                     key={d.key}
@@ -250,13 +256,23 @@ export function RosterFilters({
               <div className="border-rule flex h-12 shrink-0 items-center gap-2 border-b px-3">
                 {dim === 'accounts' && accounts.length >= SEARCHABLE_FROM ? (
                   <>
-                    <Icon name="search" size={15} className="text-muted shrink-0" />
+                    <Icon name="search" className="text-muted shrink-0" />
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder="Search accounts"
                       aria-label="Search accounts"
-                      className="text-body text-text placeholder:text-muted w-full min-w-0 bg-transparent outline-none"
+                      /* `h-full`, SO THE FIELD IS THE BAND (2026-08-26, Luke: "the blinking
+                         cursor looks really small in the search box"). It was an auto-height input:
+                         20px of line box floating in a 48px header, so the caret occupied 42% of
+                         the row it appears to own and everything below the pointer was dead space.
+                         The caret still measures the line-height - that is what a caret IS - but
+                         the control it sits in is now the row, which is what makes it read as one.
+                         The icon beside it went 15 -> 16 in the same pass: 15 is off every scale in
+                         this system, and `ICON_SIZE` is 16 precisely because that is the size that
+                         pairs with `text-body`. See `/kitchen-sink` Icons, "Size is a context
+                         decision". */
+                      className="text-body text-text placeholder:text-muted h-full w-full min-w-0 bg-transparent outline-none"
                     />
                   </>
                 ) : (

@@ -6,12 +6,11 @@
  * exactly one action that changes what is on it, and it should be the only thing on the screen
  * wearing the accent." Everything else this page can do is on a row.
  *
- * NO REFRESH BUTTON, AND THAT IS A DELIBERATE OMISSION RATHER THAN A GAP. v2 ships one and it is
- * INERT - there is no broker socket to re-read from, tracked there as #57 - and v2's own header
- * comment names the cost: "It was a placeholder for weeks, which is worse than absent: an inert
- * control standing beside two working ones teaches that buttons in this app might not do anything."
- * It arrives with the connection that gives it something to do. Dropping it also removes the reason
- * for v2's phone overflow menu, whose only item was Refresh.
+ * REFRESH IS BACK, AND IT WORKS (2026-08-26, Luke: "why dont we have the refresh button in the
+ * header of the /accounts page? add that"). This file used to argue it out on the grounds that v2's
+ * is inert - true of v2, and the wrong conclusion here: this page is a Server Component, so
+ * `router.refresh()` genuinely re-reads the roster, the freshness stamps and the chart series from
+ * Postgres. See `refresh-roster.tsx`, which carries the argument at the point of use.
  *
  * FILTERS IS THE SAME OBJECT `/trades` PUTS IN THIS BAND - `HeaderControl` trigger, `usePopover`
  * state, `Head`/`Row`/`Chip`/`PanelFooter` panel - rather than a lookalike. It renders itself away
@@ -28,6 +27,7 @@ import { Icon } from '@/components/ui/icon';
 import { HeaderSlot } from '@/components/shell/header-slot';
 import { useAddAccount } from './account-modals';
 import { RosterFilters, RosterClear } from './roster-filters';
+import { RefreshRoster } from './refresh-roster';
 import type { RosterFilter } from '@/lib/accounts/roster-filter';
 import type { RosterAccount } from '@/lib/accounts/read';
 
@@ -47,6 +47,8 @@ export function AccountsHeader({
           the undo, then chrome, then the one thing wearing the accent. */}
       <RosterClear applied={filter} />
       <RosterFilters applied={filter} accounts={accounts} />
+      {/* Clear, Filters, Refresh, then the CTA - v2's own order in this band. */}
+      <RefreshRoster />
       {/* The label goes below `sm` and the mark carries it, but `aria-label` is UNCONDITIONAL -
           a control whose name disappears at one width is nameless to a screen reader at that
           width. */}

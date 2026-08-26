@@ -367,7 +367,20 @@ function DrawnCircle(props: DrawnProps) {
   );
 }
 
+/* Re-read the record. Two arcs chasing each other - continuous, which is the claim being made.
+   Ported verbatim from v2's `Sync`, same as `trend` was: same 24 viewBox, same 1.5 stroke, so it
+   carries the set's weight without anything per-icon overriding it. */
+function DrawnRefresh(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Drawn {...props}>
+      <path d="M21 12a9 9 0 0 0-15.5-6.3M3 12a9 9 0 0 0 15.5 6.3" />
+      <path d="M21 3v5h-5M3 21v-5h5" />
+    </Drawn>
+  );
+}
+
 const MARKS = {
+  refresh: DrawnRefresh,
   today: DrawnToday,
   accounts: DrawnStack,
   trades: DrawnSessions,

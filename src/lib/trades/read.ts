@@ -2,6 +2,7 @@ import 'server-only';
 import { and, asc, desc, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm';
 import { db, trade, account, importBatch } from '@/lib/db';
 import type { TradeState } from '@/lib/db';
+import type { AccountStatus, AccountType } from '@/lib/db/schema';
 import { firmLogoSrc, accountRowTitle, accountShortTitle, UNLABELLED_FIRM } from '@/lib/prop-firms';
 import { rootsMatchingName } from '@/lib/instruments';
 import type { TradesFilter } from './filter';
@@ -116,6 +117,33 @@ function where(traderId: string, f: TradesFilter, window: { from: string | null;
     window.to ? lte(trade.sessionDate, window.to) : undefined,
     f.accounts.length ? inArray(trade.accountId, f.accounts) : undefined,
     f.products.length ? inArray(trade.symbolRoot, f.products) : undefined,
+    /* STATUS AND TYPE ARE THE ACCOUNT'S, SO THEY NARROW THROUGH THE ACCOUNT (2026-08-26). A
+       subquery rather than a join: `selectTapeRows` already joins `account` for the row's title,
+       but the digest and the day-list queries below do not, and a predicate that only worked on
+       one of the three is how a tape and its summary come to disagree. One statement either way -
+       Postgres plans this as a semi-join on `account_trader_idx`.
+       SCOPED BY `trader_id` INSIDE THE SUBQUERY TOO. The outer `trade.trader_id` already bounds
+       the result, so this is redundant for correctness and deliberate anyway: a subquery that
+       could match another trader's account row is one refactor away from being the whole
+       predicate. */
+    f.status.length
+      ? inArray(
+          trade.accountId,
+          db
+            .select({ id: account.id })
+            .from(account)
+            .where(and(eq(account.traderId, traderId), inArray(account.status, f.status)))
+        )
+      : undefined,
+    f.types.length
+      ? inArray(
+          trade.accountId,
+          db
+            .select({ id: account.id })
+            .from(account)
+            .where(and(eq(account.traderId, traderId), inArray(account.accountType, f.types)))
+        )
+      : undefined,
   ];
 
   /* A RESULT TOKEN MATCHES ON NET, AND A SCRATCH MATCHES NEITHER. An exactly-zero net is not a
@@ -501,6 +529,11 @@ export interface FacetAccount {
   name: string;
   firm: string;
   short: string;
+  /* THE ACCOUNT'S OWN TWO AXES, carried to the panel so it can offer them and narrow the tree by
+     them without a second read. They are counted in ACCOUNTS rather than trades - see
+     `facets.ts`' `AccountMeta`. */
+  status: AccountStatus;
+  accountType: AccountType | null;
 }
 
 export async function getFacets(
@@ -519,6 +552,8 @@ export async function getFacets(
         externalAccountId: account.externalAccountId,
         propFirm: account.propFirm,
         sizeDollars: account.sizeDollars,
+        status: account.status,
+        accountType: account.accountType,
       })
       .from(trade)
       .innerJoin(account, eq(account.id, trade.accountId))
@@ -536,6 +571,8 @@ export async function getFacets(
       name: accountRowTitle(a),
       firm: a.propFirm ?? UNLABELLED_FIRM,
       short: accountShortTitle(a),
+      status: a.status,
+      accountType: a.accountType,
     })),
   };
 }

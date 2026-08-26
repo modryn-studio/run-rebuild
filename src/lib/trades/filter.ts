@@ -7,12 +7,19 @@
  * THE URL IS THE STATE. A filtered tape is a thing a trader wants to send to themselves, reload,
  * and come back to, and no filter here is worth a database row.
  *
- * Ported from `run-trading@v2`'s `session-filter.ts`, minus the axes v1 has no data for: its
- * status and phase axes read account columns `S6` has not built a surface for yet, and its `q`
- * searched trade notes, which are NOT IN V1 (`spec.md` §6, and issue #10).
+ * Ported from `run-trading@v2`'s `session-filter.ts`. Its `q` searched trade notes, which are NOT
+ * IN V1 (`spec.md` §6, and issue #10), so this one matches three fields rather than four.
+ *
+ * STATUS AND TYPE ARRIVED WITH `S6` (2026-08-26, Luke: "on the /trades filter selections, dont you
+ * think we should have Status and Type?"). This module used to say they were absent because "their
+ * account columns `S6` has not built a surface for yet" - true when it was written, and `/accounts`
+ * has since labelled both. They are ACCOUNT properties rather than trade properties, so they are
+ * counted in ACCOUNTS and resolved to a set of account ids in SQL; `facets.ts` carries the same
+ * split, and v2 does it this way too.
  */
 
 import { bucketStartFor, type Grain } from '@/lib/time/session';
+import { ACCOUNT_STATUSES, ACCOUNT_TYPES, type AccountStatus, type AccountType } from '@/lib/db/schema';
 
 /* ─── THE DATE RANGE ─────────────────────────────────────────────────────────────────────────
  *
@@ -62,6 +69,12 @@ export type TradesFilter = {
   results: ResultToken[];
   /** Account ids. Empty means every account the trader owns. */
   accounts: string[];
+  /* THE ACCOUNT'S OWN TWO AXES. Not properties of a trade: they narrow the tape by selecting which
+     ACCOUNTS' trades survive, which is why their option counts are in accounts rather than in
+     trades and why `where()` resolves them through a subquery on `account`. An account with no
+     stated type is matched by no type token, the same rule `/accounts` applies. */
+  status: AccountStatus[];
+  types: AccountType[];
   /** Never null — absent means the default, which is everything. */
   range: Range;
   /* A CUSTOM WINDOW, WHICH OVERRIDES `range` when either end is set. Two fields rather than a
@@ -84,6 +97,8 @@ export const EMPTY_FILTER: TradesFilter = {
   products: [],
   results: [],
   accounts: [],
+  status: [],
+  types: [],
   range: DEFAULT_RANGE,
   from: null,
   to: null,
@@ -119,6 +134,14 @@ export function readTradesFilter(params: Record<string, string | string[] | unde
     products: list(params.products),
     results: list(params.results).filter((r): r is ResultToken => RESULT_TOKENS.includes(r as ResultToken)),
     accounts: list(params.accounts).filter(isUuid),
+    /* Guarded against the schema's own unions, same as `results`. A junk token is dropped rather
+       than carried, so a hand-edited URL narrows nothing instead of reaching SQL. */
+    status: list(params.status).filter((v): v is AccountStatus =>
+      ACCOUNT_STATUSES.includes(v as AccountStatus)
+    ),
+    types: list(params.types).filter((v): v is AccountType =>
+      ACCOUNT_TYPES.includes(v as AccountType)
+    ),
     range: isRange(range) ? range : DEFAULT_RANGE,
     from: isDay(from) ? from : null,
     to: isDay(to) ? to : null,
@@ -186,7 +209,7 @@ export function rangeWindow(
 /** How many narrowings are active, for the Filters button's badge. The range is counted separately
  *  because it has its own control. */
 export const activeCount = (f: TradesFilter): number =>
-  f.products.length + f.results.length + f.accounts.length;
+  f.products.length + f.results.length + f.accounts.length + f.status.length + f.types.length;
 
 /* WHAT THE PHONE'S ONE FILTER CONTROL IS CARRYING, as a number for its badge (`S5d`, 2026-08-21).
  *

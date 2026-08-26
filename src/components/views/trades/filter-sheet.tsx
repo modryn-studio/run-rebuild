@@ -41,6 +41,9 @@ import { useOverlayBack } from '@/lib/overlay-back';
 import type { FacetAccount } from '@/lib/trades/read';
 import type { FacetRow } from '@/lib/trades/facets';
 import { productName } from '@/lib/instruments';
+import { STATUS_LABELS, TYPE_LABELS } from '@/lib/accounts/roster-filter';
+import { ACCOUNT_STATUSES, ACCOUNT_TYPES } from '@/lib/db/schema';
+import type { AccountStatus, AccountType } from '@/lib/db/schema';
 import {
   DEFAULT_RANGE,
   RANGE_OPTIONS,
@@ -58,6 +61,11 @@ export type FilterSheetDraft = {
   products: string[];
   results: ResultToken[];
   accounts: string[];
+  /* THE ACCOUNT'S TWO AXES, here as well as on the desktop panel - the two surfaces write the same
+     URL or they are two filters that happen to agree. That exact defect was found on this sheet
+     once already (the all-accounts normalisation it did not have). */
+  status: AccountStatus[];
+  types: AccountType[];
 };
 
 /** Nothing narrowing at all. The state `Clear all` commits, and the state the tape opens in. */
@@ -68,10 +76,12 @@ const NOTHING: FilterSheetDraft = {
   products: [],
   results: [],
   accounts: [],
+  status: [],
+  types: [],
 };
 
 /** Which screen the sheet is showing. `null` is the axis list. */
-type Page = null | 'date' | 'accounts' | 'results' | 'products';
+type Page = null | 'date' | 'accounts' | 'results' | 'products' | 'status' | 'types';
 type SubPage = Exclude<Page, null>;
 
 const PAGE_TITLE: Record<SubPage, string> = {
@@ -79,6 +89,8 @@ const PAGE_TITLE: Record<SubPage, string> = {
   accounts: 'Accounts',
   results: 'Result',
   products: 'Product',
+  status: 'Status',
+  types: 'Type',
 };
 
 /* THE GREY SECTION BAND. The same object the tape's session band is: a LABEL for the rows beneath
@@ -185,6 +197,8 @@ export function FilterSheet({
     products: applied.products,
     results: applied.results,
     accounts: applied.accounts,
+    status: applied.status,
+    types: applied.types,
   }));
   const [page, setPage] = useState<Page>(null);
   /* WHAT THE DRILL-IN IS STILL SHOWING WHILE IT SLIDES BACK DOWN. `page` goes null the instant Back
@@ -204,6 +218,8 @@ export function FilterSheet({
       products: applied.products,
       results: applied.results,
       accounts: applied.accounts,
+      status: applied.status,
+      types: applied.types,
     });
     setPage(null);
     setCustomOpen(Boolean(applied.from || applied.to));
@@ -266,7 +282,7 @@ export function FilterSheet({
      of them is ticked — including `all`, which would otherwise claim the tape was unnarrowed. */
   const pickedRange = (r: Range) => draft.range === r && !draft.from && !draft.to;
 
-  const toggle = (key: 'products' | 'results' | 'accounts', value: string) =>
+  const toggle = (key: 'products' | 'results' | 'accounts' | 'status' | 'types', value: string) =>
     setDraft((d) => {
       const list = d[key] as string[];
       return {
@@ -274,6 +290,13 @@ export function FilterSheet({
         [key]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value],
       };
     });
+
+  /* The two account axes' option lists, off the roster the sheet was handed. Sorted so the sheet
+     and the desktop panel offer them in the same order. */
+  const heldStatus = new Set(accounts.map((a) => a.status));
+  const heldTypes = new Set(accounts.map((a) => a.accountType));
+  const statusOpts = ACCOUNT_STATUSES.filter((v) => heldStatus.has(v));
+  const typeOpts = ACCOUNT_TYPES.filter((v) => heldTypes.has(v));
 
   const byAccount = new Map<string, number>();
   const byProduct = new Map<string, number>();
@@ -397,6 +420,22 @@ export function FilterSheet({
               value={draft.products.length ? String(draft.products.length) : undefined}
               onClick={() => setPage('products')}
             />
+            {/* Gated on the roster holding more than one answer, same as the desktop rail: an axis
+                with one option is a control that cannot change anything. */}
+            {typeOpts.length > 1 && (
+              <DrillRow
+                label="Type"
+                value={draft.types.length ? String(draft.types.length) : undefined}
+                onClick={() => setPage('types')}
+              />
+            )}
+            {statusOpts.length > 1 && (
+              <DrillRow
+                label="Status"
+                value={draft.status.length ? String(draft.status.length) : undefined}
+                onClick={() => setPage('status')}
+              />
+            )}
           </div>
 
           <div
@@ -525,6 +564,28 @@ export function FilterSheet({
                   label={t === 'win' ? 'Wins' : 'Losses'}
                   on={draft.results.includes(t)}
                   onClick={() => toggle('results', t)}
+                />
+              ))}
+
+            {shown === 'types' &&
+              typeOpts.map((v) => (
+                <PickRow
+                  key={v}
+                  select="many"
+                  label={TYPE_LABELS[v]}
+                  on={draft.types.includes(v)}
+                  onClick={() => toggle('types', v)}
+                />
+              ))}
+
+            {shown === 'status' &&
+              statusOpts.map((v) => (
+                <PickRow
+                  key={v}
+                  select="many"
+                  label={STATUS_LABELS[v]}
+                  on={draft.status.includes(v)}
+                  onClick={() => toggle('status', v)}
                 />
               ))}
 

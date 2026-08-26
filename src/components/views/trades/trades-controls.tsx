@@ -35,6 +35,9 @@ import { DateInput } from '@/components/ui/date-input';
 import { cn } from '@/lib/cn';
 import { Head, Row, Chip, PanelFooter } from '@/components/ui/filter-rows';
 import { productName } from '@/lib/instruments';
+import { STATUS_LABELS, TYPE_LABELS } from '@/lib/accounts/roster-filter';
+import { ACCOUNT_STATUSES, ACCOUNT_TYPES } from '@/lib/db/schema';
+import type { AccountStatus, AccountType } from '@/lib/db/schema';
 import { facetCounts, type FacetRow } from '@/lib/trades/facets';
 import type { FacetAccount } from '@/lib/trades/read';
 import {
@@ -120,7 +123,13 @@ const isNothing = (d: FilterSheetDraft) =>
   !d.to &&
   d.products.length === 0 &&
   d.results.length === 0 &&
-  d.accounts.length === 0;
+  d.accounts.length === 0 &&
+  /* THE TWO NEW AXES COUNT HERE TOO (2026-08-26). This predicate is how `Clear all` is DETECTED -
+     an empty draft is the only thing that produces it - so an axis missing from the list would make
+     a real "clear everything" look like an ordinary apply, and the search term would survive it.
+     That is the exact defect a postcheck found on this path once already. */
+  d.status.length === 0 &&
+  d.types.length === 0;
 
 export function TradesSearchPill({
   applied,
@@ -349,6 +358,8 @@ export function TradesSearchPill({
             to: d.to,
             products: d.products.join(',') || null,
             results: d.results.join(',') || null,
+            status: d.status.join(',') || null,
+            types: d.types.join(',') || null,
             /* EVERY ACCOUNT TICKED IS NOT A FILTER, and the phone was the only surface that did not
                know it (2026-08-25, postcheck). The desktop panel normalises this away; this path
                joined unconditionally, so ticking all three accounts wrote `accounts=a,b,c`, lit the
@@ -414,6 +425,9 @@ export function TradesControls({
               products: null,
               results: null,
               accounts: null,
+              // Every axis, or this button leaves one applied while its own dot reads clear.
+              status: null,
+              types: null,
               // `q` too, or the one button that promises to clear everything leaves the search term
               // narrowing the tape while the control that set it is the only place saying so.
               q: null,
@@ -472,7 +486,7 @@ function SearchPopover({ applied }: { applied: TradesFilter }) {
         data-active={open ? 'true' : undefined}
         className="relative"
       >
-        <Icon name="search" size={15} />
+        <Icon name="search" />
         {/* THE CONTROL NAMES ITS OWN STATE: with a term applied the button reads "tradeify" rather
             than "Search", so the band says what the tape is showing instead of only that something
             is. */}
@@ -565,7 +579,7 @@ function DatePopover({ applied }: { applied: TradesFilter }) {
         data-active={open ? 'true' : undefined}
         className="relative"
       >
-        <Icon name="today" size={15} />
+        <Icon name="today" />
         {rangeButtonLabel(applied)}
         {/* THE DOT. A trader scans the band for marks, not for which of two labels has changed
             wording, so a control that is narrowing the tape while looking exactly like one that is
@@ -591,7 +605,10 @@ function DatePopover({ applied }: { applied: TradesFilter }) {
             {/* THE SHORTCUT RAIL. Picking one CLEARS the custom dates: a shortcut and a custom
                 window are two answers to one question, and leaving both set would make the button's
                 own label lie about what the tape is showing. */}
-            <div className="border-rule w-[8.75rem] shrink-0 border-r p-2">
+            {/* `gap-1` here too - this rail is the same object as the Filters rail beside it and
+                as the app's own sidebar, so it takes the same 4px between rows. Without it the
+                selected row's ground touches the hovered row's and the two read as one block. */}
+            <div className="border-rule flex w-[8.75rem] shrink-0 flex-col gap-1 border-r p-2">
               {RANGE_OPTIONS.map((r) => {
                 const on = !custom && draft.range === r;
                 return (
@@ -680,16 +697,22 @@ function DatePopover({ applied }: { applied: TradesFilter }) {
  * NO AXIS, NO CONTROL. If every axis drops, the button returns null. A menu of nothing reads as
  * broken rather than as not-yet-earned.
  */
-type Dim = 'accounts' | 'results' | 'products';
+type Dim = 'accounts' | 'results' | 'products' | 'status' | 'types';
 
 /** Every axis that is a plain token list. One definition, read by `dirty`, by `total` and by the
  *  clear, so none of the three can forget an axis the others know about. */
-const TOKEN_AXES = ['products', 'results'] as const;
+const TOKEN_AXES = ['products', 'results', 'status', 'types'] as const;
 
 /** The account tree gains a search field at this many accounts. Below it, scanning beats typing. */
 const SEARCHABLE_FROM = 8;
 
-type Draft = { products: string[]; results: ResultToken[]; accounts: string[] };
+type Draft = {
+  products: string[];
+  results: ResultToken[];
+  accounts: string[];
+  status: AccountStatus[];
+  types: AccountType[];
+};
 
 function FiltersPopover({
   applied,
@@ -720,6 +743,8 @@ function FiltersPopover({
     products: applied.products,
     results: applied.results,
     accounts: applied.accounts,
+    status: applied.status,
+    types: applied.types,
   });
   const [draft, setDraft] = useState<Draft>(seed);
 
@@ -747,6 +772,23 @@ function FiltersPopover({
         picked: draft.products.length,
         has: products.length > 1,
       },
+      /* THE ACCOUNT'S TWO AXES, gated on the ROSTER holding more than one answer - the same
+         two-or-more rule every other axis here keeps. A trader whose accounts are all active has no
+         Status question to answer, and a menu of one option is a control that cannot change
+         anything. */
+      {
+        key: 'types' as const,
+        label: 'Type',
+        picked: draft.types.length,
+        has: new Set(accounts.map((a) => a.accountType).filter(Boolean)).size > 1,
+        // (option list built below, in canonical order)
+      },
+      {
+        key: 'status' as const,
+        label: 'Status',
+        picked: draft.status.length,
+        has: new Set(accounts.map((a) => a.status)).size > 1,
+      },
     ] satisfies { key: Dim; label: string; picked: number; has: boolean }[]
   ).filter((d) => d.has);
 
@@ -770,6 +812,8 @@ function FiltersPopover({
     write({
       products: next.products.join(',') || null,
       results: next.results.join(',') || null,
+      status: next.status.join(',') || null,
+      types: next.types.join(',') || null,
       // EVERY ACCOUNT TICKED IS NOT A FILTER, so it writes no parameter.
       accounts:
         next.accounts.length > 0 && next.accounts.length < accounts.length
@@ -782,7 +826,7 @@ function FiltersPopover({
   /* Both togglers compute from the PREVIOUS draft INSIDE the updater rather than from the values
      this render closed over. Two clicks landing in one React batch would otherwise lose the first,
      silently — the exact double-click bug v2's own postcheck found in this panel. */
-  const toggleToken = (key: 'products' | 'results', v: string) =>
+  const toggleToken = (key: 'products' | 'results' | 'status' | 'types', v: string) =>
     setDraft((d) => {
       const list = d[key] as string[];
       return {
@@ -814,7 +858,17 @@ function FiltersPopover({
      account immediately shows the products traded on it rather than every product in the corpus
      (Luke, v2 2026-08-05: "so im always guessing"). `facetCounts` excludes each axis from its own
      narrowing, which is what keeps a second product addable after the first is picked. */
-  const counts = useMemo(() => facetCounts(facetRows, draft), [facetRows, draft]);
+  /* THE ACCOUNT LOOKUP THE TWO NEW AXES NEED. Built from the panel's own `accounts` prop, so
+     `facets.ts` still imports nothing that touches the database. */
+  const meta = useMemo(() => {
+    const m = new Map(accounts.map((a) => [a.id, a]));
+    return {
+      status: (id: string) => m.get(id)?.status ?? null,
+      type: (id: string) => m.get(id)?.accountType ?? null,
+    };
+  }, [accounts]);
+
+  const counts = useMemo(() => facetCounts(facetRows, draft, meta), [facetRows, draft, meta]);
 
   /** Accounts grouped by firm, which is the tree's whole structure. */
   const tree = useMemo(() => {
@@ -859,6 +913,27 @@ function FiltersPopover({
     count: counts.products.get(p) ?? 0,
   }));
 
+  /* SAME RULE AS PRODUCTS: keep every row the roster holds and grey the ones that cannot be
+     reached under the other axes, so the list never jumps under the cursor. Counted in ACCOUNTS. */
+  /* CANONICAL ORDER, NOT ALPHABETICAL. `ACCOUNT_STATUSES` is the schema's own sequence and it is a
+     LIFECYCLE - active, passed, failed, closed - which is the order `/accounts`' panel offers and
+     the order a trader reads these words in. A `.sort()` here put Closed second and made the same
+     axis appear in two different orders on two surfaces. */
+  const present = <T,>(vals: readonly T[], held: Set<unknown>) => vals.filter((v) => held.has(v));
+  const statusOpts = present(ACCOUNT_STATUSES, new Set(accounts.map((a) => a.status))).map((v) => ({
+    value: v,
+    label: STATUS_LABELS[v],
+    count: counts.status.get(v) ?? 0,
+  }));
+  const typeOpts = present(ACCOUNT_TYPES, new Set(accounts.map((a) => a.accountType))).map((v) => ({
+    value: v,
+    label: TYPE_LABELS[v],
+    count: counts.types.get(v) ?? 0,
+  }));
+
+  const optsFor = (d: Dim) =>
+    d === 'results' ? resultOpts : d === 'products' ? productOpts : d === 'status' ? statusOpts : typeOpts;
+
   if (dims.length === 0) return null;
 
   return (
@@ -892,7 +967,7 @@ function FiltersPopover({
           data-active={open ? 'true' : undefined}
           className="relative"
         >
-          <Icon name="filter" size={15} />
+          <Icon name="filter" />
           Filters
           {count > 0 && (
             <span
@@ -917,7 +992,13 @@ function FiltersPopover({
                 you make — it is a place you go, and what it reports is how much is waiting there. */}
             <div className="flex shrink-0 flex-col sm:w-[8.75rem]">
               <Head>Filters</Head>
-              <div className="p-2">
+              {/* `gap-1`, BECAUSE THIS IS THE SIDEBAR'S OBJECT AND THE SIDEBAR HAS ONE
+                  (2026-08-26, Luke: "the hover bg connects with the active choice. there is more of
+                  a gap in the side bar"). `app-shell.tsx`'s nav is `flex flex-col gap-1`; this was a
+                  bare `p-2` with no gap, so two adjacent rows' `bg-selected` fills touched and read
+                  as one tall block rather than as two rows - which is exactly the state the ground
+                  is supposed to distinguish. Same 4px, so the two rails cannot drift. */}
+              <div className="flex flex-col gap-1 p-2">
                 {dims.map((d) => (
                   <button
                     key={d.key}
@@ -956,13 +1037,23 @@ function FiltersPopover({
               <div className="border-rule flex h-12 shrink-0 items-center gap-2 border-b px-3">
                 {dim === 'accounts' && accounts.length >= SEARCHABLE_FROM ? (
                   <>
-                    <Icon name="search" size={15} className="text-muted shrink-0" />
+                    <Icon name="search" className="text-muted shrink-0" />
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder="Search accounts"
                       aria-label="Search accounts"
-                      className="text-body text-text placeholder:text-muted w-full min-w-0 bg-transparent outline-none"
+                      /* `h-full`, SO THE FIELD IS THE BAND (2026-08-26, Luke: "the blinking
+                         cursor looks really small in the search box"). It was an auto-height input:
+                         20px of line box floating in a 48px header, so the caret occupied 42% of
+                         the row it appears to own and everything below the pointer was dead space.
+                         The caret still measures the line-height - that is what a caret IS - but
+                         the control it sits in is now the row, which is what makes it read as one.
+                         The icon beside it went 15 -> 16 in the same pass: 15 is off every scale in
+                         this system, and `ICON_SIZE` is 16 precisely because that is the size that
+                         pairs with `text-body`. See `/kitchen-sink` Icons, "Size is a context
+                         decision". */
+                      className="text-body text-text placeholder:text-muted h-full w-full min-w-0 bg-transparent outline-none"
                     />
                   </>
                 ) : (
@@ -1017,7 +1108,7 @@ function FiltersPopover({
                     })
                   )
                 ) : (
-                  (dim === 'results' ? resultOpts : productOpts).map((o) => (
+                  optsFor(dim).map((o) => (
                     <Row
                       key={o.value}
                       label={o.label}
@@ -1067,12 +1158,10 @@ function FiltersPopover({
                         : (draft[d.key] as string[]).map((v) => (
                             <Chip
                               key={v}
-                              label={
-                                (d.key === 'results' ? resultOpts : productOpts).find(
-                                  (o) => o.value === v
-                                )?.label ?? v
+                              label={optsFor(d.key).find((o) => o.value === v)?.label ?? v}
+                              onRemove={() =>
+                                toggleToken(d.key as 'products' | 'results' | 'status' | 'types', v)
                               }
-                              onRemove={() => toggleToken(d.key as 'products' | 'results', v)}
                             />
                           ))}
                     </div>
@@ -1086,7 +1175,7 @@ function FiltersPopover({
               what is already APPLIED, including the range and the search. Same word, and the
               difference is which side of Apply you are on. */}
           <PanelFooter
-            onClear={() => commit({ products: [], results: [], accounts: [] })}
+            onClear={() => commit({ products: [], results: [], accounts: [], status: [], types: [] })}
             onCancel={() => setOpen(false)}
             onApply={() => commit(draft)}
             clearDisabled={total === 0 && count === 0}
