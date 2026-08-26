@@ -433,6 +433,14 @@
      carries ~70 `no-arbitrary-value` lint warnings, and it fails the moment anyone writes the
      obvious `shadow-card`. The real values live in `:root` below, which MUST stay above `.dark`:
      equal specificity, so source order decides. */
+  /* THE ONE STEP ABOVE `card`, and the only thing that wears it is an object IN THE TRADER'S HAND
+     (a dragged roster card or account row). Indirect like every other shadow here, so the `.dark`
+     block can actually swap it - see the note above for the failure a direct value produces.
+     It is also the one place the "a border OR a shadow, never both" rule is deliberately broken:
+     a held item carries an accent RING as well, and the two are saying different things. The ring
+     says WHICH object is in your hand; the shadow says it is above the stack it came from. Drop
+     either and the gesture loses half of what it is telling you. */
+  --shadow-lift: var(--elevation-lift);
   --shadow-card: var(--elevation-card);
   /* The resting lift for a CONTROL, a step below a card's. Measured off the reference's header
      buttons, which sit at exactly this while their cards sit at the value above.
@@ -655,6 +663,9 @@
      Light lifts `surface-2` (#ebe8e5) toward the page; dark lifts it a step past itself, because a
      white sheen on a near-black ground reads as a flash rather than a sweep. */
   --skeleton-sheen: #f7f6f4;
+  /* Roughly Tailwind's `shadow-lg`, which is what v2 reached for, re-cast in this ramp's own ink
+     and opacity so a lifted card matches the family rather than importing a grey from elsewhere. */
+  --elevation-lift: 0 10px 15px -3px rgba(34, 32, 29, 0.14), 0 4px 6px -4px rgba(34, 32, 29, 0.12);
   --elevation-card: 0 2px 4px 0 rgba(34, 32, 29, 0.10);
   --elevation-sm: 0 1px 2px 0 rgba(34, 32, 29, 0.05);
   --elevation-press: inset 0 2px 4px 0 rgba(34, 32, 29, 0.10);
@@ -742,6 +753,9 @@
      ~4x the alpha and a pure black, because on a near-value dark surface a 10% ink shadow does not
      register at all. */
   --skeleton-sheen: #4a4845;
+  /* Widened with the card value and by the same ratio, so a held object does not read as raised in
+     one mode and printed on in the other. */
+  --elevation-lift: 0 10px 15px -3px rgba(0, 0, 0, 0.48), 0 4px 6px -4px rgba(0, 0, 0, 0.42);
   --elevation-card: 0 2px 4px 0 rgba(0, 0, 0, 0.32);
   --elevation-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.28);
   --elevation-press: inset 0 2px 5px 0 rgba(0, 0, 0, 0.45);   /* theirs is #0003; deepened with the ground, same reason */

@@ -136,7 +136,20 @@ function Spark({ curve }: { curve: number[] }) {
   );
 }
 
-function Row({ a, freshness }: { a: RosterAccount; freshness: Date | null }) {
+function Row({
+  a,
+  freshness,
+  held,
+  style,
+  handleProps,
+}: {
+  a: RosterAccount;
+  freshness: Date | null;
+  held: boolean;
+  style?: React.CSSProperties;
+  /** The list drag's pointer handlers. Empty when there is nothing to reorder. */
+  handleProps: React.ComponentProps<'a'>;
+}) {
   const { shapeFor } = useChartView();
   const spark = shapeFor(a.id);
   const named = Boolean(a.displayName || a.propFirm);
@@ -148,11 +161,53 @@ function Row({ a, freshness }: { a: RosterAccount; freshness: Date | null }) {
        the object. A real `<a>` so middle-click, cmd-click and open-in-new-tab all work. */
     <Link
       href={`/accounts/details/${a.id}`}
+      data-row={a.id}
+      {...handleProps}
+      /* THE ROW IS A REAL `<a>`, AND THAT IS WHY THIS LINE EXISTS (2026-08-26, Luke: "I should be
+         able to move the account rows"). A browser natively drags an anchor: press and move on a
+         link and it starts its own HTML5 drag with a ghost image, which pre-empts the pointer
+         stream this gesture is built on. So the pointer handlers fired for the press and then
+         never saw another move, and the row simply would not travel.
+         It did not show up in testing because synthetic `PointerEvent`s do not trigger native
+         dragging - only a real mouse does. A gesture on an anchor has to turn this off explicitly. */
+      draggable={false}
+      style={style}
       /* `pl-7`, NOT `px-5` — v2's measured inset. The extra 8px is the lane the drag grip occupies,
          and it is claimed now rather than when drag lands so the rows do not all shift sideways the
          day it does. `min-h-21` (84px) is a FLOOR, not a height: a wrapping name grows the row. */
-      className="group/row hover:bg-hover relative flex min-h-21 w-full items-center gap-5 py-3 pr-5 pl-7 text-left transition-colors select-none"
+      className={cn(
+        'group/row hover:bg-hover relative flex min-h-21 w-full items-center gap-5 py-3 pr-5 pl-7 text-left transition-colors select-none',
+        /* NO `cursor-grab` HERE, unlike the card header one level up, and the difference is real: a
+           header is not a link, so grab is the only thing its cursor could say. A ROW is a link and
+           the main way into an account, so `grab` would override the browser's own pointer and hide
+           the primary action behind the secondary one. `grabbing` stays for the held state, where a
+           drag is actually happening. */
+        held && 'cursor-grabbing',
+        /* THE SAME LANGUAGE THE HELD CARD USES ONE LEVEL UP, so "this is the one in your hand" reads
+           identically at both levels. `bg-surface` rather than the hover tint because a lifted row
+           passes OVER its neighbours and has to be opaque, or the row underneath shows through. */
+        held && 'ring-accent bg-surface z-10 rounded-[var(--radius)] shadow-[var(--shadow-lift)] ring-2'
+      )}
     >
+      {/* THE GRIP TAKES OVER WHAT THE CURSOR STOPPED SAYING, and that is the whole reason this mark
+          is on rows and not on card headers: it appears exactly where the cursor can no longer
+          carry the message. A header still says grab, so it needs no dots; a row says pointer, so
+          without dots nothing on it would suggest it can be moved.
+          ON HOVER ONLY. A column of grips down a resting list is one mark per row competing with
+          the account names for the same eye, and reordering is a thing you do twice a year.
+          `aria-hidden` with no target of its own: the whole row is the handle, so this is a HINT
+          rather than a control. A keyboard user gets nothing from it either way, which is its own
+          gap and not one a visible glyph would close. */}
+      <span
+        aria-hidden
+        className={cn(
+          'text-muted pointer-events-none absolute left-1 opacity-0 transition-opacity',
+          Object.keys(handleProps).length > 0 && 'group-hover/row:opacity-100',
+          held && 'opacity-100'
+        )}
+      >
+        <Icon name="grip" />
+      </span>
       <AccountLogo propFirm={a.propFirm} />
 
       <span className="min-w-0 flex-1">
@@ -281,13 +336,21 @@ function Group({
   });
 
   return (
-    /* `overflow-hidden` GOES AWAY WHILE SOMETHING IS IN THE AIR. The card clips by default so its
-       rows cannot spill past the rounded corner - but a row dragged beyond the card's edge would
-       be cut in half by that same rule, and a held CARD needs its shadow outside its own box. */
+    /* `overflow-hidden` GOES AWAY WHILE ONE OF ITS ROWS IS IN THE AIR (Luke, v2 2026-08-04: "monarch
+       lets the user grab the account and move it anywhere above the card... Run's is hidden inside
+       the card. but that ui is not good"). The card clips so its rounded corners do not cut the
+       divided rows, and a held row inherited that for free - a row you can only drag WITHIN a box
+       does not read as picked up.
+       `relative z-20` IN THE SAME BREATH, or the freed row slides UNDER the next card instead of
+       over it, which looks worse than the clipping did. */
     <Card
       className={cn(
-        !drag.dragging && !held && 'overflow-hidden',
-        held && 'shadow-[var(--shadow-card)]'
+        drag.dragging ? 'relative z-20 overflow-visible' : 'overflow-hidden',
+        /* LIFTED OFF THE STACK WHILE IT IS IN YOUR HAND: the accent ring says WHICH card, the
+           bigger shadow says it is above the others, and the z-index from the drag's own style
+           makes that literally true. Same two marks the held ROW wears, so the gesture reads the
+           same at both levels. */
+        held && 'ring-accent shadow-[var(--shadow-lift)] ring-2'
       )}
     >
       {/* THE WHOLE HEADER IS THE CONTROL. v2 splits this - a chevron on desktop so the rest of the
@@ -374,24 +437,20 @@ function Group({
         )}
       >
         <div className={cn(!drag.dragging && 'overflow-hidden', !open && 'invisible')}>
-          {/* THE LIFTED ROW MUST NOT BE CLIPPED BY ITS OWN LIST. `divide-y` is fine, but the
-              collapse wrapper above carries `overflow-hidden` - so while something is in the air
-              the card has to stop clipping, or a row dragged past the card's edge is cut in half.
-              See the same guard on the Card below. */}
+          {/* NO WRAPPER AROUND EACH ROW. `data-row`, the handlers and the transform all go on the
+              `<a>` itself, which is what `:scope > [data-row]` measures - a wrapper would make the
+              held element and the styled element two different boxes, and the ring would then be
+              drawn around a box the row does not fill. */}
           <div ref={list} className="divide-rule border-rule divide-y border-t">
             {shown.map((a, i) => (
-              <div
+              <Row
                 key={a.id}
-                data-row={a.id}
+                a={a}
+                freshness={freshness.get(a.id) ?? null}
+                held={drag.isHeld(a.id)}
                 style={drag.styleFor(a.id, i)}
-                {...drag.handlers}
-                className={cn(
-                  shown.length > 1 && 'sm:cursor-grab',
-                  drag.isHeld(a.id) && 'sm:cursor-grabbing bg-surface shadow-[var(--shadow-card)]'
-                )}
-              >
-                <Row a={a} freshness={freshness.get(a.id) ?? null} />
-              </div>
+                handleProps={drag.handlers}
+              />
             ))}
           </div>
 
@@ -408,8 +467,17 @@ function Group({
                       legible as the list. */}
                   <div className="divide-rule border-rule bg-hover divide-y border-t">
                     {shown.length === 0 && null}
+                    {/* NO GRIP ON A HIDDEN ROW. The flap is a place things are put, not a list you
+                        arrange - and it is not in `keys`, so offering a handle would be a gesture
+                        with no slot to land in. */}
                     {hiddenRows.map((a) => (
-                      <Row key={a.id} a={a} freshness={freshness.get(a.id) ?? null} />
+                      <Row
+                        key={a.id}
+                        a={a}
+                        freshness={freshness.get(a.id) ?? null}
+                        held={false}
+                        handleProps={{}}
+                      />
                     ))}
                   </div>
                 </div>

@@ -379,7 +379,23 @@ function DrawnRefresh(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/* Two columns of three dots - the universal "pick this up". Ported verbatim from v2's `Grip`.
+   Filled circles with no stroke, which is why it is the one mark in this set whose weight does not
+   come from `ICON_STROKE`: there are no strokes to carry it. */
+function DrawnGrip(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Drawn {...props}>
+      {[9, 15].map((cx) =>
+        [6, 12, 18].map((cy) => (
+          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.3" fill="currentColor" stroke="none" />
+        ))
+      )}
+    </Drawn>
+  );
+}
+
 const MARKS = {
+  grip: DrawnGrip,
   refresh: DrawnRefresh,
   today: DrawnToday,
   accounts: DrawnStack,
