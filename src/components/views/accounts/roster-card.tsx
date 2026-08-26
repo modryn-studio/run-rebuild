@@ -36,6 +36,7 @@ import {
   type AccountTypeKey,
 } from '@/lib/prop-firms';
 import type { RosterAccount } from '@/lib/accounts/read';
+import type { Point } from '@/lib/accounts/series';
 import { AccountLogo } from './account-logo';
 
 /** Consequences first. An account with no type yet lands in its own group at the foot. */
@@ -81,7 +82,52 @@ function StatusChip({ status }: { status: string }) {
   );
 }
 
-function Row({ a, freshness }: { a: RosterAccount; freshness: Date | null }) {
+/* THE ROW'S SHAPE, NOT ITS SCALE. 72x20, rebased so every account's line starts at its own zero -
+ * the question a sparkline answers is "which way has this been going", and sharing a y scale across
+ * a $150k funded account and a $50k eval would flatten the smaller one into a straight line.
+ * COLOURED BY WHERE IT ENDED, which is the only thing on the row that is coloured besides the chip.
+ * A dashed zero rule so a line sitting entirely below it reads as below something. */
+function Spark({ curve }: { curve: number[] }) {
+  const max = Math.max(...curve, 0);
+  const min = Math.min(...curve, 0);
+  const range = max - min || 1;
+  const x = (i: number) => (i / (curve.length - 1)) * 72;
+  const y = (v: number) => 20 - 1 - ((v - min) / range) * 18;
+  const line = curve.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+  const up = curve[curve.length - 1] >= 0;
+
+  return (
+    <svg width={72} height={20} className="overflow-visible" aria-hidden>
+      <line
+        x1={0}
+        x2={72}
+        y1={y(0)}
+        y2={y(0)}
+        stroke="var(--color-border)"
+        strokeWidth={1}
+        strokeDasharray="2 2"
+      />
+      <polyline
+        points={line}
+        fill="none"
+        stroke={up ? 'var(--color-pos)' : 'var(--color-neg)'}
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function Row({
+  a,
+  freshness,
+  spark,
+}: {
+  a: RosterAccount;
+  freshness: Date | null;
+  spark: Point[];
+}) {
   const named = Boolean(a.displayName || a.propFirm);
   const stamp = ago(freshness);
 
@@ -115,6 +161,14 @@ function Row({ a, freshness }: { a: RosterAccount; freshness: Date | null }) {
         <span className={cn('shrink-0', a.status === 'active' && 'hidden sm:block')}>
           <StatusChip status={a.status} />
         </span>
+
+        {/* AT LEAST TWO POINTS, OR THERE IS NO SHAPE TO DRAW. One session is a dot, and a dot in a
+            column of lines reads as a rendering failure rather than as a short history. */}
+        {spark.length >= 2 && (
+          <span className="hidden shrink-0 sm:block">
+            <Spark curve={spark.map((p) => p.cents)} />
+          </span>
+        )}
 
         {/* AN EXCLUDED ROW KEEPS ITS OWN NUMBER. Its figure is real and it is the trader's; it is
             simply not part of a total. Dropping it would answer a question nobody asked - marking
@@ -151,10 +205,12 @@ function Group({
   title,
   rows,
   freshness,
+  sparks,
 }: {
   title: string;
   rows: RosterAccount[];
   freshness: Map<string, Date>;
+  sparks: Map<string, Point[]>;
 }) {
   const [open, setOpen] = useState(true);
   const [showHidden, setShowHidden] = useState(false);
@@ -205,7 +261,12 @@ function Group({
         <div className={cn('overflow-hidden', !open && 'invisible')}>
           <div className="divide-rule border-rule divide-y border-t">
             {shown.map((a) => (
-              <Row key={a.id} a={a} freshness={freshness.get(a.id) ?? null} />
+              <Row
+                key={a.id}
+                a={a}
+                freshness={freshness.get(a.id) ?? null}
+                spark={sparks.get(a.id) ?? []}
+              />
             ))}
           </div>
 
@@ -223,7 +284,12 @@ function Group({
                   <div className="divide-rule border-rule bg-hover divide-y border-t">
                     {shown.length === 0 && null}
                     {hiddenRows.map((a) => (
-                      <Row key={a.id} a={a} freshness={freshness.get(a.id) ?? null} />
+                      <Row
+                        key={a.id}
+                        a={a}
+                        freshness={freshness.get(a.id) ?? null}
+                        spark={sparks.get(a.id) ?? []}
+                      />
                     ))}
                   </div>
                 </div>
@@ -249,10 +315,12 @@ function Group({
 export function RosterCard({
   accounts,
   freshness,
+  sparks,
   onAdd,
 }: {
   accounts: RosterAccount[];
   freshness: Map<string, Date>;
+  sparks: Map<string, Point[]>;
   onAdd: () => void;
 }) {
   if (accounts.length === 0) return <EmptyRoster onAdd={onAdd} />;
@@ -268,7 +336,7 @@ export function RosterCard({
   return (
     <div className="flex flex-col gap-4">
       {groups.map((g) => (
-        <Group key={g.key} title={g.title} rows={g.rows} freshness={freshness} />
+        <Group key={g.key} title={g.title} rows={g.rows} freshness={freshness} sparks={sparks} />
       ))}
 
       {/* THE ONLY DASHED THING ON THE PAGE, and it earns it: a dashed edge reads as a slot waiting

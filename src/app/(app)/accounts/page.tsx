@@ -3,7 +3,7 @@ import { requireTrader } from '@/lib/trader';
 import { PAGE_COLUMN } from '@/lib/shell';
 import { cn } from '@/lib/cn';
 import { WithSummaryRail } from '@/components/shell/summary-rail';
-import { getFreshness, getRoster } from '@/lib/accounts/read';
+import { getDailySeries, getFreshness, getRoster } from '@/lib/accounts/read';
 import { AccountsView } from '@/components/views/accounts/accounts-view';
 import { AccountsRail } from '@/components/views/accounts/accounts-rail';
 
@@ -32,7 +32,11 @@ export const metadata: Metadata = { title: 'Accounts' };
 export default async function AccountsPage() {
   const trader = await requireTrader();
 
-  const [accounts, freshness] = await Promise.all([getRoster(trader.id), getFreshness(trader.id)]);
+  const [accounts, freshness, days] = await Promise.all([
+    getRoster(trader.id),
+    getFreshness(trader.id),
+    getDailySeries(trader.id),
+  ]);
 
   /* A `Map` DOES NOT CROSS THE RSC BOUNDARY AS ONE. It arrives as `{}` with no error and no type
      complaint, which is the same silent-shape trap `reviveTrade` exists for on the tape. Serialised
@@ -44,7 +48,7 @@ export default async function AccountsPage() {
   return (
     <div className={cn(PAGE_COLUMN, 'pb-8')}>
       <WithSummaryRail rail={<AccountsRail accounts={accounts} />}>
-        <AccountsView accounts={accounts} freshness={stamps} />
+        <AccountsView accounts={accounts} freshness={stamps} days={days} />
       </WithSummaryRail>
     </div>
   );

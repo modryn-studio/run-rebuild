@@ -12,22 +12,62 @@
 import { AccountModalsProvider, useAddAccount } from './account-modals';
 import { AccountsHeader } from './accounts-header';
 import { RosterCard } from './roster-card';
-import type { RosterAccount } from '@/lib/accounts/read';
+import { PnlChart } from './pnl-chart';
+import { cumulate, type Point } from '@/lib/accounts/series';
+import type { DayPoint, RosterAccount } from '@/lib/accounts/read';
 
 export function AccountsView({
   accounts,
   freshness,
+  days,
 }: {
   accounts: RosterAccount[];
   /* A PLAIN OBJECT, NOT A `Map`. `getFreshness` builds a Map because that is the right shape on the
      server, but a Map does not survive the RSC boundary as one - it arrives as `{}`, silently. The
      page converts on the way out and this converts back. */
   freshness: Record<string, string>;
+  /** Per-account daily P&L, already windowed by the page. Folded here rather than on the server so
+   *  one read serves the chart, the group headers and (next) the row sparklines. */
+  days: DayPoint[];
 }) {
+  /* THE CHART COUNTS WHAT THE TOTALS COUNT. An account excluded from totals is excluded here too,
+     or the line above the roster would disagree with the numbers inside it - which is exactly the
+     defect v2 shipped, where filtering left the rail reading +$954.99 under a chart reading
+     -$26,995.06. */
+  const counted = new Set(accounts.filter((a) => !a.excludedFromTotals).map((a) => a.id));
+  const byDay = new Map<string, number>();
+  for (const d of days) {
+    if (!counted.has(d.accountId)) continue;
+    byDay.set(d.day, (byDay.get(d.day) ?? 0) + d.cents);
+  }
+  const series = cumulate([...byDay.entries()].map(([day, cents]) => ({ day, cents })));
+
+  /* ONE CUMULATIVE LINE PER ACCOUNT, from the same read the chart above uses. Built here rather
+     than on the server because it is a fold over rows already on the page - a second query would be
+     the same rows a render later, with a real chance of the two disagreeing after an import lands
+     between them. INCLUDES excluded accounts: an excluded row keeps its own real figure and its own
+     shape, it simply does not join a total. */
+  const perAccount = new Map<string, Map<string, number>>();
+  for (const d of days) {
+    if (!d.accountId) continue;
+    const m = perAccount.get(d.accountId) ?? new Map<string, number>();
+    m.set(d.day, (m.get(d.day) ?? 0) + d.cents);
+    perAccount.set(d.accountId, m);
+  }
+  const sparks = new Map(
+    [...perAccount.entries()].map(([id, m]) => [
+      id,
+      cumulate([...m.entries()].map(([day, cents]) => ({ day, cents }))),
+    ])
+  );
+
   return (
     <AccountModalsProvider>
       <AccountsHeader />
-      <Roster accounts={accounts} freshness={freshness} />
+      <div className="flex flex-col gap-4">
+        <PnlChart series={series} counted={counted.size} />
+        <Roster accounts={accounts} freshness={freshness} sparks={sparks} />
+      </div>
     </AccountModalsProvider>
   );
 }
@@ -37,13 +77,15 @@ export function AccountsView({
 function Roster({
   accounts,
   freshness,
+  sparks,
 }: {
   accounts: RosterAccount[];
   freshness: Record<string, string>;
+  sparks: Map<string, Point[]>;
 }) {
   const add = useAddAccount();
   const stamps = new Map<string, Date>(
     Object.entries(freshness).map(([id, iso]) => [id, new Date(iso)])
   );
-  return <RosterCard accounts={accounts} freshness={stamps} onAdd={add} />;
+  return <RosterCard accounts={accounts} freshness={stamps} sparks={sparks} onAdd={add} />;
 }
