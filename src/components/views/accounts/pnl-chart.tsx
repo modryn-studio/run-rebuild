@@ -388,8 +388,17 @@ function Plot({
         })}
 
         {hasData && kind === 'cumulative' && (
+          /* THE LINE DRAWS ITSELF IN, left to right (2026-08-26). `.draw-in` was declared in
+             `globals.css` and its reduced-motion guard was written, but nothing had ever applied
+             it - so the chart's whole entrance was a hard cut.
+             KEYED ON THE GEOMETRY, NOT ON THE PERIOD. An animation re-fires when its key changes,
+             and the honest trigger is "the shape is different": picking a period that happens to
+             draw the same curve is not a change worth 700ms of the trader's attention. The key is
+             the polyline itself, trimmed - the full string is up to ~1,250 points and using it
+             whole would allocate a long key on every render to answer a yes/no question. */
           <svg
-            className="absolute"
+            key={`c:${line.length}:${line.slice(0, 24)}:${line.slice(-24)}`}
+            className="draw-in absolute"
             style={{
               left: 'var(--axis-gutter)',
               right: 0,
@@ -441,7 +450,7 @@ function Plot({
                 <div
                   key={b.day}
                   className={cn(
-                    'absolute transition-opacity duration-100',
+                    'bar-rise absolute transition-opacity duration-100',
                     up ? 'bg-pos' : 'bg-neg',
                     at !== null && at !== i ? 'opacity-45' : 'opacity-100'
                   )}
@@ -451,6 +460,16 @@ function Plot({
                     top: `${top}%`,
                     height: `${Math.max(height, 0.6)}%`,
                     borderRadius: up ? '2px 2px 0 0' : '0 0 2px 2px',
+                    /* GROWS FROM THE BASELINE IT MEASURES FROM, so a loss extends DOWN from zero
+                       rather than rising up into place. A single origin would make every negative
+                       bar animate the wrong way against its own axis. */
+                    transformOrigin: up ? 'bottom' : 'top',
+                    /* LEFT TO RIGHT ACROSS THE WHOLE ROW, in the same 320ms the line takes to reach
+                       the right edge - so switching Cumulative to Breakdown replaces one gesture
+                       with the same gesture, rather than with a different one. Normalised by bar
+                       COUNT, not a fixed per-bar step: a fixed step would take 12 bars a quarter
+                       second and 250 bars eight. */
+                    animationDelay: `${Math.round((i / Math.max(1, bars.length - 1)) * 320)}ms`,
                   }}
                 />
               );

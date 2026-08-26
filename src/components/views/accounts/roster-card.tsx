@@ -22,12 +22,21 @@
  * not change what you made.
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { IconButton } from '@/components/ui/icon-button';
 import { AddSlot } from '@/components/ui/add-slot';
+import { useListDrag } from './use-list-drag';
+import {
+  GROUP_ORDER_KEY,
+  ROW_ORDER_KEY,
+  byStoredOrder,
+  mergeRowOrder,
+  readOrder,
+  writeOrder,
+} from '@/lib/accounts/order';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
 import { fmtMoney } from '@/lib/format';
@@ -100,7 +109,12 @@ function Spark({ curve }: { curve: number[] }) {
   const up = curve[curve.length - 1] >= 0;
 
   return (
-    <svg width={72} height={20} className="overflow-visible" aria-hidden>
+    /* `draw-in` ON THE SAME KEY DISCIPLINE THE BIG CHART USES, so a period change redraws the row's
+       squiggle the way it redraws the line above it - left to right, same curve, same duration. It
+       was the one thing on the page that swapped in a frame while everything around it drew.
+       THE KEY IS THE GEOMETRY, so a change producing the same shape does not re-fire. Cheap here in
+       a way it is not on the chart: a sparkline is at most a few dozen points. */
+    <svg key={line} width={72} height={20} className="draw-in overflow-visible" aria-hidden>
       <line
         x1={0}
         x2={72}
@@ -217,13 +231,26 @@ function Group({
   title,
   rows,
   freshness,
+  onReorder,
+  held,
+  grabbable,
+  gripHandlers,
 }: {
   title: string;
   rows: RosterAccount[];
   freshness: Map<string, Date>;
+  /** The group's own rows, in their new order. The caller merges them into the flat list. */
+  onReorder: (ids: string[]) => void;
+  /** This card is currently in the trader's hand. */
+  held: boolean;
+  /** False when there is only one card, so there is nothing to trade places with. */
+  grabbable: boolean;
+  /** Spread onto the HEADER, which is this card's grip - see the Card below. */
+  gripHandlers: React.ComponentProps<'div'>;
 }) {
   const [open, setOpen] = useState(true);
   const [showHidden, setShowHidden] = useState(false);
+  const list = useRef<HTMLDivElement>(null);
 
   const { changeFor, range, periodLabel, periodShort } = useChartView();
 
@@ -237,8 +264,32 @@ function Group({
   /* At All time the change IS the total beside it, so the indicator would print one figure twice. */
   const hasWindow = range !== 'all';
 
+  /* ROWS REORDER WITHIN THEIR OWN CARD AND NOWHERE ELSE. An account can never be dragged from one
+     card into another, because which card it sits in is its TYPE - a fact about the account - and a
+     fact must not be editable by dropping. Where it sits INSIDE the card is a preference, and a
+     preference should be. That line is structural rather than a rule anyone has to enforce: each
+     card is its own drag context, so there is no target in the next one to land in.
+     `gap: 0` - rows sit flush under a divider, so a row jumping a slot travels exactly its own
+     height. Only the VISIBLE rows take part; a hidden row is not in the list you are arranging. */
+  const drag = useListDrag({
+    keys: shown.map((a) => a.id),
+    attr: 'row',
+    gap: 0,
+    enabled: shown.length > 1,
+    onCommit: onReorder,
+    listRef: list,
+  });
+
   return (
-    <Card className="overflow-hidden">
+    /* `overflow-hidden` GOES AWAY WHILE SOMETHING IS IN THE AIR. The card clips by default so its
+       rows cannot spill past the rounded corner - but a row dragged beyond the card's edge would
+       be cut in half by that same rule, and a held CARD needs its shadow outside its own box. */
+    <Card
+      className={cn(
+        !drag.dragging && !held && 'overflow-hidden',
+        held && 'shadow-[var(--shadow-card)]'
+      )}
+    >
       {/* THE WHOLE HEADER IS THE CONTROL. v2 splits this - a chevron on desktop so the rest of the
           header can be a drag handle, the whole bar on a phone - and that split arrives with the
           drag slice. Until then one control is honest and two would be furniture. */}
@@ -248,7 +299,20 @@ function Group({
           whole header becomes one tap target via the absolutely-positioned button below it.
           `max-sm:pl-5` because the 12px inset exists to line the chevron up, and there is no chevron
           on a phone. */}
-      <div className="relative flex min-h-15 w-full items-center gap-2 py-2 pr-5 pl-3 select-none max-sm:pl-5">
+      {/* THE HEADER IS THE GRIP, NOT THE WHOLE CARD. A card whose body is a grab handle cannot have
+          rows you can also grab, and the rows are the second level of this same gesture. The
+          chevron inside it still works: the hook refuses any press that lands on a `<button>`,
+          which is what stopped `setPointerCapture` from swallowing its click.
+          `sm:cursor-grab` ONLY - the gesture is mouse-only at both levels, so a phone must not
+          advertise a grab it will not honour. */}
+      <div
+        {...gripHandlers}
+        className={cn(
+          'relative flex min-h-15 w-full items-center gap-2 py-2 pr-5 pl-3 select-none max-sm:pl-5',
+          grabbable && 'sm:cursor-grab',
+          held && 'sm:cursor-grabbing'
+        )}
+      >
         {/* PHONE: the whole bar. It sits behind the content in paint order and the content is not
             interactive, so nothing is blocked. */}
         <button
@@ -309,10 +373,25 @@ function Group({
           open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
         )}
       >
-        <div className={cn('overflow-hidden', !open && 'invisible')}>
-          <div className="divide-rule border-rule divide-y border-t">
-            {shown.map((a) => (
-              <Row key={a.id} a={a} freshness={freshness.get(a.id) ?? null} />
+        <div className={cn(!drag.dragging && 'overflow-hidden', !open && 'invisible')}>
+          {/* THE LIFTED ROW MUST NOT BE CLIPPED BY ITS OWN LIST. `divide-y` is fine, but the
+              collapse wrapper above carries `overflow-hidden` - so while something is in the air
+              the card has to stop clipping, or a row dragged past the card's edge is cut in half.
+              See the same guard on the Card below. */}
+          <div ref={list} className="divide-rule border-rule divide-y border-t">
+            {shown.map((a, i) => (
+              <div
+                key={a.id}
+                data-row={a.id}
+                style={drag.styleFor(a.id, i)}
+                {...drag.handlers}
+                className={cn(
+                  shown.length > 1 && 'sm:cursor-grab',
+                  drag.isHeld(a.id) && 'sm:cursor-grabbing bg-surface shadow-[var(--shadow-card)]'
+                )}
+              >
+                <Row a={a} freshness={freshness.get(a.id) ?? null} />
+              </div>
             ))}
           </div>
 
@@ -362,22 +441,77 @@ export function RosterCard({
   freshness: Map<string, Date>;
   onAdd: () => void;
 }) {
-  if (accounts.length === 0) return <EmptyRoster onAdd={onAdd} />;
+  /* NULL UNTIL STORAGE HAS BEEN READ, not the natural order as the initial value. The server
+     renders the natural order, and reading `localStorage` during the first client render is a
+     hydration mismatch. One frame of the natural order is the price, and it is the same trade the
+     sidebar's collapse preference makes. */
+  const [groupOrder, setGroupOrder] = useState<string[] | null>(null);
+  const [rowOrder, setRowOrder] = useState<string[] | null>(null);
+  const list = useRef<HTMLDivElement>(null);
 
-  const groups = [...GROUP_ORDER, UNLABELLED]
+  /* READ BACK WHAT WAS WRITTEN. v2 shipped this feature writing to `localStorage` and NOTHING EVER
+     READ IT BACK - the order lived exactly as long as the React tree did, and Luke found it by
+     navigating away and returning. The write is the easy half. */
+  useEffect(() => {
+    setGroupOrder(readOrder(GROUP_ORDER_KEY));
+    setRowOrder(readOrder(ROW_ORDER_KEY));
+  }, []);
+
+  const natural = [...GROUP_ORDER, UNLABELLED]
     .map((key) => ({
-      key,
+      key: key as string,
       title: key === UNLABELLED ? UNLABELLED_TITLE : ACCOUNT_TYPE_LABELS[key as AccountTypeKey],
       rows: accounts.filter((a) => (a.accountType ?? UNLABELLED) === key),
     }))
     .filter((g) => g.rows.length > 0);
 
+  const groups = byStoredOrder(natural, groupOrder, (g) => g.key).map((g) => ({
+    ...g,
+    rows: byStoredOrder(g.rows, rowOrder, (a) => a.id),
+  }));
+
+  const drag = useListDrag({
+    keys: groups.map((g) => g.key),
+    attr: 'group',
+    // The `gap-4` between cards, so a card jumping a slot travels its own height plus the gap.
+    gap: 16,
+    enabled: groups.length > 1,
+    onCommit: (keys) => {
+      setGroupOrder(keys);
+      writeOrder(GROUP_ORDER_KEY, keys);
+    },
+    listRef: list,
+  });
+
+  /* AFTER THE HOOKS, NEVER BEFORE THEM. An early return above `useState` would change the hook
+     count between an empty roster and a populated one, which React rejects outright. */
+  if (accounts.length === 0) return <EmptyRoster onAdd={onAdd} />;
+
   return (
-    <div className="flex flex-col gap-4">
-      {groups.map((g) => (
-        <Group key={g.key} title={g.title} rows={g.rows} freshness={freshness} />
+    <div ref={list} className="flex flex-col gap-4">
+      {groups.map((g, i) => (
+        <div key={g.key} data-group={g.key} style={drag.styleFor(g.key, i)}>
+          <Group
+            title={g.title}
+            rows={g.rows}
+            freshness={freshness}
+            held={drag.isHeld(g.key)}
+            grabbable={groups.length > 1}
+            gripHandlers={drag.handlers}
+            onReorder={(ids) =>
+              setRowOrder((prev) => {
+                const next = mergeRowOrder(prev, ids);
+                writeOrder(ROW_ORDER_KEY, next);
+                return next;
+              })
+            }
+          />
+        </div>
       ))}
 
+      {/* NOT IN THE DRAG LIST, and it cannot be: `:scope > [data-group]` is what the hook measures,
+          and this carries no such attribute - so "you cannot drop a card below Add an account" is
+          structural rather than a rule to enforce. Same reason the summary rail is safe. */}
       <AddSlot onClick={onAdd}>Add an account</AddSlot>
     </div>
   );

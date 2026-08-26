@@ -71,6 +71,15 @@ export default [
             // than transitioned: the text itself is different, so there is no painted FROM value
             // for a transition to travel from. globals.css:1446, reduced-motion at :1511.
             'value-fade',
+            // A LEFT-TO-RIGHT REVEAL by `clip-path: inset(0 100% 0 0)` -> `inset(0)`, so a line is
+            // uncovered rather than redrawn. Fired by remounting on a GEOMETRY key, so a period
+            // change that produces the same curve does not re-animate. globals.css:1482,
+            // reduced-motion at :1503. Consumers: the /accounts chart and its row sparklines.
+            'draw-in',
+            // `scaleY(0)` -> `scaleY(1)` from whichever edge the bar measures FROM, so a losing bar
+            // extends down from zero instead of rising up into it. Staggered by index across the
+            // row. globals.css:1489, reduced-motion at :1504.
+            'bar-rise',
             // globals.css:435, and already handled in the reduced-motion block at :659.
             'soft-pulse',
             // The raised-chip mechanic — rest / hover / press as one named pair, so a control
