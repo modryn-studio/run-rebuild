@@ -39,7 +39,6 @@ import { TrendIndicator } from './trend-indicator';
 import { useChartView } from './chart-view';
 import { cn } from '@/lib/cn';
 import { fmtMoney } from '@/lib/format';
-import { displayDayShort } from '@/lib/time/session';
 import {
   RANGES,
   RANGE_LABELS,
@@ -60,6 +59,31 @@ const GRIDLINES = 6;
 const AXIS_GAP = 17;
 
 const signed = (cents: number) => (cents > 0 ? `+${fmtMoney(cents)}` : fmtMoney(cents));
+
+/* THE AXIS SPEAKS IN THOUSANDS. Six gridlines carrying `-$19,732.41` each is six long strings the
+ * eye has to parse to learn a magnitude it only wanted approximately — and at a 70px gutter they
+ * clip. `-$19.7K` is the same fact at a glance. The FIGURE above the chart stays exact; this is the
+ * ruler, not the reading. (v2 calls this `compactUsd`.) */
+function compactMoney(cents: number): string {
+  const d = cents / 100;
+  const sign = d < 0 ? '-' : '';
+  const abs = Math.abs(d);
+  if (abs >= 1000) return `${sign}$${(abs / 1000).toFixed(1)}K`;
+  return `${sign}$${Math.round(abs)}`;
+}
+
+/* A DATE THE AXIS CAN AFFORD. `displayDayShort` gives "Jul 7, 2026", which is right in a rail of
+ * stated facts and too long for two ends of a plot. The year comes back only when the window
+ * actually crosses one — otherwise it is the same four digits printed twice, saying nothing. */
+function axisDate(day: string, withYear: boolean): string {
+  const [y, m, d] = day.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'UTC',
+    month: 'short',
+    day: 'numeric',
+    ...(withYear ? { year: 'numeric' as const } : {}),
+  }).format(new Date(Date.UTC(y, m - 1, d)));
+}
 
 /** Fractional days since epoch, so the x axis is real time rather than position in an array. */
 const dayNum = (day: string) => new Date(`${day}T00:00:00Z`).getTime() / 86_400_000;
@@ -264,8 +288,21 @@ function Plot({
 
   const line = points.map((p) => `${xPct(p.day)},${yPct(p.cents)}`).join(' ');
 
+  /* READ OFF WHAT IS DRAWN, not off the whole corpus. v2 read its full span here and stamped a
+     year suffix on a chart sitting entirely inside one. */
+  const ends = kind === 'cumulative' ? points : bars;
+  const multiYear =
+    ends.length > 0 && ends[0].day.slice(0, 4) !== ends[ends.length - 1].day.slice(0, 4);
+
   return (
-    <div className="relative mt-4 w-full [--axis-gutter:0px] [--chart-h:242px] sm:[--axis-gutter:70px] sm:[--chart-h:275px]">
+    /* FULL BLEED ON A PHONE. `max-sm:-mx-4` cancels the page column's own 16px gutter so the plot
+       runs edge to edge - at 390px the card has no chrome anyway, and 32px of the width is a lot to
+       spend on air beside a line whose shape is the whole point. */
+    <div className="relative mt-4 w-full [--axis-gutter:0px] [--chart-h:242px] max-sm:-mx-4 max-sm:w-auto sm:[--axis-gutter:70px] sm:[--chart-h:275px]">
+      {/* THE PHONE'S ONLY AXIS. Six gridlines and their labels are desktop-only, so without this a
+          390px chart draws a line floating in nothing with no baseline to read it against. Dashed
+          rather than solid so it reads as a reference rather than as data. */}
+      <span className="border-border absolute right-0 left-0 border-t border-dashed sm:hidden" />
       <div
         className="relative w-full"
         style={{ height: 'var(--chart-h)' }}
@@ -308,7 +345,7 @@ function Plot({
                 className="text-caption text-muted hidden shrink-0 -translate-y-1/2 text-right tabular-nums sm:block"
                 style={{ width: 'var(--axis-gutter)', paddingRight: 12 }}
               >
-                {hasData ? fmtMoney(Math.round(value)) : ''}
+                {hasData ? compactMoney(Math.round(value)) : ''}
               </span>
               <span className="border-rule h-px flex-1 border-t" />
             </div>
@@ -399,26 +436,29 @@ function Plot({
             }
           />
         )}
-      </div>
 
-      {/* THE WINDOW'S TWO ENDS, under the plot. A label per bucket needs stride arithmetic against a
-          measured width; two ends answer "what am I looking at" without it. */}
-      {hasData && (
-        <div
-          className="text-caption text-muted flex justify-between tabular-nums"
-          style={{
-            marginLeft: 'var(--axis-gutter)',
-            marginTop: AXIS_GAP - (PLOT_BOTTOM - PLOT_TOP) + 222,
-          }}
-        >
-          <span>{displayDayShort(kind === 'cumulative' ? points[0].day : bars[0].day)}</span>
-          <span>
-            {displayDayShort(
-              kind === 'cumulative' ? points[points.length - 1].day : bars[bars.length - 1].day
-            )}
-          </span>
-        </div>
-      )}
+        {/* THE WINDOW'S TWO ENDS, AT THE PLOT'S OWN BOTTOM EDGE — absolutely positioned INSIDE the
+            box rather than flowed under it. Flowed, they land past the 41px of slack between the
+            last gridline (234) and the box's height (275), plus their own gap: measured at 50px of
+            dead air against v2's card, which is why this card stood taller than its reference.
+            `AXIS_GAP` is 17, v2's measured breathing room after its labels sat on the line at 12.
+            A label per bucket would need stride arithmetic against a measured width; two ends
+            answer "what am I looking at" without it. */}
+        {hasData && (
+          <div
+            className="text-caption text-muted absolute right-0 flex justify-between tabular-nums"
+            style={{ left: 'var(--axis-gutter)', top: PLOT_BOTTOM + AXIS_GAP }}
+          >
+            <span>{axisDate(kind === 'cumulative' ? points[0].day : bars[0].day, multiYear)}</span>
+            <span>
+              {axisDate(
+                kind === 'cumulative' ? points[points.length - 1].day : bars[bars.length - 1].day,
+                multiYear
+              )}
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -448,9 +488,10 @@ function Tip({
         transform: flip ? 'translateX(-100%)' : undefined,
       }}
     >
-      <p className="text-caption text-muted">
-        {kind === 'cumulative' ? displayDayShort(label) : displayDayShort(label)}
-      </p>
+      {/* THE TOOLTIP NAMES THE BUCKET IN FULL, which the axis cannot afford. It appears one at a
+          time and has the room, so the year stays: a hovered point should not make the reader work
+          out which year they are looking at from the two ends of the plot. */}
+      <p className="text-caption text-muted">{axisDate(label, true)}</p>
       <p className="text-body text-text font-medium tabular-nums">{signed(cents)}</p>
     </div>
   );

@@ -132,7 +132,10 @@ function Row({ a, freshness }: { a: RosterAccount; freshness: Date | null }) {
        the object. A real `<a>` so middle-click, cmd-click and open-in-new-tab all work. */
     <Link
       href={`/accounts/details/${a.id}`}
-      className="hover:bg-hover flex min-h-21 w-full items-center gap-5 px-5 py-3 text-left transition-colors"
+      /* `pl-7`, NOT `px-5` — v2's measured inset. The extra 8px is the lane the drag grip occupies,
+         and it is claimed now rather than when drag lands so the rows do not all shift sideways the
+         day it does. `min-h-21` (84px) is a FLOOR, not a height: a wrapping name grows the row. */
+      className="group/row hover:bg-hover relative flex min-h-21 w-full items-center gap-5 py-3 pr-5 pl-7 text-left transition-colors select-none"
     >
       <AccountLogo propFirm={a.propFirm} />
 
@@ -189,7 +192,10 @@ function Row({ a, freshness }: { a: RosterAccount; freshness: Date | null }) {
           {/* THE STAMP ANSWERS WHAT THE FIGURE CANNOT: a number with no timestamp cannot tell you
               whether it is this morning's or last month's. This is P5, the direct answer to the
               field's defining failure. */}
-          {stamp && <span className="text-body text-muted block">{stamp}</span>}
+          {/* A TIER BELOW THE FIGURE. v2 sets `text-small text-faint`; `faint` was deleted here
+              (two content tiers, not three) so this is `text-caption text-muted`, which is the same
+              IDEA in this build's scale. At `text-body` it competed with the money above it. */}
+          {stamp && <span className="text-caption text-muted block">{stamp}</span>}
         </span>
       </span>
     </Link>
@@ -225,19 +231,37 @@ function Group({
       {/* THE WHOLE HEADER IS THE CONTROL. v2 splits this - a chevron on desktop so the rest of the
           header can be a drag handle, the whole bar on a phone - and that split arrives with the
           drag slice. Until then one control is honest and two would be furniture. */}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex min-h-15 w-full items-center gap-2 py-2 pr-5 pl-3 text-left"
-      >
-        <span className="text-muted flex size-9 shrink-0 items-center justify-center">
+      {/* A DIV, NOT A BUTTON, AND THE SPLIT IS v2'S. A bar that toggles on click cannot also be a
+          thing you pick up, because every drag would end in a toggle. So on a desktop the CHEVRON is
+          the control and the rest of the bar is the handle; below `sm` there is no drag, so the
+          whole header becomes one tap target via the absolutely-positioned button below it.
+          `max-sm:pl-5` because the 12px inset exists to line the chevron up, and there is no chevron
+          on a phone. */}
+      <div className="relative flex min-h-15 w-full items-center gap-2 py-2 pr-5 pl-3 select-none max-sm:pl-5">
+        {/* PHONE: the whole bar. It sits behind the content in paint order and the content is not
+            interactive, so nothing is blocked. */}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-label={`${open ? 'Collapse' : 'Expand'} ${title}`}
+          className="absolute inset-0 sm:hidden"
+        />
+        {/* DESKTOP: a real button, so it is reachable by keyboard and cannot be swallowed by a drag
+            that starts on the bar beside it. */}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-label={`${open ? 'Collapse' : 'Expand'} ${title}`}
+          className="lift-press text-muted hover:text-text hidden h-9 w-9 shrink-0 items-center justify-center rounded-full sm:flex"
+        >
           <Icon
             name="chevron"
             size={16}
             className={cn('transition-transform', !open && '-rotate-90')}
           />
-        </span>
+        </button>
         {/* ONE SET OF NODES, TWO LAYOUTS. Rendering the total twice behind visibility classes puts
             the same money on the page twice and invites the two copies to drift. */}
         <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 sm:flex">
@@ -261,7 +285,7 @@ function Group({
             </span>
           )}
         </span>
-      </button>
+      </div>
 
       {/* `grid-rows` 0fr -> 1fr, NOT `max-height`. A max-height transition needs a number bigger
           than the content, which makes a two-row group animate at a different SPEED from a

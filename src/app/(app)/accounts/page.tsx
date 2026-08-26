@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { requireTrader } from '@/lib/trader';
 import { PAGE_COLUMN } from '@/lib/shell';
 import { cn } from '@/lib/cn';
-import { WithSummaryRail } from '@/components/shell/summary-rail';
 import { getDailySeries, getFreshness, getRoster } from '@/lib/accounts/read';
 import { AccountsView } from '@/components/views/accounts/accounts-view';
 import { AccountsRail } from '@/components/views/accounts/accounts-rail';
@@ -18,9 +17,22 @@ import { AccountsRail } from '@/components/views/accounts/accounts-rail';
  * The roster, its totals and the rail are all derived from ONE read, so they cannot disagree about
  * what the trader owns — the same rule `/trades` follows for its tape and digest.
  *
- * THE RAIL IS THE SHELL'S, not a second implementation. `WithSummaryRail` already collapses rather
- * than unmounting, measures before it pins, restores its width before arming its transition and
- * answers the phone's back button. v2 has its own and this one is further along.
+ * THE RAIL IS `StickyRail` DIRECTLY, NOT `WithSummaryRail`, and that is a correction (2026-08-26,
+ * Luke: "the accounts page STILL isn't the same as v2"). Reading both DOM trees side by side made
+ * the reason structural rather than cosmetic:
+ *
+ *   v2   PAGE_COLUMN > [ chart card (FULL WIDTH) , grid( roster , rail ) ]
+ *   here PAGE_COLUMN > WithSummaryRail > PAGE_COLUMN > grid( [chart, roster] , rail )
+ *
+ * Two faults fell out of that. The chart was INSIDE the grid's left column, so it stopped where the
+ * roster stops instead of spanning the page over the rail — the single biggest reason the page did
+ * not read like v2's. And `WithSummaryRail` applies `PAGE_COLUMN` itself, so nesting it inside this
+ * page's own doubled the gutter to 32px.
+ *
+ * `WithSummaryRail` is still the right wrapper for `/trades`, where the tape is the only content and
+ * the rail is a collapsible drawer with a header toggle. `/accounts` has a card ABOVE the split and
+ * v2 stacks its rail below the roster on a phone rather than hiding it behind a control, so this
+ * page takes the same `StickyRail` v2 does and lays the grid out itself.
  *
  * ─── STILL TO COME IN THIS SLICE ──────────────────────────────────────────────────────────────
  * The hero chart and per-row sparklines (`S6c`), `/accounts/details/<id>` (`S6d`) — which makes live
@@ -47,9 +59,15 @@ export default async function AccountsPage() {
 
   return (
     <div className={cn(PAGE_COLUMN, 'pb-8')}>
-      <WithSummaryRail rail={<AccountsRail accounts={accounts} />}>
-        <AccountsView accounts={accounts} freshness={stamps} days={days} />
-      </WithSummaryRail>
+      {/* THE RAIL ARRIVES AS A PROP, not as a child of the client view. `AccountsRail` is a server
+          component — it only reads and formats — and passing it through keeps it that way. Rendering
+          it inside `AccountsView` would drag it across the client boundary for nothing. */}
+      <AccountsView
+        accounts={accounts}
+        freshness={stamps}
+        days={days}
+        rail={<AccountsRail accounts={accounts} />}
+      />
     </div>
   );
 }

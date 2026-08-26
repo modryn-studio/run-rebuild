@@ -14,6 +14,7 @@ import { AccountsHeader } from './accounts-header';
 import { RosterCard } from './roster-card';
 import { PnlChart } from './pnl-chart';
 import { ChartViewProvider } from './chart-view';
+import { StickyRail } from '@/components/shell/sticky-rail';
 import { sizeBase } from './trend-indicator';
 import { cumulate, type Point } from '@/lib/accounts/series';
 import type { DayPoint, RosterAccount } from '@/lib/accounts/read';
@@ -22,6 +23,7 @@ export function AccountsView({
   accounts,
   freshness,
   days,
+  rail,
 }: {
   accounts: RosterAccount[];
   /* A PLAIN OBJECT, NOT A `Map`. `getFreshness` builds a Map because that is the right shape on the
@@ -31,6 +33,8 @@ export function AccountsView({
   /** Per-account daily P&L, already windowed by the page. Folded here rather than on the server so
    *  one read serves the chart, the group headers and (next) the row sparklines. */
   days: DayPoint[];
+  /** The summary rail, rendered on the server and passed through. */
+  rail: React.ReactNode;
 }) {
   /* THE CHART COUNTS WHAT THE TOTALS COUNT. An account excluded from totals is excluded here too,
      or the line above the roster would disagree with the numbers inside it - which is exactly the
@@ -78,9 +82,23 @@ export function AccountsView({
     <AccountModalsProvider>
       <ChartViewProvider byAccount={byAccount} endsOn={endsOn}>
         <AccountsHeader />
-        <div className="flex flex-col gap-4">
-          <PnlChart series={series} counted={counted.size} baseDollars={baseDollars} />
+
+        {/* THE CHART SPANS THE PAGE, ABOVE THE SPLIT — v2's arrangement, and the thing that most
+            decides whether this reads as the same page. Inside the grid's left column it stops
+            where the roster stops, which leaves the curve describing the whole roster drawn at the
+            width of part of it. */}
+        <PnlChart series={series} counted={counted.size} baseDollars={baseDollars} />
+
+        {/* 304px IS FIXED, and the roster takes whatever is left. v2 measured this at a 1280
+            viewport: the two columns compute to 693.8 / 304.2 with a 16px gutter. Fixed rather than
+            a fraction because the rail holds label/value pairs whose ideal width does not change
+            with the viewport — letting it flex only stretches the whitespace between a word and its
+            number.
+            BELOW `lg` THE RAIL ORDERS LAST. On a phone it is a screenful of totals standing between
+            the trader and the accounts they opened the page for. */}
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_304px]">
           <Roster accounts={accounts} freshness={freshness} />
+          <StickyRail>{rail}</StickyRail>
         </div>
       </ChartViewProvider>
     </AccountModalsProvider>

@@ -44,12 +44,17 @@ export function AccountLogo({
     >
       {/* A LOCAL ASSET, so `next/image` would need each firm host whitelisted for nothing — the same
           call `trade-detail.tsx` already makes for the same files. */}
+      {/* A FIRM'S MARK FILLS THE TILE; THE BROKER FALLBACK SITS AT 0.6 (v2's split, and it is not
+          cosmetic). A prop firm's logo is already drawn with its own padding and reads as the
+          account's identity, so shrinking it leaves a small mark adrift in a ring. The broker mark
+          is a FALLBACK standing in for a fact nobody has stated yet, and inset it reads as
+          secondary — which is exactly what it is. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src ?? '/brokers/tradovate-logomark.png'}
         alt=""
-        className="object-contain"
-        style={{ width: size * 0.6, height: size * 0.6 }}
+        className={src ? 'h-full w-full object-contain' : 'object-contain'}
+        style={src ? undefined : { width: size * 0.6, height: size * 0.6 }}
       />
     </span>
   );
