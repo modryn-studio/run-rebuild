@@ -1,8 +1,24 @@
 # S6 — Accounts: the port plan
 
-**Status: DRAFT, for argument. Nothing here is agreed.** Written 2026-08-25 after reading v2's
-`/accounts` roster, its detail page, and its whole accounts data layer, against `spec.md`,
-`architecture.md`, `wireframes.md`, `design-system.md` and the shipped `run-rebuild` code.
+**Status: LARGELY BUILT. Written as a draft 2026-08-25; the arguing is over.** Amended 2026-08-27,
+because a plan that still says "nothing here is agreed" after five of its seven slices have merged is
+worse than no plan - it sends the next session to re-decide questions the code already answers.
+
+| | |
+|---|---|
+| **Shipped** | `S6a` read layer · `S6b` roster · `S6c` hero chart · `S6f` filters + reorder · `S6g` mobile pass |
+| **Not built** | `S6d` the detail route · `S6e` editing |
+| **Decisions** | `D1`-`D5` settled in code, recorded in §1 below. §7 is now empty by design |
+
+⚠ **`S6d` IS NOT MERELY PENDING - IT IS A HOLE IN THE SHIPPED PAGE.** Every roster row is a
+`<Link href={`/accounts/details/${id}`}>` (`roster-card.tsx:172`), and that route does not exist:
+measured 2026-08-27, it returns **404**. The primary interaction of `/accounts` currently does
+nothing but leave. The same shape appears on the sub-line, where an unlabelled account reads
+*"Name this account"* - an invitation to an editing surface `S6e` has not built.
+
+Written after reading v2's `/accounts` roster, its detail page, and its whole accounts data layer,
+against `spec.md`, `architecture.md`, `wireframes.md`, `design-system.md` and the shipped
+`run-rebuild` code.
 
 Luke's brief: *"the /accounts page on run-trading@v2 is perfectly the way i want it... im almost 100%
 sure i want /accounts page to port exactly how it is."* This plan takes that as the default and
@@ -28,9 +44,21 @@ So: **port the surface, rewrite the reads.** Roughly 70% copy, 30% net-new.
 
 ## 1. Decisions needed before any code
 
-These are the things I cannot derive from the docs. Each blocks a specific slice.
+*These were the things I could not derive from the docs. **All five are now settled, and the answer
+is in the schema and the shipped page rather than here.** The reasoning below is kept because it is
+the argument each answer won, not because anything is still open. Verified against the code
+2026-08-27.*
 
-### D1 — The account state vocabulary ⛔ blocks everything
+| | Question | Settled as |
+|---|---|---|
+| **D1** | the state vocabulary | **Both axes kept, and they are orthogonal.** `account_type` is `evaluation · sim_funded · personal` and **nullable** - null is "nobody has labelled it yet", a normal state, and the roster draws it as `Unlabelled`. `status` is `active · passed · failed · closed`, so v2's `passed` survives. A CHECK constraint pairs them: an evaluation may pass or fail, a sim-funded account may fail or close, a personal one may only close, and an unlabelled one may only be active (`schema.ts:359`) |
+| **D2** | which v2 columns are v1 | **`hidden` ✓ · `excluded_from_totals` ✓ · `closed_on` ✓ as a DATE · `daily_line_cents` ✗ CUT.** The cut is the one this plan argued for: dead in v2 too, and `psychology.md` puts the armed-line ritual in a later slice |
+| **D3** | drag-to-reorder | **Yes, v1, and it shipped in `S6f`** - cards and rows both. `localStorage`, not a column, and `lib/accounts/order.ts` states the two costs rather than hiding them: the order does not follow to another browser, and the natural order paints for one frame first. Row order is ONE flat list of every id, which is what makes a saved arrangement survive an account changing type |
+| **D4** | Cumulative only, or Breakdown | **Both.** `chart-view.tsx` carries `Kind = 'cumulative' \| 'breakdown'`. Which means `session-window.ts` WAS needed and exists, with `scripts/s6-session-window-gate.mts` over it |
+| **D5** | "Add manually", and S9b | **Still S6's, and it is the LAST thing in the slice rather than part of the modal.** It is blocked on `S6d`, not on modal work: v2's adoption path is trustworthy only because the import launches from a specific account's own page, and there is no per-account page until `S6d` builds one (`build-plan.md`). S9b's home is still open |
+| **D6** | the rail's shape | **v2's ledger, no `[Totals \| Percent]` toggle** - the wireframe draws one and loses the argument, for the reason v2 gives: a bar cannot show a losing account as a share of a positive total. The disagreement is recorded at the point of use (`accounts-rail.tsx:10`) rather than silently resolved |
+
+### D1 — The account state vocabulary ✅ SETTLED — both axes, and `passed` survives
 
 The two builds model this differently, and it is not a rename.
 
@@ -51,15 +79,17 @@ v2's phase-dependent labelling produces a live bug it never caught: `statusToken
 used to pick the chart window, so **a personal account with `status: 'passed'` is treated as active**
 and gets today's empty session instead of its last real one.
 
-`spec.md:522` says `group accounts by state (funded, evaluation, closed)` — which mixes a type value
-(`funded`), a type value (`evaluation`) and a state value (`closed`), so the locked spec does not
-settle it either. `architecture.md:104` is separately stale here (it still says `account_type` is
-NOT NULL and calls the value `funded`, both fixed in code at S4e).
+`spec.md:522` said `group accounts by state (funded, evaluation, closed)` — which mixes two TYPE
+values (`funded`, `evaluation`) with one STATE value (`closed`), so the locked spec did not settle it
+either. **That line was amended 2026-08-27** to name the two axes separately; see the amendment note
+in `spec.md` itself. `architecture.md` was stale here too and **is no longer** — checked 2026-08-27,
+its account table reads `account_type` nullable with the three type values and `status` as
+`active · passed · failed · closed`, which is what shipped.
 
 **This needs your answer, not my inference.** It decides the roster's groups, the summary rail's
 rows, the status chip, the close flow and the CSV export.
 
-### D2 — Which behaviours are v1
+### D2 — Which behaviours are v1 ✅ SETTLED — three kept, `daily_line` cut
 
 v2's roster reads four columns `run-rebuild` has no equivalent of. Each is a migration plus a
 surface, and each is independently droppable.
@@ -74,7 +104,7 @@ surface, and each is independently droppable.
 `daily_line_cents` is the one I'd cut: it is dead in v2 too, and `psychology.md` puts the armed-line
 ritual in a later slice. The other three earn their place on the roster.
 
-### D3 — Is drag-to-reorder v1?
+### D3 — Is drag-to-reorder v1? ✅ SETTLED — yes, and it shipped
 
 v2 has two levels of it (cards, and rows within a card), ~260 lines of hand-written pointer physics
 copied off `react-beautiful-dnd`, and it is **mouse-only by design** — *"Reordering is a desk task;
@@ -87,7 +117,7 @@ shipped **write-only for the entire life of the feature** — nothing ever read 
 
 It is the single largest piece of interaction in the port and the easiest to defer.
 
-### D4 — Cumulative only, or Breakdown too?
+### D4 — Cumulative only, or Breakdown too? ✅ SETTLED — both shipped
 
 The hero chart has two modes. **Cumulative** (the equity curve in the wireframe) is one SVG path.
 **Breakdown** is stacked bars with its own grain menu, paging arrows, a stacking axis that picks
@@ -96,7 +126,7 @@ phase → firm → top-6 + Other, a 7-colour ramp, and per-bucket tooltips that 
 Breakdown is roughly two-thirds of `total-pnl-card.tsx`'s 1,417 lines. The wireframe draws only the
 curve. Shipping Cumulative first is a real cut with a clean seam.
 
-### D5 — "Add manually", and S9b
+### D5 — "Add manually", and S9b ✅ SETTLED — S6's, after `S6d`
 
 `build-plan.md` puts **Add manually** in S6, and gives the reason: v2's adoption path (`pending:%`)
 is only trustworthy because the import launches *from a specific account's own page*. That makes the
@@ -170,39 +200,51 @@ back button has to unwind one at a time.
 
 Each slice is independently demoable and ends at the seven-point bar.
 
-### S6a — The read layer
+### S6a — The read layer ✅ SHIPPED
 `src/lib/accounts/read.ts`. One grouped query off `trade` for per-account net + fills + last
 session; one for the daily series keyed `(accountId, sessionDate)`; one `max(import.uploaded_at)`
 per account for the freshness stamp — **the same query `/today` will use, per `architecture.md`'s
 "not two that can disagree."** Migration for whichever of D2 survives.
 *Gate: a script asserting the roster's numbers reconcile against `/trades` for the same window.*
 
-### S6b — The roster, static
+### S6b — The roster, static ✅ SHIPPED
 Header cluster (`Add account` as the single primary, portalled into the shell band), groups with
 their own totals, rows, the summary rail via the **existing** `WithSummaryRail`, both empty states.
 No chart, no drag, no filters.
 *This is the slice that unblocks S4: `Add account` gets its door back.*
 
-### S6c — The hero chart, cumulative
+### S6c — The hero chart, cumulative ✅ SHIPPED (with Breakdown — see D4)
 The curve, the two figures (all-time headline + windowed change), the period menu, gridlines as
 divs, hover snapping to real points. Per-row sparklines.
 *Deferred unless D4 says otherwise: Breakdown, its grain menu, paging, the stacking axis.*
 
-### S6d — The detail route
+### S6d — The detail route ⛔ NOT BUILT, and the roster already links to it
 `/accounts/details/<id>` — breadcrumb header, the account rail's two cards, the account's own tape.
 Makes live the two links `/trades` already renders as plain strings.
 *Includes the P8 provenance card, which needs a fourth fact v2 does not have — see §4.*
 
-### S6e — Editing
+**THIS IS NOW A BUG, NOT A GAP** (measured 2026-08-27). `S6b` shipped the roster with every row
+wrapped in `<Link href={`/accounts/details/${a.id}`}>` (`roster-card.tsx:172`), and the route was
+never built: `GET /accounts/details/<anything>` returns **404**. So the page's primary interaction —
+tapping the account you want to look at — leaves the app for a not-found. Two consequences for how
+this slice gets built:
+
+- **It ships with the phone, not after it.** `S6g` deferred "details on a phone" to later; there is
+  no later, because the row that opens it is a phone row today.
+- **The empty and error ends are not hypothetical.** The link is generated from a real id, so the
+  reachable failures are an id belonging to ANOTHER trader (must 404, not leak) and an account with
+  zero trades (must render, not divide by nothing).
+
+### S6e — Editing ⛔ NOT BUILT
 `LabelAccountForm` (confirm-not-interrogate, firm pre-filled from prefix, apply-to-siblings),
 `FirmPicker`, Close, Delete-or-refuse. All wired through `useOverlayBack`.
 *The most stateful slice, and the one carrying the most of v2's shipped bugs to avoid.*
 
-### S6f — Filters, and reorder if D3 says yes
+### S6f — Filters, and reorder ✅ SHIPPED
 The three-column roster panel, `ScopeTabs` on a phone. **Both shipped** (2026-08-26/27), along with
 drag-to-reorder for cards and rows.
 
-### S6g — Mobile pass
+### S6g — Mobile pass ✅ SHIPPED (first pass; `S6d`/`S6e` still owe theirs)
 Per Luke: *"mobile view of accounts will be done at the end."* **First pass shipped 2026-08-27**:
 the band drops Filters and takes Refresh and Add as icons at the shell's own 22px scale; the chart
 drops its gridlines, its axis labels and its two axis dates below `sm` and gains a press-and-drag
@@ -277,11 +319,22 @@ recur if the code is copied without its reasoning:
 
 ## 7. Open questions, collected
 
-1. **D1** — the state vocabulary, and therefore the roster's groups.
-2. **D2** — `hidden` / `excluded_from_totals` / `daily_line` / `closed_on`: which are v1?
-3. **D3** — is drag-to-reorder v1?
-4. **D4** — Cumulative only, or Breakdown too? (Decides whether `session-window.ts` is needed.)
-5. **D5** — does "Add manually" land in S6, and does S9b move here?
-6. Does the summary rail keep v2's shape (a ledger, no Totals/Percent toggle) or the **wireframe's**
-   shape, which draws a `[Totals | Percent]` toggle v2 deliberately does not have and argues
-   against — *"a bar cannot show a losing account as a share of a positive total"*?
+~~D1–D6~~ — **all closed. The answers are in the table at the top of §1**, each against the code that
+settled it. This section is deliberately left as a stub rather than deleted: the next port plan
+should copy its shape, which is *the questions the docs cannot answer, listed before any code*, and
+that is easier to copy from a section that visibly emptied than from one that never existed.
+
+**What IS still open, and neither is a D-question:**
+
+1. **Where S9b lives** — re-sync / exclude-with-a-reason on a quarantined trade. Luke: *"will most
+   likely live on /accounts."* If so it wants its own slice here, and `S6d`'s detail route is the
+   surface it would stand on. Still unanswered.
+2. **The Account row's card on `/accounts/details`** — `spec.md`'s amended P8 wants four facts in the
+   Data card and v2 puts the Account row in Summary. Moving it breaks the rail's stated divider
+   grammar (*identity, then terms, then the record*), so the groups need re-cutting rather than the
+   row relocating. This is `S6d`'s to answer, not a blocker on starting it. See §4.
+3. **Is `CLOSED` a group of its own?** `wireframes.md` draws one; v2 refuses, because a CLOSED card
+   groups on a value that CHANGES and *"a fact must not be editable by dropping"*. Built v2's way per
+   *"port exactly how it is"* and flagged live at `roster-card.tsx:11`. `spec.md`'s amended criterion
+   is deliberately written to hold either way, so this is a real choice rather than a blocker. **A
+   closed account is visible and countable on both readings** — only its card differs.

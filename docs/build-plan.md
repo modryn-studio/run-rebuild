@@ -1123,10 +1123,21 @@ drawer cannot give up its nav rows until the bottom bar carries them.
 
 ## Phase 5 gate
 
-*Status as of 2026-08-25. `S0`–`S3c` merged; waves 1 and 2 complete. **`S4` is built end to end,
-backend and UI both — what keeps it open is that `S4e`'s modal has no door in the product, and
-`S6` builds it.** `S3d`, `S5` and `S5d` are closed — the record and the phone both. `S6`–`S9` untouched, and `S7` is blocked on a
-product decision rather than on engineering ([#2](https://github.com/modryn-studio/run-rebuild/issues/2)).*
+*Status as of **2026-08-27**. `S0`–`S3c` merged; waves 1 and 2 complete. `S3d`, `S5` and `S5d` are
+closed — the record and the phone both.*
+
+***`S4` IS UNBLOCKED AND ITS DOOR IS BACK.*** *The line that used to sit here said `S4e`'s modal had
+no door in the product. `S6b` shipped the roster on 2026-08-26 with `Add account` portalled into the
+shell band, so the flow is reachable again. What `S4` still owes before it CLOSES is its own third
+door — "Add manually" — which `D5` keeps in `S6` and which is blocked on `S6d`, below.*
+
+***`S6` IS MOSTLY BUILT, NOT UNTOUCHED.*** *`S6a` read layer, `S6b` roster, `S6c` hero chart (with
+Breakdown), `S6f` filters and reorder, and `S6g`'s first mobile pass have all merged.* **What remains
+is `S6d` (the detail route) and `S6e` (editing) — and `S6d` is not a gap but a live defect: every
+roster row links to `/accounts/details/<id>`, which returns 404.** *See `s6-plan.md` §3.*
+
+*`S7`–`S9` untouched. `S7` is blocked on a product decision rather than on engineering
+([#2](https://github.com/modryn-studio/run-rebuild/issues/2)).*
 
 - [x] **`S1` fired or cleared the kill signal, and the result is recorded** — CLEARED. The MNQ→NQ
       multiplier finding, confirmed by Luke as something he did not already know

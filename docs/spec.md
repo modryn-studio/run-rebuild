@@ -5,7 +5,9 @@
 > Point agents at this file, not at your memory of it.
 
 **Status:** LOCKED at the phase 2 gate, 2026-08-11
-**Last amended:** 2026-08-12 — intake is FOUR files (`Orders` required), fee plausibility as a
+**Last amended:** 2026-08-27 — `S7`'s grouping criterion re-cut onto the axis it is actually built
+on, because "group by state (funded, evaluation, closed)" named one list that was two (type and
+state) and had no implementation. Whether `CLOSED` is additionally a group is explicitly left open. Before that, 2026-08-12 — intake is FOUR files (`Orders` required), fee plausibility as a
 fourth loud failure mode, code resolves direction/outcome/exit/cancel before any model sees the
 tape; §8 the agricultural-hours gap RESOLVED (the 17:00 CT roll lands in ag's 13:20→19:00 dead
 zone, so it needs no special case) and "the weekend has no bucket" qualified — CME crypto is 24/7,
@@ -519,7 +521,34 @@ Acceptance criteria:
 Acceptance criteria:
 - `THE SYSTEM SHALL model the trader as the primary identity and the account as a child of it`
 - `THE SYSTEM SHALL retain all trades from an account after that account is closed, breached, or removed by the broker`
-- `THE SYSTEM SHALL group accounts by state (funded, evaluation, closed) with each group carrying its own totals`
+- ~~`THE SYSTEM SHALL group accounts by state (funded, evaluation, closed) with each group carrying its own totals`~~ → **AMENDED 2026-08-27 (Luke), `S6`.** `THE SYSTEM SHALL group accounts by type — evaluation, sim funded, personal, and unlabelled — with each group carrying its own totals`
+
+> **Why the original could not be built as written.** It named one list and it was really two.
+> `funded` and `evaluation` are values of an account's TYPE; `closed` is a value of its STATE. An
+> account is both at once — a sim-funded account that got closed has to appear exactly once — so a
+> single "group by state" has no implementation. The schema settled it as two orthogonal columns
+> (`s6-plan.md` D1): `account_type` is `evaluation · sim_funded · personal` and **nullable**,
+> `status` is `active · passed · failed · closed`, with a CHECK constraint over the legal pairs.
+>
+> **Type is what the grouping is on, and the reason is that it changes what a number MEANS** — a sim
+> funded account can pay out, an evaluation cannot, a personal account is the trader's own money.
+> What HAPPENED to an account is a chip on its row.
+>
+> **`Unlabelled` is the null type, and it is a normal state rather than a missing one.** Type is
+> asked for AFTER the import that created the account (the `S4e` amendment above), so every account
+> is unlabelled for a while. "Not yet labelled" was tried and rejected 2026-08-27 — *"sounds
+> unprofessional"* — and "not yet" is a progress report on the trader, which the no-absence-state
+> rule forbids.
+>
+> ⚠ **WHAT THIS AMENDMENT DELIBERATELY DOES NOT SETTLE: whether `CLOSED` is also a group.**
+> `wireframes.md` draws one — *"a permanent group, not an archive you dig for"* — and that argument
+> is real. Against it: a CLOSED card groups on a value that CHANGES, and v2 refused exactly that,
+> *"which card it sits in is its PHASE, a fact about the account, and a fact must not be editable by
+> dropping"*. The roster shipped v2's way per Luke's *"port exactly how it is"*, with the conflict
+> flagged live at `roster-card.tsx:11` rather than quietly resolved. **A closed account is visible
+> and countable either way** — this story's second criterion is met on both readings — so the open
+> question is only which card it sits in. Luke's to settle; the criterion above is written to be
+> true whichever way it goes.
 
 ---
 
