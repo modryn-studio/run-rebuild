@@ -94,8 +94,13 @@ export function ScopeTabs({
        AND NO BAR (2026-08-27). `.scroll-none` rather than the app's `.scroll-thin`, because on a
        390px screen the bar was a full-width grey rule sitting under five chips - more ink than the
        thing it describes, and describing something the chips already say by being cut off at the
-       edge. `pb-1` goes with it: that padding existed to hold the bar off the chips. */
-    <div className={cn('scroll-none -mx-4 mb-1 overflow-x-auto px-4', className)}>
+       edge. `pb-1` goes with it: that padding existed to hold the bar off the chips.
+       `mb-4` (2026-08-27, Luke: "i do think we need a bit more of a gap between the All, Sim funded,
+       etc. chips and the value dollar amount"). It was `mb-1`, which is the gap you leave between two
+       parts of ONE object - and the figure below is not part of this row, it is the thing the row
+       changes. At 4px the two read as a single stacked block and the chips lost their edge as a
+       control. Monarch leaves the same air under its own tab row. */
+    <div className={cn('scroll-none -mx-4 mb-4 overflow-x-auto px-4', className)}>
       <div className="flex w-max gap-1">
         {tabs.map((t) => {
           const on = scope === t.value;

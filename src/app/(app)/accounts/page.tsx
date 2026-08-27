@@ -44,33 +44,11 @@ export const metadata: Metadata = { title: 'Accounts' };
 export default async function AccountsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ accounts?: string; status?: string; types?: string; d?: string }>;
+  searchParams: Promise<{ accounts?: string; status?: string; types?: string }>;
 }) {
   const trader = await requireTrader();
 
-  const params = await searchParams;
-  const filter = readRosterFilter(params);
-
-  /* ─── TEMPORARY: A DENSITY PROBE, AND IT IS SCAFFOLDING (2026-08-27) ────────────────────────────
-   *
-   * `?d=90` renders this page at 90% of its own size. Nothing reads it, nothing links to it, and it
-   * is inert at 100.
-   *
-   * WHY IT EXISTS. Three rounds of "smaller" have each cost a commit, a deploy and a look at a real
-   * phone, and Luke settled the question himself in ten seconds by pinching the browser to 90% -
-   * "i actually kind of like the size of the 90% zoom on my phone." That is a MEASUREMENT, and the
-   * fastest way to take the next one is to make it available without a round trip per candidate.
-   *
-   * `zoom`, NOT A SET OF SMALLER TOKENS, and the difference is the point: browser zoom is what he
-   * actually tested, so the probe has to reproduce it exactly - including scaling the 44px tap
-   * targets, which the real fix must NOT do. This tells us the number; it is not the shape of the
-   * answer.
-   *
-   * IT COMES OUT the moment a scale is chosen, and what replaces it is steps on the type ramp with
-   * the tap floors held. If this is still here after that, it is a leak.
-   * // FRICTION 2026-08-27: settling a size by screenshot takes a full deploy per candidate. */
-  const probe = Number(params.d);
-  const zoom = Number.isFinite(probe) && probe >= 70 && probe < 100 ? probe / 100 : null;
+  const filter = readRosterFilter(await searchParams);
 
   const [all, freshness, days] = await Promise.all([
     getRoster(trader.id),
@@ -102,7 +80,7 @@ export default async function AccountsPage({
   );
 
   return (
-    <div className={cn(PAGE_COLUMN, 'pb-8')} style={zoom ? { zoom } : undefined}>
+    <div className={cn(PAGE_COLUMN, 'pb-8')}>
       {/* THE RAIL IS NO LONGER PASSED THROUGH HERE (2026-08-27). It used to arrive as a prop so it
           could stay a Server Component; the phone's scope chips made that impossible, because a rail
           rendered on the server cannot narrow with a selection held in the browser. `accounts-rail.tsx`

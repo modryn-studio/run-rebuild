@@ -87,7 +87,13 @@ function StatusChip({ status }: { status: string }) {
   return (
     <span
       className={cn(
-        'text-caption rounded-[var(--radius-sm)] border px-2 py-0.5 whitespace-nowrap uppercase',
+        /* TIGHTER ON A PHONE (2026-08-27, Luke: "the 'closed, passed, failed' chip on the account
+           row is a little excessively big"). The type was already 11px; what was big was the BOX -
+           `px-2 py-0.5` plus two borders put a 21px tall object on a line whose text is 12px, so it
+           read as a control sitting in the metadata rather than as a tag on it. `px-1.5 py-0` brings
+           it to 17px, which is within a pixel of the line it shares. Desktop keeps the roomier box:
+           there it sits alone in the right cluster with nothing to crowd. */
+        'text-caption rounded-[var(--radius-sm)] border px-2 py-0.5 whitespace-nowrap uppercase max-sm:px-1.5 max-sm:py-0',
         tone
       )}
     >
@@ -192,7 +198,13 @@ function Row({
          agrees with the chart, the chips and the card above it: `/trades` records the same fix, that
          three surfaces each starting at a different x is what makes a column read as loose. */
       className={cn(
-        'group/row hover:bg-hover relative flex min-h-15 w-full items-center gap-3 py-3 pr-4 pl-4 text-left transition-colors select-none sm:min-h-21 sm:gap-5 sm:pr-5 sm:pl-7',
+        /* `min-h-14` / `py-2.5` ON A PHONE (2026-08-27). Luke picked 95% off the density probe, and
+           95% is a number this type ramp cannot express: 14px scales to 13.3 and 12px to 11.4, which
+           round to steps the system itself calls invisible ("`--text-micro` sat at 10px against this
+           11px, which is a step nobody can see"). What 95% actually delivered was ~5% more content
+           per screen, and at these sizes that is SPACE, not type. So the 5% comes out of the
+           rhythm - 60px of row around 36px of content becomes 56 - and every size stays on the ramp. */
+        'group/row hover:bg-hover relative flex min-h-14 w-full items-center gap-3 py-2.5 pr-4 pl-4 text-left transition-colors select-none sm:min-h-21 sm:gap-5 sm:py-3 sm:pr-5 sm:pl-7',
         /* NO `cursor-grab` HERE, unlike the card header one level up, and the difference is real: a
            header is not a link, so grab is the only thing its cursor could say. A ROW is a link and
            the main way into an account, so `grab` would override the browser's own pointer and hide
@@ -448,7 +460,7 @@ function Group({
              off every group header on the page.
              `pl-4`, not `pl-5`: the rows underneath moved to a 16px gutter, and a header indented
              further than its own rows reads as a different column. */
-          'relative flex min-h-15 w-full items-center gap-2 py-2 pr-5 pl-3 select-none max-sm:min-h-12 max-sm:pr-4 max-sm:pl-4',
+          'relative flex min-h-15 w-full items-center gap-2 py-2 pr-5 pl-3 select-none max-sm:min-h-11 max-sm:pr-4 max-sm:pl-4',
           grabbable && 'sm:cursor-grab',
           held && 'sm:cursor-grabbing'
         )}
@@ -640,8 +652,9 @@ export function RosterCard({
      count between an empty roster and a populated one, which React rejects outright. */
   if (accounts.length === 0) return <EmptyRoster onAdd={onAdd} />;
 
+  /* `gap-3` ON A PHONE: the same 5% coming out of the space BETWEEN cards. Four cards, 4px each. */
   return (
-    <div ref={list} className="flex flex-col gap-4">
+    <div ref={list} className="flex flex-col gap-4 max-sm:gap-3">
       {groups.map((g, i) => (
         <div key={g.key} data-group={g.key} style={drag.styleFor(g.key, i)}>
           <Group
