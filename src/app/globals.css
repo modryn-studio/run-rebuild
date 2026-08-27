@@ -671,6 +671,14 @@
      page-level section rules in today.tsx / before.tsx, which are the only thing giving that page
      its structure and would vanish at this weight. Chart gridlines have their own `--chart-axis`.
 
+     ONE OF THOSE MOVED UP RATHER THAN DOWN (2026-08-27). `AddSlot` - the dashed row at the foot of
+     the roster - is a CONTROL as well as an empty slot, so it now takes `border-strong` with the
+     rest of the controls rather than `border`. At `border` it measured 1.20:1 on the page ground in
+     light and 1.55:1 in dark, which is a line you have to already know is there; a dash paints about
+     half the pixels of a solid at the same value, so it needs the firmer token to read as LEVEL
+     with a solid edge rather than louder than one. The dropzone in `file-upload-step.tsx` is the
+     same argument and has not been made yet.
+
      An earlier pass had this as "the four row lists", and put header bands and the filter panel's
      columns in the keep-`border` column. Both were wrong: measured on the reference, their column
      rules, header bands and footer are all rgb(246,245,243) - this weight, not the structural one.

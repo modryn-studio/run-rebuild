@@ -126,6 +126,13 @@ export function ButtonsSection() {
           56px rather than the 36px control height, because a full-width control as short as a
           button reads as a stretched button rather than as a row.
         </Note>
+        <Note>
+          It draws its edge at <code>border-strong</code>, not <code>border</code>, and that is the
+          dash paying for itself: a dashed line puts down about half the pixels a solid one does at
+          the same value, so at <code>border</code> it measured 1.20:1 on the page ground in light
+          and 1.55:1 in dark and simply could not be found. The firmer token reads as LEVEL with a
+          solid edge rather than louder than one. Check it in both modes.
+        </Note>
       </Row>
 
     </Section>
