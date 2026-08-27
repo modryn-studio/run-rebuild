@@ -104,7 +104,7 @@ export function RosterFilters({
   /* RESEEDED ON OPEN, not on every render. `applied` is a fresh object each time the server
      responds, so watching it would reset a staged tick the moment an unrelated navigation landed —
      the defect `filter-sheet.tsx` had to be dug out of. */
-  const { open, setOpen, toggle, root, panel } = usePopover(() => {
+  const { open, setOpen, toggle, root, panel, fit } = usePopover(() => {
     setDraft(applied);
     setQuery('');
     setDim(dims[0]?.key ?? 'accounts');
@@ -206,9 +206,13 @@ export function RosterFilters({
           role="dialog"
           aria-modal="true"
           aria-label="Filter accounts"
-          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 w-[min(44rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--radius)] shadow-[var(--shadow-card)] outline-none"
+          /* CAPPED TO THE SPACE BELOW THE TRIGGER, and a flex column so the cap lands on the
+             BODY rather than on the footer - see `usePopover`. Measured hanging 18px below the
+             fold at 1100x420 before this. */
+          style={fit}
+          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 flex w-[min(44rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-[var(--radius)] shadow-[var(--shadow-card)] outline-none"
         >
-          <div className="divide-rule flex flex-col sm:flex-row sm:divide-x">
+          <div className="divide-rule flex min-h-0 flex-col overflow-y-auto sm:flex-row sm:divide-x">
             {/* LEFT: the axes. */}
             <div className="flex shrink-0 flex-col sm:w-[8.75rem]">
               <Head>Filters</Head>
@@ -454,3 +458,4 @@ export function RosterClear({ applied }: { applied: RosterFilter }) {
     </Button>
   );
 }
+

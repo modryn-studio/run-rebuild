@@ -8,8 +8,9 @@ import {
   getFacetRows,
   getDailySeriesFor,
   getIntradaySeriesFor,
+  getDigest,
 } from '@/lib/trades/read';
-import { EMPTY_FILTER, isNarrowed, type ResultToken } from '@/lib/trades/filter';
+import { EMPTY_FILTER, type ResultToken } from '@/lib/trades/filter';
 import { accountRowTitle } from '@/lib/prop-firms';
 import { AccountDetailView } from '@/components/views/accounts/account-detail-view';
 import { AccountRail } from '@/components/views/accounts/account-rail';
@@ -119,6 +120,23 @@ export default async function AccountDetailPage({
     getFacetRows(trader.id),
   ]);
 
+  /* NARROWED MEANS "THE TRADER NARROWED IT", NOT "THE QUERY HAS A WHERE CLAUSE", and the difference
+     is this page's whole shape. `isNarrowed(filter)` counts `accounts.length`, and this page pins
+     `accounts` to its own id on every request - so it answered TRUE unconditionally. Two things
+     went wrong at once, and both were visible: the rail printed "19 of 19" under a label reading
+     "Net P&L, filtered" with nothing filtered, and the tape's empty state could never say "day one"
+     because it always believed a filter had hidden the rows.
+     Derived from `applied`, which is only ever what came off the URL. The account pin is the page,
+     not a choice. */
+  const narrowed =
+    applied.products.length > 0 || applied.results.length > 0 || applied.q !== null;
+
+  /* THE RAIL'S RECORD GROUP FOLLOWS THE FILTER, and it reads the SAME aggregate `/trades`' own rail
+     does - one `where`, so the rail, the chart and the tape are three views of one query rather
+     than three queries about one page. Only fetched when something is narrowing: unfiltered, the
+     account's own folded figures are already on hand and a second round trip would buy nothing. */
+  const digest = narrowed ? await getDigest(trader.id, filter, window) : null;
+
   /* THE OPTIONS ARE COUNTED ON THE WHOLE ACCOUNT, never on the filtered tape: an option that
      vanished because the current filter hid its trades could never be un-picked. */
   const own = facetRows.filter((r) => r.accountId === account.id);
@@ -148,7 +166,13 @@ export default async function AccountDetailPage({
       zone={trader.displayTimezone}
       hasFees={provenance.hasFees}
       filters={{ applied, products: productOptions, results: resultOptions, facetRows: own }}
-      rail={<AccountRail account={account} provenance={provenance} />}
+      rail={
+        <AccountRail
+          account={account}
+          provenance={provenance}
+          view={digest ? { trades: digest.trades, netCents: digest.netCents } : null}
+        />
+      }
       tape={
         <TradesTape
           /* THE CARD NAMES ITSELF HERE AND NOT ON `/trades`, because there the shell's band already
@@ -174,7 +198,7 @@ export default async function AccountDetailPage({
           /* WHICH EMPTY STATE IS HONEST: "day one" or "the filter matched nothing". `isNarrowed`
              is the same predicate `/trades` uses, so the two pages cannot disagree about what
              counts as narrowed. */
-          narrowed={isNarrowed(filter)}
+          narrowed={narrowed}
           rest={{ ids }}
         />
       }

@@ -464,7 +464,7 @@ function SearchPopover({ applied }: { applied: TradesFilter }) {
   const write = useParamWriter();
   const [draft, setDraft] = useState(applied.q ?? '');
   const input = useRef<HTMLInputElement>(null);
-  const { open, setOpen, toggle, root, panel } = usePopover(() => setDraft(applied.q ?? ''));
+  const { open, setOpen, toggle, root, panel, fit } = usePopover(() => setDraft(applied.q ?? ''));
 
   // Autofocused. A search panel opens for exactly one reason, and putting the caret anywhere else
   // would mean a click before you can start typing.
@@ -513,9 +513,13 @@ function SearchPopover({ applied }: { applied: TradesFilter }) {
           role="dialog"
           aria-modal="true"
           aria-label="Search trades"
-          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 w-80 overflow-hidden rounded-[var(--radius)] shadow-[var(--shadow-card)] outline-none"
+          /* CAPPED TO THE SPACE BELOW THE TRIGGER, and a flex column so the cap lands on the
+             BODY rather than on the footer - see `usePopover`. Measured hanging 18px below the
+             fold at 1100x420 before this. */
+          style={fit}
+          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 flex w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-[var(--radius)] shadow-[var(--shadow-card)] outline-none"
         >
-          <div className="p-4">
+          <div className="min-h-0 overflow-y-auto p-4">
             <Group label="Search">
               <input
                 ref={input}
@@ -553,7 +557,7 @@ function SearchPopover({ applied }: { applied: TradesFilter }) {
 function DatePopover({ applied }: { applied: TradesFilter }) {
   const write = useParamWriter();
   const [draft, setDraft] = useState({ range: applied.range, from: applied.from, to: applied.to });
-  const { open, setOpen, toggle, root, panel } = usePopover(() =>
+  const { open, setOpen, toggle, root, panel, fit } = usePopover(() =>
     setDraft({ range: applied.range, from: applied.from, to: applied.to })
   );
 
@@ -599,9 +603,13 @@ function DatePopover({ applied }: { applied: TradesFilter }) {
           role="dialog"
           aria-modal="true"
           aria-label="Date range"
-          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 w-[26rem] overflow-hidden rounded-[var(--radius)] shadow-[var(--shadow-card)] outline-none"
+          /* CAPPED TO THE SPACE BELOW THE TRIGGER, and a flex column so the cap lands on the
+             BODY rather than on the footer - see `usePopover`. Measured hanging 18px below the
+             fold at 1100x420 before this. */
+          style={fit}
+          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 flex w-[26rem] max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-[var(--radius)] shadow-[var(--shadow-card)] outline-none"
         >
-          <div className="flex">
+          <div className="flex min-h-0 overflow-y-auto">
             {/* THE SHORTCUT RAIL. Picking one CLEARS the custom dates: a shortcut and a custom
                 window are two answers to one question, and leaving both set would make the button's
                 own label lie about what the tape is showing. */}
@@ -794,7 +802,7 @@ function FiltersPopover({
 
   const [dim, setDim] = useState<Dim>(dims[0]?.key ?? 'results');
 
-  const { open, setOpen, toggle, root, panel } = usePopover(() => {
+  const { open, setOpen, toggle, root, panel, fit } = usePopover(() => {
     setDraft(seed());
     setQuery('');
     setDim(dims[0]?.key ?? 'results');
@@ -985,9 +993,13 @@ function FiltersPopover({
           role="dialog"
           aria-modal="true"
           aria-label="Filter trades"
-          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 w-[min(44rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--radius)] shadow-[var(--shadow-card)] outline-none"
+          /* CAPPED TO THE SPACE BELOW THE TRIGGER, and a flex column so the cap lands on the
+             BODY rather than on the footer - see `usePopover`. Measured hanging 18px below the
+             fold at 1100x420 before this. */
+          style={fit}
+          className="pop-in bg-surface absolute top-full right-0 z-50 mt-1.5 flex w-[min(44rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-[var(--radius)] shadow-[var(--shadow-card)] outline-none"
         >
-          <div className="divide-rule flex flex-col sm:flex-row sm:divide-x">
+          <div className="divide-rule flex min-h-0 flex-col overflow-y-auto sm:flex-row sm:divide-x">
             {/* LEFT: the dimensions. A count rather than a tick, because a rail row is not a choice
                 you make — it is a place you go, and what it reports is how much is waiting there. */}
             <div className="flex shrink-0 flex-col sm:w-[8.75rem]">

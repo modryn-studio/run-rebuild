@@ -80,7 +80,7 @@ export function DetailFilters({
   /* RE-SEEDED ON EVERY OPEN rather than kept: a panel that reopens holding an abandoned draft is a
      panel that applies something the trader typed and walked away from. `usePopover` takes the
      seeding as its `onOpen`, which is the same contract the `/trades` popovers use. */
-  const { open, setOpen, toggle, root, panel } = usePopover(() =>
+  const { open, setOpen, toggle, root, panel, fit } = usePopover(() =>
     setDraft({ products: applied.products, results: applied.results, q: applied.q ?? '' })
   );
 
@@ -156,11 +156,17 @@ export function DetailFilters({
           tabIndex={-1}
           role="dialog"
           aria-label="Filter this account"
+          /* `fit` CAPS THE HEIGHT to whatever is left below the trigger - see `usePopover`. The
+             panel is a FLEX COLUMN so the cap lands on the body and never on the footer: a panel
+             that shortened by hiding its own Apply button would be the same bug with less of it. */
+          style={fit}
           /* 328px, and narrow on purpose: every control inside is full width, so the panel is
-             exactly as wide as one field needs and no wider. */
-          className="pop-in border-border bg-surface absolute top-full right-0 z-50 mt-1.5 w-82 overflow-hidden rounded-[var(--radius)] border shadow-[var(--shadow-card)] outline-none"
+             exactly as wide as one field needs and no wider.
+             `max-w-[calc(100vw-1rem)]` is the horizontal half of the same fix: at 320px CSS width
+             a 328px panel hung 24px off the left edge with nothing to scroll. Measured. */
+          className="pop-in border-border bg-surface absolute top-full right-0 z-50 mt-1.5 flex w-82 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-[var(--radius)] border shadow-[var(--shadow-card)] outline-none"
         >
-          <div className="flex flex-col gap-4 p-4">
+          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto p-4">
             <Field label="Search">
               {/* A BARE `<input>` RATHER THAN `TextField`, and only because that primitive owns its
                   own label and hint block - which `Field` is already providing for all three rows

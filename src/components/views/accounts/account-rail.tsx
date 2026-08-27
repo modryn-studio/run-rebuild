@@ -47,9 +47,21 @@ import type { Provenance, RosterAccount } from '@/lib/accounts/read';
 export function AccountRail({
   account,
   provenance,
+  view,
 }: {
   account: RosterAccount;
   provenance: Provenance;
+  /* WHAT THE PAGE IS CURRENTLY SHOWING, when that is not the whole account (2026-08-27, Luke:
+     "make the rail follow the filter too").
+     ONLY THE RECORD GROUP MOVES. Identity and terms - broker, firm, type, size, status, the
+     account's own number - are facts about the ACCOUNT and cannot be narrowed by a filter; a rail
+     that hid the firm because the trader ticked Wins would be answering a question nobody asked.
+     What CAN be narrowed is the record: how many trades and what they made.
+     WHY IT MOVES AT ALL, and this is the whole reason: before this, ticking Wins left the rail
+     reading `Net P&L +$521.60` beside a chart headline reading `$907.96` - one page, one label,
+     300px apart, two numbers. That is the defect `chart-view.tsx` exists to prevent and the one v2
+     shipped in the other direction. Null when nothing is narrowing. */
+  view: { trades: number; netCents: number } | null;
 }) {
   const firm = account.propFirm ? findPropFirm(account.propFirm) : undefined;
   const manual = isPlaceholderAccountName(account.externalAccountId);
@@ -143,16 +155,30 @@ export function AccountRail({
               {placeholderAccountTitle(account.externalAccountId)}
             </dd>
           </div>
+          {/* `12 of 19` RATHER THAN A BARE `12`, so the row cannot be misread as the account's own
+              count. It states both facts in the space of one, which is why the group needs no
+              "filtered" caption above it explaining itself. */}
           <Line label="Trades">
-            <span className="text-text tabular-nums">{account.trades.toLocaleString('en-US')}</span>
+            <span className="text-text tabular-nums">
+              {view
+                ? `${view.trades.toLocaleString('en-US')} of ${account.trades.toLocaleString('en-US')}`
+                : account.trades.toLocaleString('en-US')}
+            </span>
           </Line>
           {/* THE LABEL STATES WHETHER FEES ARE IN IT, and this page is the only place that claim can
               be made honestly. `accounts-rail.tsx` says so in as many words: a roster rollup spans
               accounts whose fee coverage can differ, so one label there cannot answer for all of
               them - "the per-account answer belongs on `/accounts/details`, where there IS one
               account to answer for". */}
-          <Line label={provenance.hasFees ? 'Net P&L' : 'Gross P&L'}>
-            <span className="text-text tabular-nums">{signed(account.netCents)}</span>
+          {/* THE SAME FIGURE THE CHART IS DRAWING, so the two cannot disagree. The `of` form does
+              not work for money - "$907.96 of $521.60" is nonsense when a filtered subset exceeds
+              the whole - so the label carries the qualifier instead. */}
+          <Line
+            label={`${provenance.hasFees ? 'Net P&L' : 'Gross P&L'}${view ? ', filtered' : ''}`}
+          >
+            <span className="text-text tabular-nums">
+              {signed(view ? view.netCents : account.netCents)}
+            </span>
           </Line>
         </dl>
       </Card>
