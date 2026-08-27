@@ -335,6 +335,32 @@
   --text-small: 12px;        --text-small--line-height: 16px;
   --text-body: 14px;         --text-body--line-height: 20px;
   --text-body-lg: 16px;      --text-body-lg--line-height: 24px;
+  /* THE METADATA TIER, AND IT IS THE ONE ROLE THAT KNOWS WHAT SIZE OF SCREEN IT IS ON.
+   *
+   * 14px on a desktop - identical to `--text-body`, deliberately, because there the two ARE the
+   * same size and the rule that "muted is what marks metadata, not smaller type" holds. 12px below
+   * `sm`, where it stops holding.
+   *
+   * WHY A PHONE NEEDS A THIRD STEP AND A DESKTOP DOES NOT (2026-08-27, Luke: "i still feel like
+   * text is too large on mobile. let's come up with a plan"). Measured on `/accounts` at 390px
+   * before this existed: every string on the page was 14, 16 or 18 - a four-pixel spread from the
+   * smallest timestamp to the largest heading. Nothing receded, so everything competed, and a page
+   * with no supporting tier reads LOUD however carefully each individual size was chosen. A desktop
+   * has the width to separate those roles by position and whitespace instead; 390px does not.
+   *
+   * IT IS A ROLE, NOT A BREAKPOINT AT A CALL SITE. Every consumer writes `text-meta` and nothing
+   * else - no `max-sm:` anywhere - so the step exists in exactly one place and moving it from 12 to
+   * 13 is one edit rather than a sweep. `max-sm:text-small` scattered across a page is the same
+   * failure mode as a motion curve that is not the default.
+   *
+   * THE LINE IT DRAWS. This is for METADATA - a timestamp, a count, a qualifier on a figure. It is
+   * never for a CONTROL. `design-system.md` §2a's rule that chrome is never smaller than the content
+   * it controls is untouched: a button, a chip or a menu item still floors at 14px at every width.
+   *
+   * WHAT IT REPLACES. `roster-card.tsx` had raised its stamp to 14px citing "Monarch sets its
+   * '21 hours ago' at 14px" - read off Monarch's WEB app, while the reference for Run's phone is
+   * their native one, which is a different design. A number measured on the wrong surface. */
+  --text-meta: 14px;         --text-meta--line-height: 20px;
   /* Wayfinding: sidebar nav and any primary in-app navigation. Its own step BECAUSE it has its
      own weight. A nav row is a destination, not body copy, and it must not be able to inherit 400.
      16px is the measured nav read; the -0.01em keeps it from setting loose beside the
@@ -836,6 +862,20 @@
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--color-muted) transparent;
+  }
+
+  /* THE OTHER HALF OF `--text-meta`, and it has to live outside `@theme` because a theme block
+     cannot hold a media query. `40rem` is Tailwind's own `sm` in its own units, so this switches on
+     exactly the same pixel every `sm:` utility in the app does - written as a raw query rather than
+     as a Tailwind variant because what changes is a TOKEN, not a class.
+     Verified by measurement rather than assumed: `text-meta` compiles to `font-size: var(--text-meta)`,
+     so redefining the variable here reaches every consumer. (Colour tokens need the indirection
+     `--shadow-card` uses; font-size utilities emit the var directly and do not.) */
+  @media (width < 40rem) {
+    :root {
+      --text-meta: 12px;
+      --text-meta--line-height: 16px;
+    }
   }
 
   /* Keyboard-focus baseline (a11y) for every interactive element — mouse users unaffected. */

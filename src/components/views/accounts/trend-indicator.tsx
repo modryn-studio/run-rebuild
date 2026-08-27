@@ -27,6 +27,7 @@ export function TrendIndicator({
   periodShort,
   note,
   baseDollars,
+  variant = 'hero',
 }: {
   cents: number;
   /** "3 month change" / "All time" — supplied by the chart so its menus govern this line. */
@@ -46,6 +47,11 @@ export function TrendIndicator({
   note?: string;
   /** Total stated size behind the figure, or null when any account in scope has none. */
   baseDollars: number | null;
+  /* WHICH LINE THIS IS, because the two call sites sit at different ranks and a phone is where that
+     starts to matter. `hero` qualifies the 26px figure at the top of the page; `group` qualifies an
+     18px card heading and is repeated once per group down the list, so it is the one that turns a
+     scan into a wall of text if it does not recede. On a desktop both are 16px and always were. */
+  variant?: 'hero' | 'group';
 }) {
   const flat = cents === 0;
   const up = cents > 0;
@@ -60,12 +66,21 @@ export function TrendIndicator({
        that happens to produce the same figure is not a change. */
     <div
       key={`${cents}:${periodLabel}`}
-      /* `text-body-lg` (16px), NOT `text-body` (2026-08-26). Measured on Monarch, the reference for
-         this card: its change line is 16px/600 beside a 24px figure on the chart, and 16px again
-         beside an 18px title on each group header - the same size in both places, one step under
-         the number it qualifies rather than two. At 14px this line was the same size as the row
-         METADATA two tiers below it, so the chart's headline had nothing supporting it. */
-      className="value-fade text-body-lg flex flex-wrap items-center gap-x-1.5 gap-y-0.5"
+      /* `text-body-lg` (16px) FROM `sm` UP, and that stays: measured on Monarch's WEB app, which is
+         the reference for Run's desktop - its change line is 16px/600 beside a 24px figure on the
+         chart and 16px again beside an 18px group title.
+         BELOW `sm` IT STEPS DOWN, because that measurement was never about a phone (2026-08-27,
+         Luke: "i still feel like text is too large on mobile"). Monarch's phone app is a different
+         design from their web one, and on 390px of width a qualifier printed at the same size as the
+         thing it qualifies has nowhere to recede to. The hero takes one step (14px); the group line
+         takes two (12px) because it repeats down the page and is the one that reads as a wall.
+         A HAND-WRITTEN PAIR RATHER THAN `text-meta`, deliberately: that token is 14px on a desktop
+         and both of these are 16px there, so borrowing it to get the phone step would quietly shrink
+         two desktop surfaces nobody asked about. Two pairs, one file, nothing to keep in sync. */
+      className={cn(
+        'value-fade flex flex-wrap items-center gap-x-1.5 gap-y-0.5 sm:text-body-lg',
+        variant === 'hero' ? 'text-body' : 'text-small'
+      )}
     >
       <span
         className={cn(

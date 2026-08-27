@@ -270,7 +270,13 @@ export function PnlChart({
             `text-figure` (26px), and the restraint is the point: the card is calm because the number
             does not shout. INK, NOT pos/neg — colour is reserved for the delta beside it. */}
         <div className="flex flex-col gap-y-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-3">
-          <span className="text-figure text-text font-medium tabular-nums">
+          {/* `text-figure` (26px) FROM `sm`, `text-h2` (24px) BELOW IT (2026-08-27). Two pixels, and
+              they are the two that set the volume of the page: this figure is the first thing under
+              the title on a phone and everything below it is read relative to it. Both are roles
+              from the ramp and both are 500 weight, so this is a step down the scale rather than a
+              size picked for one screen. The line-heights are identical (30px), so nothing below it
+              moves. */}
+          <span className="text-figure max-sm:text-h2 text-text font-medium tabular-nums">
             {fmtMoney(view.total)}
           </span>
           {/* TWO DIFFERENT EMPTIES, TWO SENTENCES. v2 shipped one: excluding every account empties
@@ -278,12 +284,15 @@ export function PnlChart({
               had no accounts. The second names the switch that caused it, so the way back is
               obvious. */}
           {counted === 0 ? (
-            <span className="text-body-lg text-muted font-medium">
+            <span className="text-body-lg max-sm:text-body text-muted font-medium">
               {series.length === 0 ? 'No accounts yet' : 'Every account is left out of totals'}
             </span>
           ) : range === 'all' ? (
-            // All time: the change IS the figure above, so coverage is the useful thing to say.
-            <span className="text-body-lg text-muted font-medium">
+            /* All time: the change IS the figure above, so coverage is the useful thing to say.
+               `max-sm:text-body` for the same reason the figure above it stepped down - these three
+               branches are one line in three moods and they have to move together, or the page
+               changes size when the range changes. */
+            <span className="text-body-lg max-sm:text-body text-muted font-medium">
               Across {counted} {counted === 1 ? 'account' : 'accounts'}
             </span>
           ) : (

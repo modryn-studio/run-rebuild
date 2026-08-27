@@ -262,7 +262,10 @@ function Row({
             IT IS STILL A BADGE, not a fourth text tier. `design-system.md` §4 gives a badge its own
             radius and its own size precisely because it is a different KIND of object from the prose
             beside it - the "a row is ONE type size" rule governs text, not marks. */}
-        <p className="text-body text-muted flex items-center gap-2">
+        {/* `text-meta`: 14px on a desktop as before, 12px on a phone. The token carries the reason;
+            the short version is that this line and the stamp opposite it were the same size as the
+            name and the figure they annotate, so the row had no supporting tier at 390px. */}
+        <p className="text-meta text-muted flex items-center gap-2">
           <span className="truncate">
             {a.productName ??
               (named ? `${a.trades.toLocaleString('en-US')} trades` : 'Name this account')}
@@ -314,16 +317,16 @@ function Row({
             {/* THE STAMP ANSWERS WHAT THE FIGURE CANNOT: a number with no timestamp cannot tell you
               whether it is this morning's or last month's. This is P5, the direct answer to the
               field's defining failure. */}
-            {/* `text-body` (14px), THE SAME TIER AS THE ROW'S OTHER METADATA (2026-08-26, Luke:
-              "check the size of text on the account cards like the prices and the last updated
-              times"). It was `text-caption` (11px), which made one row carry THREE sizes - 16 for
-              the name and figure, 14 for the sub-line, 11 for this - against the house rule that a
-              row is ONE type size with metadata one tier under it, not two. 11px is also smaller
-              than anything `/trades` prints; that page deleted its last 12px for this exact reason.
-              Monarch, the reference for this card, sets its "21 hours ago" at 14px - identical to
-              its own sub-label - beside an 18px figure. Muted is what marks this secondary; it does
-              not also need to be smaller. */}
-            {stamp && <p className="text-body text-muted">{stamp}</p>}
+            {/* `text-meta`, WHICH IS 14px HERE AND 12px ON A PHONE (2026-08-27), and the history of
+              this one line is worth keeping because it moved twice.
+              It shipped at `text-caption` (11px), which was too small and made one row carry three
+              sizes. It was raised to a flat 14px on 2026-08-26 citing "Monarch sets its '21 hours
+              ago' at 14px" - true, and read off Monarch's WEB app, while the reference for Run's
+              phone is their native one. A number measured on the wrong surface.
+              14 was right for a desktop and is still what this resolves to there. 11 was too small
+              for a phone and 14 left the row with no supporting tier at all; 12 is the step between
+              them, and it lives in the TOKEN so it can be moved once rather than here. */}
+            {stamp && <p className="text-meta text-muted">{stamp}</p>}
           </span>
         </span>
       </span>
@@ -460,8 +463,16 @@ function Group({
         {/* ONE SET OF NODES, TWO LAYOUTS. Rendering the total twice behind visibility classes puts
             the same money on the page twice and invites the two copies to drift. */}
         <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 sm:flex">
-          <span className="text-title text-text truncate font-medium sm:order-1">{title}</span>
-          <span className="text-title text-text shrink-0 font-medium tabular-nums sm:order-3 sm:ml-auto">
+          {/* `text-title` (18px) FROM `sm`, `text-body-lg` (16px) BELOW IT. The pair is the loudest
+              thing on the phone after the hero and it repeats once per group, so at 18px four card
+              headings set the volume of the whole scroll. At 16 they still out-rank every row - the
+              rows' own name is 16px at weight 400 and this is 16px at 500, on its own ground, with
+              a money figure beside it - so the band still reads as a band. Both are roles from the
+              ramp; this is a step down the scale, not a hand-picked size. */}
+          <span className="text-title max-sm:text-body-lg text-text truncate font-medium sm:order-1">
+            {title}
+          </span>
+          <span className="text-title max-sm:text-body-lg text-text shrink-0 font-medium tabular-nums sm:order-3 sm:ml-auto">
             {signed(total)}
           </span>
           {/* THE GROUP'S OWN CHANGE, over the same window the chart above is drawing — which is the
@@ -472,6 +483,7 @@ function Group({
           {hasWindow && (
             <span className="col-span-2 sm:order-2 sm:col-span-1">
               <TrendIndicator
+                variant="group"
                 cents={change}
                 periodLabel={periodLabel}
                 periodShort={periodShort}
