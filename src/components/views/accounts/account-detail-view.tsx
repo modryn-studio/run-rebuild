@@ -21,6 +21,7 @@
 import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { ChartViewProvider } from './chart-view';
+import { AccountModalsProvider } from './account-modals';
 import { AccountDetailHeader } from './account-detail-header';
 import { SubjectPage } from '@/components/views/subject-page';
 import { cumulate, foldIntraday, type Point } from '@/lib/accounts/series';
@@ -38,6 +39,7 @@ export function AccountDetailView({
   intradayRows,
   zone,
   hasFees,
+  siblingCount,
   filters,
   rail,
   tape,
@@ -55,6 +57,10 @@ export function AccountDetailView({
      `/trades` makes the same call for its window and `accounts-rail.tsx` defers the per-account
      answer to this page, because a roster rollup spans accounts whose coverage can differ. */
   hasFees: boolean;
+  /* HOW MANY ACCOUNTS SHARE THIS ONE'S LOGIN PREFIX, counted in SQL by the route. The label form
+     needs it to decide whether to offer the "apply to your other TDFY accounts" switch, and the
+     provider asks for it through a callback rather than holding the roster. */
+  siblingCount: number;
   /** Everything the band's `Filters` control needs. Passed straight through rather than read here:
    *  this component owns the chart's view state and nothing else. */
   filters: {
@@ -95,7 +101,12 @@ export function AccountDetailView({
   const title = accountRowTitle(account);
 
   return (
-    <ChartViewProvider byAccount={byAccount} intraday={intraday} endsOn={endsOn}>
+    /* THE MODAL PROVIDER WRAPS THE CHART ONE, not the other way round, and the order is not
+       arbitrary: the header lives inside `SubjectPage` and calls `useLabelAccount`, so the modal
+       context has to be above everything the page renders. The chart's context is narrower - only
+       the card and its controls read it. */
+    <AccountModalsProvider siblingsFor={() => siblingCount}>
+      <ChartViewProvider byAccount={byAccount} intraday={intraday} endsOn={endsOn}>
       <SubjectPage
         header={
           <AccountDetailHeader
@@ -134,7 +145,8 @@ export function AccountDetailView({
         zone={zone}
         rail={rail}
         tape={tape}
-      />
-    </ChartViewProvider>
+        />
+      </ChartViewProvider>
+    </AccountModalsProvider>
   );
 }

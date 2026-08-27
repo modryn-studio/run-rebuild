@@ -21,6 +21,7 @@ import { FilterSheetSection } from './sections/filter-sheet';
 import { ScopeTabsSection } from './sections/scope-tabs';
 import { PnlPlotSection } from './sections/pnl-plot';
 import { RosterRowSection } from './sections/roster-row';
+import { AccountFieldsSection } from './sections/account-fields';
 import { TradeDetailSection } from './sections/trade-detail';
 import { V2ReferenceSection } from './sections/v2-reference';
 import { TradesSection } from './sections/trades';
@@ -95,6 +96,7 @@ export default function KitchenSinkPage() {
         <ScopeTabsSection />
         <PnlPlotSection />
         <RosterRowSection />
+        <AccountFieldsSection />
         <NavRowSection />
         <FeedbackSection />
         <BrandSection />

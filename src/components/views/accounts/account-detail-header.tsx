@@ -20,10 +20,8 @@
  * when a ROSTER ROW was clicked, which was an accident of the row having nothing else to do. The row
  * now navigates here, and Edit opens the modal deliberately.
  *
- * ─── WHAT IS NOT WIRED YET (`S6d` C3) ─────────────────────────────────────────────────────────
- * `Edit` lands with the label modal and its write path. It is not rendered as a dead control in the
- * meantime: a button that exists and does nothing is a defect in its own right, so the band carries
- * the trail and Filters until the thing behind Edit is real.
+ * BOTH CONTROLS ARE REAL AS OF C3. Nothing here was ever rendered as a dead button waiting for its
+ * handler; Edit arrived with the modal and the write path in the same commit.
  */
 
 import Link from 'next/link';
@@ -32,6 +30,8 @@ import { Icon } from '@/components/ui/icon';
 import { ICON_BUTTON } from '@/components/ui/icon-button';
 import { AccountLogo } from './account-logo';
 import { DetailFilters, type Option } from './detail-filters';
+import { HeaderControl } from '@/components/shell/header-slot';
+import { useLabelAccount } from './account-modals';
 import type { RosterAccount } from '@/lib/accounts/read';
 import type { FacetRow } from '@/lib/trades/facets';
 import type { ResultToken } from '@/lib/trades/filter';
@@ -51,6 +51,7 @@ export function AccountDetailHeader({
   results: Option[];
   facetRows: FacetRow[];
 }) {
+  const label = useLabelAccount();
   return (
     <>
       <Breadcrumb account={account} title={title} />
@@ -61,6 +62,9 @@ export function AccountDetailHeader({
           controls saying "which days" is the page arguing with itself. `/trades` is where a
           particular day is found. */}
       <HeaderSlot>
+        {/* EDIT FIRST, because it is the only control here that changes the ACCOUNT rather than the
+            view of it. v2 orders it the same way and the reference does too. */}
+        <HeaderControl onClick={() => label(account)}>Edit</HeaderControl>
         <DetailFilters
           accountId={account.id}
           applied={applied}

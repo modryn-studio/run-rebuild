@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireTrader } from '@/lib/trader';
-import { getAccount, getProvenance } from '@/lib/accounts/read';
+import { getAccount, getProvenance, countPrefixSiblings } from '@/lib/accounts/read';
 import {
   getTape,
   getTapeIds,
@@ -11,7 +11,7 @@ import {
   getDigest,
 } from '@/lib/trades/read';
 import { EMPTY_FILTER, type ResultToken } from '@/lib/trades/filter';
-import { accountRowTitle } from '@/lib/prop-firms';
+import { accountPrefix, accountRowTitle } from '@/lib/prop-firms';
 import { AccountDetailView } from '@/components/views/accounts/account-detail-view';
 import { AccountRail } from '@/components/views/accounts/account-rail';
 import { TradesTape } from '@/components/views/trades/trades-tape';
@@ -131,6 +131,12 @@ export default async function AccountDetailPage({
   const narrowed =
     applied.products.length > 0 || applied.results.length > 0 || applied.q !== null;
 
+  /* THE SIBLING COUNT, for the label form's "apply to your other TDFY accounts" switch. One integer
+     rather than the whole roster - see `countPrefixSiblings`. Skipped entirely for a placeholder
+     key, which has no prefix and therefore no siblings by construction. */
+  const prefix = accountPrefix(account.externalAccountId);
+  const siblingCount = prefix ? await countPrefixSiblings(trader.id, prefix, account.id) : 0;
+
   /* THE RAIL'S RECORD GROUP FOLLOWS THE FILTER, and it reads the SAME aggregate `/trades`' own rail
      does - one `where`, so the rail, the chart and the tape are three views of one query rather
      than three queries about one page. Only fetched when something is narrowing: unfiltered, the
@@ -165,6 +171,7 @@ export default async function AccountDetailPage({
       intradayRows={intraday.map((r) => ({ ...r, at: r.at.toISOString() }))}
       zone={trader.displayTimezone}
       hasFees={provenance.hasFees}
+      siblingCount={siblingCount}
       filters={{ applied, products: productOptions, results: resultOptions, facetRows: own }}
       rail={
         <AccountRail

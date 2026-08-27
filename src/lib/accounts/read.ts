@@ -359,3 +359,39 @@ export async function getProvenance(traderId: string, accountId: string): Promis
     hasFees: (span?.feeRows ?? 0) > 0,
   };
 }
+
+
+/**
+ * HOW MANY OTHER ACCOUNTS SHARE THIS ONE'S LOGIN PREFIX.
+ *
+ * Each prop firm issues its own Tradovate username, and every account under that login carries the
+ * same account-name prefix — which is the whole basis of the label form's "apply to your other
+ * TDFY accounts" offer. This is the number that decides whether that switch appears at all.
+ *
+ * ONE INTEGER RATHER THAN THE ROSTER. `run-trading@v2` ships every account to the client so its
+ * modal provider can count them in memory; that is correct and it moves a lot of rows to answer a
+ * question with one number in it. `/accounts/details` is a page about ONE account and has no other
+ * reason to hold the roster.
+ *
+ * THE PREFIX IS LETTERS ONLY AND CAPPED, for the reason the write path states: this value reaches a
+ * `LIKE` pattern, and `_` or `%` inside it would silently widen the match. A caller that hands over
+ * something else gets 0 rather than a surprise.
+ */
+export async function countPrefixSiblings(
+  traderId: string,
+  prefix: string,
+  excludeAccountId: string
+): Promise<number> {
+  if (!/^[A-Z]{2,16}$/.test(prefix)) return 0;
+  const [row] = await db
+    .select({ n: sql<number>`count(*)`.mapWith(Number) })
+    .from(account)
+    .where(
+      and(
+        eq(account.traderId, traderId),
+        sql`${account.externalAccountId} like ${`${prefix}%`}`,
+        sql`${account.id} <> ${excludeAccountId}`
+      )
+    );
+  return row?.n ?? 0;
+}
