@@ -192,7 +192,7 @@ function Row({
          agrees with the chart, the chips and the card above it: `/trades` records the same fix, that
          three surfaces each starting at a different x is what makes a column read as loose. */
       className={cn(
-        'group/row hover:bg-hover relative flex min-h-17 w-full items-center gap-3 py-3 pr-4 pl-4 text-left transition-colors select-none sm:min-h-21 sm:gap-5 sm:pr-5 sm:pl-7',
+        'group/row hover:bg-hover relative flex min-h-15 w-full items-center gap-3 py-3 pr-4 pl-4 text-left transition-colors select-none sm:min-h-21 sm:gap-5 sm:pr-5 sm:pl-7',
         /* NO `cursor-grab` HERE, unlike the card header one level up, and the difference is real: a
            header is not a link, so grab is the only thing its cursor could say. A ROW is a link and
            the main way into an account, so `grab` would override the browser's own pointer and hide
@@ -224,7 +224,11 @@ function Row({
       >
         <Icon name="grip" />
       </span>
-      <AccountLogo propFirm={a.propFirm} />
+      {/* 32px ON A PHONE (2026-08-27, Luke: "i think thats a little smaller"). 40 is v2's measured
+          desktop mark and stays there; at 390px it was the tallest thing in a row whose text had
+          just stepped down twice, so the mark had quietly become the reason the row could not get
+          shorter. 32 clears the two 14/12 lines beside it exactly. */}
+      <AccountLogo propFirm={a.propFirm} className="max-sm:[--logo-size:32px]" />
 
       <span className="min-w-0 flex-1">
         {/* A ROW IS ONE SIZE (`design-system.md` §2a). v2 ran four sizes across three tiers here -
@@ -242,8 +246,14 @@ function Row({
             are the last thing that may go, not the first.
             `gap-1` is the space the string itself would carry - flex trims whitespace at an item's
             edge, so the layout has to put it back. Same note the tape's `AccountName` carries. */}
+        {/* `text-body` (14px) ON A PHONE, `text-body-lg` (16px) FROM `sm`. The name and the figure
+            opposite it move together - they are the row's two primary strings and a row where one
+            stepped and the other did not would read as a mistake. */}
         <span
-          className={cn('text-body-lg flex min-w-0 gap-1', named ? 'text-text' : 'text-muted')}
+          className={cn(
+            'text-body-lg max-sm:text-body flex min-w-0 gap-1',
+            named ? 'text-text' : 'text-muted'
+          )}
         >
           <span className="truncate">{title.head}</span>
           {title.tail && <span className="shrink-0">{title.tail}</span>}
@@ -313,7 +323,9 @@ function Row({
             the left, so a $54 row and a $15,030.01 row start 60px apart and anything beside them
             steps in and out down the column. A bigger number pushes past this rather than clipping. */}
           <span className="min-w-27 text-right">
-            <p className="text-body-lg text-text font-medium tabular-nums">{signed(a.netCents)}</p>
+            <p className="text-body-lg max-sm:text-body text-text font-medium tabular-nums">
+              {signed(a.netCents)}
+            </p>
             {/* THE STAMP ANSWERS WHAT THE FIGURE CANNOT: a number with no timestamp cannot tell you
               whether it is this morning's or last month's. This is P5, the direct answer to the
               field's defining failure. */}
@@ -483,7 +495,6 @@ function Group({
           {hasWindow && (
             <span className="col-span-2 sm:order-2 sm:col-span-1">
               <TrendIndicator
-                variant="group"
                 cents={change}
                 periodLabel={periodLabel}
                 periodShort={periodShort}

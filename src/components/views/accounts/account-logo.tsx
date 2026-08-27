@@ -16,14 +16,25 @@
  */
 
 import { findPropFirm, firmLogoSrc, isPersonalFirm } from '@/lib/prop-firms';
+import { cn } from '@/lib/cn';
 
 export function AccountLogo({
   propFirm,
   size = 40,
+  className,
 }: {
   propFirm: string | null;
-  /** 40 on a roster row, 24 in the detail page's breadcrumb. */
+  /** 40 on a roster row, 24 in the detail page's breadcrumb. The DEFAULT; see `className`. */
   size?: number;
+  /* FOR THE ONE THING A PROP CANNOT DO: change with the viewport. A call site overrides the size
+     responsively with `max-sm:[--logo-size:32px]`, and the fallback mark's 0.6 inset follows it
+     through `calc`. A JS width check would need a viewport the server does not have, and would
+     settle on the wrong answer for one paint.
+     WHY `size` SETS A *FALLBACK* VARIABLE AND NOT `--logo-size` ITSELF: an inline style beats every
+     class, so a prop written straight into `--logo-size` could never be overridden by the utility
+     that exists to override it - and it would fail SILENTLY, with the class present in the DOM and
+     doing nothing. Measured exactly that way: the class was there and the mark stayed 40px. */
+  className?: string;
 }) {
   const firm = propFirm && !isPersonalFirm(propFirm) ? findPropFirm(propFirm) : undefined;
   const src = firm ? firmLogoSrc(firm.name) : null;
@@ -38,8 +49,16 @@ export function AccountLogo({
        having generated one, and a utility with no token behind it emits NOTHING - no error, no
        warning, and `verify-css.mjs` cannot see it either. */
     <span
-      className="border-border flex shrink-0 items-center justify-center overflow-hidden rounded-full border"
-      style={{ width: size, height: size, background: 'var(--color-logo-tile)' }}
+      className={cn(
+        'border-border flex h-[var(--logo-size,var(--logo-fallback))] w-[var(--logo-size,var(--logo-fallback))] shrink-0 items-center justify-center overflow-hidden rounded-full border',
+        className
+      )}
+      style={
+        {
+          '--logo-fallback': `${size}px`,
+          background: 'var(--color-logo-tile)',
+        } as React.CSSProperties
+      }
       aria-hidden
     >
       {/* A LOCAL ASSET, so `next/image` would need each firm host whitelisted for nothing — the same
@@ -54,7 +73,14 @@ export function AccountLogo({
         src={src ?? '/brokers/tradovate-logomark.png'}
         alt=""
         className={src ? 'h-full w-full object-contain' : 'object-contain'}
-        style={src ? undefined : { width: size * 0.6, height: size * 0.6 }}
+        style={
+          src
+            ? undefined
+            : {
+                width: 'calc(var(--logo-size, var(--logo-fallback)) * 0.6)',
+                height: 'calc(var(--logo-size, var(--logo-fallback)) * 0.6)',
+              }
+        }
       />
     </span>
   );

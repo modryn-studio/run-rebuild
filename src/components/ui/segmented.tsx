@@ -24,8 +24,20 @@
  * is a button wearing a marker's shape, and hard ban #6 applies again with nothing to answer it.
  * `design-system.md` §4 carries the same paragraph beside the radius table.
  *
- * `min-h-11` (44px) IS THE TAP FLOOR, not a size choice. Both rows are phone-first controls with a
- * thumb-only operator; v2 shipped its range chips at 28px until a postcheck caught it.
+ * ─── 36px OF PILL, 44px OF TARGET (2026-08-27, Luke: "their active chip pill is more of an oval.
+ * less tall than Run's. helps save vertical space") ─────────────────────────────────────────────
+ *
+ * It was `min-h-11`, which put the 44px tap floor into the VISIBLE box - so on a 390px screen the
+ * selected chip came out nearly square, and two chip rows spent 88px of height on two words. The
+ * floor is a fact about fingers, not about ink, and `.hit-44` is the class this codebase already has
+ * for exactly that split: an invisible expander computed from the control's own size, so a 36px pill
+ * still answers a 44px press. Nothing about the target changed; only what you can see did.
+ *
+ * `text-small` (12px) AND THE RULE IT BENDS. `design-system.md` §2a says chrome is never smaller
+ * than the content it controls, and at 12px these sit under the 14px rows they narrow. The carve-out
+ * is narrow and it is about what KIND of control this is: a segment SELECTS a view, it does not
+ * perform an action, and the row it belongs to is read once and then ignored. An action - a button,
+ * a menu item, anything that changes the record - still floors at 14px at every width.
  */
 
 import { cn } from '@/lib/cn';
@@ -44,7 +56,7 @@ export function SegmentedItem({
       aria-pressed={selected}
       {...props}
       className={cn(
-        'text-body inline-flex min-h-11 items-center justify-center rounded-full px-3 font-medium whitespace-nowrap transition-colors',
+        'hit-44 text-small inline-flex h-9 items-center justify-center rounded-full px-3.5 font-medium whitespace-nowrap transition-colors',
         /* `select-pop` IS THE APP'S OWN PICKED-THING TREATMENT, so a segment reads as chosen in the
            same language as every menu row and filter chip rather than in a private one. */
         selected ? 'bg-surface-2 text-text select-pop' : 'text-muted',

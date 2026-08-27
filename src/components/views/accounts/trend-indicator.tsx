@@ -27,7 +27,6 @@ export function TrendIndicator({
   periodShort,
   note,
   baseDollars,
-  variant = 'hero',
 }: {
   cents: number;
   /** "3 month change" / "All time" — supplied by the chart so its menus govern this line. */
@@ -47,11 +46,6 @@ export function TrendIndicator({
   note?: string;
   /** Total stated size behind the figure, or null when any account in scope has none. */
   baseDollars: number | null;
-  /* WHICH LINE THIS IS, because the two call sites sit at different ranks and a phone is where that
-     starts to matter. `hero` qualifies the 26px figure at the top of the page; `group` qualifies an
-     18px card heading and is repeated once per group down the list, so it is the one that turns a
-     scan into a wall of text if it does not recede. On a desktop both are 16px and always were. */
-  variant?: 'hero' | 'group';
 }) {
   const flat = cents === 0;
   const up = cents > 0;
@@ -74,13 +68,14 @@ export function TrendIndicator({
          design from their web one, and on 390px of width a qualifier printed at the same size as the
          thing it qualifies has nowhere to recede to. The hero takes one step (14px); the group line
          takes two (12px) because it repeats down the page and is the one that reads as a wall.
+         ONE PAIR FOR BOTH CALL SITES. This briefly carried a `variant` prop so the hero could take
+         one step and the repeated group line two - then both landed on 12px anyway, which made the
+         prop a distinction with no rendered difference. Deleted rather than kept "in case": a
+         parameter that changes nothing is a thing the next reader has to check.
          A HAND-WRITTEN PAIR RATHER THAN `text-meta`, deliberately: that token is 14px on a desktop
          and both of these are 16px there, so borrowing it to get the phone step would quietly shrink
-         two desktop surfaces nobody asked about. Two pairs, one file, nothing to keep in sync. */
-      className={cn(
-        'value-fade flex flex-wrap items-center gap-x-1.5 gap-y-0.5 sm:text-body-lg',
-        variant === 'hero' ? 'text-body' : 'text-small'
-      )}
+         two desktop surfaces nobody asked about. */
+      className="value-fade text-small sm:text-body-lg flex flex-wrap items-center gap-x-1.5 gap-y-0.5"
     >
       <span
         className={cn(
