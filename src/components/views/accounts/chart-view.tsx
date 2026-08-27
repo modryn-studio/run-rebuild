@@ -19,6 +19,7 @@
  */
 
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import type { Grain } from '@/lib/time/session';
 import {
   CHANGE_LABELS,
   RANGE_LABELS,
@@ -36,6 +37,20 @@ type ChartView = {
   range: Range;
   setKind: (k: Kind) => void;
   setRange: (r: Range) => void;
+  /* ─── THE BREAKDOWN'S OWN TWO CONTROLS (`S6d`, 2026-08-27) ──────────────────────────────────
+     Luke, 2026-08-06: "the two views carry different controls". Cumulative asks HOW FAR BACK
+     (`range`); Breakdown asks HOW WIDE A BAR IS (`grain`) and moves along the corpus with the pan
+     arrows (`anchor`). One menu slot, two questions - the control changes identity when the kind
+     toggles, and v2 records Luke's call on that: "do nothing, it resolves itself once the trader
+     has toggled twice." */
+  /** The Breakdown's bar width. Never derived from `range` — see `GRAINS` in `series.ts`. */
+  grain: Grain;
+  setGrain: (g: Grain) => void;
+  /* THE NEWEST BUCKET ON SCREEN, or null for "the newest there is". Null rather than an index, so a
+     grain change does not carry a stale position: eight weeks back is not eight months back, and an
+     index would silently mean the second after the menu moved. */
+  anchor: string | null;
+  setAnchor: (a: string | null) => void;
   /** The cumulative line for a set of accounts, merged. */
   seriesFor: (ids: string[]) => Point[];
   /** What that set changed by inside the current window. */
@@ -76,6 +91,19 @@ export function ChartViewProvider({
 }) {
   const [pickedKind, setKind] = useState<Kind>('cumulative');
   const [range, setRange] = useState<Range>('all');
+  const [grain, setGrainState] = useState<Grain>('day');
+  const [anchor, setAnchor] = useState<string | null>(null);
+
+  /* CHANGING THE BAR WIDTH RETURNS TO THE NEWEST PAGE, and it has to. The anchor is a bucket START,
+     so "2026-06-15" is a real day bucket and no week or month bucket at all - keeping it across a
+     grain change would look up a bucket that cannot be found, and the page would silently fall back
+     to the end anyway. Resetting says so out loud, and it is also what a trader means: picking
+     Monthly is a request to see months, not to see the month containing wherever they had panned
+     to. */
+  const setGrain = useCallback((g: Grain) => {
+    setGrainState(g);
+    setAnchor(null);
+  }, []);
 
   /* A 1-DAY BREAKDOWN IS ONE BAR, which is the useless control `grainFor` exists to prevent - the
      breakdown buckets by DAY and a single session holds exactly one of those.
@@ -123,13 +151,17 @@ export function ChartViewProvider({
       range,
       setKind,
       setRange,
+      grain,
+      setGrain,
+      anchor,
+      setAnchor,
       seriesFor,
       changeFor,
       shapeFor,
       periodLabel: CHANGE_LABELS[range],
       periodShort: RANGE_LABELS[range],
     }),
-    [kind, range, seriesFor, changeFor, shapeFor]
+    [kind, range, grain, setGrain, anchor, seriesFor, changeFor, shapeFor]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

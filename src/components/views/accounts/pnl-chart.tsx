@@ -37,20 +37,22 @@
  * and `foldIntraday` in `src/lib/accounts/series.ts`.)
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Menu } from '@/components/ui/menu';
+import { Icon } from '@/components/ui/icon';
 import { SegmentedItem } from '@/components/ui/segmented';
 import { TrendIndicator } from './trend-indicator';
 import { useChartView } from './chart-view';
 import { cn } from '@/lib/cn';
 import { fmtMoney } from '@/lib/format';
+import type { Grain } from '@/lib/time/session';
 import {
+  GRAINS,
   RANGES,
   RANGE_LABELS,
   isInstantKey,
   bucketize,
-  grainFor,
   windowChange,
   windowStart,
   type Point,
@@ -82,6 +84,58 @@ const AXIS_GAP = 17;
  * THE FLOOR IS THE LABEL'S OWN PADDING. With no data there are no labels and the gutter collapses
  * to the 12px breathing room, which is what lets an empty chart use its whole card. */
 const AXIS_PAD = 12;
+
+/* ─── THE BREAKDOWN'S PAGE, AND THE ARROWS THAT MOVE IT (`S6d`, 2026-08-27) ──────────────────────
+ *
+ * Ported from `run-trading@v2`'s `total-pnl-card.tsx`, whose arithmetic is the point: a bar's width
+ * is `plot width / slot count` and nothing else, so no chosen width survives a growing corpus. v2
+ * answered that by DERIVING the grain from the range; this now answers it by PAGING, which is what
+ * lets the grain be a control the trader owns.
+ *
+ * THE BAR WIDTH IS THE FIXED THING AND THE COUNT FALLS OUT OF IT (Luke, 2026-08-06: "try to fit as
+ * many as you can on the chart without changing the width of the current bars. im happy with the
+ * size of the bars as is"). A bar is 0.7 of its slot here, the same ratio the renderer below uses,
+ * so a 44px bar wants a 63px slot. That is what turns "how many bars fit" into arithmetic rather
+ * than a guess. */
+const BAR_CAP = 44;
+const SLOT_PX = Math.round(BAR_CAP / 0.7);
+
+/* THE ROOM THE ARROWS TAKE, on each side, and ONLY when they are shown (Luke: "i dont want them
+   sitting on top of content... when the chart does not need the arrows then no arrows display and
+   the chart keeps its width"). A 32px button plus 8px of air.
+   The pair is what puts the arrow FLUSH against the plot rather than near it: the inset is 40 and
+   the button is 32, so its inner edge lands exactly on the plot's outer edge. Two constants that
+   agree by arithmetic instead of two that agree today. */
+const PAN_INSET = 40;
+const PAN_SIZE = 32;
+
+/** Buckets to draw before the plot has been measured. One paint at a sensible width beats a flash
+ *  of everything followed by a re-slice; the ResizeObserver corrects it on the next frame. */
+const PAGE_FALLBACK = 12;
+
+/* THE PLOT'S OWN EDGES, which move only when the arrows are on screen. A CSS variable rather than a
+   prop threaded through six style objects: every layer - the line, the bars, the zero rule, the
+   hover guide, the label track - has to agree on where the box starts, and one variable is how they
+   cannot drift. Zero when there is nothing to pan. */
+const PAN_LEFT = 'calc(var(--axis-gutter) + var(--pan-inset, 0px))';
+const PAN_RIGHT = 'var(--pan-inset, 0px)';
+
+/* WHAT A BUCKET IS CALLED, and it is not always a date (v2, Luke 2026-08-04: "why do i feel like
+   there is missing data?"). A MONTH's bar labelled "May 1" reads as one day's trading, so a bar
+   holding thirty sessions looked like it was reporting one. Name the PERIOD instead. */
+function bucketLabel(day: string, grain: Grain): string {
+  if (isInstantKey(day)) return day;
+  const d = new Date(`${day}T12:00:00Z`);
+  const fmt = (o: Intl.DateTimeFormatOptions) =>
+    d.toLocaleDateString('en-US', { ...o, timeZone: 'UTC' });
+  // A year names itself; a quarter needs the word, because "Jul-Sep 2026" is a range where "Q3" is
+  // a period the whole market already keeps.
+  if (grain === 'year') return day.slice(0, 4);
+  if (grain === 'quarter') return `Q${Math.floor((Number(day.slice(5, 7)) - 1) / 3) + 1} ${day.slice(0, 4)}`;
+  if (grain === 'month') return fmt({ month: 'long', year: 'numeric' });
+  const date = fmt({ month: 'short', day: 'numeric' });
+  return grain === 'week' ? `Week of ${date}` : date;
+}
 
 const signed = (cents: number) => (cents > 0 ? `+${fmtMoney(cents)}` : fmtMoney(cents));
 
@@ -184,8 +238,26 @@ export function PnlChart({
 }) {
   /* THE PERIOD IS THE PAGE'S, NOT THIS CARD'S. It governs the group headers and every row's
      sparkline too, so it lives in `ChartViewProvider` where all three read one value. */
-  const { kind, range, setKind, setRange, periodLabel, periodShort } = useChartView();
+  const { kind, range, setKind, setRange, grain, setGrain, anchor, setAnchor, periodLabel, periodShort } =
+    useChartView();
   const [hover, setHover] = useState<number | null>(null);
+
+  /* THE DRAWING WIDTH, MEASURED BY THE PARENT because the PAGE depends on it: how many bars fit is a
+     question about pixels, and the answer decides the slice the bars, the hit test and the labels
+     all read.
+     AND IT IS THE UN-INSET WIDTH, deliberately. Measuring the drawing box would feed the arrows
+     their own effect - showing them narrows the box, a narrower box fits fewer bars, fewer bars can
+     mean everything fits, which hides the arrows and widens the box again. Measuring a rail that
+     never moves breaks that loop. */
+  const [plotPx, setPlotPx] = useState(0);
+  const plotBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = plotBox.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setPlotPx(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const view = useMemo(() => {
     /* 1d IS ITS OWN SERIES, NOT A SLICE OF THIS ONE, and that is the whole reason it needed a second
@@ -218,14 +290,93 @@ export function PnlChart({
 
     return {
       points,
-      bars: bucketize(points, grainFor(range, span)),
+      /* THE BREAKDOWN IS NOT BOUNDED BY THE PERIOD MENU, and in v2 it was - found from a screenshot
+         on 2026-08-06: three bars spread across an empty plot, on a stored range of 1 week.
+         The two views carry different controls now, and the Period menu is not even RENDERED on
+         this one - so cutting the bars by `range` underneath would be an invisible filter: pick
+         Daily and the chart silently shows only the days inside a window the trader cannot see or
+         change. It looks like the paging is broken.
+         So the bars read the WHOLE series at the chosen grain, and the arrows are what move along
+         it. `grainFor` still decides nothing here; it belongs to the cumulative view. */
+      bars: bucketize(series, grain),
       start,
       total: series[series.length - 1].cents,
       change: windowChange(series, start).change,
     };
-  }, [series, intradaySeries, range, kind]);
+  }, [series, intradaySeries, range, kind, grain]);
 
-  const active = kind === 'cumulative' ? view.points : view.bars;
+  /* WHICH BUCKETS ARE ON SCREEN. Everything below reads `page.band`; `page.all` exists only so the
+     arrows know whether there is anything either side of it. */
+  const page = useMemo(() => {
+    /* NOT BUILT ON THE INTRADAY AXIS. Those keys are INSTANTS, and every bucket function here parses
+       a key as a plain `YYYY-MM-DD` - v2 crashed a closed account's 1-day view with
+       `RangeError: Invalid time value` doing exactly this. Nothing is lost: 1 day forces the
+       cumulative kind (see `ChartViewProvider`), so these bars can never be drawn from it. */
+    if (range === '1d' || view.bars.length === 0) {
+      return { band: view.bars, all: view.bars, startIdx: 0, endIdx: view.bars.length - 1 };
+    }
+
+    /* TRIMMED TO WHAT ACTUALLY TRADED, at the ENDS only (Luke, 2026-08-05: "you only need to show
+       dates that have trading data. this chart isnt the same as the cumulative chart").
+       An INTERIOR gap stays: a week you did not trade inside a month you did is a fact about the
+       month, and the bars already leave it blank. `bucketize` only emits buckets that saw movement,
+       so the trim is really about a zero-valued end bucket rather than an absent one. */
+    let lo = 0;
+    let hi = view.bars.length - 1;
+    while (lo <= hi && view.bars[lo].cents === 0) lo++;
+    while (hi >= lo && view.bars[hi].cents === 0) hi--;
+    const all = view.bars.slice(lo, hi + 1);
+    if (all.length === 0) return { band: all, all, startIdx: 0, endIdx: -1 };
+
+    /* AS MANY BARS AS FIT, NOT A CONSTANT. Measured rather than assumed, for the same reason the
+       axis gutter is: the plot changes width without the data changing at all - the sidebar
+       collapses, the window resizes, the summary rail wraps under at `lg`.
+       TWO PASSES, because the arrows take room only when they are shown and whether they are shown
+       depends on how many fit. Ask at full width first; if everything fits there are no arrows and
+       that answer stands. If it does not, the arrows appear, the usable width shrinks by their
+       inset, and the second pass is the real page. It cannot oscillate: the second pass is never
+       larger than the first. */
+    const fitAt = (px: number) => Math.max(1, Math.floor(px / SLOT_PX));
+    const full = plotPx > 0 ? fitAt(plotPx) : PAGE_FALLBACK;
+    const paged = all.length > full;
+    const size = paged && plotPx > 0 ? fitAt(plotPx - 2 * PAN_INSET) : full;
+
+    /* THE PAGE ENDS AT THE ANCHOR - the newest bucket on screen, null meaning the newest there is.
+       Indexes rather than date arithmetic, now that the list holds only real buckets: "one page
+       earlier" is a slice, and a slice cannot land between two buckets or walk into an empty
+       century the way stepping by the calendar could. */
+    const at = anchor ? all.findIndex((b) => b.day === anchor) : -1;
+    const endIdx = at >= 0 ? at : all.length - 1;
+    const startIdx = Math.max(0, endIdx - size + 1);
+    return { band: all.slice(startIdx, endIdx + 1), all, startIdx, endIdx };
+  }, [view.bars, range, anchor, plotPx]);
+
+  /* ONE PAGE AT A TIME, clamped so the last step lands ON the end rather than past it. */
+  const panBy = (by: -1 | 1) => {
+    if (page.all.length === 0) return;
+    const size = Math.max(1, page.band.length);
+    const next = Math.min(page.all.length - 1, Math.max(size - 1, page.endIdx + by * size));
+    setAnchor(next >= page.all.length - 1 ? null : page.all[next].day);
+  };
+  const canPanBack = kind === 'breakdown' && page.startIdx > 0;
+  const canPanForward = kind === 'breakdown' && page.endIdx < page.all.length - 1;
+  const paging = canPanBack || canPanForward;
+
+  /* THE DELTA DESCRIBES WHAT IS ON SCREEN. On Breakdown that is the PAGE, not the Period menu's
+     window - v2 left this reading "1 week change" under a chart showing three weeks, which is the
+     same two-numbers-one-screen fault the rail and the tape were fixed for, and worse here because
+     it names a control this view does not render. */
+  const pageChange = page.band.reduce((n, b) => n + b.cents, 0);
+  const pageLabel =
+    page.band.length === 0
+      ? ''
+      : page.band.length === 1
+        ? bucketLabel(page.band[0].day, grain)
+        : `${bucketLabel(page.band[0].day, grain)} to ${bucketLabel(page.band[page.band.length - 1].day, grain)}`;
+
+  /* THE BREAKDOWN'S HIT TEST READS THE PAGE, not the whole corpus. `at` is an INDEX, so if these
+     two lists ever differed the hover would light a bar that is not the one under the pointer. */
+  const active = kind === 'cumulative' ? view.points : page.band;
   /* CLAMPED DURING RENDER, not corrected in an effect. `hover` is an INDEX, and changing the range
      rebuilds the series shorter underneath it — v2 took the whole page down with
      "Cannot read properties of undefined" doing exactly this. An effect runs after the render that
@@ -268,12 +419,26 @@ export function PnlChart({
               { value: 'breakdown', label: 'Breakdown' },
             ]}
           />
-          <Menu
-            label="Period"
-            value={range}
-            onChange={(v) => setRange(v as Range)}
-            options={RANGES.map((r) => ({ value: r, label: RANGE_LABELS[r] }))}
-          />
+          {/* THE SECOND CONTROL BELONGS TO THE VIEW (Luke, 2026-08-06: "the two views carry
+              different controls"). Cumulative asks HOW FAR BACK; Breakdown asks HOW WIDE A BAR IS
+              and moves along the corpus with the arrows. One menu slot, two questions - which does
+              mean the control changes identity when you toggle, and v2 records Luke's call on that:
+              "do nothing, it resolves itself once the trader has toggled twice." */}
+          {kind === 'breakdown' ? (
+            <Menu
+              label="Bar size"
+              value={grain}
+              onChange={(v) => setGrain(v as Grain)}
+              options={GRAINS.map((g) => ({ value: g.value, label: g.label }))}
+            />
+          ) : (
+            <Menu
+              label="Period"
+              value={range}
+              onChange={(v) => setRange(v as Range)}
+              options={RANGES.map((r) => ({ value: r, label: RANGE_LABELS[r] }))}
+            />
+          )}
         </div>
       </div>
 
@@ -305,6 +470,19 @@ export function PnlChart({
             <span className="text-body-lg max-sm:text-small text-muted font-medium">
               {series.length === 0 ? 'No accounts yet' : 'Every account is left out of totals'}
             </span>
+          ) : kind === 'breakdown' ? (
+            /* THE PAGE'S OWN NET, LABELLED WITH ITS OWN SPAN. Summed from the bars actually drawn,
+               so the figure and the columns under it cannot disagree - and it moves when the arrows
+               do, which is what tells the trader the arrows did something.
+               `periodShort` takes the SAME string here rather than an abbreviation: the phone never
+               reaches this branch (Breakdown has no phone control), so a second shorter form would
+               be a string nothing renders. */
+            <TrendIndicator
+              cents={pageChange}
+              periodLabel={pageLabel}
+              periodShort={pageLabel}
+              baseDollars={baseDollars}
+            />
           ) : range === 'all' ? (
             /* All time: the change IS the figure above, so coverage is the useful thing to say.
                `max-sm:text-body` for the same reason the figure above it stepped down - these three
@@ -338,7 +516,20 @@ export function PnlChart({
             the next, which is exactly why `accounts-rail.tsx` defers the claim to this page. */}
         {note && <p className="text-body max-sm:text-small text-muted mt-1">{note}</p>}
 
-        <Plot kind={kind} points={view.points} bars={view.bars} at={at} onHover={setHover} zone={zone} />
+        <Plot
+          kind={kind}
+          points={view.points}
+          bars={page.band}
+          grain={grain}
+          at={at}
+          onHover={setHover}
+          zone={zone}
+          boxRef={plotBox}
+          paging={paging}
+          canPanBack={canPanBack}
+          canPanForward={canPanForward}
+          onPan={panBy}
+        />
 
         {/* PHONE ONLY: the period as a chip row UNDER the chart. One tap instead of two, and it
             never covers the thing it is about — which a menu opening over a 390px chart does.
@@ -375,16 +566,33 @@ export function Plot({
   kind,
   points,
   bars,
+  grain = 'day',
   at,
   onHover,
   zone,
+  boxRef,
+  paging = false,
+  canPanBack = false,
+  canPanForward = false,
+  onPan,
 }: {
   zone: string;
   kind: Kind;
   points: Point[];
   bars: { day: string; cents: number }[];
+  /** The grain the bars were bucketed at, so the tooltip can name a PERIOD rather than a date. */
+  grain?: Grain;
   at: number | null;
   onHover: (i: number | null) => void;
+  /* THE UN-INSET RAIL THE PARENT MEASURES. Handed down rather than measured here, because the thing
+     that depends on it - how many buckets are on screen - is the parent's to decide. Optional, so
+     the rack can render a plot with no paging at all. */
+  boxRef?: React.Ref<HTMLDivElement>;
+  /** Whether the arrows are on screen, which is the only thing that insets the drawing box. */
+  paging?: boolean;
+  canPanBack?: boolean;
+  canPanForward?: boolean;
+  onPan?: (by: -1 | 1) => void;
 }) {
   const values = kind === 'cumulative' ? points.map((p) => p.cents) : bars.map((b) => b.cents);
   const hasData = values.length > 0;
@@ -435,9 +643,16 @@ export function Plot({
   const scrub = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!hasData) return;
     const box = e.currentTarget.getBoundingClientRect();
-    const gutter =
-      parseFloat(getComputedStyle(e.currentTarget).getPropertyValue('--axis-gutter')) || 0;
-    const raw = ((e.clientX - box.left - gutter) / (box.width - gutter)) * 100;
+    const cs = getComputedStyle(e.currentTarget);
+    const gutter = parseFloat(cs.getPropertyValue('--axis-gutter')) || 0;
+    /* THE HIT TEST HAS TO READ THE SAME BOX THE BARS ARE DRAWN IN. When the arrows are up the
+       columns are inset by `--pan-inset` on both sides, and a test that still measured the full
+       width would map the pointer onto the wrong column - by a whole bar at the edges, which is
+       exactly where a trader reaches for the arrow. Read from the same variable the layer uses
+       rather than from `paging`, so the two cannot disagree. */
+    const inset = parseFloat(cs.getPropertyValue('--pan-inset')) || 0;
+    const left = gutter + inset;
+    const raw = ((e.clientX - box.left - left) / (box.width - left - inset)) * 100;
 
     /* OFF THE PLOT MEANS TWO DIFFERENT THINGS. A mouse that leaves has stopped asking, so the
        readout clears. A finger that slides past the last session is still HOLDING - it has simply
@@ -473,8 +688,30 @@ export function Plot({
        Both still resolve on the FIRST paint, which is why this is CSS rather than a width check. */
     <div
       className="relative mt-4 w-full [--axis-gutter:0px] [--chart-h:242px] max-sm:-mx-4 max-sm:w-auto sm:[--axis-gutter:var(--axis-w)] sm:[--chart-h:275px]"
-      style={{ '--axis-w': `calc(${axisChars}ch + ${AXIS_PAD}px)` } as React.CSSProperties}
+      style={
+        {
+          '--axis-w': `calc(${axisChars}ch + ${AXIS_PAD}px)`,
+          /* THE ONLY THING THAT MOVES THE DRAWING BOX, and it is zero unless the arrows are on
+             screen (Luke: "when the chart does not need the arrows then no arrows display and the
+             chart keeps its width"). Every layer reads `PAN_LEFT`/`PAN_RIGHT`, so they cannot
+             drift apart. Below `sm` it stays zero: the arrows are desktop-only, because Breakdown
+             has no phone control to reach it. */
+          '--pan-inset': paging ? `${PAN_INSET}px` : '0px',
+        } as React.CSSProperties
+      }
     >
+      {/* THE MEASURING RAIL, AND IT IS THE UN-INSET ONE ON PURPOSE. Zero-height, no paint, spanning
+          exactly the drawing area minus the axis gutter - which is the number "how many bars fit"
+          needs. Measuring the INSET box instead would feed the arrows their own effect: showing them
+          narrows the box, a narrower box fits fewer bars, fewer bars can mean everything fits, which
+          hides the arrows and widens the box again. This rail never moves, so the two passes in
+          `page` are both answerable from one stable number. */}
+      <div
+        ref={boxRef}
+        aria-hidden
+        className="pointer-events-none absolute top-0 right-0 h-0"
+        style={{ left: 'var(--axis-gutter)' }}
+      />
       <div
         /* `touch-pan-y` IS WHAT LETS BOTH GESTURES LIVE HERE (2026-08-27, Luke: "allow user to tap
            and hold on the chart and provide interaction with a vertical line and dot"). It hands
@@ -615,8 +852,11 @@ export function Plot({
           <div
             className="absolute"
             style={{
-              left: 'var(--axis-gutter)',
-              right: 0,
+              /* INSET WHEN THE ARROWS ARE UP, so they sit flush OUTSIDE the columns rather than on
+                 top of them. `PAN_LEFT`/`PAN_RIGHT` resolve to the plain gutter and 0 when nothing
+                 is paged, so the un-paged chart keeps its full width. */
+              left: PAN_LEFT,
+              right: PAN_RIGHT,
               top: PLOT_TOP,
               height: PLOT_BOTTOM - PLOT_TOP,
             }}
@@ -707,7 +947,13 @@ export function Plot({
           <Tip
             zone={zone}
             kind={kind}
-            label={kind === 'cumulative' ? points[at].day : bars[at].day}
+            /* THE BAR NAMES ITS PERIOD, not its first day (v2, Luke 2026-08-04: "why do i feel
+               like there is missing data?"). A month's bar labelled "May 1" reads as one session,
+               so a column holding thirty of them looked like it was reporting one. `bucketLabel`
+               says "May 2026" and "Week of Aug 3" out loud. The cumulative side keeps a raw key,
+               because there the point genuinely IS that day. */
+            label={kind === 'cumulative' ? points[at].day : bucketLabel(bars[at].day, grain)}
+            preformatted={kind === 'breakdown'}
             cents={kind === 'cumulative' ? points[at].cents : bars[at].cents}
             leftPct={
               kind === 'cumulative' ? xPct(points[at].day) : (at + 0.5) * (100 / bars.length)
@@ -727,8 +973,8 @@ export function Plot({
             answer "what am I looking at" without it. */}
         {hasData && (
           <div
-            className="text-caption text-muted absolute right-0 flex justify-between tabular-nums max-sm:hidden"
-            style={{ left: 'var(--axis-gutter)', top: PLOT_BOTTOM + AXIS_GAP }}
+            className="text-caption text-muted absolute flex justify-between tabular-nums max-sm:hidden"
+            style={{ left: PAN_LEFT, right: PAN_RIGHT, top: PLOT_BOTTOM + AXIS_GAP }}
           >
             <span>
               {axisDate(kind === 'cumulative' ? points[0].day : bars[0].day, multiYear, zone)}
@@ -742,8 +988,49 @@ export function Plot({
             </span>
           </div>
         )}
+        {/* A CONTROL THAT CANNOT DO ANYTHING SHOULD NOT BE ON SCREEN ASKING TO BE PRESSED. Forward
+            disappears at the newest page and Back at the oldest, rather than sitting there
+            disabled. */}
+        {canPanBack && onPan && <PanButton dir={-1} onClick={() => onPan(-1)} />}
+        {canPanForward && onPan && <PanButton dir={1} onClick={() => onPan(1)} />}
       </div>
     </div>
+  );
+}
+
+/* THE PAN ARROW, FLUSH AGAINST THE PLOT AND OUTSIDE IT - v2 measured this off the reference rather
+ * than eyeballing it (Luke, 2026-08-06: "what i want you to copy is the arrows and how they do
+ * that"). Theirs: a 32px button at 84->116 with the chart starting at exactly 116. Touching, never
+ * overlapping, and vertically centred on the plot to the pixel.
+ * The inner edge is pinned by SUBTRACTING the button from the inset, so the two stay flush if
+ * either number ever changes - rather than two constants that happen to agree today.
+ *
+ * DESKTOP ONLY (`hidden sm:flex`), because Breakdown is: the phone's control row carries the range
+ * chips and no chart-type control, so these bars cannot be reached below `sm`.
+ *
+ * IT GETS A BORDER AND A SHADOW, WHICH THE HOUSE RULE NORMALLY FORBIDS - and this is the documented
+ * exception rather than a slip. The button floats OVER the plot's own ground with data on both
+ * sides of it; a hairline alone disappears against a gridline, and a shadow alone gives a disc with
+ * no edge on a card that is already `surface`. Every other control in the product sits ON a surface
+ * and takes one or the other. `docs/design-system.md` §4. */
+function PanButton({ dir, onClick }: { dir: -1 | 1; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={dir === -1 ? 'Earlier' : 'Later'}
+      className="border-border bg-surface hover:bg-hover absolute z-10 hidden -translate-y-1/2 items-center justify-center rounded-full border shadow-[var(--shadow-card)] transition-colors sm:flex"
+      style={{
+        width: PAN_SIZE,
+        height: PAN_SIZE,
+        top: (PLOT_TOP + PLOT_BOTTOM) / 2,
+        ...(dir === -1
+          ? { left: `calc(${PAN_LEFT} - ${PAN_SIZE}px)` }
+          : { right: `calc(${PAN_RIGHT} - ${PAN_SIZE}px)` }),
+      }}
+    >
+      <Icon name="chevron" size={15} className={dir === -1 ? 'rotate-90' : '-rotate-90'} />
+    </button>
   );
 }
 
@@ -753,12 +1040,18 @@ function Tip({
   label,
   cents,
   leftPct,
+  preformatted = false,
 }: {
   kind: Kind;
   label: string;
   cents: number;
   leftPct: number;
   zone: string;
+  /* THE BREAKDOWN HANDS A FINISHED STRING. Its buckets are periods rather than days, and only the
+     caller knows the grain that produced them - "May 2026" cannot be recovered from "2026-05-01"
+     without it. Passing the grain down here instead would put a second copy of the naming rule in
+     the tooltip. */
+  preformatted?: boolean;
 }) {
   /* IT LEANS AWAY FROM THE EDGE IT IS NEAR, and it is offset from the column rather than centred on
      it — v2 centred the panel on the hovered x, which put it exactly over the bar it was
@@ -768,7 +1061,10 @@ function Tip({
     <div
       className="border-border bg-surface pointer-events-none absolute z-10 w-max rounded-[var(--radius-sm)] border px-2.5 py-1.5 shadow-[var(--shadow-card)]"
       style={{
-        left: `calc(var(--axis-gutter) + ${leftPct}% * (1 - var(--axis-gutter) / 100%))`,
+        /* POSITIONED INSIDE THE SAME BOX THE COLUMNS ARE. `PAN_LEFT` is the gutter plus the
+           arrows' inset, so a tooltip over the first bar lands on that bar rather than 40px left
+           of it once paging is on. */
+        left: `calc(${PAN_LEFT} + ${leftPct}% * (1 - (${PAN_LEFT} + ${PAN_RIGHT}) / 100%))`,
         top: 0,
         marginLeft: flip ? -34 : 34,
         transform: flip ? 'translateX(-100%)' : undefined,
@@ -777,8 +1073,11 @@ function Tip({
       {/* THE TOOLTIP NAMES THE BUCKET IN FULL, which the axis cannot afford. It appears one at a
           time and has the room, so the year stays: a hovered point should not make the reader work
           out which year they are looking at from the two ends of the plot. */}
-      <p className="text-caption text-muted">{axisDate(label, true, zone)}</p>
+      <p className="text-caption text-muted">
+        {preformatted ? label : axisDate(label, true, zone)}
+      </p>
       <p className="text-body text-text font-medium tabular-nums">{signed(cents)}</p>
     </div>
   );
 }
+

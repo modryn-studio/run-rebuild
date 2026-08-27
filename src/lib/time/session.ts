@@ -243,7 +243,13 @@ export function displayInstantDay(at: Date, zone: string): string {
 //    — Saturday crypto continues Friday's tape rather than starting the next week. See
 //    docs/market-hours.md §4; spec.md §8's "the weekend has no bucket" carries the same
 //    qualifier now.
-export type Grain = 'day' | 'week' | 'month' | 'year';
+/* `quarter` ARRIVED WITH THE BREAKDOWN'S OWN CONTROL (`S6d`, 2026-08-27). It is not a range this
+   product windows by - nothing asks for "the last quarter" - it is a BAR WIDTH, offered because
+   `run-trading@v2`'s grain menu offers it and Luke asked for that menu ported as it stands.
+   CALENDAR QUARTERS, NOT THE TRADER'S OWN, and v2's reason is the right one: a quarter is a period
+   the market and every prop firm already agree on, so inventing a rolling one would be a private
+   calendar nobody else keeps. */
+export type Grain = 'day' | 'week' | 'month' | 'quarter' | 'year';
 
 const SESSION_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DAY_MS = 86_400_000;
@@ -291,8 +297,47 @@ export function bucketStartFor(sessionDate: string, grain: Grain): string {
     }
     case 'month':
       return iso(at.getUTCFullYear(), at.getUTCMonth() + 1, 1);
+    case 'quarter':
+      // Jan/Apr/Jul/Oct. `getUTCMonth` is 0-based, so the floor lands on the quarter's first month
+      // and the +1 puts it back into the 1-based form `iso` takes.
+      return iso(at.getUTCFullYear(), Math.floor(at.getUTCMonth() / 3) * 3 + 1, 1);
     case 'year':
       return iso(at.getUTCFullYear(), 1, 1);
+  }
+}
+
+/**
+ * ONE BUCKET LATER, OR EARLIER, at this grain — the arithmetic the breakdown chart pans with.
+ *
+ * IT LIVES HERE FOR THE REASON EVERYTHING ELSE ABOUT BUCKETS DOES. `bucketStartFor` decides what a
+ * bucket IS; walking from one to the next is the same calendar, and a second module stepping months
+ * of its own would be the two-code-paths-one-derived-value failure CLAUDE.md names. A pan arrow that
+ * disagreed with the grouping by one day at a quarter boundary is exactly the bug that costs an
+ * afternoon.
+ *
+ * IT TAKES A BUCKET START AND RETURNS ONE. Feeding it a mid-bucket day steps from that day rather
+ * than from its bucket, so callers pass what `bucketStartFor` gave them.
+ *
+ * UTC ARITHMETIC, and `setUTCMonth` handles the overflows the naive version gets wrong: month 12
+ * rolls the year, and stepping a month from Jan 31 lands in March unless the day is already 1 —
+ * which it always is here, because a month/quarter/year bucket starts on the 1st by construction.
+ */
+export function stepBucket(bucketStart: string, grain: Grain, by: number): string {
+  const at = utcOf(bucketStart);
+  switch (grain) {
+    case 'day':
+      return isoOf(new Date(at.getTime() + by * DAY_MS));
+    case 'week':
+      return isoOf(new Date(at.getTime() + by * 7 * DAY_MS));
+    case 'month':
+      at.setUTCMonth(at.getUTCMonth() + by);
+      return isoOf(at);
+    case 'quarter':
+      at.setUTCMonth(at.getUTCMonth() + 3 * by);
+      return isoOf(at);
+    case 'year':
+      at.setUTCFullYear(at.getUTCFullYear() + by);
+      return isoOf(at);
   }
 }
 

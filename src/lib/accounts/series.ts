@@ -148,9 +148,8 @@ export function lastMovementDay(series: Point[]): string | null {
  * grain arithmetic inside the chart, which is the second-bucketer trap CLAUDE.md forbids: two code
  * paths computing one derived value is how a product disagrees with itself about "your worst week".
  *
- * NO `quarter` GRAIN, because the shared bucketer does not have one. v2's chart offers it. Adding it
- * belongs in `lib/time/session.ts` beside the other four rather than here, and it is not worth
- * widening the one locked-down module for mid-slice — recorded rather than quietly dropped.
+ * `quarter` ARRIVED 2026-08-27, in `lib/time/session.ts` beside the other four, which is where this
+ * comment said it belonged. The Breakdown's grain menu offers it because v2's does.
  */
 export function bucketize(series: Point[], grain: Grain): DayCents[] {
   if (series.length < 2) return [];
@@ -241,9 +240,34 @@ export function windowStart(range: Range, endsOn: string): string | null {
   return back.toISOString().slice(0, 10);
 }
 
+/* THE BREAKDOWN'S OWN CONTROL (`S6d`, 2026-08-27, ported from `run-trading@v2`'s `chart-grain.ts`).
+ *
+ * IT SUPERSEDES `grainFor` FOR THE BREAKDOWN VIEW, and the argument underneath `grainFor` with it.
+ * That argument - the trader picks how far back and lets the bar width fall out - was right while
+ * ONE control had to serve both kinds. Once the two views are allowed to differ (Luke, 2026-08-06:
+ * "the two views carry different controls"), a bar chart's honest control IS the grain, because a
+ * BAR IS A PERIOD, and a range menu cannot express "the same eight weeks, one page earlier".
+ *
+ * The objection `grainFor` raises is real and is answered by PAGING rather than by derivation:
+ * picking Yearly on three weeks of tape gives one bar, and one bar is a fine answer to "what did
+ * this year do" - what used to make it useless was a whole-corpus axis with no way to move along it.
+ *
+ * `grainFor` STAYS, and is still what the CUMULATIVE view uses to decide how it summarises. */
+export const GRAINS: readonly { value: Grain; label: string }[] = [
+  { value: 'day', label: 'Daily' },
+  { value: 'week', label: 'Weekly' },
+  { value: 'month', label: 'Monthly' },
+  { value: 'quarter', label: 'Quarterly' },
+  { value: 'year', label: 'Yearly' },
+];
+
+/** Just the values, for anything validating a grain without pulling the labels. */
+export const GRAIN_TOKENS: readonly Grain[] = GRAINS.map((g) => g.value);
+
 /** The grain a range is drawn at, so the trader picks HOW FAR BACK and never picks a grain that
  *  produces one bar. v2: an explicit grain "lets a trader pick 'yearly' on three weeks of tape and
- *  get one bar, which is a control that can produce a useless chart." */
+ *  get one bar, which is a control that can produce a useless chart."
+ *  CUMULATIVE ONLY since `S6d`. The Breakdown view carries `GRAINS` above. */
 export function grainFor(range: Range, span: number): Grain {
   /* A 1-day BREAKDOWN is one bar, which is the useless control `grainFor` exists to prevent - so
      the chart refuses the Breakdown view at 1d rather than drawing it. See `pnl-chart.tsx`. */

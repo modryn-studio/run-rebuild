@@ -376,13 +376,23 @@ carried `--shadow-sm` *under* their own hairline, and the icon chip's hover was 
 claim. All three now say the same thing with an edge and a ground. **The press keeps its inset**,
 which is the opposite claim and stays legal.
 
-**Two stated exceptions**, and both are genuinely the Card case rather than the button case:
+**Three stated exceptions**, and all three are genuinely the Card case rather than the button case:
 
 - **The trade drawer's steppers.** Two 48px circles floating over the page with nothing behind them
   to bound against. It is the one control in the product that is actually a sheet.
 - **A popover panel.** A menu, the Columns panel, a filter panel: each is a small sheet over the
   page, and each takes `surface` + `--shadow-card` + a hairline edge for the same reason a card
   does not — a popover *is* bounded, by the trigger it hangs off.
+- **The breakdown chart's pan arrows** (added 2026-08-27, `S6d`). A 32px disc sitting over the plot's
+  own ground with data on both sides of it. The test both other exceptions pass is what admits this
+  one: *is the control on a surface, or over one?* On a card, a hairline is legible because the
+  ground behind it is flat and known. Over a plot it is not — a border alone disappears the moment a
+  gridline runs behind it, and a shadow alone leaves a disc with no edge on a card that is already
+  `surface`. It needs both to read as one object at all.
+  **What keeps this from becoming a loophole:** the arrow is not drawn at rest anywhere — it exists
+  only while there is a page to move to, it never sits in a row of peers, and it is the only control
+  in the product positioned *inside* a data region. Anything on a surface still takes one or the
+  other.
 
 ### The elevation tokens are indirect, and that is load-bearing
 

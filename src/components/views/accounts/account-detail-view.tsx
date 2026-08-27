@@ -89,11 +89,17 @@ export function AccountDetailView({
         /* THE EYEBROW STATES WHETHER FEES ARE IN THE FIGURE, which is the claim `/trades` makes for
            its window and the roster cannot make for its rollup. One account, one honest answer. */
         chartLabel={hasFees ? 'Net P&L' : 'Gross P&L'}
-        chartNote={
-          hasFees
-            ? 'Net of commissions and fees on this account.'
-            : 'No fee data imported for this account yet, so this is gross.'
-        }
+        /* A NOTE ONLY WHEN THE NUMBER IS NOT WHAT IT LOOKS LIKE (2026-08-27, Luke: "why do we have
+           'Net of commissions and fees on this account'. i think that is unnecessary copy. of
+           course it is p&l with commissions and fees included. when is it ever always?").
+           He is right, and v2 reached the same place from the other side: NET is the rule for every
+           money figure in Run, so saying it under one card is noise rather than information - and
+           the eyebrow directly above already says the word. GROSS is the exception, and it earns a
+           sentence because it changes what the number MEANS: fees are missing, and nothing else on
+           the page would tell you why the figure is bigger than the broker's. v2 keeps its note on
+           the subject pages for exactly this case and removed it from the roster for exactly the
+           other. */
+        chartNote={hasFees ? undefined : 'No fee data imported for this account yet.'}
         /* OFF. "Across 1 account" is a sentence about a set, and this page is one account. */
         showCoverage={false}
         series={series}

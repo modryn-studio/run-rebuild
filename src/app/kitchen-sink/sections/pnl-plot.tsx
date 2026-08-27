@@ -53,13 +53,35 @@ function Live({
   kind,
   points,
   bars,
+  grain,
+  paging,
 }: {
   kind: 'cumulative' | 'breakdown';
   points: Point[];
   bars: { day: string; cents: number }[];
+  grain?: 'day' | 'week' | 'month' | 'quarter' | 'year';
+  /* THE PAGED STATE, FAKED AT THE PROPS RATHER THAN BY A REAL PAGE. `Plot` takes `canPan*` as
+     props precisely so it can be racked: the SLICING is `PnlChart`'s job and needs the page's
+     state, but the arrows, their flush position and the inset they open are this component's, and
+     those are what a rack has to be able to show. */
+  paging?: boolean;
 }) {
   const [at, setAt] = useState<number | null>(null);
-  return <Plot kind={kind} points={points} bars={bars} at={at} onHover={setAt} zone={ZONE} />;
+  return (
+    <Plot
+      kind={kind}
+      points={points}
+      bars={bars}
+      grain={grain}
+      at={at}
+      onHover={setAt}
+      zone={ZONE}
+      paging={paging}
+      canPanBack={paging}
+      canPanForward={paging}
+      onPan={() => {}}
+    />
+  );
 }
 
 export function PnlPlotSection() {
@@ -78,6 +100,31 @@ export function PnlPlotSection() {
 
       <Row label="Breakdown" note="one bar per session, and the others dim rather than a crosshair">
         <Live kind="breakdown" points={POINTS} bars={BARS} />
+      </Row>
+
+      {/* THE PAGED BREAKDOWN (`S6d`). The bar width is the fixed thing and the COUNT falls out of
+          it, so a corpus wider than the plot pages rather than thinning - which is what lets the
+          grain be a control the trader owns instead of one derived from the range. */}
+      <Row label="Breakdown, paged" note="the arrows sit flush OUTSIDE the columns, never over them">
+        <Live kind="breakdown" points={POINTS} bars={BARS} paging />
+        <Note>
+          The arrows only exist when there is somewhere to go: Back disappears at the oldest bucket
+          and Later at the newest, rather than sitting there disabled. They also inset the drawing
+          box by exactly their own width, so they touch the plot without covering a column, and the
+          un-paged chart keeps its full width.
+        </Note>
+        <Note>
+          They are the one control in the product wearing a border AND a shadow. Every other control
+          sits ON a surface and takes one or the other; this one floats over the plot with data on
+          both sides, where a hairline vanishes against a gridline and a shadow alone gives a disc
+          with no edge. <code>design-system.md</code> §4.
+        </Note>
+      </Row>
+
+      {/* A BAR IS A PERIOD, so its label names one. "May 1" on a month bucket reads as one session,
+          which is how a column holding thirty of them looked like it was reporting one. */}
+      <Row label="Breakdown, monthly" note="the tooltip names the period, not the bucket's first day">
+        <Live kind="breakdown" points={POINTS} bars={BARS} grain="month" />
       </Row>
 
       <Row label="One session, by instant" note="what the 1D range draws: a clock axis, not a date">
