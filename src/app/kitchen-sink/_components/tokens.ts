@@ -91,6 +91,11 @@ export const TYPE_STEPS: TypeStep[] = [
   { name: 'nav', cls: 'text-nav', sample: 'A sidebar row: wayfinding, not body copy.' },
   { name: 'body-lg', cls: 'text-body-lg', sample: 'The size a landing page paragraph is set at, one step above body.' },
   { name: 'body', cls: 'text-body', sample: 'The default. Everything that is not a heading or a caption is set at this size.' },
+  /* THE ONE ROLE THAT CHANGES SIZE WITH THE VIEWPORT, and it is racked here precisely because this
+     rack measures DECLARED against RENDERED. Narrow the window past 640 and this row's rendered
+     figure should drop from 14 to 12 while every other row holds - which is the only way to see,
+     rather than assume, that the media override in globals.css is actually reaching a utility. */
+  { name: 'meta', cls: 'text-meta', sample: 'Metadata beside prose: a timestamp, a count, a qualifier. 14px, and 12px on a phone.' },
   { name: 'small', cls: 'text-small', sample: 'Help text under a field, secondary metadata, timestamps.' },
   { name: 'caption', cls: 'text-caption', sample: 'Labels, table headers, the smallest thing allowed to carry meaning.' },
   /* `micro` IS GONE (2026-08-24). It sat at 10px against caption's 11px, a step nobody can see,
@@ -104,7 +109,11 @@ export const RADIUS_STEPS = [
   { name: 'sm', cls: 'rounded-sm', use: 'inputs, small chips' },
   { name: 'md', cls: 'rounded-md', use: 'the default: buttons, fields, dropdowns' },
   { name: 'lg', cls: 'rounded-lg', use: 'cards, modals, large panels' },
-  { name: 'full', cls: 'rounded-full', use: 'avatars and toggles ONLY, never pill-everything' },
+  /* THE CAPTION MOVED 2026-08-27 and it had to: `SegmentedItem`'s selected chip is a full round
+     carrying a LABEL, which "avatars and toggles ONLY" flatly forbade. The rule it actually follows
+     is shape-follows-content, and the carve-out is written out in `design-system.md` §4 and at the
+     point of use. A caption that no longer describes the product is worse than no caption. */
+  { name: 'full', cls: 'rounded-full', use: 'marks (avatar, logo, status dot), icon-only controls, and the SELECTED segment of a segmented row - never a button that is drawn at rest' },
 ];
 
 /* The allowed spacing steps and no others: 4 8 12 16 24 32 40 48 64 80 96px. Rendering them as

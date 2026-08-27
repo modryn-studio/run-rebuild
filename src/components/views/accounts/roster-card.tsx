@@ -465,8 +465,12 @@ function Group({
           held && 'sm:cursor-grabbing'
         )}
       >
-        {/* PHONE: the whole bar. It sits behind the content in paint order and the content is not
-            interactive, so nothing is blocked. */}
+        {/* PHONE: the whole bar. It is absolute, so it normally paints OVER the static content
+            beside it and catches every tap - but "the content is not interactive, so nothing is
+            blocked", which is what this comment used to claim, turned out to be false. The change
+            line animates opacity, that gives it a stacking context, and it rose above this button.
+            The content below carries `max-sm:pointer-events-none` for that reason; see the note
+            there for the measurement. */}
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
