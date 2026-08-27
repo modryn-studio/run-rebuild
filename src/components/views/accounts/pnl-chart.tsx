@@ -154,6 +154,9 @@ export function PnlChart({
   series,
   counted,
   baseDollars,
+  label = 'Total P&L',
+  note,
+  showCoverage = true,
 }: {
   series: Point[];
   counted: number;
@@ -163,6 +166,21 @@ export function PnlChart({
   zone: string;
   /** The last session's cumulative curve, keyed by instant. Already windowed; never sliced here. */
   intradaySeries: Point[];
+  /* ─── THE THREE THINGS A SUBJECT CHANGES (2026-08-27, `S6d`) ────────────────────────────────
+     This card is now drawn by TWO pages: the roster, where the subject is every account, and
+     `/accounts/details`, where it is one. `run-trading@v2` reached the same point and took the same
+     shape - `SubjectPage` passes `chartLabel`, `chartNote` and `showCoverage` and the card is
+     otherwise identical, because "a subject page whose chart card could be swapped out would not be
+     one page any more". Three props rather than a fork. */
+  /** The eyebrow. `Total P&L` on a roster; on one account it says whether fees are in the figure. */
+  label?: string;
+  /** The line under the figure. Say what the number is net OF, since that is what it raises. */
+  note?: string;
+  /* "Across N accounts". OFF for a single subject, and not because it is redundant - because it is
+     the wrong KIND of sentence. Coverage describes a SET, and `Across 1 account` on a page that IS
+     one account reads as though the page might have been about more. v2 defaults it off for the
+     same reason. */
+  showCoverage?: boolean;
 }) {
   /* THE PERIOD IS THE PAGE'S, NOT THIS CARD'S. It governs the group headers and every row's
      sparkline too, so it lives in `ChartViewProvider` where all three read one value. */
@@ -235,7 +253,7 @@ export function PnlChart({
             `design-system.md` §2a says appears nowhere on `/trades` and a ported page must not bring
             back. 11px/0.14em against 12px/0.1em: invisible, and consistent with the page beside it. */}
         <div className="hidden items-center gap-1.5 sm:flex">
-          <span className="eyebrow text-muted whitespace-nowrap">Total P&amp;L</span>
+          <span className="eyebrow text-muted whitespace-nowrap">{label}</span>
         </div>
 
         {/* BOTH MENUS ARE DESKTOP-ONLY. The phone takes the period as a chip row under the chart —
@@ -291,10 +309,14 @@ export function PnlChart({
             /* All time: the change IS the figure above, so coverage is the useful thing to say.
                `max-sm:text-body` for the same reason the figure above it stepped down - these three
                branches are one line in three moods and they have to move together, or the page
-               changes size when the range changes. */
-            <span className="text-body-lg max-sm:text-small text-muted font-medium">
-              Across {counted} {counted === 1 ? 'account' : 'accounts'}
-            </span>
+               changes size when the range changes.
+               NOTHING AT ALL when coverage is off, which is the single-subject case: the change is
+               the figure and the coverage is the page, so there is no second fact left to state. */
+            showCoverage ? (
+              <span className="text-body-lg max-sm:text-small text-muted font-medium">
+                Across {counted} {counted === 1 ? 'account' : 'accounts'}
+              </span>
+            ) : null
           ) : (
             <TrendIndicator
               cents={view.change}
@@ -302,12 +324,19 @@ export function PnlChart({
               periodShort={periodShort}
               /* THE COVERAGE RIDES ALONG ON A PHONE. At `all` the branch above prints it alone,
                  because there the change IS the figure overhead and a delta line would be the same
-                 money twice; at every other range both facts are true and both are wanted. */
-              note={`${counted} ${counted === 1 ? 'account' : 'accounts'}`}
+                 money twice; at every other range both facts are true and both are wanted.
+                 `undefined` when coverage is off, so the phone does not append "1 account" to a
+                 delta on a page that is one account - the same sentence the branch above suppresses. */
+              note={showCoverage ? `${counted} ${counted === 1 ? 'account' : 'accounts'}` : undefined}
               baseDollars={baseDollars}
             />
           )}
         </div>
+
+        {/* WHAT THE FIGURE IS NET OF, and it only appears when a caller has something to say. The
+            roster has nothing honest to put here - its accounts' fee coverage can differ one from
+            the next, which is exactly why `accounts-rail.tsx` defers the claim to this page. */}
+        {note && <p className="text-body max-sm:text-small text-muted mt-1">{note}</p>}
 
         <Plot kind={kind} points={view.points} bars={view.bars} at={at} onHover={setHover} zone={zone} />
 

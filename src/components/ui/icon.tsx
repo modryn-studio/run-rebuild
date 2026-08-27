@@ -199,6 +199,23 @@ function DrawnTrend(props: DrawnProps) {
   );
 }
 
+/* An external destination — the box you are leaving, and the arrow leaving it. Ported verbatim from
+ * v2's `icons.tsx`, where it earns its place on the account rail's Website row: that link opens a
+ * third-party site in a new tab, and without the mark it reads as in-app navigation. The one glyph
+ * in this set whose job is to say "this is not Run".
+ *
+ * The corner is OPEN on the side the arrow exits, which is why the box is three path segments rather
+ * than a rect: a closed box with an arrow crossing it reads as a chart, not a door. */
+function DrawnExternal(props: DrawnProps) {
+  return (
+    <Drawn {...props}>
+      <path d="M13.5 4.5H19.5V10.5" />
+      <path d="M19.5 4.5 11 13" />
+      <path d="M18 14.5v4a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6h4" />
+    </Drawn>
+  );
+}
+
 /* Sign out — a door left open on one side, the arrow walking through it. Not a generic exit glyph:
  * ported verbatim from v2's `icons.tsx`, whose own comment names that distinction. */
 function DrawnSignOut(props: DrawnProps) {
@@ -435,6 +452,9 @@ const MARKS = {
 
   // ── the accounts chart (S6c) ──────────────────────────────────────────────────────────────
   trend: DrawnTrend,
+
+  // ── the account rail's Website row (S6d) ──────────────────────────────────────────────────
+  external: DrawnExternal,
 
   /* ── the sidebar header (2026-08-20) ──────────────────────────────────────────────────────
      A LUCIDE FALLBACK, which is the documented path rather than an exception: `run-trading@v2`

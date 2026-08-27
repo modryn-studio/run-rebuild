@@ -76,7 +76,17 @@ export interface RosterAccount {
  * A LEFT JOIN, SO AN ACCOUNT WITH NO TRADES IS STILL AN ACCOUNT. A hand-added evaluation bought
  * this morning has no fills and has to appear — it is the row the trader's loss line will live on.
  */
-export async function getRoster(traderId: string): Promise<RosterAccount[]> {
+export async function getRoster(
+  traderId: string,
+  /* NARROWED TO ONE ACCOUNT BY `/accounts/details` (`S6d`), and it is a PARAMETER rather than a
+     second function on purpose. The detail page prints the same three folded figures the roster row
+     does - trades, net, last session - directly above a tape that has to agree with them. Two
+     queries spelling that fold two ways is precisely how this file's own header says v2 came to
+     disagree with itself, one render apart. One shape, one `NET`, one `state = 'ok'`.
+     It also stays the AUTHORIZATION boundary: `trader_id` is still in the `where`, so an id
+     belonging to somebody else comes back empty rather than coming back. */
+  opts?: { accountId?: string }
+): Promise<RosterAccount[]> {
   const rows = await db
     .select({
       id: account.id,
@@ -98,7 +108,12 @@ export async function getRoster(traderId: string): Promise<RosterAccount[]> {
     })
     .from(account)
     .leftJoin(trade, eq(trade.accountId, account.id))
-    .where(eq(account.traderId, traderId))
+    .where(
+      and(
+        eq(account.traderId, traderId),
+        ...(opts?.accountId ? [eq(account.id, opts.accountId)] : [])
+      )
+    )
     .groupBy(account.id)
     /* NEWEST FIRST, AND THE TIE-BREAK IS NOT DECORATION. v2 shipped this with no ORDER BY at all,
        which is not insertion order — it is whatever the heap hands back, and an UPDATE moves a row
@@ -133,11 +148,17 @@ export interface DayPoint {
  */
 export async function getDailySeries(
   traderId: string,
-  window?: { from?: string | null; to?: string | null }
+  /* `accountId` NARROWS IT TO ONE, for `/accounts/details` (`S6d`). The roster reads every account
+     because it draws every account; a page about ONE must not, and CLAUDE.md is explicit that the
+     scoping goes in from the first query rather than being retrofitted. `trade_account_session_idx`
+     is on exactly `(account_id, session_date)`, so the narrow read is the one the index was built
+     for - it is cheaper than the roster's, not an extra cost. */
+  window?: { from?: string | null; to?: string | null; accountId?: string }
 ): Promise<DayPoint[]> {
   const bounds = [eq(trade.traderId, traderId), COUNTABLE];
   if (window?.from) bounds.push(sql`${trade.sessionDate} >= ${window.from}`);
   if (window?.to) bounds.push(sql`${trade.sessionDate} <= ${window.to}`);
+  if (window?.accountId) bounds.push(eq(trade.accountId, window.accountId));
 
   const rows = await db
     .select({
@@ -179,7 +200,9 @@ export interface IntradayRow {
  */
 export async function getIntradaySeries(
   traderId: string,
-  sessionDate: string
+  sessionDate: string,
+  /** One account's session, for `/accounts/details`. See `getDailySeries` on why it is a parameter. */
+  accountId?: string
 ): Promise<IntradayRow[]> {
   const rows = await db
     .select({
@@ -189,7 +212,12 @@ export async function getIntradaySeries(
     })
     .from(trade)
     .where(
-      and(eq(trade.traderId, traderId), COUNTABLE, sql`${trade.sessionDate} = ${sessionDate}`)
+      and(
+        eq(trade.traderId, traderId),
+        COUNTABLE,
+        sql`${trade.sessionDate} = ${sessionDate}`,
+        ...(accountId ? [eq(trade.accountId, accountId)] : [])
+      )
     )
     .orderBy(asc(trade.exitAt));
 
@@ -226,4 +254,108 @@ export async function getFreshness(traderId: string): Promise<Map<string, Date>>
   const out = new Map<string, Date>();
   for (const r of rows) if (r.accountId && r.at) out.set(r.accountId, new Date(r.at));
   return out;
+}
+
+
+/**
+ * ONE ACCOUNT, or null.
+ *
+ * NULL COVERS BOTH "NO SUCH ID" AND "NOT YOURS", and the route must answer them identically. A
+ * `404` for a stranger's id and a `403` for one that exists would make this endpoint an oracle: try
+ * ids, and the status code tells you which accounts are real. `getRoster` keeps `trader_id` in the
+ * `where`, so the distinction never reaches this function to be leaked.
+ *
+ * A uuid COLUMN REJECTS A NON-uuid STRING AT THE DATABASE, not in TypeScript - `/accounts/details/x`
+ * would throw from the driver rather than return nothing. Guarded here so a hand-typed URL is a 404
+ * like any other miss. Same rule `readTradesFilter` applies to `?accounts=`.
+ */
+export async function getAccount(traderId: string, id: string): Promise<RosterAccount | null> {
+  if (!UUID.test(id)) return null;
+  const [row] = await getRoster(traderId, { accountId: id });
+  return row ?? null;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** What one account's figures are made of — `spec.md` P8's four facts, plus the one the label needs. */
+export interface Provenance {
+  /** The first and last session Run HOLDS for this account. Null when it holds nothing yet. */
+  firstDay: string | null;
+  lastDay: string | null;
+  /** The most recent committed import that landed here, and what it was. */
+  lastImportAt: Date | null;
+  filename: string | null;
+  source: string | null;
+  /** How many committed imports this account is built from. */
+  imports: number;
+  /* WHETHER A FEE LINE COVERS THIS ACCOUNT AT ALL, which decides whether its headline may be called
+     NET. `/trades` makes the same call for its window (`getDigest`'s `hasFees`) and `accounts-rail.tsx`
+     explicitly defers the per-account answer to this page: a roster rollup spans accounts whose fee
+     coverage can differ, so only here is there one account to answer for. */
+  hasFees: boolean;
+}
+
+/**
+ * THE PROVENANCE CARD'S FACTS. `spec.md` P8: "the product states what its own output depends on,
+ * every time" - for Run that is which file, which account, which range, last read when.
+ *
+ * RANGE COVERED IS `session_date` ON THE TRADES, NOT `range_start`/`range_end` ON THE IMPORTS, and
+ * the two are different claims. The import columns say what a FILE covered; these say what Run
+ * HOLDS. A file whose rows were all duplicates of an earlier upload widens the first and not the
+ * second, and P8 is about the output's dependencies, so it is the second that is true. `s6-plan.md`
+ * §4 called this "cheap - a min/max on sessionDate, no new query"; it is one query, and it rides
+ * along with the count that the fee label needs anyway.
+ *
+ * COUNTABLE ROWS ONLY, so the range matches the figures printed above it. A quarantined trade stays
+ * visible on the tape and out of every total (see `COUNTABLE`), and a range that included its day
+ * would describe a window the headline does not cover.
+ */
+export async function getProvenance(traderId: string, accountId: string): Promise<Provenance> {
+  const [[span], [last]] = await Promise.all([
+    db
+      .select({
+        firstDay: sql<string | null>`min(${trade.sessionDate}) filter (where ${COUNTABLE})`,
+        lastDay: sql<string | null>`max(${trade.sessionDate}) filter (where ${COUNTABLE})`,
+        /* `<> 0` RATHER THAN `> 0`. Fees are stored NEGATIVE (they sum straight into `NET`), so a
+           `> 0` test would report "no fees imported" on every account that has them - and the label
+           it drives would say GROSS over a figure that was net. */
+        feeRows: sql<number>`count(*) filter (where ${COUNTABLE} and ${trade.feeCents} <> 0)`.mapWith(
+          Number
+        ),
+      })
+      .from(trade)
+      .where(and(eq(trade.traderId, traderId), eq(trade.accountId, accountId))),
+    db
+      .select({
+        at: importBatch.uploadedAt,
+        filename: importBatch.filename,
+        source: importBatch.source,
+        /* THE COUNT RIDES ON THE SAME ROW rather than taking a third query: a window function over
+           a set this small (one account's imports) costs nothing next to a round trip. */
+        imports: sql<number>`count(*) over ()`.mapWith(Number),
+      })
+      .from(importBatch)
+      .where(
+        and(
+          eq(importBatch.traderId, traderId),
+          eq(importBatch.accountId, accountId),
+          /* `committed`, and see `getFreshness` for what the other spelling cost. A pending or
+             rejected batch wrote nothing, so naming it as the source of these figures would be
+             false. */
+          eq(importBatch.status, 'committed')
+        )
+      )
+      .orderBy(sql`${importBatch.uploadedAt} desc`)
+      .limit(1),
+  ]);
+
+  return {
+    firstDay: span?.firstDay ?? null,
+    lastDay: span?.lastDay ?? null,
+    lastImportAt: last?.at ? new Date(last.at) : null,
+    filename: last?.filename ?? null,
+    source: last?.source ?? null,
+    imports: last?.imports ?? 0,
+    hasFees: (span?.feeRows ?? 0) > 0,
+  };
 }

@@ -172,6 +172,32 @@ export function displayDayShort(sessionDate: string): string {
   }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
+/* TWO SESSION DATES AS ONE PHRASE: "Jul 6 to Jul 9, 2026".
+ *
+ * IT LIVES HERE RATHER THAN IN THE RAIL THAT NEEDED IT, for the reason stated on `displayDayShort`:
+ * this module owns time, and a call site composing its own range is a second place that can disagree
+ * about which day it is. Three lengths now, one module.
+ *
+ * THE YEAR IS PRINTED ONCE WHEN BOTH DATES SHARE IT, and that is the whole point of the function.
+ * `${displayDayShort(a)} to ${displayDayShort(b)}` reads "Jul 6, 2026 to Jul 9, 2026" - measured at
+ * two lines in `/accounts/details`' 304px rail, for a fact that is four words long. Dropping the
+ * repeated year fits it on one. When the years DIFFER both are kept, because then the year is the
+ * thing the reader most needs.
+ *
+ * "to" RATHER THAN A DASH. House style bans the em dash in user-facing copy, and an en dash between
+ * two dates at 14px is a hyphen nobody can see.
+ *
+ * SAME DAY IN AND OUT prints one date. A range whose ends are equal is a day, and saying it twice
+ * invites the reader to look for the difference. */
+export function displayDayRange(from: string, to: string): string {
+  if (from === to) return displayDayShort(from);
+  const short = displayDayShort(from);
+  // The year is the trailing ", YYYY" that `displayDayShort` appends; same year, so it is redundant.
+  return from.slice(0, 4) === to.slice(0, 4)
+    ? `${short.replace(/, \d{4}$/, '')} to ${displayDayShort(to)}`
+    : `${short} to ${displayDayShort(to)}`;
+}
+
 /* AN INSTANT, AS A SHORT DAY IN THE TRADER'S OWN ZONE. Distinct from `displayDayShort` and the
  * difference is load-bearing: that takes a SESSION DATE, a calendar string the bucketer already
  * settled, and must stay in UTC. This takes a real timestamp - when an import ran - which has no
