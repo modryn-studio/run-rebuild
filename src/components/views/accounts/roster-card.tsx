@@ -77,7 +77,7 @@ function ago(at: Date | null): string | null {
 /* THE STATUS CHIP, and an ACTIVE account does not wear one below `sm`.
    Active is the resting state of most of the roster, so a chip on every row spends the reader's
    attention on the majority case and leaves nothing for the two that ended. */
-function StatusChip({ status }: { status: string }) {
+export function StatusChip({ status }: { status: string }) {
   const tone =
     status === 'active'
       ? 'border-accent/45 text-accent'
@@ -258,14 +258,20 @@ function Row({
             are the last thing that may go, not the first.
             `gap-1` is the space the string itself would carry - flex trims whitespace at an item's
             edge, so the layout has to put it back. Same note the tape's `AccountName` carries. */}
-        {/* `text-body` (14px) ON A PHONE, `text-body-lg` (16px) FROM `sm`. The name and the figure
-            opposite it move together - they are the row's two primary strings and a row where one
-            stepped and the other did not would read as a mistake. */}
+        {/* 16px AT EVERY WIDTH, AND THE PHONE STEP IS REVERSED (2026-08-27). It went to 14 during the
+            density work, which was the one move in that pass that made the product LESS consistent
+            rather than more. Three references say 16 and all three were already in hand:
+              /trades' mobile row      16px - the same object, a list row naming a thing and a figure
+              Run's own desktop row    16px
+              Monarch, both surfaces   16px on transactions AND on accounts
+            Measured off Monarch's two mobile screens side by side: their transactions row is one
+            line in ~49px and their accounts row is two in ~63px, and the NAME is the same size in
+            both. The height difference is the second line, not a smaller first one - which is
+            exactly the distinction this had collapsed.
+            The metadata tier stays at 12. The row is 16/12, not 16/14: the supporting tier is what
+            the phone needed smaller, and it is still smaller. */}
         <span
-          className={cn(
-            'text-body-lg max-sm:text-body flex min-w-0 gap-1',
-            named ? 'text-text' : 'text-muted'
-          )}
+          className={cn('text-body-lg flex min-w-0 gap-1', named ? 'text-text' : 'text-muted')}
         >
           <span className="truncate">{title.head}</span>
           {title.tail && <span className="shrink-0">{title.tail}</span>}
@@ -341,9 +347,7 @@ function Row({
             IT IS STILL A FLOOR, so a five-figure loss pushes past it and costs that ONE row's name a
             few pixels rather than clipping the number. */}
           <span className="min-w-27 max-sm:min-w-20 text-right">
-            <p className="text-body-lg max-sm:text-body text-text font-medium tabular-nums">
-              {signed(a.netCents)}
-            </p>
+            <p className="text-body-lg text-text font-medium tabular-nums">{signed(a.netCents)}</p>
             {/* THE STAMP ANSWERS WHAT THE FIGURE CANNOT: a number with no timestamp cannot tell you
               whether it is this morning's or last month's. This is P5, the direct answer to the
               field's defining failure. */}
