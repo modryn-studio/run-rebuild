@@ -83,17 +83,9 @@ export function useTapeColumns() {
 export function ColumnsMenu({
   hidden,
   onToggle,
-  omit,
 }: {
   hidden: TapeColumn[];
   onToggle: (key: TapeColumn) => void;
-  /* COLUMNS THIS PAGE CANNOT SHOW AT ALL, dropped from the list rather than shown switched off
-     (`S6d`, 2026-08-27). On `/accounts/details` every row belongs to the one account the page is
-     about, so the account column is structurally absent - and a toggle that cannot turn anything
-     on is the same "control that does nothing" this file already refuses elsewhere. Distinct from
-     `hidden`, which is the trader's own stored preference and must not be written by a page's
-     layout. */
-  omit?: TapeColumn[];
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -173,7 +165,7 @@ export function ColumnsMenu({
               never about the hover fill, it was about hit-area on a phone, and dropping the fill
               does not have to cost that. */}
           <div className="flex flex-col">
-            {COLUMNS.filter((c) => !omit?.includes(c.key)).map((c) => (
+            {COLUMNS.map((c) => (
               <button
                 key={c.key}
                 type="button"

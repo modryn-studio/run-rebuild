@@ -28,6 +28,9 @@ import { sessionWindow } from '@/lib/time/session';
 import { accountRowTitle } from '@/lib/prop-firms';
 import { sizeBase } from './trend-indicator';
 import type { DayPoint, RosterAccount } from '@/lib/accounts/read';
+import type { Option as FilterOption } from './detail-filters';
+import type { FacetRow } from '@/lib/trades/facets';
+import type { ResultToken } from '@/lib/trades/filter';
 
 export function AccountDetailView({
   account,
@@ -35,6 +38,7 @@ export function AccountDetailView({
   intradayRows,
   zone,
   hasFees,
+  filters,
   rail,
   tape,
 }: {
@@ -51,6 +55,14 @@ export function AccountDetailView({
      `/trades` makes the same call for its window and `accounts-rail.tsx` defers the per-account
      answer to this page, because a roster rollup spans accounts whose coverage can differ. */
   hasFees: boolean;
+  /** Everything the band's `Filters` control needs. Passed straight through rather than read here:
+   *  this component owns the chart's view state and nothing else. */
+  filters: {
+    applied: { products: string[]; results: ResultToken[]; q: string | null };
+    products: FilterOption[];
+    results: FilterOption[];
+    facetRows: FacetRow[];
+  };
   rail: ReactNode;
   tape: ReactNode;
 }) {
@@ -85,7 +97,16 @@ export function AccountDetailView({
   return (
     <ChartViewProvider byAccount={byAccount} intraday={intraday} endsOn={endsOn}>
       <SubjectPage
-        header={<AccountDetailHeader account={account} title={title} />}
+        header={
+          <AccountDetailHeader
+            account={account}
+            title={title}
+            applied={filters.applied}
+            products={filters.products}
+            results={filters.results}
+            facetRows={filters.facetRows}
+          />
+        }
         /* THE EYEBROW STATES WHETHER FEES ARE IN THE FIGURE, which is the claim `/trades` makes for
            its window and the roster cannot make for its rollup. One account, one honest answer. */
         chartLabel={hasFees ? 'Net P&L' : 'Gross P&L'}

@@ -63,7 +63,7 @@ export function TradesTape({
   rest,
   title,
   hasFees,
-  showAccount = true,
+  fixedColumns,
 }: {
   sessions: SessionGroup[];
   /** Every trade the filter selected, which is not the number of rows sent. */
@@ -90,15 +90,21 @@ export function TradesTape({
      caller is not making the claim - `/trades` answers it in the summary rail's own label instead,
      and two places saying it would be the same fact twice. */
   hasFees?: boolean;
-  /* WHETHER A ROW HAS TO SAY WHICH ACCOUNT IT IS (`S6d`, ported from v2's `TradesCard`). When the
-     subject is an account, every row belongs to it and saying so is noise - v2: "the reference's
-     merchant-page rows carry 'Visa Credit Card (...3686)' where its account-page rows do not."
-     A STRUCTURAL FACT, NOT THE STORED PREFERENCE. It force-hides the column for this render and
-     drops it from the Columns menu; `useTapeColumns`' `localStorage` value is left untouched, so a
-     trader who hid the account column on `/trades` still has it hidden there and one who did not
-     still gets it back when they return. Writing the preference from a page's layout would let one
-     screen quietly re-decide another's. */
-  showAccount?: boolean;
+  /* THE COLUMN SET, WHEN THE PAGE DECIDES IT RATHER THAN THE TRADER (`S6d`, ported from v2's
+     `TradesCard`). Passing it hides exactly these columns AND removes the Columns control, because
+     on such a page there is nothing left to choose.
+     `/accounts/details` passes `['account']`: when the subject IS an account, every row belongs to
+     it and saying so is noise (v2: "the reference's merchant-page rows carry 'Visa Credit Card
+     (...3686)' where its account-page rows do not"). That leaves Time as the only remaining toggle,
+     and Luke's call on 2026-08-27 is that a menu of one is not worth a control - the trade times
+     are always wanted on this page.
+     IT REPLACED A `showAccount` BOOLEAN, WHICH CARRIED A TRAP. That version filtered the MENU but
+     still read `useTapeColumns` for what to render, so a trader who had hidden Time on `/trades`
+     arrived here with it hidden and no control to bring it back. Naming the whole set closes that:
+     the stored preference is not consulted at all, so nothing can be hidden without a way back.
+     AND IT IS NOT WRITTEN BACK. `useTapeColumns` is `localStorage` and shared; a page's layout must
+     never re-decide another page's. `/trades` keeps whatever the trader chose there. */
+  fixedColumns?: TapeColumn[];
 }) {
   /* WHICH ROW IS OPEN, as an INDEX into the flattened list rather than an id, because the steppers
      walk the list: "the next trade" is a position, and resolving an id back to one on every arrow
@@ -257,11 +263,10 @@ export function TradesTape({
   const days = groupBySession(visible);
   const flat = days.flatMap((d) => d.trades);
   // Session totals come from the server and cover the WHOLE session, not the rows drawn.
+  /* THE HOOK RUNS EITHER WAY, because hooks must. Its value is simply not read when the page has
+     declared its own set - which is also what keeps the trader's `/trades` preference intact. */
   const { hidden: stored, toggle: toggleColumn } = useTapeColumns();
-  /* The preference, plus whatever this page structurally cannot show. `Set` because the trader may
-     already have hidden the same column by hand, and a duplicate in the list would be harmless
-     today and exactly the kind of thing a later `length` check trips over. */
-  const hiddenColumns = showAccount ? stored : [...new Set<TapeColumn>([...stored, 'account'])];
+  const hiddenColumns = fixedColumns ?? stored;
   const totalsFor = new Map(sessions.map((s) => [s.sessionDate, s]));
 
   /* `@container` so a column can be gated on the CARD's width rather than the viewport's.
@@ -315,11 +320,10 @@ export function TradesTape({
             stamp, so ordering by exit prints one time on three rows and the sequence reads as
             random. A generic column sorter invites exactly that arrangement. If sort ships it needs
             a deliberate short list that excludes the broken one. */}
-        <ColumnsMenu
-          hidden={hiddenColumns}
-          onToggle={toggleColumn}
-          omit={showAccount ? undefined : ['account']}
-        />
+        {/* ABSENT, NOT EMPTY, when the page owns its columns. A menu whose every entry is decided
+            elsewhere is a control that cannot change anything, which this file already refuses for
+            `AccountSelect` below two accounts. */}
+        {!fixedColumns && <ColumnsMenu hidden={hiddenColumns} onToggle={toggleColumn} />}
       </div>
 
       {all.length === 0 ? (

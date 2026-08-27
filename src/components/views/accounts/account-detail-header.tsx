@@ -20,11 +20,10 @@
  * when a ROSTER ROW was clicked, which was an accident of the row having nothing else to do. The row
  * now navigates here, and Edit opens the modal deliberately.
  *
- * ─── WHAT IS NOT WIRED YET (`S6d` C1) ─────────────────────────────────────────────────────────
- * `Edit` and `Filters` both land in later commits of this slice - the label modal and its write path
- * in C3, the filter dropdown in C2. Neither is rendered as a dead control in the meantime: a button
- * that exists and does nothing is a defect in its own right, so the band carries the trail alone
- * until the thing behind each control is real.
+ * ─── WHAT IS NOT WIRED YET (`S6d` C3) ─────────────────────────────────────────────────────────
+ * `Edit` lands with the label modal and its write path. It is not rendered as a dead control in the
+ * meantime: a button that exists and does nothing is a defect in its own right, so the band carries
+ * the trail and Filters until the thing behind Edit is real.
  */
 
 import Link from 'next/link';
@@ -32,15 +31,49 @@ import { HeaderSlot } from '@/components/shell/header-slot';
 import { Icon } from '@/components/ui/icon';
 import { ICON_BUTTON } from '@/components/ui/icon-button';
 import { AccountLogo } from './account-logo';
+import { DetailFilters, type Option } from './detail-filters';
 import type { RosterAccount } from '@/lib/accounts/read';
+import type { FacetRow } from '@/lib/trades/facets';
+import type { ResultToken } from '@/lib/trades/filter';
 
 export function AccountDetailHeader({
   account,
   title,
+  applied,
+  products,
+  results,
+  facetRows,
 }: {
   account: RosterAccount;
   title: string;
+  applied: { products: string[]; results: ResultToken[]; q: string | null };
+  products: Option[];
+  results: Option[];
+  facetRows: FacetRow[];
 }) {
+  return (
+    <>
+      <Breadcrumb account={account} title={title} />
+      {/* THE BAND'S RIGHT-HAND SIDE. `Edit` will sit BEFORE this when C3 lands - it is the only
+          control here that changes the ACCOUNT rather than the view of it, and the reference orders
+          it first for that reason.
+          NO DATE CONTROL, deliberately: this page's chart carries its own period menu, and two
+          controls saying "which days" is the page arguing with itself. `/trades` is where a
+          particular day is found. */}
+      <HeaderSlot>
+        <DetailFilters
+          accountId={account.id}
+          applied={applied}
+          products={products}
+          results={results}
+          facetRows={facetRows}
+        />
+      </HeaderSlot>
+    </>
+  );
+}
+
+function Breadcrumb({ account, title }: { account: RosterAccount; title: string }) {
   return (
     <HeaderSlot slot="title">
       <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2">

@@ -1,14 +1,15 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireTrader } from '@/lib/trader';
+import { getAccount, getProvenance } from '@/lib/accounts/read';
 import {
-  getAccount,
-  getDailySeries,
-  getIntradaySeries,
-  getProvenance,
-} from '@/lib/accounts/read';
-import { getTape, getTapeIds } from '@/lib/trades/read';
-import { EMPTY_FILTER } from '@/lib/trades/filter';
+  getTape,
+  getTapeIds,
+  getFacetRows,
+  getDailySeriesFor,
+  getIntradaySeriesFor,
+} from '@/lib/trades/read';
+import { EMPTY_FILTER, isNarrowed, type ResultToken } from '@/lib/trades/filter';
 import { accountRowTitle } from '@/lib/prop-firms';
 import { AccountDetailView } from '@/components/views/accounts/account-detail-view';
 import { AccountRail } from '@/components/views/accounts/account-rail';
@@ -56,7 +57,13 @@ export async function generateMetadata({
   return { title: account ? accountRowTitle(account) : 'Account' };
 }
 
-export default async function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AccountDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ products?: string; results?: string; q?: string }>;
+}) {
   const { id } = await params;
 
   /* SCOPED BY `trader_id` FROM THE SESSION, NEVER FROM THE REQUEST. `getAccount` puts the trader in
@@ -76,15 +83,52 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
      corpus and filtered in memory would be the shape CLAUDE.md calls "unretrofittable once four
      surfaces depend on it". `trade_account_session_idx` is on `(account_id, session_date)`, which
      is exactly this access pattern. */
-  const filter = { ...EMPTY_FILTER, accounts: [account.id] };
+  /* THE PANEL'S THREE AXES, READ OFF THE URL so a narrowed view survives a refresh and can be sent
+     to somebody. Validated on the way in for the same reason `readTradesFilter` validates its own:
+     a hand-typed `?results=banana` must not reach SQL as a token.
+     NO DATE PARAM. This page's chart carries its own period menu, and a second control saying
+     "which days" would be the page arguing with itself. */
+  const query = await searchParams;
+  const list = (v?: string) => (v ? v.split(',').filter(Boolean) : []);
+  const applied = {
+    products: list(query.products),
+    results: list(query.results).filter((r): r is ResultToken => r === 'win' || r === 'loss'),
+    q: query.q?.trim() || null,
+  };
+
+  /* ONE FILTER OBJECT, AND EVERY READ BELOW TAKES IT. The tape, the id map and the chart's series
+     all narrow through `where()` in `lib/trades/read.ts`, so the line above the rows and the rows
+     themselves are incapable of describing different sets. `accounts` is pinned to this page's own
+     account and is not something the panel can change. */
+  const filter = { ...EMPTY_FILTER, accounts: [account.id], ...applied };
   const window = { from: null, to: null };
 
-  const [days, provenance, sessions, ids] = await Promise.all([
-    getDailySeries(trader.id, { accountId: account.id }),
+  const [days, provenance, sessions, ids, facetRows] = await Promise.all([
+    /* THE CHART OBEYS THE FILTER (v2, Luke 2026-08-03: "i dont think that filter changes are
+       appling to the chart. just the trade table rows. shouldn't it apply to the chart as well?").
+       It should, and in v2 it did not: filtering to MNQ narrowed the tape while the line above it
+       still drew every contract, so the page stated two different answers to one question.
+       v2 had to fold the filtered series in the BROWSER, because its fee events carry a contract
+       where its round trips carry a product, so a filtered SQL aggregate dropped every fee. This
+       build's `fee_cents` is a column on the round trip, so the same read narrows correctly in SQL
+       and the fold has no reason to exist. */
+    getDailySeriesFor(trader.id, filter, window),
     getProvenance(trader.id, account.id),
     getTape(trader.id, filter, window, { limit: FIRST_PAGE }),
     getTapeIds(trader.id, filter, window),
+    getFacetRows(trader.id),
   ]);
+
+  /* THE OPTIONS ARE COUNTED ON THE WHOLE ACCOUNT, never on the filtered tape: an option that
+     vanished because the current filter hid its trades could never be un-picked. */
+  const own = facetRows.filter((r) => r.accountId === account.id);
+  const productOptions = [...new Set(own.map((r) => r.product))]
+    .sort()
+    .map((value) => ({ value, label: value }));
+  const resultOptions = [
+    { value: 'win', label: 'Wins' },
+    { value: 'loss', label: 'Losses' },
+  ];
 
   /* THE 1-DAY RANGE'S OWN READ, SECOND ON PURPOSE: the session it covers is the last day THIS
      account traded, which is not known until `days` has come back. One extra round trip for one
@@ -92,9 +136,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
      `lastSession` COMES FROM THE FOLD, not from `account.lastSessionDate` - they agree today, and
      deriving it here keeps them incapable of disagreeing if the fold ever gains a window. */
   const lastSession = days.length > 0 ? days[days.length - 1].day : null;
-  const intraday = lastSession
-    ? await getIntradaySeries(trader.id, lastSession, account.id)
-    : [];
+  const intraday = lastSession ? await getIntradaySeriesFor(trader.id, filter, lastSession) : [];
 
   return (
     <AccountDetailView
@@ -105,6 +147,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
       intradayRows={intraday.map((r) => ({ ...r, at: r.at.toISOString() }))}
       zone={trader.displayTimezone}
       hasFees={provenance.hasFees}
+      filters={{ applied, products: productOptions, results: resultOptions, facetRows: own }}
       rail={<AccountRail account={account} provenance={provenance} />}
       tape={
         <TradesTape
@@ -113,10 +156,12 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
              the same page for the same reason. */
           title="Trades"
           hasFees={provenance.hasFees}
-          /* EVERY ROW BELONGS TO THIS ACCOUNT, so saying so on each one is noise - v2's
-             `TradesCard` makes the same call on the same page. It is a fact about the page, not a
-             preference: the trader's own stored column choice on `/trades` is untouched. */
-          showAccount={false}
+          /* THE PAGE OWNS ITS COLUMNS, so the Columns control does not render. Account goes because
+             every row belongs to the one account this page IS, and saying so on each row is noise
+             (v2's `TradesCard` makes the same call). Time stays, always: that leaves one toggle,
+             and a menu of one is not worth a control (Luke, 2026-08-27).
+             The trader's own stored choice on `/trades` is neither read nor written here. */
+          fixedColumns={['account']}
           sessions={sessions}
           total={ids.length}
           displayTimezone={trader.displayTimezone}
@@ -126,10 +171,10 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
              two accounts, so this states the same thing the page means. */
           accounts={[]}
           selectedAccounts={[]}
-          /* NOTHING IS NARROWING YET, so an empty tape here means "day one" rather than "the filter
-             matched nothing" - which is the distinction the empty state turns on. C2's filter is
-             what makes this ever true. */
-          narrowed={false}
+          /* WHICH EMPTY STATE IS HONEST: "day one" or "the filter matched nothing". `isNarrowed`
+             is the same predicate `/trades` uses, so the two pages cannot disagree about what
+             counts as narrowed. */
+          narrowed={isNarrowed(filter)}
           rest={{ ids }}
         />
       }

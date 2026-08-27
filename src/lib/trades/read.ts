@@ -419,6 +419,79 @@ async function sessionTotals(
  * it showed 3. So the rule is: narrow EVERYTHING, and refuse to print what narrowing makes false.
  * Counts and net stay, because each is a true statement about what is on screen.
  */
+/**
+ * THE DAILY SERIES FOR WHATEVER THE FILTER SELECTS — the chart's half of "one page, one answer".
+ *
+ * WHY IT LIVES HERE AND NOT IN `lib/accounts/read.ts`. It has to narrow by exactly the same rule the
+ * tape does, and that rule is `where()` in this file: products, results, the search term, the
+ * account, the window. A second spelling in the accounts module would be two `where`s over one
+ * question, which is how `/accounts/details` would come to draw a line that disagrees with the rows
+ * underneath it. v2 shipped that defect in the other direction and Luke caught it (2026-08-03:
+ * *"i dont think that filter changes are appling to the chart. just the trade table rows. shouldn't
+ * it apply to the chart as well?"*).
+ *
+ * IT IS A SQL AGGREGATE, WHERE v2 HAD TO FOLD IN THE BROWSER, and the difference is this build's
+ * projection rather than a preference. v2 could not filter its chart in SQL because a `fee` event
+ * carries the CONTRACT where a round trip carries the PRODUCT, so any product-filtered aggregate
+ * dropped every fee and the line went gross while the tape stayed net. Here `fee_cents` is a
+ * promoted column ON the round trip, so narrowing cannot separate a trade from its costs, and the
+ * fold has no reason to exist. Same `NET`, same `state = 'ok'`, same `where` - three fewer places
+ * for the two surfaces to drift apart.
+ */
+export async function getDailySeriesFor(
+  traderId: string,
+  f: TradesFilter,
+  window: { from: string | null; to: string | null }
+): Promise<{ accountId: string; day: string; cents: number }[]> {
+  const rows = await db
+    .select({
+      accountId: trade.accountId,
+      day: trade.sessionDate,
+      cents: sql<number>`coalesce(sum(${NET}), 0)`.mapWith(Number),
+    })
+    .from(trade)
+    /* `state = 'ok'` ON TOP OF THE FILTER, exactly as `getDigest` does it. A quarantined trade stays
+       visible and countable on the tape and out of every FIGURE, and a chart is a figure. */
+    .where(and(where(traderId, f, window), eq(trade.state, 'ok')))
+    .groupBy(trade.accountId, trade.sessionDate)
+    .orderBy(asc(trade.sessionDate));
+
+  return rows;
+}
+
+/**
+ * THE SAME NARROWING, INSIDE ONE SESSION — what the 1-day range draws.
+ *
+ * IT EXISTS BECAUSE THE DEFECT IS PER-RANGE, NOT PER-CHART. `getDailySeriesFor` makes the daily
+ * curve obey the filter; leaving the intraday one reading every product would ship exactly the bug
+ * it fixes, visible only to a trader who narrowed and then picked 1 day. One `where`, both ranges.
+ *
+ * SCOPED BY `session_date`, NOT BY AN INSTANT RANGE, like the accounts module's own version:
+ * `session_date` is the stored answer to "which session is this in", and asking again with
+ * `exit_at BETWEEN open AND close` would be a second bucketer, which CLAUDE.md forbids and which
+ * would disagree with the tape twice a year. The window's instants are for DRAWING.
+ *
+ * NO AGGREGATION: the curve IS the sequence, so this hands back rows.
+ */
+export async function getIntradaySeriesFor(
+  traderId: string,
+  f: TradesFilter,
+  sessionDate: string
+): Promise<{ accountId: string; at: Date; cents: number }[]> {
+  const rows = await db
+    .select({ accountId: trade.accountId, at: trade.exitAt, cents: NET })
+    .from(trade)
+    .where(
+      and(
+        where(traderId, f, { from: sessionDate, to: sessionDate }),
+        eq(trade.state, 'ok')
+      )
+    )
+    .orderBy(asc(trade.exitAt));
+
+  return rows.map((r) => ({ accountId: r.accountId, at: r.at, cents: Number(r.cents) }));
+}
+
 export async function getDigest(
   traderId: string,
   f: TradesFilter,
