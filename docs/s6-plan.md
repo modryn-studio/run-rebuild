@@ -199,10 +199,15 @@ Makes live the two links `/trades` already renders as plain strings.
 *The most stateful slice, and the one carrying the most of v2's shipped bugs to avoid.*
 
 ### S6f — Filters, and reorder if D3 says yes
-The three-column roster panel, `ScopeTabs` on a phone.
+The three-column roster panel, `ScopeTabs` on a phone. **Both shipped** (2026-08-26/27), along with
+drag-to-reorder for cards and rows.
 
 ### S6g — Mobile pass
-Per Luke: *"mobile view of accounts will be done at the end."*
+Per Luke: *"mobile view of accounts will be done at the end."* **First pass shipped 2026-08-27**:
+the band drops Filters and takes Refresh and Add as icons at the shell's own 22px scale; the chart
+drops its gridlines, its axis labels and its two axis dates below `sm` and gains a press-and-drag
+crosshair; `ScopeTabs` landed above the chart and scopes the chart, the roster AND the summary rail.
+Still open: `/accounts/details` on a phone (`S6d`), and editing (`S6e`).
 
 ---
 
@@ -216,9 +221,14 @@ Cheap to add (a min/max on `sessionDate`, no new query) but it is design work, n
 breaks the rail's stated divider grammar — *identity, then terms, then the record* — so the groups
 need re-cutting rather than the row just relocating.
 
-**`ScopeTabs` orders its tabs from the schema constant** (`evaluation, sim_funded, personal`) while
-the roster orders groups `sim_funded, evaluation, personal`. The comment claims they match. They do
-not. Build the tabs from the roster's order.
+~~**`ScopeTabs` orders its tabs from the schema constant**~~ — CLOSED 2026-08-27. The order now has
+one declaration, `ACCOUNT_TYPE_ORDER` in `lib/prop-firms.ts`, read by the chips, the roster's group
+cards and the summary rail's breakdown. It had been three private copies of the same three strings,
+which is how v2's comment came to claim a match that was not there.
+
+**The unlabelled group is called `Unlabelled`, not "Not yet labelled"** (2026-08-27, Luke: *"sounds
+unprofessional"*). "Not yet" is a progress report on the trader, which the no-absence-state rule
+forbids, and the filter panel's firm axis had always used the shorter word for the same absence.
 
 ---
 

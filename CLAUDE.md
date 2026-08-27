@@ -128,6 +128,7 @@ with a rule. The rules stay HERE, because this file is loaded into every session
 - **TypeScript stays on 6**; 7.0 breaks typescript-eslint and takes `npm run lint` down.
 - **Tailwind v4 has no config file.** `@theme` in `src/app/globals.css`, never `:root`, never `tailwind.config.*`.
 - **API routes use `createRouteLogger`**; env vars go in `src/lib/env.ts` (zod, fail-fast).
+- **The client cache is ON** (`experimental.staleTimes: { dynamic: 30 }`). Next's default is 0, which makes every return trip between two dynamic pages a fresh round trip that MUST play its loading state. Safe here only because nothing writes without `router.refresh()`.
 - **NO `loading.tsx` AT THE APP ROOT.** Past ~50KB of streamed payload its boundary stops hydrating, silently. Put one on a segment that waits on data and nowhere else; a route needing a Suspense boundary declares its own. Acted on 2026-08-20: the boundary moved from `src/app/loading.tsx` to `src/app/(app)/loading.tsx`, so it wraps the page rather than the shell.
 
 **Auth**

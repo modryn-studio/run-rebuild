@@ -1,3 +1,5 @@
+'use client';
+
 /* THE ROSTER'S SUMMARY: a LEDGER, not a composition.
  *
  * NO PROPORTION BAR AND NO TOTALS/PERCENT TOGGLE, and `run-trading@v2` argues it well enough to
@@ -15,16 +17,30 @@
  * A RULE BETWEEN GROUPS, NOT BETWEEN ROWS. Two rules instead of seven. A divider under every row in
  * a 304px column is a lot of chrome spent on a list of facts, and it makes a rail read as a table.
  *
- * A SERVER COMPONENT: it only reads and formats, so it ships no JavaScript.
+ * IT WAS A SERVER COMPONENT UNTIL 2026-08-27, and the phone's scope chips are what moved it. Those
+ * chips narrow the chart and the roster in client state; this rail was rendered on the server from
+ * the URL-filtered roster and passed down as finished JSX, so it could not hear them. Measured on
+ * the running page: picking Evaluation took the roster from 8 rows to 3 and the headline from
+ * -$2,457.11 to $125.34 while this card went on saying `Accounts 8`. That is the page stating two
+ * different answers to one question, which is the defect `chart-view.tsx` exists to prevent and the
+ * one v2 shipped in the other direction.
+ *
+ * WHAT IT COSTS AND WHAT IT DOES NOT. It ships its formatting to the browser now, which is a real
+ * loss and a small one - 120 lines of arithmetic over an array. It ships NO extra data: every
+ * account it reads was already on the client for the roster and the chart. `RosterAccount` arrives
+ * as `import type`, which is erased, so nothing db-backed crosses with it.
+ *
+ * WHY NOT PUT THE SCOPE IN THE URL INSTEAD, which would have kept this on the server: the chips
+ * would then cost a Neon round trip per tap on the one device where that is most felt, to move state
+ * that is already entirely in the browser. v2 made the same call for the same reason.
  */
 
 import { Card } from '@/components/ui/card';
 import { DownloadRosterCsv } from './download-roster-csv';
 import { fmtMoney } from '@/lib/format';
-import { ACCOUNT_TYPE_LABELS, type AccountTypeKey } from '@/lib/prop-firms';
+import { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPE_ORDER, UNLABELLED_TYPE_TITLE } from '@/lib/prop-firms';
 import type { RosterAccount } from '@/lib/accounts/read';
 
-const GROUP_ORDER: AccountTypeKey[] = ['sim_funded', 'evaluation', 'personal'];
 const signed = (cents: number): string => (cents > 0 ? `+${fmtMoney(cents)}` : fmtMoney(cents));
 
 type Line = { label: string; value: string; strong?: boolean };
@@ -46,12 +62,12 @@ function summarize(all: RosterAccount[]): Line[][] {
      every line of it repeat the line above. */
   const kinds = new Set(all.map((a) => a.accountType ?? 'unlabelled'));
   if (kinds.size >= 2) {
-    for (const key of GROUP_ORDER) {
+    for (const key of ACCOUNT_TYPE_ORDER) {
       const n = all.filter((a) => a.accountType === key).length;
       if (n > 0) what.push({ label: ACCOUNT_TYPE_LABELS[key], value: String(n) });
     }
     const unlabelled = all.filter((a) => a.accountType === null).length;
-    if (unlabelled > 0) what.push({ label: 'Not yet labelled', value: String(unlabelled) });
+    if (unlabelled > 0) what.push({ label: UNLABELLED_TYPE_TITLE, value: String(unlabelled) });
   }
   groups.push(what);
 

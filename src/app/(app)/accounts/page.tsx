@@ -4,7 +4,6 @@ import { PAGE_COLUMN } from '@/lib/shell';
 import { cn } from '@/lib/cn';
 import { getDailySeries, getFreshness, getIntradaySeries, getRoster } from '@/lib/accounts/read';
 import { AccountsView } from '@/components/views/accounts/accounts-view';
-import { AccountsRail } from '@/components/views/accounts/accounts-rail';
 import { applyRosterFilter, readRosterFilter } from '@/lib/accounts/roster-filter';
 
 /* ACCOUNTS — "what I have" (`S6`).
@@ -82,14 +81,14 @@ export default async function AccountsPage({
 
   return (
     <div className={cn(PAGE_COLUMN, 'pb-8')}>
-      {/* THE RAIL ARRIVES AS A PROP, not as a child of the client view. `AccountsRail` is a server
-          component — it only reads and formats — and passing it through keeps it that way. Rendering
-          it inside `AccountsView` would drag it across the client boundary for nothing. */}
+      {/* THE RAIL IS NO LONGER PASSED THROUGH HERE (2026-08-27). It used to arrive as a prop so it
+          could stay a Server Component; the phone's scope chips made that impossible, because a rail
+          rendered on the server cannot narrow with a selection held in the browser. `accounts-rail.tsx`
+          carries the measurement and the trade. */}
       <AccountsView
         accounts={accounts}
         freshness={stamps}
         days={days}
-        rail={<AccountsRail accounts={accounts} />}
         filter={filter}
         allAccounts={all}
         /* SERIALISED AT THE BOUNDARY. `at` is a `Date` on the server and arrives as a string on the

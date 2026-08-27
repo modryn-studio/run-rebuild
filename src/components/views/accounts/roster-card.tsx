@@ -42,6 +42,9 @@ import { cn } from '@/lib/cn';
 import { fmtMoney } from '@/lib/format';
 import {
   ACCOUNT_TYPE_LABELS,
+  ACCOUNT_TYPE_ORDER,
+  UNLABELLED_TYPE,
+  UNLABELLED_TYPE_TITLE,
   accountRowTitle,
   statusLabel,
   type AccountTypeKey,
@@ -51,10 +54,9 @@ import { AccountLogo } from './account-logo';
 import { TrendIndicator, sizeBase } from './trend-indicator';
 import { useChartView } from './chart-view';
 
-/** Consequences first. An account with no type yet lands in its own group at the foot. */
-const GROUP_ORDER: AccountTypeKey[] = ['sim_funded', 'evaluation', 'personal'];
-const UNLABELLED = 'unlabelled';
-const UNLABELLED_TITLE = 'Not yet labelled';
+/* THE GROUP ORDER AND THE UNLABELLED GROUP'S NAME BOTH MOVED TO `lib/prop-firms.ts` (2026-08-27),
+   because the summary rail and the phone's scope chips have to read in the same order and print the
+   same word, and three private copies of three strings is how that stops being true. */
 
 /** `+` on a gain, the minus `fmtMoney` already carries on a loss — the tape's own rule. */
 const signed = (cents: number): string => (cents > 0 ? `+${fmtMoney(cents)}` : fmtMoney(cents));
@@ -525,11 +527,11 @@ export function RosterCard({
     setRowOrder(readOrder(ROW_ORDER_KEY));
   }, []);
 
-  const natural = [...GROUP_ORDER, UNLABELLED]
+  const natural = [...ACCOUNT_TYPE_ORDER, UNLABELLED_TYPE]
     .map((key) => ({
       key: key as string,
-      title: key === UNLABELLED ? UNLABELLED_TITLE : ACCOUNT_TYPE_LABELS[key as AccountTypeKey],
-      rows: accounts.filter((a) => (a.accountType ?? UNLABELLED) === key),
+      title: key === UNLABELLED_TYPE ? UNLABELLED_TYPE_TITLE : ACCOUNT_TYPE_LABELS[key as AccountTypeKey],
+      rows: accounts.filter((a) => (a.accountType ?? UNLABELLED_TYPE) === key),
     }))
     .filter((g) => g.rows.length > 0);
 

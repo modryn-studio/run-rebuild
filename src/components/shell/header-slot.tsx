@@ -17,16 +17,32 @@
  * `useEffect(..., [node])` re-registers forever. A portal keeps the controls in the PAGE's tree,
  * where their state and handlers already live, and only relocates where they paint.
  *
- * The one-frame cost: the host div does not exist until the shell has mounted, so the first client
- * render finds nothing and paints no controls. It is one frame, on controls that are inert until
- * hydrated, and it is the honest price of not inventing a store. THE TITLE DELIBERATELY DOES NOT
- * COME THROUGH HERE — the shell derives it from the route synchronously, so the thing that names
- * the screen is never a frame late.
+ * The host div does not exist until the shell has mounted, so the first client render finds nothing.
+ * That used to cost a visible frame; it is now resolved in a LAYOUT effect, before paint — see the
+ * note on the alias below, and the flash it was hiding. THE TITLE DELIBERATELY DOES NOT COME THROUGH
+ * HERE — the shell derives it from the route synchronously, so the thing that names the screen is
+ * not a portal's problem at all.
  */
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/cn';
+
+/* BEFORE THE PAINT, NOT AFTER IT (2026-08-27), and the one-frame cost this file's header describes
+ * is what changed hands. It was `useEffect`, which runs AFTER the browser has painted - and for the
+ * band slot that frame is not cosmetic, because the band carries HEIGHT. Navigating to `/trades`
+ * committed a page whose 57px search row was not in the document yet, so `<main>` painted one frame
+ * 57px too high and then dropped. Luke saw it as "the entire screen flashes".
+ *
+ * A layout effect and its state update are flushed SYNCHRONOUSLY before paint, so the host is found
+ * and the portal is filled in the same frame the page commits. There is nothing left to see.
+ *
+ * THE ALIAS IS FOR THE SERVER, not for taste: `useLayoutEffect` has no meaning during SSR and React
+ * warns about it, so the server takes `useEffect` - which never runs there either. Same behaviour,
+ * no warning. This is the standard isomorphic form; it is picked once at module scope, so the hook
+ * called at the call site is unconditional.
+ */
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 /** The empty div the shell renders on the right of its header band. */
 export const HEADER_SLOT_ID = 'page-header-slot';
@@ -61,7 +77,7 @@ export function HeaderSlot({
 
   // On mount only. The host is the shell's, and the shell outlives every page, so re-querying per
   // render would be work that can only ever return the same node.
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const id =
       slot === 'title' ? HEADER_TITLE_SLOT_ID : slot === 'band' ? HEADER_BAND_SLOT_ID : HEADER_SLOT_ID;
     setHost(document.getElementById(id));

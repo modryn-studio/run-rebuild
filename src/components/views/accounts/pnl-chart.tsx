@@ -4,8 +4,9 @@
  *
  * GEOMETRY IS MEASURED, NOT CHOSEN. Every number below was read off `run-trading@v2`, which read
  * them off its own reference: 275px tall on a desktop and 242 on a phone, the plot running y 12 to
- * 234, six gridlines 44.4px apart, and a 70px left gutter that goes to ZERO below `sm` because on a
- * 390px screen it is 18% of the width spent on six numbers the shape already tells you.
+ * 234, six gridlines 44.4px apart, and a left gutter that goes to ZERO below `sm` because on a
+ * 390px screen it is 18% of the width spent on six numbers the shape already tells you. (v2's gutter
+ * is a hard 70px; here it is sized to the widest label it will actually print — see `AXIS_PAD`.)
  *
  * GRIDLINES ARE POSITIONED DIVS AND THE LINE IS SVG, and that split is the whole reason no chart
  * library is here. A `viewBox`ed SVG stretched to full width paints its strokes thicker
@@ -25,14 +26,18 @@
  * and the line under it is the selected window's change, with its own period named. Making the
  * headline itself windowed prints the same number twice the moment a change indicator arrives.
  *
+ * THE PHONE IS NOT A NARROW DESKTOP. Below `sm` the six gridlines, their labels and the two axis
+ * dates all come off, leaving the line, one dashed rule at zero, and a crosshair that appears under
+ * a finger. What is left is what a 390px screen can actually be read at arm's length; the ruler is
+ * a desktop object and the tooltip carries the exact figure when it is wanted.
+ *
  * ─── NOT PORTED YET, AND STATED RATHER THAN MISSING ───────────────────────────────────────────
- * The "1 day" intraday range. It needs per-fill timestamps and a session window (open / close /
- * live), which v2 carries in `session-window.ts` and this build has no equivalent of. Every range
- * here reads `session_date`, which is a stored column. The paging arrows over a long breakdown are
- * the other gap: this draws every bucket in the window and lets a wide corpus compress.
+ * The paging arrows over a long breakdown: this draws every bucket in the window and lets a wide
+ * corpus compress. (The "1 day" range IS here now — `sessionWindow` in `src/lib/time/session.ts`
+ * and `foldIntraday` in `src/lib/accounts/series.ts`.)
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Menu } from '@/components/ui/menu';
 import { TrendIndicator } from './trend-indicator';
@@ -317,7 +322,13 @@ export function PnlChart({
   );
 }
 
-function Plot({
+/* EXPORTED FOR THE RACK (2026-08-27), and it is the house rule rather than a convenience: "a
+ * component isn't done until it appears in `/kitchen-sink` in every state, in the same commit."
+ * `PnlChart` itself cannot be racked - it reads `useChartView`, which is the PAGE's state - but the
+ * plot is pure props, and the plot is where every visual decision and the whole pointer model live.
+ * Racking it is also what makes the touch path TESTABLE: the rack is outside the auth gate, so a
+ * browser with real touch emulation can reach it. */
+export function Plot({
   kind,
   points,
   bars,
@@ -368,6 +379,47 @@ function Plot({
   const multiYear =
     ends.length > 0 && ends[0].day.slice(0, 4) !== ends[ends.length - 1].day.slice(0, 4);
 
+  /* WHICH POINTER IS CURRENTLY HOLDING THE PLOT, or null. A ref rather than state: it changes on
+     every press and release and nothing renders from it, so putting it in state would re-render the
+     chart twice per gesture to store a fact only an event handler reads. */
+  const held = useRef<number | null>(null);
+
+  /* ONE READER FOR EVERY POINTER. It was inline on `onMouseMove`, which is the handler a touch
+     screen never fires - so the chart was a desktop-only object on the one viewport where it is the
+     first thing under the page title.
+     THE GUTTER IS READ FROM COMPUTED STYLE rather than assumed, because it is set by a media query
+     (`--axis-gutter`) and JS has no other way to know which side of `sm` the layout resolved on. */
+  const scrub = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!hasData) return;
+    const box = e.currentTarget.getBoundingClientRect();
+    const gutter =
+      parseFloat(getComputedStyle(e.currentTarget).getPropertyValue('--axis-gutter')) || 0;
+    const raw = ((e.clientX - box.left - gutter) / (box.width - gutter)) * 100;
+
+    /* OFF THE PLOT MEANS TWO DIFFERENT THINGS. A mouse that leaves has stopped asking, so the
+       readout clears. A finger that slides past the last session is still HOLDING - it has simply
+       run out of chart - so it clamps to the end and keeps reading. Clearing there would blank the
+       tooltip at exactly the edge a thumb is most likely to reach. */
+    if (raw < 0 || raw > 100) {
+      if (e.pointerType === 'mouse') return onHover(null);
+    }
+    const pos = Math.min(100, Math.max(0, raw));
+
+    if (kind === 'breakdown') {
+      const slot = 100 / bars.length;
+      return onHover(Math.min(bars.length - 1, Math.max(0, Math.floor(pos / slot))));
+    }
+    /* NEAREST REAL POINT. Never interpolated: a value between two sessions is a number that never
+       existed. */
+    let best = 0;
+    let bestD = Infinity;
+    points.forEach((pt, i) => {
+      const d = Math.abs(xPct(pt.day) - pos);
+      if (d < bestD) [best, bestD] = [i, d];
+    });
+    onHover(best);
+  };
+
   return (
     /* FULL BLEED ON A PHONE. `max-sm:-mx-4` cancels the page column's own 16px gutter so the plot
        runs edge to edge - at 390px the card has no chrome anyway, and 32px of the width is a lot to
@@ -380,48 +432,76 @@ function Plot({
       className="relative mt-4 w-full [--axis-gutter:0px] [--chart-h:242px] max-sm:-mx-4 max-sm:w-auto sm:[--axis-gutter:var(--axis-w)] sm:[--chart-h:275px]"
       style={{ '--axis-w': `calc(${axisChars}ch + ${AXIS_PAD}px)` } as React.CSSProperties}
     >
-      {/* THE PHONE'S ONLY AXIS. Six gridlines and their labels are desktop-only, so without this a
-          390px chart draws a line floating in nothing with no baseline to read it against. Dashed
-          rather than solid so it reads as a reference rather than as data. */}
-      <span className="border-border absolute right-0 left-0 border-t border-dashed sm:hidden" />
       <div
-        className="relative w-full"
+        /* `touch-pan-y` IS WHAT LETS BOTH GESTURES LIVE HERE (2026-08-27, Luke: "allow user to tap
+           and hold on the chart and provide interaction with a vertical line and dot"). It hands
+           VERTICAL drags to the browser, so the page still scrolls under a thumb that started on the
+           chart, and keeps HORIZONTAL ones for us to scrub with. Without it the choice is a chart
+           you cannot scrub or a 242px band of the page you cannot scroll past.
+           A vertical pan that begins here arrives as `pointercancel`, which clears the readout - so
+           scrolling never leaves a stale tooltip pinned to the plot. */
+        className="relative w-full touch-pan-y"
         style={{ height: 'var(--chart-h)' }}
-        onMouseLeave={() => onHover(null)}
-        onMouseMove={(e) => {
-          if (!hasData) return;
-          const box = e.currentTarget.getBoundingClientRect();
-          const gutter =
-            parseFloat(getComputedStyle(e.currentTarget).getPropertyValue('--axis-gutter')) || 0;
-          const w = box.width - gutter;
-          const pos = ((e.clientX - box.left - gutter) / w) * 100;
-          if (pos < 0 || pos > 100) return onHover(null);
-
-          if (kind === 'breakdown') {
-            const slot = 100 / bars.length;
-            onHover(Math.min(bars.length - 1, Math.max(0, Math.floor(pos / slot))));
-          } else {
-            /* NEAREST REAL POINT. Never interpolated: a value between two sessions is a number that
-               never existed. */
-            let best = 0;
-            let bestD = Infinity;
-            points.forEach((p, i) => {
-              const d = Math.abs(xPct(p.day) - pos);
-              if (d < bestD) [best, bestD] = [i, d];
-            });
-            onHover(best);
+        // MOUSE ONLY. A touch pointer leaves the element the instant the finger lifts, and
+        // `onPointerUp` has already answered that.
+        onPointerLeave={(e) => {
+          if (e.pointerType === 'mouse') onHover(null);
+        }}
+        /* CAPTURE ON PRESS, so the readout follows a finger that slides off the plot's own box
+           rather than dying at its edge. A mouse needs none of this: it is already tracked by
+           hover, and capturing it would swallow presses meant for anything underneath.
+           IN A `try`, because `setPointerCapture` THROWS on a pointer id the browser does not
+           consider active - and one throw here takes the press with it, since the scrub below never
+           runs. Capture is an improvement on the gesture, not a precondition for it. */
+        onPointerDown={(e) => {
+          if (e.pointerType === 'mouse') return;
+          held.current = e.pointerId;
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {
+            // Not capturable. Touch pointers are implicitly captured anyway.
           }
+          scrub(e);
+        }}
+        /* THE GUARD IS OUR OWN REF, NOT `hasPointerCapture` (2026-08-27). Asking the browser whether
+           it holds capture makes the drag depend on a capture call having succeeded, which is a
+           second thing that can fail silently - and it made the gesture untestable: a dispatched
+           `pointerdown` cannot take capture, so a scrub test passed on the press and then quietly
+           did nothing on every move. Same class of false pass the row drag hit with synthetic
+           events. What this actually needs to know is "is a finger still down", which is ours to
+           remember. */
+        onPointerMove={(e) => {
+          if (e.pointerType === 'mouse' || held.current === e.pointerId) scrub(e);
+        }}
+        onPointerUp={(e) => {
+          if (e.pointerType === 'mouse') return;
+          held.current = null;
+          onHover(null);
+        }}
+        onPointerCancel={(e) => {
+          if (e.pointerType === 'mouse') return;
+          held.current = null;
+          onHover(null);
         }}
       >
-        {/* SIX GRIDLINES AS DIVS. Their labels live in the left gutter and vanish with it below
-            `sm`. WITH NO DATA the grid still draws and nothing sits on it — the honest picture of a
-            corpus that has not been fed. A flat line across an empty grid would draw a trend nobody
+        {/* SIX GRIDLINES AS DIVS, AND THEY ARE DESKTOP-ONLY (2026-08-27, Luke: "remove the grid
+            lines from the mobile /accounts chart"). Their LABELS were already gone below `sm` with
+            the gutter, which left the phone carrying six unlabelled rules - a ruler with no numbers
+            on it, measuring nothing and costing the one viewport that has no room to spare. What
+            replaces them is the single dashed line at ZERO below, which is the only one of the six
+            that says something without a label beside it.
+            WITH NO DATA the grid still draws and nothing sits on it — the honest picture of a corpus
+            that has not been fed. A flat line across an empty grid would draw a trend nobody
             measured. */}
         {Array.from({ length: GRIDLINES }, (_, i) => {
           const top = PLOT_TOP + (i * (PLOT_BOTTOM - PLOT_TOP)) / (GRIDLINES - 1);
           const value = max - (i * (max - min)) / (GRIDLINES - 1);
           return (
-            <div key={i} className="absolute right-0 left-0 flex items-center" style={{ top }}>
+            <div
+              key={i}
+              className="absolute right-0 left-0 flex items-center max-sm:hidden"
+              style={{ top }}
+            >
               <span
                 className="text-caption text-muted hidden shrink-0 -translate-y-1/2 text-right tabular-nums sm:block"
                 style={{ width: 'var(--axis-gutter)', paddingRight: AXIS_PAD }}
@@ -432,6 +512,21 @@ function Plot({
             </div>
           );
         })}
+
+        {/* THE PHONE'S ONLY RULE, AND IT IS ZERO. This used to be a dashed line pinned to the TOP of
+            the box, which marked the ceiling of the plot - a reference the reader has no use for,
+            since the top is wherever the biggest number happened to land. At the baseline it says
+            the one thing a P&L chart is read against: which side of flat the line is on, and where
+            it crossed. Dashed rather than solid so it reads as a reference rather than as data.
+            It sits INSIDE the plot box now, so it moves with the scale instead of with the card. */}
+        <span
+          aria-hidden
+          className="border-border absolute right-0 border-t border-dashed sm:hidden"
+          style={{
+            left: 'var(--axis-gutter)',
+            top: PLOT_TOP + (yPct(0) / 100) * (PLOT_BOTTOM - PLOT_TOP),
+          }}
+        />
 
         {hasData && kind === 'cumulative' && (
           /* THE LINE DRAWS ITSELF IN, left to right (2026-08-26). `.draw-in` was declared in
@@ -523,6 +618,45 @@ function Plot({
           </div>
         )}
 
+        {/* THE CROSSHAIR: WHERE ON THE LINE THE FIGURE CAME FROM.
+            The tooltip named the bucket and its value and nothing pointed AT it, which is readable
+            on a desktop where the cursor is its own marker and unreadable on a phone, where the
+            finger is over the plot and there is no cursor at all. So the mark is drawn rather than
+            borrowed from the input device.
+            CUMULATIVE ONLY. The breakdown already marks its own bucket by dimming the others, and a
+            second marker over a 44px bar would be two answers to one question.
+            IT IS INSIDE A BOX ALREADY INSET BY THE GUTTER, so both children position in plain
+            percentages of the PLOT rather than of the card — the same wrapper the line and the bars
+            use, and the reason neither of them needs gutter arithmetic in its own coordinates. */}
+        {at !== null && hasData && kind === 'cumulative' && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute right-0"
+            style={{
+              left: 'var(--axis-gutter)',
+              top: PLOT_TOP,
+              height: PLOT_BOTTOM - PLOT_TOP,
+            }}
+          >
+            {/* FROM THE POINT DOWNWARD, not the full height of the plot. Above the point the line
+                would cross the area fill, which is the shape being read; below it there is nothing
+                but ground, so a rule there costs no information and still ties the value to its
+                place on the x axis. */}
+            <span
+              className="bg-border absolute bottom-0 w-px -translate-x-1/2"
+              style={{ left: `${xPct(points[at].day)}%`, top: `${yPct(points[at].cents)}%` }}
+            />
+            {/* THE GROUND'S OWN RING, not a white one: the card is `surface` from `sm` and
+                transparent below it, where the page's `bg` shows through. Two token utilities rather
+                than one hard-coded halo, because the dark mode values are different literals and an
+                inverted guess is exactly what `design-system.md` forbids. */}
+            <span
+              className="bg-accent ring-bg sm:ring-surface absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-[3px]"
+              style={{ left: `${xPct(points[at].day)}%`, top: `${yPct(points[at].cents)}%` }}
+            />
+          </div>
+        )}
+
         {/* THE TOOLTIP IS THE LEGEND. Colour with no key is decoration, so rather than a permanent
             legend taking width beside the chart, the panel that appears on hover names the bucket
             and its figure. */}
@@ -539,7 +673,10 @@ function Plot({
         )}
 
         {/* THE WINDOW'S TWO ENDS, AT THE PLOT'S OWN BOTTOM EDGE — absolutely positioned INSIDE the
-            box rather than flowed under it. Flowed, they land past the 41px of slack between the
+            box rather than flowed under it. DESKTOP ONLY (2026-08-27, Luke: "remove the start and
+            end date on the chart"): below `sm` the range chips directly beneath the plot already
+            name the window, so the two dates restated it in a second, longer form — and the tooltip
+            gives the exact date of any point that is actually asked about. Flowed, they land past the 41px of slack between the
             last gridline (234) and the box's height (275), plus their own gap: measured at 50px of
             dead air against v2's card, which is why this card stood taller than its reference.
             `AXIS_GAP` is 17, v2's measured breathing room after its labels sat on the line at 12.
@@ -547,7 +684,7 @@ function Plot({
             answer "what am I looking at" without it. */}
         {hasData && (
           <div
-            className="text-caption text-muted absolute right-0 flex justify-between tabular-nums"
+            className="text-caption text-muted absolute right-0 flex justify-between tabular-nums max-sm:hidden"
             style={{ left: 'var(--axis-gutter)', top: PLOT_BOTTOM + AXIS_GAP }}
           >
             <span>

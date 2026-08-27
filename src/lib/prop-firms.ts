@@ -235,6 +235,31 @@ export type AccountTypeKey = keyof typeof ACCOUNT_TYPE_LABELS;
  *  with no label could not be rendered. */
 export const ACCOUNT_TYPE_KEYS = Object.keys(ACCOUNT_TYPE_LABELS) as AccountTypeKey[];
 
+/* THE ORDER THE ROSTER READS IN, and it lives here because THREE surfaces have to agree on it: the
+ * roster's group cards, the summary rail's breakdown, and the phone's scope chips. It was declared
+ * separately in the first two - the same three strings, twice - and adding a third copy is how the
+ * chips would eventually list Personal above Evaluation while the cards under them did not.
+ *
+ * CONSEQUENCES FIRST, which is why it is not `ACCOUNT_TYPE_KEYS`' declaration order: a sim-funded
+ * account's result is money, an evaluation's is a pass or a fail, and a personal account is
+ * whatever the trader wants it to be. */
+export const ACCOUNT_TYPE_ORDER: AccountTypeKey[] = ['sim_funded', 'evaluation', 'personal'];
+
+/* AN ACCOUNT WITH NO TYPE YET, and it is an ABSENCE rather than a fourth type - `trades/facets.ts`
+ * says the same thing about the firm axis for the same reason. It gets a key so a control can
+ * select it, and a title so a group header can print it.
+ *
+ * IT USED TO READ "Not yet labelled" (2026-08-27, Luke: "im not a fan of the account title 'Not yet
+ * labelled'. sounds unprofessional. there has got to be a better option"). Two things were wrong
+ * with it. The register: "not yet" is a progress report on the trader, and this build's own rule is
+ * that NO STATE MAY REPRESENT ABSENCE - no backlog, no catch-up, nothing that says you are behind.
+ * An unlabelled account is a normal state (`db/schema.ts` says so where the column is declared), not
+ * an unfinished chore. And the consistency: the filter panel's firm axis has always called the same
+ * absence `Unlabelled` (`UNLABELLED_FIRM` below), so the page was using two words for one idea on
+ * two surfaces a tap apart. One word, and it is the one that was already shipped. */
+export const UNLABELLED_TYPE = 'unlabelled';
+export const UNLABELLED_TYPE_TITLE = 'Unlabelled';
+
 /* WHAT AN ACCOUNT'S STATUS IS CALLED, and it is a MAP rather than a derivation on purpose.
  *
  * `run-trading@v2` had three stored values and computed the word from the account's phase, so

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 /* THE CLIENT BOUNDARY FOR `/accounts`, and it holds exactly one thing: whether a modal is open.
  *
@@ -13,9 +13,11 @@ import { useMemo } from 'react';
 
 import { AccountModalsProvider, useAddAccount } from './account-modals';
 import { AccountsHeader } from './accounts-header';
+import { AccountsRail } from './accounts-rail';
 import { RosterCard } from './roster-card';
 import { PnlChart } from './pnl-chart';
 import { ChartViewProvider } from './chart-view';
+import { ScopeTabs, inScope, type Scope } from './scope-tabs';
 import type { RosterFilter } from '@/lib/accounts/roster-filter';
 import { StickyRail } from '@/components/shell/sticky-rail';
 import { sizeBase } from './trend-indicator';
@@ -27,7 +29,6 @@ export function AccountsView({
   accounts,
   freshness,
   days,
-  rail,
   filter,
   allAccounts,
   intradayRows,
@@ -41,8 +42,6 @@ export function AccountsView({
   /** Per-account daily P&L, already windowed by the page. Folded here rather than on the server so
    *  one read serves the chart, the group headers and (next) the row sparklines. */
   days: DayPoint[];
-  /** The summary rail, rendered on the server and passed through. */
-  rail: React.ReactNode;
   filter: RosterFilter;
   /* THE UNFILTERED ROSTER, for the filter panel alone. Its account tree and its option lists must
      offer what the filter is currently HIDING - narrowing to one firm would otherwise remove every
@@ -56,11 +55,43 @@ export function AccountsView({
   /** `trader.display_timezone`. Labels the 1-day axis; it never reaches the bucketing. */
   zone: string;
 }) {
+  /* WHICH SLICE OF THE ROSTER THE WHOLE SCREEN IS ABOUT, and it is PHONE-ONLY state. It lives here
+     rather than in `ChartViewProvider` because it governs more than the view: the chart's series,
+     its account count, its percentage base and the roster's own rows are all derived below, and one
+     of them reading a different scope from the others is precisely the "page states two different
+     answers to one question" defect this build keeps guarding against.
+     EPHEMERAL, DELIBERATELY. It resets on reload like every other view control here - a scope is
+     what you are looking at right now, not a preference. */
+  const [scope, setScope] = useState<Scope>('all');
+
+  /* THE SCOPE CANNOT SURVIVE THE CONTROL THAT SETS IT — found by v2's postcheck (2026-07-30) and
+     ported with the tabs, because the failure is a property of the arrangement rather than of that
+     codebase. `ScopeTabs` is `sm:hidden`, so a trader who picks "Personal" on a phone and then turns
+     it landscape (844px, well past the breakpoint) would keep a filtered chart and a filtered roster
+     with the control gone and no way back. A filter with no visible control is not a view state, it
+     is a page quietly lying about how many accounts you have.
+     `matchMedia`, not a resize listener: it fires on the CROSSING rather than on every pixel of a
+     drag, and `sync()` runs once on mount so a page first rendered wide is already correct. */
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)');
+    const sync = () => {
+      if (mq.matches) setScope('all');
+    };
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
+  /* NARROWED ONCE, HERE, and everything below reads `scoped`. `accounts` survives only for the chip
+     row itself, which has to offer the groups the current scope is hiding - the same rule the filter
+     panel follows with `allAccounts`. */
+  const scoped = accounts.filter((a) => inScope(a, scope));
+
   /* THE CHART COUNTS WHAT THE TOTALS COUNT. An account excluded from totals is excluded here too,
      or the line above the roster would disagree with the numbers inside it - which is exactly the
      defect v2 shipped, where filtering left the rail reading +$954.99 under a chart reading
      -$26,995.06. */
-  const counted = new Set(accounts.filter((a) => !a.excludedFromTotals).map((a) => a.id));
+  const counted = new Set(scoped.filter((a) => !a.excludedFromTotals).map((a) => a.id));
   const byDay = new Map<string, number>();
   for (const d of days) {
     if (!counted.has(d.accountId)) continue;
@@ -71,7 +102,7 @@ export function AccountsView({
   /* THE PERCENTAGE'S DENOMINATOR, or null the moment one counted account has no stated size. A
      percentage against a partial base is a wrong number rather than a partial one - and it would
      drift toward looking right as more accounts got labelled, which is worse than being missing. */
-  const baseDollars = sizeBase(accounts.filter((a) => !a.excludedFromTotals));
+  const baseDollars = sizeBase(scoped.filter((a) => !a.excludedFromTotals));
 
   /* ONE CUMULATIVE LINE PER ACCOUNT, from the same read the chart above uses. Built here rather
      than on the server because it is a fold over rows already on the page - a second query would be
@@ -121,6 +152,11 @@ export function AccountsView({
       <ChartViewProvider byAccount={byAccount} intraday={intraday.byAccount} endsOn={endsOn}>
         <AccountsHeader filter={filter} accounts={allAccounts} />
 
+        {/* ABOVE THE CHART, WHICH IS WHERE THE THING IT CHANGES BEGINS. Monarch puts the same row in
+            the same place, and it is the only position that reads as scoping the whole screen rather
+            than as a control belonging to one card. */}
+        <ScopeTabs accounts={accounts} scope={scope} onScope={setScope} className="sm:hidden" />
+
         {/* THE CHART SPANS THE PAGE, ABOVE THE SPLIT — v2's arrangement, and the thing that most
             decides whether this reads as the same page. Inside the grid's left column it stops
             where the roster stops, which leaves the curve describing the whole roster drawn at the
@@ -141,8 +177,13 @@ export function AccountsView({
             BELOW `lg` THE RAIL ORDERS LAST. On a phone it is a screenful of totals standing between
             the trader and the accounts they opened the page for. */}
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_304px]">
-          <Roster accounts={accounts} freshness={freshness} />
-          <StickyRail>{rail}</StickyRail>
+          <Roster accounts={scoped} freshness={freshness} />
+          {/* SCOPED, LIKE EVERYTHING ELSE ON THE PAGE. It used to arrive from the server as finished
+              JSX over the unscoped roster, which is how it came to disagree with the chart above it
+              the moment the phone's chips could narrow one and not the other. */}
+          <StickyRail>
+            <AccountsRail accounts={scoped} />
+          </StickyRail>
         </div>
       </ChartViewProvider>
     </AccountModalsProvider>
