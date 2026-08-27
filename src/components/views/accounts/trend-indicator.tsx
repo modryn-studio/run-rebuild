@@ -25,6 +25,7 @@ export function TrendIndicator({
   cents,
   periodLabel,
   periodShort,
+  note,
   baseDollars,
 }: {
   cents: number;
@@ -34,6 +35,15 @@ export function TrendIndicator({
      choice has to be right on the first paint and the server has no viewport. Two spans of four
      words is cheaper than a hydration flash. */
   periodShort?: string;
+  /* A TRAILING CLAUSE, PHONE ONLY, and only the chart passes one (2026-08-27, Luke: "i do realize
+     that we want to say 'Across 2 accounts' and that is important. but maybe we can make it all
+     fit"). It fits: the change and the coverage are two short facts and the line already wraps
+     rather than truncating, so the worst case is two lines instead of a lost one.
+     WHY NOT ON A DESKTOP. The summary rail sits beside the chart there and already prints
+     `Accounts 8` off the same set - the same money-said-twice this page keeps deleting. On a phone
+     that rail is a full screen below the fold, so the fact has nowhere else to be.
+     NOT PASSED BY THE GROUP HEADERS. Their coverage is the rows directly underneath them. */
+  note?: string;
   /** Total stated size behind the figure, or null when any account in scope has none. */
   baseDollars: number | null;
 }) {
@@ -71,7 +81,10 @@ export function TrendIndicator({
       <span className="text-muted font-medium">
         {periodShort ? (
           <>
-            <span className="sm:hidden">{periodShort}</span>
+            {/* ONE SPAN, NOT TWO WITH A SEPARATOR BETWEEN THEM. A `·` in its own element gets the
+                row's `gap-x-1.5` on both sides and reads as a third item; inside the string it is
+                punctuation, which is what it is. */}
+            <span className="sm:hidden">{note ? `${periodShort} · ${note}` : periodShort}</span>
             <span className="hidden sm:inline">{periodLabel}</span>
           </>
         ) : (

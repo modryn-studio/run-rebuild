@@ -40,6 +40,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Menu } from '@/components/ui/menu';
+import { SegmentedItem } from '@/components/ui/segmented';
 import { TrendIndicator } from './trend-indicator';
 import { useChartView } from './chart-view';
 import { cn } from '@/lib/cn';
@@ -290,6 +291,10 @@ export function PnlChart({
               cents={view.change}
               periodLabel={periodLabel}
               periodShort={periodShort}
+              /* THE COVERAGE RIDES ALONG ON A PHONE. At `all` the branch above prints it alone,
+                 because there the change IS the figure overhead and a delta line would be the same
+                 money twice; at every other range both facts are true and both are wanted. */
+              note={`${counted} ${counted === 1 ? 'account' : 'accounts'}`}
               baseDollars={baseDollars}
             />
           )}
@@ -303,18 +308,18 @@ export function PnlChart({
             44px tap floor, which v2 shipped at 28px until a postcheck caught it. */}
         <div className="mt-3 flex justify-between gap-1 sm:hidden">
           {RANGES.map((r) => (
-            <button
+            /* `SegmentedItem`, THE SAME OBJECT THE SCOPE CHIPS ABOVE THE CHART USE. These two rows
+               were hand-typed variants of one control and had already drifted a weight apart -
+               `font-semibold` here against `font-medium` there, on the same screen, 300px apart.
+               `flex-1` is this row's own layout: it divides the width rather than scrolling. */
+            <SegmentedItem
               key={r}
-              type="button"
-              aria-pressed={range === r}
+              selected={range === r}
               onClick={() => setRange(r)}
-              className={cn(
-                'text-body min-h-11 flex-1 rounded-[var(--radius-sm)] font-semibold transition-colors',
-                range === r ? 'bg-surface-2 text-text select-pop' : 'text-muted'
-              )}
+              className="flex-1 px-0"
             >
               {SHORT_LABELS[r]}
-            </button>
+            </SegmentedItem>
           ))}
         </div>
       </div>

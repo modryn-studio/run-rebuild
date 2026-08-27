@@ -56,6 +56,11 @@ export default [
             // WCAG 2.5.5 (AAA) and Apple's HIG both state 44; 2.5.8 (AA) asks only 24. globals.css.
             // A waiting mark that stays invisible for 300ms so a fast load never flickers one.
             // NN/g: a skeleton only helps between ~400ms and 3s; below ~300ms nothing should show.
+            // A scroller with NO bar. `scrollbar-width: thin` is on `*` so no pane can forget it;
+            // this is the one row where the bar is chrome under chips rather than a reading aid.
+            // Both the standard property and the WebKit pseudo-element, or half the phones keep it.
+            // globals.css, beside `.scroll-thin`.
+            'scroll-none',
             'wait-reveal',
             'hit-44',
             'eyebrow',

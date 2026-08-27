@@ -45,7 +45,7 @@ import {
   ACCOUNT_TYPE_ORDER,
   UNLABELLED_TYPE,
   UNLABELLED_TYPE_TITLE,
-  accountRowTitle,
+  accountTitleParts,
   statusLabel,
   type AccountTypeKey,
 } from '@/lib/prop-firms';
@@ -155,6 +155,7 @@ function Row({
   const { shapeFor } = useChartView();
   const spark = shapeFor(a.id);
   const named = Boolean(a.displayName || a.propFirm);
+  const title = accountTitleParts(a);
   const stamp = ago(freshness);
 
   return (
@@ -176,9 +177,22 @@ function Row({
       style={style}
       /* `pl-7`, NOT `px-5` — v2's measured inset. The extra 8px is the lane the drag grip occupies,
          and it is claimed now rather than when drag lands so the rows do not all shift sideways the
-         day it does. `min-h-21` (84px) is a FLOOR, not a height: a wrapping name grows the row. */
+         day it does. `min-h-21` (84px) is a FLOOR, not a height: a wrapping name grows the row.
+         ─── THE PHONE GETS ITS OWN FOUR NUMBERS (2026-08-27, Luke: "Monarch has found a way to fit
+         the content on the screen better") ────────────────────────────────────────────────────────
+         Measured at 390px before touching anything: the row was 84px tall around 68px of content -
+         a 40px logo, a 44px two-line text block and 12px of padding each side - so 16px of every row
+         was floor and nothing else. Eight rows and four group headers carried 208px of that between
+         them, which is two and a half rows of the thing the trader opened the page for.
+         `min-h-17` (68px) is the same content with the slack gone. The type scale is untouched:
+         nothing here got smaller, the empty space did.
+         `gap-3` and a 16px gutter, both matching `/trades`' own phone row. The 28px inset is the
+         drag grip's lane, and the grip only ever appears on HOVER - which a touch screen does not
+         have - so on a phone it was 12px held for a mark that cannot appear. The gutter also now
+         agrees with the chart, the chips and the card above it: `/trades` records the same fix, that
+         three surfaces each starting at a different x is what makes a column read as loose. */
       className={cn(
-        'group/row hover:bg-hover relative flex min-h-21 w-full items-center gap-5 py-3 pr-5 pl-7 text-left transition-colors select-none',
+        'group/row hover:bg-hover relative flex min-h-17 w-full items-center gap-3 py-3 pr-4 pl-4 text-left transition-colors select-none sm:min-h-21 sm:gap-5 sm:pr-5 sm:pl-7',
         /* NO `cursor-grab` HERE, unlike the card header one level up, and the difference is real: a
            header is not a link, so grab is the only thing its cursor could say. A ROW is a link and
            the main way into an account, so `grab` would override the browser's own pointer and hide
@@ -217,19 +231,52 @@ function Row({
             `text-body-lg` name, `text-body` sub-line, `text-small text-faint` stamp - and this
             build deleted the third ink tier outright. So the row is `text-body-lg` throughout and
             everything secondary is MUTED rather than smaller. */}
-        <span className={cn('text-body-lg block truncate', named ? 'text-text' : 'text-muted')}>
-          {accountRowTitle(a)}
+        {/* TRUNCATE THE FIRM, NEVER THE ACCOUNT NUMBER (2026-08-27), and this is a defect the
+            density pass exposed rather than one it caused. `/trades` fixed exactly this in August on
+            Luke's instruction - "keep the size and account number untouched. truncate the name only"
+            - and `accountTitleParts` was written for it. The roster kept printing one string and
+            letting `truncate` cut whatever fell off the end, which at 154px turned BOTH
+            "Apex Trader Funding 50K (...4021)" and "(...3907)" into the same visible characters:
+            two rows for two different accounts, rendered identically, with the only thing that told
+            them apart being the half that got cut. The last four digits are the disambiguator; they
+            are the last thing that may go, not the first.
+            `gap-1` is the space the string itself would carry - flex trims whitespace at an item's
+            edge, so the layout has to put it back. Same note the tape's `AccountName` carries. */}
+        <span
+          className={cn('text-body-lg flex min-w-0 gap-1', named ? 'text-text' : 'text-muted')}
+        >
+          <span className="truncate">{title.head}</span>
+          {title.tail && <span className="shrink-0">{title.tail}</span>}
         </span>
         {/* THE PROMPT IS THE SUB-LINE ITSELF, never a second element beside it. An unnamed account
             asks to be named in the one slot that would otherwise repeat what the figure says. */}
-        <p className="text-body text-muted truncate">
-          {a.productName ??
-            (named ? `${a.trades.toLocaleString('en-US')} trades` : 'Name this account')}
+        {/* THE STATUS CHIP JOINS THE SUB-LINE ON A PHONE, and this is the single biggest thing that
+            was wrong with this row at 390px. Measured: the name had 46px of width on a row carrying
+            a chip and 122px on one without - the chip and its gaps cost 76px of the one string that
+            says which account you are looking at, so every name read "My Fun…" or "Apex Tr…". Down
+            here it sits beside "19 trades", which had the whole width to itself and nothing to say
+            with it, and the name gets it back.
+            TWO NODES, ONE VISIBLE. The desktop copy below keeps the right cluster's grouping, where
+            there is room for it; this one is `sm:hidden`. Same shape `refresh-roster.tsx` uses, and
+            the state is a prop, so the two cannot disagree.
+            IT IS STILL A BADGE, not a fourth text tier. `design-system.md` §4 gives a badge its own
+            radius and its own size precisely because it is a different KIND of object from the prose
+            beside it - the "a row is ONE type size" rule governs text, not marks. */}
+        <p className="text-body text-muted flex items-center gap-2">
+          <span className="truncate">
+            {a.productName ??
+              (named ? `${a.trades.toLocaleString('en-US')} trades` : 'Name this account')}
+          </span>
+          {a.status !== 'active' && (
+            <span className="shrink-0 sm:hidden">
+              <StatusChip status={a.status} />
+            </span>
+          )}
         </p>
       </span>
 
       <span className="flex shrink-0 items-center gap-4 sm:gap-6">
-        <span className={cn('shrink-0', a.status === 'active' && 'hidden sm:block')}>
+        <span className="hidden shrink-0 sm:block">
           <StatusChip status={a.status} />
         </span>
 
@@ -373,7 +420,14 @@ function Group({
       <div
         {...gripHandlers}
         className={cn(
-          'relative flex min-h-15 w-full items-center gap-2 py-2 pr-5 pl-3 select-none max-sm:pl-5',
+          /* `min-h-12` ON A PHONE (2026-08-27). Measured at 390px: 60px of bar around 40px of
+             content, and the chevron it was sized to clear is `sm:` only - so the floor was holding
+             room for a control that is not there. 48px still clears the 44px tap floor for the
+             full-bar button behind it, and at `all` (where there is no change line) it takes 12px
+             off every group header on the page.
+             `pl-4`, not `pl-5`: the rows underneath moved to a 16px gutter, and a header indented
+             further than its own rows reads as a different column. */
+          'relative flex min-h-15 w-full items-center gap-2 py-2 pr-5 pl-3 select-none max-sm:min-h-12 max-sm:pr-4 max-sm:pl-4',
           grabbable && 'sm:cursor-grab',
           held && 'sm:cursor-grabbing'
         )}

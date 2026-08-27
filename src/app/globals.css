@@ -896,6 +896,20 @@
    thumb value lives with the universal rule, not here, so this cannot drift from it. */
 .scroll-thin { }
 
+/* A SCROLLER WITH NO BAR, and it is the exception rather than a preference (2026-08-27, Luke:
+   "you should remove the horizonal scroll bar from the chips at the top of the chart on mobile").
+   `scrollbar-width: thin` is declared on `*` above, deliberately, so that no pane can forget it -
+   which is right for every scroller that holds CONTENT and wrong for the one case where the
+   scrollbar is a bar of chrome UNDER a row of chips, on the narrowest screen, describing an overflow
+   the chips themselves already show by being cut off at the edge.
+   BOTH DECLARATIONS. `scrollbar-width` is the standard and Firefox honours it; the WebKit
+   pseudo-element is what iOS Safari and Chrome read. One without the other leaves the bar on half
+   the phones this ships to, silently.
+   THE CONTENT MUST STILL SAY IT SCROLLS. Only use this where a partially-visible item at the edge is
+   the affordance; a pane whose content ends flush needs its bar. */
+.scroll-none { scrollbar-width: none; }
+.scroll-none::-webkit-scrollbar { display: none; }
+
 /* Sparse motion — one quiet reveal + a calm presence pulse (opacity only, no glow). */
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .rise { animation: rise 0.5s var(--ease-out) both; }

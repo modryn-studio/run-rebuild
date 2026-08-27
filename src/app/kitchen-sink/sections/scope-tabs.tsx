@@ -18,6 +18,7 @@
 
 import { useState } from 'react';
 import { ScopeTabs, type Scope } from '@/components/views/accounts/scope-tabs';
+import { SegmentedItem } from '@/components/ui/segmented';
 import { Note, Row, Section } from '../_components/section';
 
 /** Every group filled, including the one with no type — the widest the row ever gets. */
@@ -46,11 +47,30 @@ function Live({
   return <ScopeTabs accounts={accounts} scope={scope} onScope={setScope} />;
 }
 
+/** The chart's period row: the same item at `flex-1`, dividing a fixed width. */
+function RangeRow() {
+  const [at, setAt] = useState('ALL');
+  return (
+    <div className="flex max-w-sm justify-between gap-1">
+      {['1D', '1W', '1M', '3M', 'YTD', '1Y', 'ALL'].map((r) => (
+        <SegmentedItem
+          key={r}
+          selected={at === r}
+          onClick={() => setAt(r)}
+          className="flex-1 px-0"
+        >
+          {r}
+        </SegmentedItem>
+      ))}
+    </div>
+  );
+}
+
 export function ScopeTabsSection() {
   return (
     <Section
       id="scope-tabs"
-      title="Scope chips"
+      title="Segmented chips"
       intro="Which slice of the roster a phone screen is about. Picking one replots the chart AND filters the roster below it, so the two can never state different answers to one question. Chips rather than tabs: an underline says which page you are on, and this changes what the page shows."
     >
       <Row label="Every group" note="canonical order, and the unlabelled group closes the row">
@@ -76,10 +96,25 @@ export function ScopeTabsSection() {
         </div>
       </Row>
 
+      {/* THE OTHER LAYOUT THE SAME ITEM TAKES. Racked here rather than in its own section because
+          the thing being judged is that these two rows are ONE control: if the pill, the weight or
+          the picked ground ever differ between these two specimens, they have drifted. */}
+      <Row label="The range row" note="same item, dividing the width instead of scrolling">
+        <RangeRow />
+      </Row>
+
       <Note>
-        The row scrolls sideways rather than wrapping: four groups plus All do not fit 390px, and a
-        second line would push the chart&rsquo;s figure down the one screen with no room to spare.
-        Narrow the window past 390px to see it.
+        The scope row scrolls sideways rather than wrapping: four groups plus All do not fit 390px,
+        and a second line would push the chart&rsquo;s figure down the one screen with no room to
+        spare. It carries no scrollbar: a chip cut off at the edge is the affordance. Narrow the window
+        past 390px to see both.
+      </Note>
+
+      <Note>
+        The pill is the one place this system draws a full round on something carrying a label. The
+        argument is in <code>segmented.tsx</code> and in <code>design-system.md</code> §4: an
+        unselected segment has no shape at all, so the pill is a selection marker moving along a row
+        rather than a control&rsquo;s own outline. It does not transfer to buttons.
       </Note>
     </Section>
   );

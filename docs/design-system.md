@@ -340,6 +340,22 @@ holds the session where that exact substitution cost $2,331 in twenty minutes.
 Three radii, each mapping to a real kind of object, which is why these are named semantically where
 spacing is not. Independently corroborated: the reference's `md`/`sm`/`xs` are 12/8/6 exactly.
 
+### The two full rounds, and why neither is "pill everything"
+
+`--radius-full` is not a token and never will be. Two objects are round anyway, and both earn it by
+the same rule: **shape follows the control's content.**
+
+- **An icon-only control is a disc** (`IconButton`, the avatar, a logo tile). Nothing labelled is.
+- **The SELECTED segment of a segmented row is a pill** (`ui/segmented.tsx` — the phone's scope chips
+  and the chart's range row). This is the one place a label sits inside a full round, and it holds
+  because a segment is not a button. A button is drawn whether or not you have pressed it; an
+  unselected segment has no ground, no border and no visible radius at all. So the pill is not the
+  control's outline, it is the **selection marker** moving along the row — and a marker may be any
+  shape the system likes.
+
+The line this draws: the moment a pill appears on something rendered at rest, it is a button wearing
+a marker's shape, and `design-rules.md`'s hard ban #6 applies with nothing to answer it.
+
 | Token | Light | Dark | Used for |
 |---|---|---|---|
 | `--shadow-card` | `0 2px 4px rgba(34,32,29,.10)` | `0 2px 4px rgba(0,0,0,.32)` | a sheet above the page |

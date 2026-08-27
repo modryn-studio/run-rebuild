@@ -30,8 +30,8 @@
  *
  * CHIPS, NOT TABS. The picked one takes a filled ground rather than an underline: an underline is a
  * navigation idiom (it says "you are on this page") and this changes what the screen SHOWS, not
- * where you are. `select-pop` is the same treatment every other picked thing in the app gets, and it
- * is the same object the range row under the chart already uses — one control class, twice.
+ * where you are. It is literally the same object the range row under the chart uses — `SegmentedItem`
+ * — which is where the pill and its argument live.
  */
 
 import {
@@ -41,6 +41,7 @@ import {
   UNLABELLED_TYPE_TITLE,
   type AccountTypeKey,
 } from '@/lib/prop-firms';
+import { SegmentedItem } from '@/components/ui/segmented';
 import { cn } from '@/lib/cn';
 
 /** Which accounts the page is currently about: everything, one type, or the ones with no type. */
@@ -90,26 +91,18 @@ export function ScopeTabs({
        wrapping to two rows — would push the figure down the screen on the one viewport with no room
        to spare. `-mx-4 px-4` lets the row bleed to both screen edges so a chip scrolled to the end
        does not stop short of one, while the first still lines up with the page column.
-       `scroll-thin` is the app's own bar; this row is short enough that it rarely appears. */
-    <div className={cn('scroll-thin -mx-4 mb-1 overflow-x-auto px-4 pb-1', className)}>
+       AND NO BAR (2026-08-27). `.scroll-none` rather than the app's `.scroll-thin`, because on a
+       390px screen the bar was a full-width grey rule sitting under five chips - more ink than the
+       thing it describes, and describing something the chips already say by being cut off at the
+       edge. `pb-1` goes with it: that padding existed to hold the bar off the chips. */
+    <div className={cn('scroll-none -mx-4 mb-1 overflow-x-auto px-4', className)}>
       <div className="flex w-max gap-1">
         {tabs.map((t) => {
           const on = scope === t.value;
           return (
-            <button
-              key={t.value}
-              type="button"
-              aria-pressed={on}
-              onClick={() => onScope(t.value)}
-              /* `min-h-11` is the 44px tap floor, for the same reason the range chips under the
-                 chart carry it: a phone-only control with a thumb-only operator. */
-              className={cn(
-                'text-body inline-flex min-h-11 items-center rounded-[var(--radius-sm)] px-3 font-medium whitespace-nowrap transition-colors',
-                on ? 'bg-surface-2 text-text select-pop' : 'text-muted'
-              )}
-            >
+            <SegmentedItem key={t.value} selected={on} onClick={() => onScope(t.value)}>
               {t.label}
-            </button>
+            </SegmentedItem>
           );
         })}
       </div>
