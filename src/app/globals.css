@@ -360,7 +360,28 @@
    * WHAT IT REPLACES. `roster-card.tsx` had raised its stamp to 14px citing "Monarch sets its
    * '21 hours ago' at 14px" - read off Monarch's WEB app, while the reference for Run's phone is
    * their native one, which is a different design. A number measured on the wrong surface. */
-  --text-meta: 14px;         --text-meta--line-height: 20px;
+  /* ─── THE LEADING IS THE BREATHING ROOM, AND IT IS MEASURED (2026-08-27) ───────────────────────
+   * Luke: "i still feel like Run's account card's content is jam packed in there... notice how
+   * Monarch uses gaps between say the value of the account and the amount of time from the last
+   * sync." Read off Monarch's own markup rather than off a screenshot, at 1280:
+   *
+   *              Monarch          Run (before)
+   *   row         84px             84px          - identical
+   *   card        12px radius      12px          - identical
+   *   name        16px / 24        16px / 24     - identical
+   *   group head  59px             60px          - identical
+   *   SUB-LABEL   14px / 24        14px / 20     <- the whole difference
+   *   TIMESTAMP   14px / 24        14px / 20     <- and here
+   *
+   * Every box matches and every SIZE matches. What Monarch does that this did not is set its
+   * secondary strings in a line box 1.7x their own height, so two stacked lines separate themselves
+   * from the inside. Run bunched them at 1.43 and left the slack as dead space at the top and bottom
+   * of the row - which is why the content read as packed inside a box that was the right size.
+   *
+   * So the answer was never smaller type or taller rows. `24px` on a desktop costs NO height at all:
+   * the row's own floor already exceeded its content, so the two lines simply move apart inside it.
+   * `20px` on a phone (1.67x on 12px) costs 4px a row and buys the same separation. */
+  --text-meta: 14px;         --text-meta--line-height: 24px;
   /* Wayfinding: sidebar nav and any primary in-app navigation. Its own step BECAUSE it has its
      own weight. A nav row is a destination, not body copy, and it must not be able to inherit 400.
      16px is the measured nav read; the -0.01em keeps it from setting loose beside the
@@ -874,7 +895,8 @@
   @media (width < 40rem) {
     :root {
       --text-meta: 12px;
-      --text-meta--line-height: 16px;
+      /* 1.67x, which is Monarch's ratio on its own secondary strings. See the desk above. */
+      --text-meta--line-height: 20px;
     }
   }
 
