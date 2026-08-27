@@ -114,10 +114,10 @@ export function PnlPlotSection() {
           un-paged chart keeps its full width.
         </Note>
         <Note>
-          They are the one control in the product wearing a border AND a shadow. Every other control
-          sits ON a surface and takes one or the other; this one floats over the plot with data on
-          both sides, where a hairline vanishes against a gridline and a shadow alone gives a disc
-          with no edge. <code>design-system.md</code> §4.
+          A fill and a shadow, no border: the same answer <code>Stepper</code> gives in the
+          trade drawer, and for its reason: a disc floating over the page has nothing behind it to
+          bound against, which is the Card case rather than the button case. It ported from v2
+          wearing a hairline as well, which would have made it claim to be both.
         </Note>
       </Row>
 

@@ -868,6 +868,27 @@ export function Plot({
             {bars.map((b, i) => {
               const slot = 100 / bars.length;
               const up = b.cents >= 0;
+              /* THE BAR IS CAPPED IN px, WHICH IS THE ONLY REASON IT SURVIVES BROWSER ZOOM
+                 (2026-08-27, Luke: "why don't the bars on the breakdown chart scale with the rest
+                 of the page when i use the zoom on the chrome browser?").
+
+                 Measured at 1440: at 100% a bar drew 75.4 physical px and body text 16; at 150% the
+                 text went to 24 and the bar to 71.1. Everything on the page grew by half and the
+                 columns did not move. A percentage of a box is the cause - zoom shrinks the plot's
+                 CSS width by exactly the zoom factor, so a fraction of it holds its PHYSICAL size
+                 while `--chart-h`, which is real px, grows. Bars got taller and no wider.
+
+                 `min()` in CSS rather than arithmetic here, because the two operands are in
+                 different spaces: `slot * 0.7` is a share of a box only the browser has measured,
+                 and `BAR_CAP` is device-independent px. The cap is what zoom multiplies.
+
+                 WHAT IT COSTS, AND IT IS A REAL TRADE: a corpus narrower than one page no longer
+                 stretches to fill the plot - twelve buckets on a wide monitor now sit at 44px with
+                 air between them rather than at 75px shoulder to shoulder. v2 draws it this way and
+                 its `BAR_CAP` is this number; the paging arithmetic above already assumes it, since
+                 `SLOT_PX` IS `BAR_CAP / 0.7`. Stretching and zooming are contradictory, and of the
+                 two only one of them is a bug. */
+              const width = `min(${slot * 0.7}%, ${BAR_CAP}px)`;
               const top = up ? yPct(b.cents) : yPct(0);
               const height = Math.abs(yPct(b.cents) - yPct(0));
               return (
@@ -879,8 +900,18 @@ export function Plot({
                     at !== null && at !== i ? 'opacity-45' : 'opacity-100'
                   )}
                   style={{
-                    left: `${i * slot + slot * 0.15}%`,
-                    width: `${slot * 0.7}%`,
+                    /* CENTRED IN ITS SLOT rather than offset by a fixed 15%, because the bar is no
+                       longer a known share of it: once the cap bites, `left: 15%` would push every
+                       column off its own tick.
+                       AND CENTRED BY `calc`, NOT BY `translateX(-50%)`, which is the version this
+                       first shipped as and would have been wrong on every bar. `.bar-rise` animates
+                       `transform: scaleY()` with `both` fill, so an inline transform here is
+                       overwritten by the animation and never comes back - every column would have
+                       sat half its own width right of its tick, silently, with the axis labels
+                       still pointing at where it should have been. Subtracting half the width from
+                       `left` leaves `transform` to the animation alone. */
+                    left: `calc(${(i + 0.5) * slot}% - ${width} / 2)`,
+                    width,
                     top: `${top}%`,
                     height: `${Math.max(height, 0.6)}%`,
                     borderRadius: up ? '2px 2px 0 0' : '0 0 2px 2px',
@@ -1008,18 +1039,19 @@ export function Plot({
  * DESKTOP ONLY (`hidden sm:flex`), because Breakdown is: the phone's control row carries the range
  * chips and no chart-type control, so these bars cannot be reached below `sm`.
  *
- * IT GETS A BORDER AND A SHADOW, WHICH THE HOUSE RULE NORMALLY FORBIDS - and this is the documented
- * exception rather than a slip. The button floats OVER the plot's own ground with data on both
- * sides of it; a hairline alone disappears against a gridline, and a shadow alone gives a disc with
- * no edge on a card that is already `surface`. Every other control in the product sits ON a surface
- * and takes one or the other. `docs/design-system.md` §4. */
+ * NO BORDER, JUST THE SHADOW, and this is `Stepper`'s answer rather than a new one (corrected
+ * 2026-08-27 after Luke pushed back on the first version, which carried both). v2's own arrow wears
+ * a hairline AND a shadow; this build had already settled the same shape in `trade-drawer-body.tsx`
+ * without one, and its comment states why: a control floating over the page "with nothing behind it
+ * to bound against" is the CARD case, not the button case, and a card is a fill plus a shadow. The
+ * house rule needed no exception - the existing one already covered this. */
 function PanButton({ dir, onClick }: { dir: -1 | 1; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={dir === -1 ? 'Earlier' : 'Later'}
-      className="border-border bg-surface hover:bg-hover absolute z-10 hidden -translate-y-1/2 items-center justify-center rounded-full border shadow-[var(--shadow-card)] transition-colors sm:flex"
+      className="bg-surface hover:bg-hover absolute z-10 hidden -translate-y-1/2 items-center justify-center rounded-full shadow-[var(--shadow-card)] transition active:shadow-[var(--shadow-press)] sm:flex"
       style={{
         width: PAN_SIZE,
         height: PAN_SIZE,

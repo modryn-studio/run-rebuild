@@ -108,6 +108,15 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
       rail={<AccountRail account={account} provenance={provenance} />}
       tape={
         <TradesTape
+          /* THE CARD NAMES ITSELF HERE AND NOT ON `/trades`, because there the shell's band already
+             says the word and here it says the account. v2's `TradesCard` carries the same title on
+             the same page for the same reason. */
+          title="Trades"
+          hasFees={provenance.hasFees}
+          /* EVERY ROW BELONGS TO THIS ACCOUNT, so saying so on each one is noise - v2's
+             `TradesCard` makes the same call on the same page. It is a fact about the page, not a
+             preference: the trader's own stored column choice on `/trades` is untouched. */
+          showAccount={false}
           sessions={sessions}
           total={ids.length}
           displayTimezone={trader.displayTimezone}

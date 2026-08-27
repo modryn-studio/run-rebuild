@@ -61,6 +61,9 @@ export function TradesTape({
   selectedAccounts,
   narrowed,
   rest,
+  title,
+  hasFees,
+  showAccount = true,
 }: {
   sessions: SessionGroup[];
   /** Every trade the filter selected, which is not the number of rows sent. */
@@ -74,6 +77,28 @@ export function TradesTape({
   narrowed: boolean;
   /** The ids of every trade the filter selects, so the client can ask for the rest by id. */
   rest?: TapeRest;
+  /* THE CARD'S OWN NAME, AND ONLY A SUBJECT PAGE PASSES ONE (`S6d`, 2026-08-27).
+     `/trades` deliberately has none: the shell's band already prints "Trades" from the route, so a
+     card header repeating it said one word twice, 64px apart. On `/accounts/details` the band
+     prints the ACCOUNT, so nothing on screen has named this list yet - which is why v2's own
+     `TradesCard` carries the title there and this one does not carry it everywhere. Same component,
+     and the difference is a prop rather than a fork. */
+  title?: string;
+  /* WHETHER FEES ARE IN THESE FIGURES. Stated ONCE at the top rather than on every row: without a
+     Cash History import every number below is gross, and a trader holding this page up against
+     their firm's dashboard needs to know which of the two they are reading. `undefined` means the
+     caller is not making the claim - `/trades` answers it in the summary rail's own label instead,
+     and two places saying it would be the same fact twice. */
+  hasFees?: boolean;
+  /* WHETHER A ROW HAS TO SAY WHICH ACCOUNT IT IS (`S6d`, ported from v2's `TradesCard`). When the
+     subject is an account, every row belongs to it and saying so is noise - v2: "the reference's
+     merchant-page rows carry 'Visa Credit Card (...3686)' where its account-page rows do not."
+     A STRUCTURAL FACT, NOT THE STORED PREFERENCE. It force-hides the column for this render and
+     drops it from the Columns menu; `useTapeColumns`' `localStorage` value is left untouched, so a
+     trader who hid the account column on `/trades` still has it hidden there and one who did not
+     still gets it back when they return. Writing the preference from a page's layout would let one
+     screen quietly re-decide another's. */
+  showAccount?: boolean;
 }) {
   /* WHICH ROW IS OPEN, as an INDEX into the flattened list rather than an id, because the steppers
      walk the list: "the next trade" is a position, and resolving an id back to one on every arrow
@@ -232,7 +257,11 @@ export function TradesTape({
   const days = groupBySession(visible);
   const flat = days.flatMap((d) => d.trades);
   // Session totals come from the server and cover the WHOLE session, not the rows drawn.
-  const { hidden: hiddenColumns, toggle: toggleColumn } = useTapeColumns();
+  const { hidden: stored, toggle: toggleColumn } = useTapeColumns();
+  /* The preference, plus whatever this page structurally cannot show. `Set` because the trader may
+     already have hidden the same column by hand, and a duplicate in the list would be harmless
+     today and exactly the kind of thing a later `length` check trips over. */
+  const hiddenColumns = showAccount ? stored : [...new Set<TapeColumn>([...stored, 'account'])];
   const totalsFor = new Map(sessions.map((s) => [s.sessionDate, s]));
 
   /* `@container` so a column can be gated on the CARD's width rather than the viewport's.
@@ -270,6 +299,11 @@ export function TradesTape({
             apart. It renders NOTHING below two accounts — see `account-select.tsx` for why that is
             correctness rather than tidiness — which leaves this header carrying only `ColumnsMenu`
             on the current one-account corpus. That is the honest state of it, not an oversight. */}
+        {title && <h2 className="text-title text-text font-medium">{title}</h2>}
+        {/* Only when it is FALSE. `undefined` is "not my claim to make"; `true` is a fact the label
+            over the figures already carries, and repeating "Net" over a tape of net figures is the
+            noise the same rule removed from the chart's own note. */}
+        {hasFees === false && <span className="text-body text-muted">Gross, no fees imported</span>}
         <AccountSelect accounts={accounts} selected={selectedAccounts} />
         {/* THE COUNT CAME OUT (2026-08-20). It read "360 trades" here, and the summary rail beside
             it already says `Trades 360` off the same filtered set - `getDigest` and the tape count
@@ -281,7 +315,11 @@ export function TradesTape({
             stamp, so ordering by exit prints one time on three rows and the sequence reads as
             random. A generic column sorter invites exactly that arrangement. If sort ships it needs
             a deliberate short list that excludes the broken one. */}
-        <ColumnsMenu hidden={hiddenColumns} onToggle={toggleColumn} />
+        <ColumnsMenu
+          hidden={hiddenColumns}
+          onToggle={toggleColumn}
+          omit={showAccount ? undefined : ['account']}
+        />
       </div>
 
       {all.length === 0 ? (
