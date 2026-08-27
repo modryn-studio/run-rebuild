@@ -56,7 +56,7 @@ export function SegmentedItem({
       aria-pressed={selected}
       {...props}
       className={cn(
-        'hit-44 text-small inline-flex h-9 items-center justify-center rounded-full px-3.5 font-medium whitespace-nowrap transition-colors',
+        'hit-44 text-caption inline-flex h-9 items-center justify-center rounded-full px-3.5 font-medium whitespace-nowrap transition-colors',
         /* `select-pop` IS THE APP'S OWN PICKED-THING TREATMENT, so a segment reads as chosen in the
            same language as every menu row and filter chip rather than in a private one. */
         selected ? 'bg-surface-2 text-text select-pop' : 'text-muted',

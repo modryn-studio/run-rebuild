@@ -270,8 +270,16 @@ function Row({
             exactly the distinction this had collapsed.
             The metadata tier stays at 12. The row is 16/12, not 16/14: the supporting tier is what
             the phone needed smaller, and it is still smaller. */}
+        {/* 14px ON A PHONE (2026-08-27, the full 90% step). The 16px restore two commits ago was
+            right about CONSISTENCY and wrong about fit: measured at 412px, four of eight firm names
+            truncated at 16 and none do at 14 - including with a six-figure balance in every row,
+            which is the case Luke raised. `/trades` takes the same step in the same commit, so the
+            two pages still agree about what a list row is. */}
         <span
-          className={cn('text-body-lg flex min-w-0 gap-1', named ? 'text-text' : 'text-muted')}
+          className={cn(
+            'text-body-lg max-sm:text-body flex min-w-0 gap-1',
+            named ? 'text-text' : 'text-muted'
+          )}
         >
           <span className="truncate">{title.head}</span>
           {title.tail && <span className="shrink-0">{title.tail}</span>}
@@ -347,7 +355,9 @@ function Row({
             IT IS STILL A FLOOR, so a five-figure loss pushes past it and costs that ONE row's name a
             few pixels rather than clipping the number. */}
           <span className="min-w-27 max-sm:min-w-20 text-right">
-            <p className="text-body-lg text-text font-medium tabular-nums">{signed(a.netCents)}</p>
+            <p className="text-body-lg max-sm:text-body text-text font-medium tabular-nums">
+              {signed(a.netCents)}
+            </p>
             {/* THE STAMP ANSWERS WHAT THE FIGURE CANNOT: a number with no timestamp cannot tell you
               whether it is this morning's or last month's. This is P5, the direct answer to the
               field's defining failure. */}
@@ -520,10 +530,10 @@ function Group({
               rows' own name is 16px at weight 400 and this is 16px at 500, on its own ground, with
               a money figure beside it - so the band still reads as a band. Both are roles from the
               ramp; this is a step down the scale, not a hand-picked size. */}
-          <span className="text-title max-sm:text-body-lg text-text truncate font-medium sm:order-1">
+          <span className="text-title max-sm:text-body text-text truncate font-medium sm:order-1">
             {title}
           </span>
-          <span className="text-title max-sm:text-body-lg text-text shrink-0 font-medium tabular-nums sm:order-3 sm:ml-auto">
+          <span className="text-title max-sm:text-body text-text shrink-0 font-medium tabular-nums sm:order-3 sm:ml-auto">
             {signed(total)}
           </span>
           {/* THE GROUP'S OWN CHANGE, over the same window the chart above is drawing — which is the

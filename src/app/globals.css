@@ -894,9 +894,15 @@
      `--shadow-card` uses; font-size utilities emit the var directly and do not.) */
   @media (width < 40rem) {
     :root {
-      --text-meta: 12px;
-      /* 1.67x, which is Monarch's ratio on its own secondary strings. See the desk above. */
-      --text-meta--line-height: 20px;
+      /* 11px, NOT 12 (2026-08-27, Luke picked the full 90% step). This lands the metadata tier on
+         the same value as `--text-caption`, and that coincidence is deliberate rather than an
+         oversight to be tidied away later: the two roles differ by INTENT and by their desktop
+         values (14 against 11), and on a phone the ramp simply compresses until they meet. Merging
+         them would give the desktop's metadata tier caption's 11px, which is not the same decision.
+         1.64x leading, which is the ratio the desk above measured on Monarch's own secondary
+         strings, carried down to the smaller size rather than dropped. */
+      --text-meta: 11px;
+      --text-meta--line-height: 18px;
     }
   }
 

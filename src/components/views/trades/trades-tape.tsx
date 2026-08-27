@@ -306,7 +306,9 @@ export function TradesTape({
                   offset would park the band 56px down from its own ceiling with a strip of tape
                   showing through the gap. Nothing to clear, so nothing to offset. */}
               <div className="bg-band sticky top-15 z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-5 py-2 max-md:top-0 max-md:px-4">
-                <span className="text-body text-muted font-medium">
+                {/* THE BAND TAKES THE SAME STEP AS THE ROWS IT LABELS. Chrome is never smaller than
+                    the content it controls, and at 12 against a 14px row it still is not. */}
+                <span className="text-body max-sm:text-small text-muted font-medium">
                   {displaySessionDate(d.sessionDate)}
                 </span>
                 {/* THE DAY'S NET, AND NOTHING ELSE (2026-08-19, Luke: "keep it simple").
@@ -322,7 +324,7 @@ export function TradesTape({
                     the net, so this is also what the reference does. spec.md and build-plan.md were
                     amended in the same commit; see the note there. */}
                 {t && (
-                  <span className="text-body text-muted font-medium tabular-nums">
+                  <span className="text-body max-sm:text-small text-muted font-medium tabular-nums">
                     {signed(t.netCents)}
                   </span>
                 )}
@@ -493,7 +495,14 @@ function Row({
       <div className="flex min-w-0 flex-1 items-center gap-3 max-md:gap-2">
         <InstrumentMark symbol={contract} />
         <div className="min-w-0">
-          <p className="text-body-lg text-text truncate">{name ?? contract}</p>
+          {/* 14px ON A PHONE (2026-08-27), AND IT MOVES WITH THE ROSTER ROW. A tape row and a
+              roster row are the same object - a list row naming a thing with a money figure pinned
+              right - so they take the phone's step together or the two pages disagree about what a
+              row is. `/accounts` needed it to stop truncating account names; this page does not have
+              that problem and takes the step anyway, because consistency is the reason.
+              THE SEARCH FIELD ABOVE DOES NOT MOVE and must not: `text-body-lg` is the iOS no-zoom
+              floor for a focused input, which is a browser behaviour rather than a type decision. */}
+          <p className="text-body-lg max-sm:text-body text-text truncate">{name ?? contract}</p>
           {/* THE PHONE'S SECOND LINE IS GONE (`S5d`, 2026-08-20). This read
               `{qty} {direction} · {time}` below `sm`, standing in for the two columns to its right.
               The reference's mobile row is strictly ONE line — its category mark, the merchant, the
@@ -558,7 +567,10 @@ function Row({
           </span>
         )}
         <span
-          className={cn('text-body-lg font-medium tabular-nums', excluded && 'text-muted')}
+          className={cn(
+            'text-body-lg max-sm:text-body font-medium tabular-nums',
+            excluded && 'text-muted'
+          )}
           style={
             excluded
               ? undefined

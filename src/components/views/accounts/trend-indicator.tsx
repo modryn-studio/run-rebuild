@@ -75,7 +75,7 @@ export function TrendIndicator({
          A HAND-WRITTEN PAIR RATHER THAN `text-meta`, deliberately: that token is 14px on a desktop
          and both of these are 16px there, so borrowing it to get the phone step would quietly shrink
          two desktop surfaces nobody asked about. */
-      className="value-fade text-small sm:text-body-lg flex flex-wrap items-center gap-x-1.5 gap-y-0.5"
+      className="value-fade text-caption sm:text-body-lg flex flex-wrap items-center gap-x-1.5 gap-y-0.5"
     >
       <span
         className={cn(
