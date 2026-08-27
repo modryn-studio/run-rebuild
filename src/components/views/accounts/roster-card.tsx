@@ -492,7 +492,20 @@ function Group({
         </IconButton>
         {/* ONE SET OF NODES, TWO LAYOUTS. Rendering the total twice behind visibility classes puts
             the same money on the page twice and invites the two copies to drift. */}
-        <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 sm:flex">
+        {/* `pointer-events-none` BELOW `sm`, AND IT IS A BUG FIX (2026-08-27, Luke: "when the account
+            card is displaying the amount up/down and percentage and time interval in the header, the
+            header is hard to tap and close/open vs when there is not extra line").
+            THE FULL-BAR BUTTON ABOVE IS ABSOLUTE, so it normally paints over this static content and
+            catches every tap - which is why the bar worked at All time, where there is no change
+            line. Measured at 412px by sampling 25 points across the bar: 25/25 reached the button at
+            All time, 20/25 at 1 week. The five that missed all landed on the change line, whose
+            `.value-fade` animation gives it a STACKING CONTEXT of its own and promotes it above the
+            button. The tap then hit a span, bubbled to a `<div>` with no handler, and did nothing.
+            Making the content transparent to pointers is the fix rather than raising the button's
+            z-index: nothing in here is interactive at this width (the chevron is `sm:` only), so
+            there is nothing to give up, and it cannot be re-broken by the next element that happens
+            to animate. `max-sm:` only - above `sm` the bar is a drag handle and the chevron is real. */}
+        <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 max-sm:pointer-events-none sm:flex">
           {/* `text-title` (18px) FROM `sm`, `text-body-lg` (16px) BELOW IT. The pair is the loudest
               thing on the phone after the hero and it repeats once per group, so at 18px four card
               headings set the volume of the whole scroll. At 16 they still out-rank every row - the
