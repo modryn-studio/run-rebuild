@@ -321,8 +321,14 @@ function Row({
 
           {/* A FLOOR, NOT A WIDTH (v2, measured). Right-aligned figures share a right edge and rag on
             the left, so a $54 row and a $15,030.01 row start 60px apart and anything beside them
-            steps in and out down the column. A bigger number pushes past this rather than clipping. */}
-          <span className="min-w-27 text-right">
+            steps in and out down the column. A bigger number pushes past this rather than clipping.
+            80px ON A PHONE (2026-08-27). 108 is v2's desktop measure and it was being spent on air:
+            measured at 412px, the widest figure this roster prints is "-$3,774.86" at ~84px, while
+            four of eight account NAMES truncated - the worst needing 130px against 104 available.
+            The floor was 24px wider than its own content on a screen where the name had none.
+            IT IS STILL A FLOOR, so a five-figure loss pushes past it and costs that ONE row's name a
+            few pixels rather than clipping the number. */}
+          <span className="min-w-27 max-sm:min-w-20 text-right">
             <p className="text-body-lg max-sm:text-body text-text font-medium tabular-nums">
               {signed(a.netCents)}
             </p>
