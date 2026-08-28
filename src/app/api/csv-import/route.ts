@@ -23,6 +23,9 @@ import { sendNotification, notifyHtml, alertSubject } from '@/lib/notify';
 import { track } from '@/lib/track';
 import type { ParsedFill } from '@/lib/csv/fills';
 
+/** The one shape an account id can take. A hand-typed `adoptAccountId` must not reach SQL. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const log = createRouteLogger('csv-import');
 
 /* A batch can be months of tape: five files, thousands of rows each, chunked inserts. Past
@@ -66,6 +69,17 @@ export async function POST(req: Request): Promise<Response> {
     if (files.length === 0) {
       return log.end(ctx, Response.json({ error: 'No file provided' }, { status: 400 }));
     }
+
+    /* WHICH ACCOUNT THIS IMPORT WAS LAUNCHED FROM, when it was launched from one. This is the
+       trader asserting that the file belongs to THAT row, and it is the only thing that lets a
+       hand-added `pending:` account meet its real fills — see the adoption path in
+       `lib/intake/accounts.ts`. Absent for an import started from the header, which is the normal
+       case and the one that must never adopt anything.
+       VALIDATED AS A uuid HERE, and then re-checked against the trader in the UPDATE itself: a
+       string off the wire is never trusted twice, and the four conditions live in one place. */
+    const rawAdopt = form?.get('adoptAccountId');
+    const adoptAccountId =
+      typeof rawAdopt === 'string' && UUID_RE.test(rawAdopt) ? rawAdopt : null;
 
     /* IDENTITY FROM THE SESSION, NEVER FROM THE REQUEST. There is no trader id in the form above
        and that absence is the point — the record is somebody's trading history. */
@@ -162,7 +176,10 @@ export async function POST(req: Request): Promise<Response> {
              Filing five accounts' rows under one would make a single 1-lot position read as a
              5-lot, in an append-only log, silently. A refusal costs the trader a re-export; the
              alternative costs them every figure derived from position size. */
-          const accountIds = await resolveAccountsFor(fills, { traderId: importedTrader });
+          const accountIds = await resolveAccountsFor(fills, {
+            traderId: importedTrader,
+            adoptAccountId,
+          });
           if (accountIds.size > 1) {
             refuse(`These files cover ${accountIds.size} accounts. Export one account at a time.`, [
               {

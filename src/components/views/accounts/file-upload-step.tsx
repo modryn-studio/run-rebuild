@@ -68,8 +68,11 @@ export function FileUploadStep({
   files,
   setFiles,
   dryRun = false,
+  adoptAccountId,
 }: {
   source: Source;
+  /** Handed straight to `useImportRun`. See its own note — this is what makes adoption possible. */
+  adoptAccountId?: string;
   onBack: () => void;
   onClose: () => void;
   onDone: () => void;
@@ -84,7 +87,7 @@ export function FileUploadStep({
   const [howOpen, setHowOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const run = useImportRun({ dryRun });
+  const run = useImportRun({ dryRun, adoptAccountId });
   /* Set once the whole run resolves, and this is what gates the handoff rather than the phase.
      A trader might tab away while an import runs; auto-advancing on a timer means if they are not
      looking at that exact instant they miss the one moment that proves the upload landed. Holding

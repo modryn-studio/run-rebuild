@@ -14,11 +14,13 @@
  * NO SEARCH FIELD, which is the one piece of the standard shape this drops. One rail, one source: a
  * search over a list of one is a control that exists to look busy. It arrives with the second rail.
  *
- * "ADD MANUALLY" IS NOT HERE YET (Luke, 2026-08-15: "two upload doors first, manual-add as its own
- * slice"). In v2 it is a bottom button rather than a third card, because it is not the same KIND of
- * thing as the two above: those get fills IN, that one creates an account with no fills yet, for the
- * trader who bought an evaluation this morning. When it lands it also brings back `pending:<uuid>`
- * account names and therefore the adoption path `resolveAccount` currently omits on purpose.
+ * "ADD MANUALLY" LANDED 2026-08-28 (`D5`), and it is a BOTTOM BUTTON rather than a third card,
+ * because it is not the same KIND of thing as the two above: those get fills IN, this one creates an
+ * account with no fills yet, for the trader who bought an evaluation this morning. Ranking it as a
+ * peer of the two intakes would say the three are alternatives, and they are not — it is what you do
+ * when neither intake has anything to work with.
+ * It brings `pending:<uuid>` account names with it, and therefore the ADOPTION PATH that
+ * `resolveAccount` deliberately omitted until there was a caller for it.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -26,6 +28,7 @@ import { useRouter } from 'next/navigation';
 import { ModalShell, ModalBody } from './modal-shell';
 import { ModalHeader, type Source } from './shared';
 import { FileUploadStep, type Picked } from './file-upload-step';
+import { ManualAccountForm } from './manual-account-form';
 import { Icon } from '@/components/ui/icon';
 import { cn } from '@/lib/cn';
 import { slotSurface } from '@/components/ui/card';
@@ -33,7 +36,7 @@ import { slotSurface } from '@/components/ui/card';
 /* The one live rail. Named "Tradovate", NOT "Tradovate Prop" (`widening-plan.md` §5.1): a trader
  * with a personal account reads "Prop" as "not for me" and leaves, and prop traders are on Tradovate
  * either way, so the shorter name loses nothing and stops turning people away. */
-const TRADOVATE: Source = {
+export const TRADOVATE: Source = {
   name: 'Tradovate',
   logoLight: '/brokers/tradovate-prop-light.png',
   logoDark: '/brokers/tradovate-prop-dark.png',
@@ -45,7 +48,7 @@ const TRADOVATE: Source = {
  * cannot half-land: flip this and the Brokers row becomes clickable and drops its "Soon" chip. */
 const TRADOVATE_CONNECT_LIVE = false;
 
-type View = 'doors' | 'upload';
+type View = 'doors' | 'upload' | 'manual';
 
 export function AddAccountModal({
   onClose,
@@ -121,6 +124,13 @@ export function AddAccountModal({
           files={files}
           setFiles={setFiles}
         />
+      ) : view === 'manual' ? (
+        <ManualAccountForm
+          onBack={() => setView('doors')}
+          onClose={close}
+          onCreated={done}
+          onBusyChange={setBusy}
+        />
       ) : (
         <>
           {/* The first screen had NO close control at all in v2 until 2026-07-30 — only Escape and a
@@ -135,6 +145,15 @@ export function AddAccountModal({
               desc="Import from CSV"
               onClick={() => setView('upload')}
             />
+            {/* THE THIRD DOOR, AND IT IS NOT A DOOR. A plain link under the two cards rather than a
+                third one beside them: the cards are ways to get a RECORD in, and this is what you do
+                when there is no record yet. Ranking it as their peer would say the three are
+                alternatives for one job. v2 puts it in the same place for the same reason. */}
+            <div className="mt-5 text-center">
+              <button type="button" onClick={() => setView('manual')} className="text-link hit-44">
+                Add manually
+              </button>
+            </div>
           </ModalBody>
         </>
       )}

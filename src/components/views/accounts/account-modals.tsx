@@ -18,9 +18,10 @@
  * trustworthy, because an import launched from a specific account's own page carries the context
  * that the file belongs to it rather than inferring it.
  *
- * It is deliberately NOT declared here yet. There is no per-account page to launch it from until
- * `S6d`, and an opener nothing can call is the same mistake as an inert button: it teaches the next
- * reader that this API has a working path it does not have. It arrives with its call site.
+ * `importTrades(accountId)` ARRIVED 2026-08-28 WITH ITS CALL SITE, which is the rule this comment
+ * was stating: an opener nothing can call is the same mistake as an inert button. `S6d` built the
+ * per-account page, `D5` built the hand-add flow that creates `pending:` rows, and this is the
+ * opener that lets one meet its own fills.
  *
  * `label(account)` ARRIVED WITH ITS OWN CALL SITE (`S6d` C3, 2026-08-27) - the detail page's Edit
  * button - which is the same rule stated the other way round. It is the first opener here that
@@ -30,14 +31,24 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { AddAccountModal } from './add-account-modal';
 import { LabelAccountModal } from './label-account-modal';
+import { ImportTradesModal } from './import-trades-modal';
+import { TRADOVATE } from './add-account-modal';
 import type { RosterAccount } from '@/lib/accounts/read';
 
 type Openers = {
   add: () => void;
   label: (account: RosterAccount) => void;
+  /* IMPORT INTO ONE ACCOUNT, as distinct from `add`. See `import-trades-modal.tsx`: `add` asks
+     which account to create, which is a question with no meaning when the trader is standing on
+     one. */
+  importTrades: (accountId: string) => void;
 };
 
-const AccountModals = createContext<Openers>({ add: () => {}, label: () => {} });
+const AccountModals = createContext<Openers>({
+  add: () => {},
+  label: () => {},
+  importTrades: () => {},
+});
 
 export function useAddAccount() {
   return useContext(AccountModals).add;
@@ -46,6 +57,11 @@ export function useAddAccount() {
 /** Opens the label editor on one account. See `LabelAccountForm`. */
 export function useLabelAccount() {
   return useContext(AccountModals).label;
+}
+
+/** Opens the upload step already scoped to one account. See `ImportTradesModal`. */
+export function useImportTrades() {
+  return useContext(AccountModals).importTrades;
 }
 
 export function AccountModalsProvider({
@@ -66,8 +82,14 @@ export function AccountModalsProvider({
   const [adding, setAdding] = useState(false);
   const [labelling, setLabelling] = useState<RosterAccount | null>(null);
 
+  const [importingInto, setImportingInto] = useState<string | null>(null);
+
   const label = useCallback((a: RosterAccount) => setLabelling(a), []);
-  const openers = useMemo<Openers>(() => ({ add: () => setAdding(true), label }), [label]);
+  const importTrades = useCallback((id: string) => setImportingInto(id), []);
+  const openers = useMemo<Openers>(
+    () => ({ add: () => setAdding(true), label, importTrades }),
+    [label, importTrades]
+  );
 
   const siblingCount = labelling && siblingsFor ? siblingsFor(labelling) : 0;
 
@@ -78,6 +100,13 @@ export function AccountModalsProvider({
     <AccountModals.Provider value={openers}>
       {children}
       {adding && <AddAccountModal onClose={() => setAdding(false)} connected={connectedBrokers} />}
+      {importingInto && (
+        <ImportTradesModal
+          accountId={importingInto}
+          source={TRADOVATE}
+          onClose={() => setImportingInto(null)}
+        />
+      )}
       {labelling && (
         <LabelAccountModal
           account={labelling}

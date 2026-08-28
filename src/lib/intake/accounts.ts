@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, like } from 'drizzle-orm';
 import { db, account } from '@/lib/db';
 import { knownFirmForAccount } from '@/lib/prop-firms';
 import type { ACCOUNT_TYPES } from '@/lib/db';
@@ -72,6 +72,10 @@ export interface ResolveAccountArgs {
   firmSource?: 'stated' | 'detected' | null;
   /** Defaults to the account name. An override, never a requirement. */
   displayName?: string;
+  /* THE ROW THE TRADER WAS STANDING ON when they started this import, and the whole basis of the
+     adoption path below. Undefined for an import launched from anywhere else, which is the normal
+     case and the one that must never adopt anything. */
+  adoptAccountId?: string | null;
 }
 
 /**
@@ -88,12 +92,12 @@ export interface ResolveAccountArgs {
  * row the winner created. Handling this by catching the constraint error would work too and would
  * be harder to read six months from now.
  *
- * NO ADOPTION PATH, and that is a deliberate omission rather than a gap. The previous build let an
- * import claim a hand-added `pending:<uuid>` placeholder, under four conditions, because that
- * build had a "add an account by hand, import into it later" flow. This one does not: the account
- * is created BY the import (`wireframes.md` §2). Porting the adoption logic now would be a
- * mechanism with no caller, guarding a mistake nobody can currently make. If a hand-add flow ever
- * lands, that code is worth re-reading first — its four conditions are all earned.
+ * THE ADOPTION PATH ARRIVED WITH ITS CALLER (`D5`, 2026-08-28). This comment used to say the
+ * omission was deliberate: the previous build let an import claim a hand-added `pending:<uuid>`
+ * placeholder, and porting that here would have been "a mechanism with no caller, guarding a
+ * mistake nobody can currently make". It ended by saying that if a hand-add flow ever landed, the
+ * four conditions were all earned and worth re-reading first. That is exactly what happened, and
+ * they were. See `adoptAccountId` below.
  */
 export async function resolveAccount(args: ResolveAccountArgs): Promise<string> {
   const platform = args.platform ?? 'tradovate';
@@ -124,6 +128,54 @@ export async function resolveAccount(args: ResolveAccountArgs): Promise<string> 
         .where(and(eq(account.id, existing.id), isNull(account.propFirm)));
     }
     return existing.id;
+  }
+
+  /* NOBODY OWNS THIS NAME YET. Before minting a row, see whether the trader was standing on an
+   * account waiting for exactly this.
+   *
+   * A hand-added account carries `pending:<uuid>` because the trader cannot know the Tradovate name
+   * at the time they create it. Nothing inside a CSV points back at that row, so without this the
+   * import inserts a SECOND account and leaves the hand-made one empty forever — the trader having
+   * created the row precisely so it would fill.
+   *
+   * THE MISSING LINK IS THE TRADER THEMSELVES. An import launched from an account's own page is an
+   * assertion that the file belongs to THAT account. That is a far better signal than any inference
+   * the server could draw from firm and size, which is what makes this unsafe to guess: two
+   * hand-added "TradeDay 100K" rows are indistinguishable from here, and picking wrong is permanent
+   * in an append-only log.
+   *
+   * FOUR CONDITIONS, ALL REQUIRED, because a wrong adoption cannot be undone:
+   *   - the caller passed an account (the import began on its page)
+   *   - it belongs to THIS trader (never trust an id off the wire)
+   *   - it is still a placeholder (a row with a real Tradovate name is a different account, and
+   *     merging two real accounts is the one outcome worse than a duplicate)
+   *   - the same platform, so an import cannot land on a row created for another broker
+   *
+   * WHAT IT DELIBERATELY DOES NOT CHECK is whether the prop firm the trader typed agrees with the
+   * account name's prefix — a row labelled "Tradeify 50K" adopting an `ELTDENF` (TradeDay) name.
+   * That guard was written and then removed in v2 on Luke's pushback (2026-08-03), and he is right
+   * twice over: the trader chose the manual route and can fix the label with Edit, and the prefix
+   * table is only as good as the handful of prefixes anyone has confirmed — "we can't really assume
+   * that the tradeday export is really a tradeday export". Refusing would trade a fixable label for
+   * a duplicate account, which is the worse of the two.
+   *
+   * THE `like 'pending:%'` IS IN THE UPDATE, not just in a prior read, so two files racing inside
+   * one batch cannot both adopt: the first flips the row to the real name and the second finds
+   * nothing to claim and falls through to the insert. */
+  if (args.adoptAccountId) {
+    const [claimed] = await db
+      .update(account)
+      .set({ externalAccountId })
+      .where(
+        and(
+          eq(account.id, args.adoptAccountId),
+          eq(account.traderId, traderId),
+          eq(account.platform, platform),
+          like(account.externalAccountId, 'pending:%')
+        )
+      )
+      .returning({ id: account.id });
+    if (claimed) return claimed.id;
   }
 
   const [created] = await db
@@ -177,6 +229,11 @@ export async function resolveAccount(args: ResolveAccountArgs): Promise<string> 
  * asks a one-tap question later instead of asserting something false about somebody's money.
  *
  * A CALLER-SUPPLIED `propFirm` STILL WINS, because that one came from the trader.
+ *
+ * `adoptAccountId` RIDES THROUGH UNCHANGED, and it is safe to hand to every group because the
+ * import route already refuses a batch naming more than one account ("These files cover N accounts.
+ * Export one account at a time."). So there is exactly one group here, and the `pending:%` guard in
+ * the UPDATE means a second one could only ever find nothing to claim anyway.
  */
 export async function resolveAccountsFor<T extends { accountName: string | null }>(
   rows: T[],

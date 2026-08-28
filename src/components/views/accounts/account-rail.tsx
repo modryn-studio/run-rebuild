@@ -32,6 +32,7 @@
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { StatusChip } from './roster-card';
+import { ImportIntoAccount } from './import-into-account';
 import { fmtMoney } from '@/lib/format';
 import { displayDayRange, displayDayShort } from '@/lib/time/session';
 import {
@@ -227,6 +228,20 @@ export function AccountRail({
             ) : (
               <span className="text-muted">Never</span>
             )}
+          </Line>
+          {/* THE ROW THAT STATES THE GAP IS THE ROW THAT OFFERS TO CLOSE IT. An account with no
+              import is usually one the trader added by hand this morning, and its whole purpose is
+              to fill — so the offer belongs here, directly under the "Never" that says it has not.
+              It stays available afterwards, worded differently, because a second export is the
+              normal way a tape grows.
+              THIS IS ALSO WHAT MAKES THE ADOPTION PATH TRUSTWORTHY: an import launched from THIS
+              account's page is the trader asserting the file belongs to this row, which is the one
+              signal that can rename a `pending:` placeholder. See `import-trades-modal.tsx`. */}
+          <Line label={provenance.lastImportAt ? 'Add more' : 'Get started'}>
+            <ImportIntoAccount
+              accountId={account.id}
+              label={provenance.lastImportAt ? 'Import trades' : 'Import your first file'}
+            />
           </Line>
           {/* HOW MANY FILES THIS ACCOUNT IS BUILT FROM. One line of provenance v2 leaves implicit,
               and cheap here because the count rides on the same row the stamp does. Absent at zero,

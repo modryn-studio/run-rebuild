@@ -111,6 +111,87 @@ const bodySchema = z.object({
   excludedFromTotals: z.boolean().optional(),
 });
 
+/* CREATE AN ACCOUNT THE TRADER NAMES THEMSELVES, before any fills exist (`D5`, 2026-08-28).
+ *
+ * WHY THIS DOOR EXISTS, given two intakes already do. Both of those work BACKWARDS from data that
+ * has already happened. A trader who bought an evaluation this morning has no fills to import, and
+ * telling them to come back after they have traded gets the order exactly wrong: the account row is
+ * where their loss line will live, and the whole ritual is to arm that line WHILE CALM, before the
+ * first trade rather than after the bad one.
+ *
+ * WHAT IT DELIBERATELY DOES NOT ASK FOR is the Tradovate account name. That name is part of the
+ * natural key `(trader, platform, external_account_id)`, so an account created here has no real key
+ * yet and is written with a `pending:` placeholder. When an import later brings in a real account
+ * name, the ADOPTION PATH in `lib/intake/accounts.ts` offers this row as the match. Asking a trader
+ * to go copy `FTDFYL100183704873` out of Tradovate into a form is exactly the journaling chore this
+ * product exists to end.
+ *
+ * ONE ROW PER CALL, and the client loops for a quantity. A copy-trader buys the same SKU several
+ * times, and each row needs its own `pending:` uuid — the placeholder has to be unique per row or
+ * two unlabelled evaluations from one firm collide on the identity index. Batching them server-side
+ * would mean one failure taking the whole set with it.
+ */
+const createSchema = z.object({
+  propFirm: z.string().trim().min(1).max(MAX_FIRM_LEN),
+  accountType: z.enum(ACCOUNT_TYPES),
+  sizeDollars: z
+    .number()
+    .refine((n) => (ACCOUNT_SIZES as readonly number[]).includes(n), 'Not an offered size')
+    .nullable()
+    .optional(),
+});
+
+export async function POST(req: Request): Promise<Response> {
+  const ctx = log.begin();
+  try {
+    const parsed = createSchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return log.end(ctx, Response.json({ error: 'Invalid request' }, { status: 400 }));
+    }
+
+    const trader = await getTrader();
+    if (!trader) {
+      return log.end(ctx, Response.json({ error: 'Not signed in' }, { status: 401 }));
+    }
+
+    const { propFirm, accountType, sizeDollars } = parsed.data;
+
+    /* SIZE IS REQUIRED FOR THE TWO PROP TYPES AND REFUSED FOR PERSONAL. A personal account has no
+       firm-set size — it is whatever the trader deposited — and a prop account's size is the
+       denominator of every percentage the product will ever show for it, so a missing one is not a
+       blank field, it is a figure that would be wrong later. */
+    if (accountType !== 'personal' && sizeDollars == null) {
+      return log.end(ctx, Response.json({ error: 'Pick an account size' }, { status: 400 }));
+    }
+
+    /* THE PLACEHOLDER KEY, UNIQUE PER ROW. Two unlabelled evaluations from one firm would otherwise
+       collide on `account_identity_uq` — and a trader farming five Apex 50Ks is the normal case,
+       not an edge one. `pending:` is the marker the adoption path looks for, and
+       `isPlaceholderAccountName` is the one test for it. */
+    const externalAccountId = `pending:${crypto.randomUUID()}`;
+
+    const [created] = await db
+      .insert(account)
+      .values({
+        traderId: trader.id,
+        platform: 'tradovate',
+        externalAccountId,
+        propFirm,
+        /* `stated`, ALWAYS. The trader typed this; there is no prefix to have recalled it from,
+           since there is no account name yet. */
+        firmSource: 'stated',
+        accountType,
+        sizeDollars: accountType === 'personal' ? null : sizeDollars,
+      })
+      .returning({ id: account.id });
+
+    return log.end(ctx, Response.json({ ok: true, id: created.id }, { status: 201 }));
+  } catch (err) {
+    log.err(ctx, err);
+    return log.end(ctx, Response.json({ error: 'Could not add the account' }, { status: 500 }));
+  }
+}
+
 export async function PATCH(req: Request): Promise<Response> {
   const ctx = log.begin();
   try {

@@ -148,7 +148,14 @@ const beatFor = (rows: number) =>
  * reviewing: file staging, header detection, the step list, the beat, and every layout decision.
  * Only the request is suppressed.
  */
-export function useImportRun(options?: { dryRun?: boolean }): Run {
+export function useImportRun(options?: {
+  dryRun?: boolean;
+  /* THE ACCOUNT THIS IMPORT WAS LAUNCHED FROM, when it was launched from one. It reaches the route
+     as a form field and is the trader's assertion that the file belongs to THAT row — the only
+     signal that lets a hand-added `pending:` account meet its real fills. See the adoption path in
+     `lib/intake/accounts.ts`. Undefined for the global Add-account flow, which must never adopt. */
+  adoptAccountId?: string;
+}): Run {
   const [steps, setSteps] = useState<Step[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [findings, setFindings] = useState<PreflightFinding[]>([]);
@@ -253,6 +260,7 @@ export function useImportRun(options?: { dryRun?: boolean }): Run {
       try {
         const form = new FormData();
         for (const f of files) form.append('file', f);
+        if (options?.adoptAccountId) form.append('adoptAccountId', options.adoptAccountId);
 
         const res = await fetch('/api/csv-import', { method: 'POST', body: form });
 
