@@ -885,12 +885,28 @@
      is not the default: applied to some panes, forgotten on the rest. Caught exactly that way -
      `/kitchen-sink`'s main pane shipped bare `overflow-y-auto` and painted the platform's grey
      slab beside a tape that uses the thin one.
-     THE THUMB IS `muted`, NOT `border`. Measured: `border` sits around 1.2:1 against the page in
-     light and 1.4:1 in dark, which does not render a skinny thumb so much as delete it. `muted` is
-     findable in both modes, which is the entire job of a scrollbar. */
+     THE THUMB IS `border`, WHICH IS v2'S VALUE, PORTED BACK (2026-08-27, Luke: "copy/port the scroll
+     bar from run-trading@v2... the main content, the filter menu, the modal, etc").
+
+     THIS REVERSES A DECISION THIS FILE MADE ON 2026-08-20, and the reversal is deliberate rather
+     than a forgotten note. That change moved the thumb to `muted` on a contrast argument: `border`
+     measures 1.20:1 against the page in light and 1.55:1 in dark, where `muted` is 5.17:1 and
+     7.06:1. By the numbers `muted` is obviously more findable.
+
+     The numbers were answering the wrong question. A scrollbar is not content and it is not a
+     control - it is a POSITION INDICATOR on a surface whose whole register is "content on paper
+     with nothing framing it". At 5:1 a permanent vertical rule sits beside every long pane at the
+     weight of body text, which is a page-height line of chrome the reader never asked for. v2 chose
+     the whisper, Luke has been reading both side by side, and the side-by-side is the test that
+     matters for a thing whose job is to be available rather than legible.
+
+     WHAT IS NOT REVERSED: the `*` selector. v2 opts in per pane with a `.scroll-thin` class, which
+     is the arrangement that let `/kitchen-sink`'s main pane ship a platform grey slab beside a tape
+     using the thin one. "Everything" is the ask, and a universal rule is how it stays true for the
+     next pane nobody remembers to opt in. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-muted) transparent;
+    scrollbar-color: var(--color-border) transparent;
   }
 
   /* THE OTHER HALF OF `--text-meta`, and it has to live outside `@theme` because a theme block
@@ -1671,3 +1687,4 @@ input[type='search']::-webkit-search-decoration {
 /* Blinking cursor for streaming AI text (see modryn-hq@v3:playbooks/generative-ui.md). */
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 .cursor-blink { animation: blink 1s step-end infinite; }
+
