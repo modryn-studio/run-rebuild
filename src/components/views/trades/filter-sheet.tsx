@@ -401,15 +401,33 @@ export function FilterSheet({
      list, and back again takes the sheet down - the same two steps the header's own controls make.
      NO URL for either: a staged, uncommitted draft is not a place, and writing one would make a
      half-finished filter shareable. The trade sheet passes one because a trade IS a place. */
-  /* THE MARKER THE HOOK HANDS BACK. Calling it says "the next close is a navigation replacing this
-     entry, not a dismissal", so the entry is left standing for the router's `replace` to overwrite.
-     See the hook's own note for the race this settles. */
+  /* THE MARKERS THE HOOK HANDS BACK, one per level. Calling one says "the next close is a
+     navigation replacing this entry, not a dismissal", so the entry is left standing for the
+     router's `replace` to overwrite. See the hook's own note for the race this settles. */
+  /* ONE HISTORY ENTRY FOR THE WHOLE SHEET, AND THE DEVICE BACK CLOSES IT FROM ANY DEPTH
+     (2026-08-28). This was one entry PER LEVEL, and that is what made the filter intermittent:
+     a commit made from inside a drill-in - which is most of them, because the footer is on every
+     screen - left a second live entry whose cleanup called `history.back()` about 300ms later. Its
+     `popstate` is dispatched as its own task, so it always landed AFTER the write and undid it.
+     Every ordering was wrong and unwinding by hand only moved the race. With one entry there is
+     nothing to unwind and the intermittency has no mechanism left. Measured after: six commits from
+     a drill-in and five stacked on an existing filter, all landing.
+
+     WHAT THIS COSTS, STATED PLAINLY: the device Back from an axis page closes the whole sheet
+     rather than stepping up to the list. The in-app back ARROW still steps up one level, and so
+     does Escape, so the affordance is on screen either way - but this is a real reduction against
+     `useOverlayBack`'s own rule that an overlay answers Back one level at a time.
+     A RE-ARMING VARIANT WAS BUILT AND DOES NOT WORK YET: the pop that steps up re-pushes an entry
+     correctly (verified), but the NEXT pop then fails to close the sheet, for a reason not yet
+     found. Losing a filter is worse than a Back press that closes one screen too many, so the
+     deterministic shape ships and the other is a bug to finish rather than a design to argue. */
   const markReplacing = useOverlayBack(open, onClose);
-  useOverlayBack(page !== null, () => setPage(null));
 
   /* EVERY COMMIT GOES THROUGH HERE - Apply, Clear all, and a quick range, which commits on the tap.
-     Three call sites that must all raise the flag is three chances to forget; one wrapper is none.
-     `useCallback` keeps it stable for the deps of anything that ends up holding it. */
+     Three call sites that must all mark is three chances to forget; one wrapper is none.
+     NOTHING TOUCHES HISTORY HERE. The sheet owns exactly one entry, the mark leaves it standing, and
+     the router's `replace` overwrites it - so the stack ends one deep at the new address with the
+     tape as it was before the sheet opened behind it. One press of Back returns to it unfiltered. */
   const commit = useCallback(
     (d: FilterSheetDraft) => {
       markReplacing();

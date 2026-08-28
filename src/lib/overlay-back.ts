@@ -46,9 +46,35 @@ import { useCallback, useEffect, useRef } from 'react';
 const TOKEN = 'runOverlay';
 let counter = 0;
 
+/* WHICH OVERLAY ENTRIES ARE LIVE, INNERMOST LAST — and it is a module array rather than a read of
+ * `history.state` because that read is not trustworthy (2026-08-28).
+ *
+ * The original design decided "who answers this pop" by comparing our token to the token on the
+ * entry we LANDED on. That works only if no other entry can be carrying our token, and Next's router
+ * COPIES the existing history state forward when it pushes or replaces - so the entry underneath
+ * could end up wearing the same number, the comparison read `token <= landed`, and the overlay
+ * silently declined to answer. It is the same state-copying that made the filter's commit revert.
+ * Both bugs looked intermittent because whether the copy had happened depended on what the router
+ * had done since.
+ *
+ * An array we own cannot be copied by anybody. It is module-level for the same reason `counter` is:
+ * the ordering is between SEPARATE component instances, which have no other place to meet. */
+const live: number[] = [];
+const drop = (t: number) => {
+  const i = live.indexOf(t);
+  if (i !== -1) live.splice(i, 1);
+};
+
 export function useOverlayBack(
   open: boolean,
-  onClose: () => void,
+  /* RETURN `true` TO RE-ARM: "I consumed a level and the overlay is still up, give me another
+   * entry" (2026-08-28). A surface with screens INSIDE it - the filter sheet's axis pages - used to
+   * register once per level, which meant two live entries and a commit that had to unwind one of
+   * them before it could write. It never reliably could: `history.back()` dispatches its `popstate`
+   * as a separate task, so a write issued in the same task was undone by it, and whether that
+   * happened depended on timing. The filter came back "sometimes".
+   * One entry, re-armed on the way out, removes the race rather than sequencing it. */
+  onClose: () => void | boolean,
   /** A URL to show while the overlay is up. Omit to keep the current one. The trade sheet passes
    *  `/trades/<id>` so the screen is shareable and survives a reload; Filters passes nothing,
    *  because a staged, uncommitted filter draft is not a place. */
@@ -78,7 +104,7 @@ export function useOverlayBack(
   /* THE CALLBACK IS READ, NOT OBSERVED. `onClose` is almost always an inline arrow, so a fresh
      identity every render - in the deps it would tear the listener down and push a SECOND history
      entry on every re-render of the parent. A ref keeps the effect keyed to `open` alone. */
-  const latest = useRef(onClose);
+  const latest = useRef<() => void | boolean>(onClose);
   useEffect(() => {
     latest.current = onClose;
   }, [onClose]);
@@ -94,7 +120,8 @@ export function useOverlayBack(
 
     /* LOWERED ON EVERY OPEN, because the next dismissal is far more likely to be an ordinary one. */
     replacing.current = false;
-    const token = ++counter;
+    let token = ++counter;
+    live.push(token);
     window.history.pushState({ [TOKEN]: token }, '', url);
     ours.current = true;
     /* THE ADDRESS THIS ENTRY WAS PUSHED AT, so the cleanup can tell "the overlay closed" from "the
@@ -114,25 +141,30 @@ export function useOverlayBack(
          first test: one press of Back from the Date Range screen closed the drill-in AND the sheet
          under it. `popstate` is a WINDOW event, so every registered overlay hears every pop - two
          listeners, one press, both closing.
-         The tokens are monotonic, so they order the stack. `popstate` reports the entry we LANDED
-         on, so anything issued after it has just been discarded and anything issued before it is
-         still standing. `>` rather than `!==` for that reason: with three levels open, `!==` would
-         be true for the outermost as well and collapse the whole stack in one press.
-         Zero when we have landed somewhere with no overlay entry at all, which is the ordinary
-         case of the last overlay closing back onto the page. */
-      const landed = (window.history.state as Record<string, number> | null)?.[TOKEN] ?? 0;
-      if (token <= landed) return;
+         `live` IS THE ORDER, and it is ours. See its own note for why the entry's own state could
+         not be trusted to say the same thing. */
+      if (live[live.length - 1] !== token) return;
+      drop(token);
       /* THE FLAG GOES DOWN BEFORE `onClose` RUNS, not after. `onClose` flips the parent's state,
          which re-runs this effect and fires the cleanup below in the same commit - and a cleanup
          that still saw `ours.current === true` would call `back()` for an entry the OS has already
          popped, sending the trader a screen further back than they asked to go. */
       ours.current = false;
-      latest.current();
+      /* RE-ARMED IN THE POP ITSELF, which is where it has to happen: the effect will not re-run,
+         because `open` has not changed - the overlay is still up, it is just one screen shallower. */
+      if (latest.current() === true) {
+        token = ++counter;
+        live.push(token);
+        window.history.pushState({ [TOKEN]: token }, '', url);
+        ours.current = true;
+      }
     };
+
     window.addEventListener('popstate', onPop);
 
     return () => {
       window.removeEventListener('popstate', onPop);
+      drop(token);
       /* THE APP IS NAVIGATING, so this entry is not ours to take back - the `replace` is overwriting
          it. Consuming it here is what reverted the very write that closed us. */
       if (replacing.current) {
@@ -143,11 +175,11 @@ export function useOverlayBack(
          a failure they prevent. `ours.current` means popstate did not already take it. The state
          check means our entry is still the CURRENT one - if the trader left via a link instead,
          ours is buried and `back()` would undo their navigation rather than our overlay. */
-      if (
-        ours.current &&
-        (window.history.state as Record<string, unknown> | null)?.[TOKEN] === token &&
-        window.location.href === pushedHref
-      ) {
+      /* `ours.current` means popstate did not already take it. The ADDRESS check means the app has
+         not navigated since - if the trader left via a link instead, ours is buried and `back()`
+         would undo their navigation rather than our overlay. The entry's own state is deliberately
+         NOT consulted: Next copies it forward, so it can say yes when the answer is no. */
+      if (ours.current && window.location.href === pushedHref) {
         ours.current = false;
         window.history.back();
       }

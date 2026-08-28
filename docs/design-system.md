@@ -681,6 +681,21 @@ pane, sheet, drawer and menu. Both syntaxes (`scrollbar-width` and `::-webkit-sc
 override lives at the END of `globals.css` because the `thin` declaration it beats is also on `*` and
 source order is what decides. Scrolling is untouched; only the indicator is.
 
+**An overlay owns ONE history entry, however many screens it has inside it.** One per level is what
+made the filter apply "sometimes": a commit from inside a drill-in left a second live entry whose
+cleanup called `history.back()` ~300ms later, and a `popstate` is dispatched as its own task, so it
+always landed after the write and undid it. No ordering fixes that; unwinding by hand only moves it.
+*Known cost:* the device Back from an axis page closes the whole sheet rather than stepping up. The
+in-app back arrow and Escape still step up one level. A re-arming variant (the pop re-pushes an
+entry) steps up correctly but then fails to close on the next press — unfinished, not chosen.
+
+**`useOverlayBack` decides who answers a pop from a module array it owns, never from
+`history.state`.** Next's router copies existing history state forward on its own pushes and
+replaces, so a neighbouring entry can end up wearing our token — and the comparison then reads
+"somebody deeper is live" when nobody is. That single quirk is behind both this and the commit
+revert below, and both looked intermittent because whether the copy had happened depended on what
+the router had done since.
+
 **An overlay that COMMITS a navigation must say so — `useOverlayBack` returns a marker for it.**
 The filter sheet writes the URL and closes in one gesture, and inside a React commit every effect
 CLEANUP runs first: the hook's `history.back()` went before the router's write, and the popstate
