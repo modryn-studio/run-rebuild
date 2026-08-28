@@ -1,9 +1,9 @@
-import { and, eq, like, ne } from 'drizzle-orm';
+import { and, eq, like, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { createRouteLogger } from '@/lib/route-logger';
 import { getTrader } from '@/lib/trader';
 import { db } from '@/lib/db';
-import { account, ACCOUNT_TYPES } from '@/lib/db/schema';
+import { account, importBatch, trade, ACCOUNT_TYPES, ACCOUNT_STATUSES } from '@/lib/db/schema';
 import { ACCOUNT_SIZES } from '@/lib/prop-firms';
 
 /* LABEL AN ACCOUNT THAT ALREADY EXISTS — the three questions Tradovate cannot answer (`S6d` C3).
@@ -31,7 +31,6 @@ import { ACCOUNT_SIZES } from '@/lib/prop-firms';
  *
  * ─── WHAT IS DELIBERATELY NOT HERE (Luke, 2026-08-27) ──────────────────────────────────────────
  * No `dailyLine`: the column is cut (`s6-plan.md` D2).
- * No `status` / `closedOn`: closing an account is its own flow with its own confirmation.
  * No `hidden` / `excludedFromTotals`: the roster owns those.
  * No `displayName`: there is no free-text rename. The title is derived from firm + size + last 4,
  *   and a typed name competing with it on every roster row is new design rather than a port.
@@ -68,6 +67,24 @@ const bodySchema = z.object({
     .nullable()
     .optional(),
   productName: z.string().trim().max(MAX_PRODUCT_LEN).optional(),
+  /* CLOSING IS A STATUS CHANGE, NOT A DELETION: the tape stays, the row stops being live. It comes
+     through this route rather than one of its own because it is the same object being edited, and
+     the moment of intent lives in the confirmation UI rather than in a second endpoint.
+     `status` AND `accountType` TRAVEL TOGETHER, and the schema is what forces it. The CHECK
+     constraint pairs them: an evaluation may be passed or failed, a sim-funded account may be
+     failed or closed, a personal one may only close. So the close flow sends the type ON SCREEN
+     alongside the status - a trader who switched the type row to Evaluation and then closed is
+     looking at an evaluation, and writing `passed` against a row the database still calls personal
+     is exactly the incoherent pair the constraint would reject. */
+  status: z.enum(ACCOUNT_STATUSES).optional(),
+  /* A PLAIN CALENDAR DATE, and `null` is a real value - reopening sends it explicitly to clear the
+     old one. Validated here rather than parsed: there is no time and no zone to reason about, and a
+     bad string reaching Postgres would come back a 500 where it should be a 400. */
+  closedOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
   /* THE ONE THAT SAVES REAL WORK, and it is safe for a specific reason: each prop firm issues its
      own Tradovate login, and every account under it carries the same account-name prefix. So a
      prefix maps to exactly one firm, and a copy-trader importing eleven accounts across two firms
@@ -90,7 +107,8 @@ export async function PATCH(req: Request): Promise<Response> {
       return log.end(ctx, Response.json({ error: 'Not signed in' }, { status: 401 }));
     }
 
-    const { id, propFirm, accountType, sizeDollars, productName, applyFirmToPrefix } = parsed.data;
+    const { id, propFirm, accountType, sizeDollars, productName, applyFirmToPrefix, status, closedOn } =
+      parsed.data;
 
     const patch: Partial<typeof account.$inferInsert> = {};
     if (propFirm !== undefined) {
@@ -103,6 +121,8 @@ export async function PATCH(req: Request): Promise<Response> {
     if (accountType !== undefined) patch.accountType = accountType;
     if (sizeDollars !== undefined) patch.sizeDollars = sizeDollars;
     if (productName !== undefined) patch.productName = productName || null;
+    if (status !== undefined) patch.status = status;
+    if (closedOn !== undefined) patch.closedOn = closedOn;
 
     if (Object.keys(patch).length === 0) {
       return log.end(ctx, Response.json({ error: 'Nothing to update' }, { status: 400 }));
@@ -144,5 +164,94 @@ export async function PATCH(req: Request): Promise<Response> {
   } catch (err) {
     log.err(ctx, err);
     return log.end(ctx, Response.json({ error: 'Could not save the account' }, { status: 500 }));
+  }
+}
+
+
+/* DELETE AN ACCOUNT THAT NEVER HELD ANYTHING — and refuse every other one.
+ *
+ * WHY IT REFUSES RATHER THAN CASCADES. The whole claim of this product is that it keeps the tape,
+ * especially the blown-account sessions the broker erases within hours. A menu item that erases it
+ * is arguing against the thing being sold. The reference deletes everything - transactions,
+ * balances, the lot - and that is right for a ledger a human curates and wrong here.
+ *
+ * THE DATABASE ALREADY REFUSES IT UNDERNEATH THIS. `import.account_id` is NOT NULL and
+ * `event.account_id` is nullable, and NEITHER cascades - so a delete that would orphan a record
+ * fails on the foreign key. `trade.account_id` DOES cascade, and that is correct rather than an
+ * inconsistency: `trade` is a projection, rebuildable by replaying `event`, so it is not the record.
+ * This route checks first so the trader gets a sentence instead of a 500 from the driver.
+ *
+ * 409, NOT 403. The request is well-formed and the trader owns the row; what refuses it is the
+ * state of the thing. A 403 would say "not yours", which is both untrue and the one answer this
+ * codebase reserves for somebody else's data.
+ *
+ * THE REFUSAL POINTS AT SOMETHING THAT EXISTS. The first draft said "Hide it to take it off your
+ * list", copying v2 - and `hidden` has no control in this build yet, so the sentence would have sent
+ * a trader looking for a switch that is not there. That is the same false promise v2's own close
+ * copy made and had to fix. CLOSE is the real answer: it marks how the account ended and keeps every
+ * trade in the totals.
+ */
+export async function DELETE(req: Request): Promise<Response> {
+  const ctx = log.begin();
+  try {
+    const parsed = z
+      .object({ id: z.string().uuid() })
+      .safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return log.end(ctx, Response.json({ error: 'Invalid request' }, { status: 400 }));
+    }
+
+    const trader = await getTrader();
+    if (!trader) {
+      return log.end(ctx, Response.json({ error: 'Not signed in' }, { status: 401 }));
+    }
+
+    const { id } = parsed.data;
+
+    /* SCOPED IN THE `WHERE` LIKE EVERY OTHER READ HERE, so an id belonging to somebody else finds
+       nothing and answers 404 - the same answer an id that never existed gets. */
+    const [own] = await db
+      .select({ id: account.id })
+      .from(account)
+      .where(and(eq(account.id, id), eq(account.traderId, trader.id)));
+    if (!own) {
+      return log.end(ctx, Response.json({ error: 'Account not found' }, { status: 404 }));
+    }
+
+    /* COUNTED IN ONE ROUND TRIP. Both matter and neither alone is sufficient: an account can hold
+       a committed import whose rows all deduplicated to nothing, and it can hold trades from a
+       replay whose import row was never written. */
+    const [{ trades, imports }] = await db
+      .select({
+        trades: sql<number>`(select count(*) from ${trade} where ${trade.accountId} = ${id})`.mapWith(
+          Number
+        ),
+        imports:
+          sql<number>`(select count(*) from ${importBatch} where ${importBatch.accountId} = ${id})`.mapWith(
+            Number
+          ),
+      })
+      .from(account)
+      .where(eq(account.id, id));
+
+    if (trades > 0 || imports > 0) {
+      log.warn(ctx.reqId, 'delete refused: account holds a record', { trades, imports });
+      return log.end(
+        ctx,
+        Response.json(
+          {
+            error:
+              'This account holds imported trades, so it cannot be deleted. Close it instead to mark how it ended.',
+          },
+          { status: 409 }
+        )
+      );
+    }
+
+    await db.delete(account).where(and(eq(account.id, id), eq(account.traderId, trader.id)));
+    return log.end(ctx, Response.json({ ok: true }));
+  } catch (err) {
+    log.err(ctx, err);
+    return log.end(ctx, Response.json({ error: 'Could not delete the account' }, { status: 500 }));
   }
 }

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { AddSlot } from '@/components/ui/add-slot';
 import { Note, Row, Section } from '../_components/section';
 
-const VARIANTS = ['primary', 'secondary', 'ghost'] as const;
+const VARIANTS = ['primary', 'secondary', 'ghost', 'danger'] as const;
 const SIZES = ['sm', 'md', 'lg'] as const;
 
 export function ButtonsSection() {
@@ -110,6 +110,30 @@ export function ButtonsSection() {
           It was a raw <button> living inside `roster-card.tsx`, so nothing measured it against the
           buttons it sits near - which is how it kept `text-muted` long after `IconButton` had that
           same ink removed for being one tier down. */}
+      <Row label="Danger" note="the one destructive fill: Close account and Delete account, nowhere else">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="danger">Close account</Button>
+          <Button variant="danger" disabled>
+            Delete account
+          </Button>
+          <Button variant="danger" loading>
+            Deleting
+          </Button>
+        </div>
+        <Note>
+          A VARIANT rather than an inline style, which is what <code>run-trading@v2</code> used at
+          both call sites: two copies of a colour decision, neither measurable here and neither
+          following the accent&rsquo;s own hover and active grammar.
+        </Note>
+        <Note>
+          It borrows <code>primary</code>&rsquo;s shape exactly, because a destructive button is the
+          primary action OF ITS OWN SCREEN. Only the hue changes, which keeps &ldquo;this is the
+          commit&rdquo; and &ldquo;this one is different&rdquo; as two statements rather than one
+          loud one. The hue is <code>--color-neg</code>, the tape&rsquo;s own loss colour: a second
+          red would make a losing figure and a dangerous button argue about which is the warning.
+        </Note>
+      </Row>
+
       <Row label="Add slot" note="the dashed row that appends one more of whatever a list holds">
         <div className="max-w-md">
           <AddSlot>Add an account</AddSlot>

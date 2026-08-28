@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/cn';
 import { Spinner } from './spinner';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 // Uses the brand tokens defined in globals.css @theme:
@@ -47,6 +47,20 @@ const variantClasses: Record<ButtonVariant, string> = {
    * applies to it unchanged, and base does the same thing there (`disabled:bg-surface`). */
   primary:
     'bg-accent text-accent-fg hover:bg-accent-hover active:bg-accent-active active:shadow-[var(--shadow-press)] disabled:opacity-50',
+  /* THE ONE DESTRUCTIVE FILL (`S6e`, 2026-08-27). It exists for exactly two buttons - "Close
+     account" and "Delete account" - and it is a VARIANT rather than an inline style because
+     `run-trading@v2` wrote `style={{ background: 'var(--color-neg)' }}` at both call sites, which is
+     the one-off this system exists to refuse: two copies of a colour decision, neither of which
+     `/kitchen-sink` can measure and neither of which follows the accent's own hover/active grammar.
+     IT BORROWS `primary`'s SHAPE EXACTLY - same fill-with-no-border, same pressed inset, same faded
+     disabled - because a destructive button is the primary action OF ITS OWN SCREEN. What changes
+     is the hue and nothing else, which is what keeps "this is the commit" and "this one is
+     different" as two separate statements rather than one loud one.
+     `--color-neg` IS THE TAPE'S OWN LOSS COLOUR, not a new red: the product already means one thing
+     by it, and a second red for danger would make a losing figure and a dangerous button argue
+     about which one is the warning. */
+  danger:
+    'bg-neg text-accent-fg hover:brightness-95 active:brightness-90 active:shadow-[var(--shadow-press)] disabled:opacity-50',
   /* THE EDGE PAIR IS `border` -> `border-strong`, AND IT WENT AWAY FOR HALF A DAY (2026-08-14).
    * The border pass moved this to a 3:1 field edge on the reading that an interactive control owes
    * SC 1.4.11 3:1. It does not: 1.4.11 asks that of the visual information REQUIRED to identify a

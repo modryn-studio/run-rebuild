@@ -58,6 +58,29 @@ export function ModalHeader({
   );
 }
 
+/* THE HEADER OF A CONFIRMATION, which is a different object from `ModalHeader` above and not a
+ * variant of it. That one is a NAVIGATION bar: it carries a Back arrow, a centred title, and an X,
+ * because the screen under it is one step of a flow you can walk through. A confirmation is not a
+ * step - it interrupts, asks one question and hands control back - so it has nothing to go back TO,
+ * and its title is a question rather than a label.
+ *
+ * LEFT-ALIGNED, and that is the whole visual difference: a centred title reads as a place you have
+ * arrived at, a left-aligned one reads as a sentence addressed to you. The X stays, because Escape
+ * needs a visible twin.
+ */
+export function ConfirmHeader({ title, onCancel }: { title: string; onCancel: () => void }) {
+  return (
+    <div className="flex items-start justify-between gap-3 px-6 pt-5">
+      <h2 id={MODAL_TITLE_ID} className="text-title text-text font-medium">
+        {title}
+      </h2>
+      <IconButton onClick={onCancel} aria-label="Cancel">
+        <Icon name="close" size={14} />
+      </IconButton>
+    </div>
+  );
+}
+
 /* THE END OF AN IMPORT, and it is a screen rather than a silent close (Luke, 2026-08-03: "i do not
  * want to just close and go to the app"). An effect used to fire the handoff the instant the run
  * resolved, so the modal closed itself and the trader was returned to the roster having been told

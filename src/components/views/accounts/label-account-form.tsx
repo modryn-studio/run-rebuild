@@ -27,10 +27,10 @@
  * twice. Type and size stay per-account, because a trader farming five evaluations can have exactly
  * one promoted, and spreading that would be Run inventing a fact.
  *
- * ─── WHAT THIS DOES NOT DO, BY DECISION (Luke, 2026-08-27) ─────────────────────────────────────
- * No Close and no Delete. v2's editor ends with both, each opening a stacked confirmation, and they
- * carry most of its shipped bug list - delete fired on first click and then 404'd the page it stood
- * on. They are their own slice with their own attention.
+ * ─── CLOSE AND DELETE ARRIVED IN `S6e`, held back from C3 on purpose ───────────────────────────
+ * They carry most of v2's shipped bug list for this screen, so they got their own pass rather than
+ * riding in on the end of a large one. Both open a SECOND MODAL rather than a second screen - see
+ * `close-account-modal.tsx` for why that distinction is load-bearing.
  * No "Set the line": `daily_line_cents` is cut (`s6-plan.md` D2).
  * No free-text rename: the title is derived from firm + size + last 4, and a typed name competing
  * with it on every roster row is new design rather than a port.
@@ -44,11 +44,14 @@ import { slotSurface } from '@/components/ui/card';
 import { ModalHeader } from './shared';
 import { ModalBody, ModalFooter, ModalActions } from './modal-shell';
 import { FirmPicker } from './firm-picker';
+import { CloseAccountModal } from './close-account-modal';
+import { DeleteAccountModal } from './delete-account-modal';
 import { Field, TypeRows, SizeField } from './account-fields';
 import { AccountLogo } from './account-logo';
 import { cn } from '@/lib/cn';
 import {
   ACCOUNT_TYPE_LABELS,
+  accountRowTitle,
   accountPrefix,
   isPersonalFirm,
   isPlaceholderAccountName,
@@ -101,6 +104,8 @@ export function LabelAccountForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const savingRef = useRef(false);
+  const [confirmingClose, setConfirmingClose] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const isProp = type !== null && type !== 'personal';
 
@@ -288,6 +293,47 @@ export function LabelAccountForm({
                 />
               </>
             )}
+            {/* ─── ACTIONS, BELOW THE ANSWERS AND SEPARATED FROM THEM ─────────────────────────
+                Everything above this rule edits what the account IS. These two end it, and the rule
+                is what stops a mis-aimed tap: the fields are things you change and come back from,
+                these are not.
+                CLOSE IS OFFERED ONLY ON A LIVE ACCOUNT. `active` is the only status you can close
+                FROM, and the schema's CHECK is what settles which statuses an account of this type
+                may move to - see `close-account-modal.tsx`. An unlabelled account cannot close at
+                all, because a null type may only be `active`.
+                DELETE IS OFFERED ONLY AT ZERO TRADES. The route refuses anything else with a 409,
+                and the modal renders that refusal - but a button that is going to be refused should
+                not be the first thing a trader learns, so the normal path is simply not to show it.
+                A CLOSED ACCOUNT SHOWS NEITHER, and that is the honest gap rather than an oversight:
+                Reopen is real work with its own confirmation question, and shipping a Close button
+                that a closed account cannot use would be worse than shipping nothing. */}
+            {(account.status === 'active' || account.trades === 0) && (
+              <div className="border-rule mt-6 border-t pt-4">
+                <p className="text-body text-muted mb-2 font-medium">Actions</p>
+                <div className="flex flex-wrap gap-2">
+                  {account.status === 'active' && type !== null && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setConfirmingClose(true)}
+                      disabled={saving}
+                    >
+                      Close account
+                    </Button>
+                  )}
+                  {account.trades === 0 && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setConfirmingDelete(true)}
+                      disabled={saving}
+                    >
+                      Delete account
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
           </ModalBody>
 
           <ModalFooter>
@@ -304,6 +350,41 @@ export function LabelAccountForm({
             </ModalActions>
           </ModalFooter>
         </>
+      )}
+
+      {/* THE CONFIRMATIONS SIT OUTSIDE THE SCREEN SWITCH, so they can appear over ANY of them. They
+          are reached only from the editor today, and putting them inside that branch would tie a
+          modal's lifetime to which question is showing underneath it. */}
+      {confirmingClose && (
+        <CloseAccountModal
+          accountId={account.id}
+          accountType={type}
+          onCancel={() => setConfirmingClose(false)}
+          onClosed={() => {
+            setConfirmingClose(false);
+            /* THE SAME EXIT A SAVE TAKES. The write already happened, so `router.refresh()` and a
+               close is what makes the change appear to happen IN the page. Staging it would mean
+               Cancel could silently undo a decision the trader believes they made. */
+            router.refresh();
+            onSaved();
+          }}
+        />
+      )}
+
+      {confirmingDelete && (
+        <DeleteAccountModal
+          accountId={account.id}
+          title={accountRowTitle(account)}
+          onCancel={() => setConfirmingDelete(false)}
+          onDeleted={() => {
+            setConfirmingDelete(false);
+            /* THE SECOND HALF OF v2'S DELETE BUG. The row is gone, and on `/accounts/details` the
+               page IS that row - refreshing in place would re-render a 404 underneath a closing
+               modal. So this LEAVES, to the one place that is still true.
+               `replace`, not `push`: the deleted account's URL must not be one step of Back away. */
+            router.replace('/accounts');
+          }}
+        />
       )}
     </>
   );

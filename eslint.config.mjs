@@ -61,6 +61,11 @@ export default [
             // Both the standard property and the WebKit pseudo-element, or half the phones keep it.
             // globals.css, beside `.scroll-thin`.
             'scroll-none',
+            // The confirmation modals' entrance. `pop-in` grows from the TOP RIGHT, which is right
+            // for a panel hanging off a trigger in the header band; a confirmation has no trigger
+            // to grow out of - it arrives in the middle of the screen - so it grows from its own
+            // centre. Same 140ms and the same easing; one property differs. globals.css.
+            'pop-in-center',
             'wait-reveal',
             'hit-44',
             'eyebrow',
