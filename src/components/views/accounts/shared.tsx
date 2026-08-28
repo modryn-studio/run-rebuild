@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
 import { Icon } from '@/components/ui/icon';
-import { SheetHeader } from '@/components/ui/sheet-header';
+import { SheetHeader, SHEET_CONTROL_ICON } from '@/components/ui/sheet-header';
 import { SurfaceHeader, useSurface } from './surface';
 
 /** `ModalShell` labels its dialog by this id, so exactly one element per screen carries it — the
@@ -56,14 +56,14 @@ export function ModalHeader({
           lead={
             onBack && (
               <IconButton onClick={onBack} aria-label="Back">
-                <Icon name="back" size={22} />
+                <Icon name="back" size={SHEET_CONTROL_ICON} />
               </IconButton>
             )
           }
           trail={
             onClose && (
               <IconButton onClick={onClose} aria-label="Close">
-                <Icon name="close" size={22} />
+                <Icon name="close" size={SHEET_CONTROL_ICON} />
               </IconButton>
             )
           }
@@ -128,7 +128,7 @@ export function ConfirmHeader({ title, onCancel }: { title: string; onCancel: ()
           lead={null}
           trail={
             <IconButton onClick={onCancel} aria-label="Cancel">
-              <Icon name="close" size={22} />
+              <Icon name="close" size={SHEET_CONTROL_ICON} />
             </IconButton>
           }
         />
@@ -210,7 +210,7 @@ function CompleteHeader({ onDone }: { onDone: () => void }) {
           lead={null}
           trail={
             <IconButton onClick={onDone} aria-label="Close">
-              <Icon name="close" size={22} />
+              <Icon name="close" size={SHEET_CONTROL_ICON} />
             </IconButton>
           }
         />

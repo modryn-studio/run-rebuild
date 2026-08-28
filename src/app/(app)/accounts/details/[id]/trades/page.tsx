@@ -8,10 +8,8 @@ import { accountRowTitle } from '@/lib/prop-firms';
 import { TradesTape } from '@/components/views/trades/trades-tape';
 import { TradesRail } from '@/components/views/trades/trades-rail';
 import { TradesSearchPill } from '@/components/views/trades/trades-controls';
-import {
-  AccountTradesScreen,
-  ACCOUNT_TRADES_BAND_HOST,
-} from '@/components/views/accounts/account-trades-screen';
+import { AccountTradesScreen } from '@/components/views/accounts/account-trades-screen';
+import { ACCOUNT_TRADES_BAND_HOST } from '@/components/views/accounts/detail-panel-header';
 
 /* ONE ACCOUNT'S WHOLE TAPE — the screen behind "View all trades" (2026-08-28, `S6d`).
  *
@@ -87,8 +85,7 @@ export default async function AccountTradesPage({
 
   return (
     <AccountTradesScreen
-      account={account}
-      title={accountRowTitle(account)}
+      accountId={account.id}
       /* THE SET ON SCREEN, NOT THE ACCOUNT. Identity and provenance live on the details page, which
          is the page about the account; this panel answers "how did these trades go", which is the
          question a screen with a filter on it raises. */
@@ -103,19 +100,21 @@ export default async function AccountTradesPage({
           ids={ids}
         />
       }
-      searchPill={
-        <TradesSearchPill
-          hostId={ACCOUNT_TRADES_BAND_HOST}
-          applied={filter}
-          /* NO ACCOUNTS. The sheet's Accounts axis renders nothing for a single-account list
-             already, and passing this screen's one account would offer a filter that cannot
-             change the set. */
-          accounts={[]}
-          products={products}
-          facetRows={own}
-        />
-      }
     >
+      {/* THE SEARCH ROW PORTALS INTO THE LAYOUT'S BAND, directly under the bar and outside the
+          scroller - a row that does not scroll does not belong to the thing that scrolls. It is a
+          child here rather than a prop because a Server Component may hand finished JSX to a Client
+          Component and may not hand it a builder. */}
+      <TradesSearchPill
+        hostId={ACCOUNT_TRADES_BAND_HOST}
+        applied={filter}
+        /* NO ACCOUNTS. The sheet's Accounts axis renders nothing for a single-account list already,
+           and passing this screen's one account would offer a filter that cannot change the set. */
+        accounts={[]}
+        products={products}
+        facetRows={own}
+      />
+
       <TradesTape
         hasFees={digest.hasFees}
         /* THE PAGE OWNS ITS COLUMNS, so the Columns control does not render. Account goes because

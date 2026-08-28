@@ -30,6 +30,7 @@
  * the products away.
  */
 
+import { SHEET_CONTROL_ICON } from '@/components/ui/sheet-header';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/ui/icon';
@@ -369,7 +370,7 @@ export function FilterSheet({
           {page && (
             <div className="absolute left-2">
               <IconButton onClick={() => setPage(null)} aria-label="Back to filters">
-                <Icon name="back" size={22} />
+                <Icon name="back" size={SHEET_CONTROL_ICON} />
               </IconButton>
             </div>
           )}
@@ -377,7 +378,7 @@ export function FilterSheet({
           {!page && (
             <div className="absolute right-2">
               <IconButton onClick={onClose} aria-label="Close filters">
-                <Icon name="close" size={22} />
+                <Icon name="close" size={SHEET_CONTROL_ICON} />
               </IconButton>
             </div>
           )}

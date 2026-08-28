@@ -1,55 +1,61 @@
 'use client';
 
-/* THE PHONE'S BAR FOR AN ACCOUNT: back on the left, the account's name centred and truncated, Edit
- * on the right (2026-08-28, Luke: "the header changes to have just a back arrow on the left and the
- * edit button on the right side ... the center title of the header should be the account name such
- * as 'Apex Trader Funding 50K (...4021)'").
+/* THE PHONE'S BAR FOR AN ACCOUNT, and it picks which of its two shapes to wear from the route.
  *
- * IT IS `SheetHeader`, WHICH ANSWERS HIS OWN OBJECTION - "but we do not have buttons in the header
- * for mobile. so i dont know what to do with this." We do now: that component gained a `trail` slot
- * on 2026-08-28 when /accounts' flows needed a bar with two exits. One phone header bar in this
- * product, wearing a different pair of controls per screen.
+ * `/accounts/details/<id>`        back to the roster, the account's name, Edit.
+ * `/accounts/details/<id>/trades` back to the account, the same name, the summary toggle.
  *
- * EDIT IS A WORD, NOT A GLYPH. Every other control in this bar is a 22px icon, so a pencil would
- * be the consistent choice and the wrong one: there is no conventional mark for "rename this
- * account", and the desktop band already says the word. A label that matches across the two widths
- * costs 40px of a bar that has room for it.
+ * ONE COMPONENT, CHOSEN BY SEGMENT, because both bars live in the same segment layout - which is
+ * what keeps the bar mounted while the body under it changes (`detail-panel.tsx` argues why). Two
+ * files would have to be swapped by the same `useSelectedLayoutSegment` call anyway, one level up.
+ *
+ * IT IS `SheetHeader`, which answers Luke's own objection from 2026-08-28: "but we do not have
+ * buttons in the header for mobile. so i dont know what to do with this." We do now - that component
+ * gained a `trail` slot when the /accounts flows needed a bar with two exits. One phone header bar
+ * in this product, wearing a different pair of controls per screen.
+ *
+ * EDIT IS A PENCIL, NOT A CHIP (2026-08-28, Luke: "i dont want to use a button in the header").
+ * It shipped as `HeaderControl`, which is the desktop band's chip: a bordered, lifted, label-width
+ * control. Two problems, and the second is the one that showed. It was the only chrome-bearing
+ * control in any phone bar in the product - every other one is a bare 22px `IconButton` - and its
+ * width is the label's, so `SheetHeader`'s `px-12` title clearance (measured for a 44px control) was
+ * wrong and a long account name ran into it. An icon button is 44px like the arrow opposite it, so
+ * the centred title is symmetric again and the truncation has the room it was measured for.
  *
  * NO LOGO BESIDE THE TITLE, unlike the desktop breadcrumb. A centred title has two 44px controls to
- * clear and a name like "Apex Trader Funding 50K (...4021)" to fit between them; a 24px mark buys
+ * clear and a name like "My Funded Futures 100K (...4470)" to fit between them; a 24px mark buys
  * recognition the trader does not need on a screen they just tapped into, at the cost of the digits
  * that say WHICH account.
  *
- * BACK IS A LINK TO `/accounts`, NOT `router.back()`. Back depends on how the trader ARRIVED, and
- * this URL can be pasted, bookmarked or refreshed - all of which would send them wherever they were
- * before Run. Same call the desktop breadcrumb makes, and `/trades/[id]` before it.
+ * BACK IS A LINK, NOT `router.back()`. Back depends on how the trader ARRIVED, and these URLs can be
+ * pasted, bookmarked or refreshed - all of which would send them wherever they were before Run. Same
+ * call the desktop breadcrumb makes, and `/trades/[id]` before it.
  */
 
 import Link from 'next/link';
-import { SheetHeader } from '@/components/ui/sheet-header';
+import { SheetHeader, SHEET_CONTROL_ICON } from '@/components/ui/sheet-header';
 import { Icon } from '@/components/ui/icon';
-import { ICON_BUTTON } from '@/components/ui/icon-button';
-import { HeaderControl } from '@/components/shell/header-slot';
+import { IconButton, ICON_BUTTON } from '@/components/ui/icon-button';
 import { useLabelAccount } from './account-modals';
 import type { RosterAccount } from '@/lib/accounts/read';
+
+/** Where `WithSummaryRail` portals its toggle, and where `TradesSearchPill` portals its row. Ids
+ *  rather than refs, matching `header-slot.tsx`: the controls stay in the page's tree and only
+ *  their paint moves. */
+export const ACCOUNT_TRADES_BAR_HOST = 'account-trades-bar';
+export const ACCOUNT_TRADES_BAND_HOST = 'account-trades-band';
 
 export function DetailPanelHeader({
   account,
   title,
-  backHref,
-  backLabel,
-  trail,
+  onTrades,
 }: {
   account: RosterAccount;
   title: string;
-  /** Where the arrow goes. `/accounts` from the details page; the details page from its tape. */
-  backHref: string;
-  backLabel: string;
-  /* WHAT SITS ON THE RIGHT. Edit on the details page; the summary toggle on the tape route, which
-     is a different control belonging to a different screen. Passed in rather than switched on here,
-     so this component never has to know which of its two callers it is serving. */
-  trail?: React.ReactNode;
+  /** True on the `/trades` child. Decides where Back goes and what sits opposite it. */
+  onTrades: boolean;
 }) {
+  const detailHref = `/accounts/details/${account.id}`;
   return (
     <SheetHeader
       className="shrink-0 md:hidden"
@@ -57,26 +63,36 @@ export function DetailPanelHeader({
       lead={
         /* A LINK WEARING THE ICON BUTTON, not an `IconButton` with an onClick: this NAVIGATES, so it
            owes middle-click, cmd-click and "copy link address", none of which a button gives.
-           `ICON_BUTTON` is exported for exactly this. */
-        <Link href={backHref} aria-label={backLabel} className={ICON_BUTTON}>
-          <Icon name="back" size={22} />
+           `ICON_BUTTON` is exported for exactly this - same circle, same mechanic, one definition. */
+        <Link
+          href={onTrades ? detailHref : '/accounts'}
+          aria-label={onTrades ? 'Back to the account' : 'Back to accounts'}
+          className={ICON_BUTTON}
+        >
+          <Icon name="back" size={SHEET_CONTROL_ICON} />
         </Link>
       }
-      trail={trail}
+      trail={
+        onTrades ? (
+          /* THE TOGGLE PORTALS IN HERE. `WithSummaryRail` owns the control, its `]` shortcut, its
+             stored preference and its two icons; this only says where it paints. A second toggle
+             defined locally would be the same job twice, and they would drift on the first change. */
+          <div id={ACCOUNT_TRADES_BAR_HOST} className="flex items-center" />
+        ) : (
+          <EditAccountControl account={account} />
+        )
+      }
     />
   );
 }
 
-/** Edit, for the details page's bar. Its own component because it needs the modal opener, which is
- *  context the layout establishes and the bar above is otherwise free of. */
-export function EditAccountControl({ account }: { account: RosterAccount }) {
+/** Edit, for the details bar. Its own component because it needs the modal opener, which is context
+ *  the layout establishes and the bar above is otherwise free of. */
+function EditAccountControl({ account }: { account: RosterAccount }) {
   const label = useLabelAccount();
   return (
-    /* `min-h-11` (44px) OVER `HeaderControl`'S OWN 36. The chip is measured for a mouse in the
-       desktop band; this one is thumbed. Same control, same label, one floor added - the pattern
-       `ModalActions` and the editor's own rows already use below `sm`. */
-    <HeaderControl onClick={() => label(account)} className="min-h-11">
-      Edit
-    </HeaderControl>
+    <IconButton onClick={() => label(account)} aria-label="Edit account">
+      <Icon name="edit" size={SHEET_CONTROL_ICON} />
+    </IconButton>
   );
 }

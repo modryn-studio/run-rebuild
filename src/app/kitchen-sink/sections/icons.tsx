@@ -31,7 +31,11 @@ const GROUPS: { label: string; names: IconName[] }[] = [
      the Filters control on one page. Filters changes WHICH TRADES the tape holds; the eye changes
      WHICH FACTS about them are drawn. Adjacent here so the next person choosing between them sees
      both at once. */
-  { label: 'Chrome and controls', names: ['collapse', 'expand', 'menu', 'search', 'close', 'check', 'chevron', 'copy', 'filter', 'eye'] },
+  /* `edit` SITS WITH THE CONTROLS rather than with the account surfaces, because that is what it
+     is: a mark on a header bar, the same class of object as `close` and `search`. Its only caller
+     today is the phone's account bar, and grouping it by caller would move it the day a second
+     surface needs a pencil. */
+  { label: 'Chrome and controls', names: ['collapse', 'expand', 'menu', 'search', 'close', 'check', 'chevron', 'copy', 'filter', 'eye', 'edit'] },
   { label: 'Theme', names: ['moon', 'sun'] },
   { label: 'The intake flow', names: ['upload', 'file', 'files', 'unmet', 'back', 'add', 'warn'] },
   { label: 'The account menu', names: ['bolt', 'sign-out'] },

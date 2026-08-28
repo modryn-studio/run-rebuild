@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { requireTrader } from '@/lib/trader';
 import { getTradesByIds } from '@/lib/trades/read';
 import { TradeDetail } from '@/components/views/trades/trade-detail';
-import { SheetHeader } from '@/components/ui/sheet-header';
+import { SheetHeader, SHEET_CONTROL_ICON } from '@/components/ui/sheet-header';
 import { tradeTitle } from '@/lib/trades/title';
 import { ICON_BUTTON } from '@/components/ui/icon-button';
 import { Icon } from '@/components/ui/icon';
@@ -104,7 +104,7 @@ export default async function TradePage({ params }: { params: Promise<{ id: stri
           title={title}
           lead={
             <Link href="/trades" aria-label="Back to trades" className={ICON_BUTTON}>
-              <Icon name="back" size={22} />
+              <Icon name="back" size={SHEET_CONTROL_ICON} />
             </Link>
           }
         />

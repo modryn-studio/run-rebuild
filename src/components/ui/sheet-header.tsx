@@ -29,6 +29,19 @@
 
 import { cn } from '@/lib/cn';
 
+/* THE SIZE OF A CONTROL'S MARK IN A PHONE HEADER BAR. 22px, and it is a constant rather than a
+ * number retyped at each call site (2026-08-28, Luke: "i want to make sure we are using the same
+ * back arrow in the header as we use in other mobile headers for consistency. should be a token").
+ *
+ * The five bars agreed already - the trade sheet, the trade route, the filter sheet, the /accounts
+ * flows and the account panel all draw 22 - which is exactly the state a value is in right before it
+ * stops agreeing. `ICON_SIZE` in `icon.tsx` is the app-wide default (18) and is a different fact: a
+ * phone bar's control is bigger than an inline mark on purpose, because it is a 44px target.
+ *
+ * NOT IN `@theme`. A `size` PROP takes a number, and a Tailwind token can only be read by a class -
+ * the exact trap `globals.css` warns about for tokens that are only ever read from JavaScript. */
+export const SHEET_CONTROL_ICON = 22;
+
 export function SheetHeader({
   title,
   lead,

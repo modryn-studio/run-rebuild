@@ -1,6 +1,8 @@
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HeaderSlot } from '@/components/shell/header-slot';
+import { PAGE_COLUMN } from '@/lib/shell';
+import { cn } from '@/lib/cn';
 
 /* THE TAPE, BEFORE ITS ROWS ARRIVE — and it exists because the shared one was the wrong mark AND
  * the wrong SHAPE for this route.
@@ -49,26 +51,37 @@ export default function Loading() {
         </div>
       </HeaderSlot>
 
-      <div className="flex flex-col gap-4">
-        <Card className="overflow-clip max-md:-mx-4 max-md:rounded-none max-md:shadow-none">
-          {/* The tape's own column header: `min-h-15`, `max-md:hidden`, gone on a phone. */}
-          <div className="border-rule min-h-15 items-center border-b px-5 py-2 max-md:hidden">
-            <Skeleton className="mt-3 h-5 w-40" />
-          </div>
-
-          {SESSIONS.map((rows, s) => (
-            <div key={s}>
-              {/* The session band: `bg-band`, a date on the left and the day's net on the right. */}
-              <div className="bg-band flex items-center justify-between px-5 py-2 max-md:px-4">
-                <Skeleton className="h-5 w-32" />
-                <Skeleton className="h-5 w-16" />
-              </div>
-              {rows.map((w, i) => (
-                <TapeRow key={i} width={w} />
-              ))}
+      {/* THE PAGE'S OWN COLUMN, AND IT WAS MISSING (2026-08-28, Luke: "the skeleton ... takes up the
+          full width of the screen. it has no right and left side padding. i thought it was supposed
+          to take place of the content that will be loaded in").
+          The card below is `max-md:-mx-4`, copied from the real tape, and that negative margin is
+          not a full-bleed instruction - it CANCELS a gutter. The real tape gets its gutter from
+          `WithSummaryRail`, which wraps the page in `PAGE_COLUMN`. A boundary is not inside that
+          wrapper, so there was nothing to cancel and the card hung 16px off each edge instead of
+          reaching them. Same grid as the real page, so the skeleton occupies the boxes the page
+          will rather than boxes that resemble them. */}
+      <div className={cn(PAGE_COLUMN, 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]')}>
+        <div className="flex min-w-0 flex-col gap-4">
+          <Card className="overflow-clip max-md:-mx-4 max-md:rounded-none max-md:shadow-none">
+            {/* The tape's own column header: `min-h-15`, `max-md:hidden`, gone on a phone. */}
+            <div className="border-rule min-h-15 items-center border-b px-5 py-2 max-md:hidden">
+              <Skeleton className="mt-3 h-5 w-40" />
             </div>
-          ))}
-        </Card>
+
+            {SESSIONS.map((rows, s) => (
+              <div key={s}>
+                {/* The session band: `bg-band`, a date on the left and the day's net on the right. */}
+                <div className="bg-band flex items-center justify-between px-5 py-2 max-md:px-4">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+                {rows.map((w, i) => (
+                  <TapeRow key={i} width={w} />
+                ))}
+              </div>
+            ))}
+          </Card>
+        </div>
       </div>
     </>
   );

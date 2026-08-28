@@ -172,7 +172,6 @@ export default async function AccountDetailPage({
       intradayRows={intraday.map((r) => ({ ...r, at: r.at.toISOString() }))}
       zone={trader.displayTimezone}
       hasFees={provenance.hasFees}
-      siblingCount={siblingCount}
       filters={{ applied, products: productOptions, results: resultOptions, facetRows: own }}
       rail={
         <AccountRail

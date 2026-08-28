@@ -590,12 +590,41 @@ the document twice.
 the whole React runtime for an experimental build. Not on this repo. **If that check ever passes on
 stable React, revisit** — the mechanism below is a substitute, not a preference.
 
-So the panel animates itself: `translate-y-full` → `0` on the first rAF, on `.sheet-transition`.
-**It lives in the component the route renders, and there is no `loading.tsx` on those segments** —
-a boundary and its page each mounting the panel is the "entrance runs twice" bug §7 names.
+So the body animates itself: `translate-y-full` → `0` on the first rAF, on `.sheet-transition`.
+
+**THE HEADER DOES NOT TRAVEL.** *(Luke, 2026-08-28: "the header slides up with it. that is not
+supposed to happen. i just want the header to change state.")* The first version put the whole panel
+on the transition, bar included. The bar and the panel now live in the segment's **`layout.tsx`**,
+which buys three things at once:
+
+| | |
+|---|---|
+| the bar is outside the moving box | so it is simply *there* on the frame of the tap, which is what `TradeSheet` and `FilterSheet`'s drill-in already do |
+| a layout mounts once | so `loading.tsx` → `page.tsx` cannot run the entrance twice (the §7 rule) |
+| a layout resolves before its page | so the bar paints off one cached single-row read, not the page's five queries |
+
+**The body is keyed on `useSelectedLayoutSegment()`.** Segment changes (details → trades, where the
+bar renames) remount it and it slides; boundary → page does not, because that is the same screen
+finishing rather than a new one arriving.
 
 **There is no exit.** A route cannot animate away without holding the navigation. `TradeSheet` gets
 one because it is client state over a page that never left; this is a page.
+
+**A `loading.tsx` must occupy the page's own boxes, gutter included.** `/trades`' boundary copied the
+tape card's `max-md:-mx-4` but not the `PAGE_COLUMN` that margin *cancels* — the real tape gets its
+gutter from `WithSummaryRail`, a boundary is not inside it, so the card hung 16px off each edge. A
+negative margin is never a full-bleed instruction; it is always cancelling something, and the
+skeleton has to carry that something too.
+
+**`SHEET_CONTROL_ICON` (22px) is the mark size in a phone header bar**, exported from
+`ui/sheet-header.tsx`. The five bars agreed already, which is the state a value is in right before
+it stops agreeing. Not a `@theme` token: a `size` prop takes a number and a Tailwind token can only
+be read by a class.
+
+**A phone bar's controls are icon buttons, both ends.** Edit shipped as `HeaderControl` — the desktop
+band's chip — and was the only chrome-bearing control in any phone bar in the product. Its width is
+its label's, so `SheetHeader`'s `px-12` title clearance (measured for a 44px control) was wrong and a
+long account name ran into it. A 44px icon button makes the centred title symmetric again.
 
 **`usePhone` starts at the server's answer, never at `matchMedia`.** Reading the query in the
 initial state is the "server/client branch" React names in a hydration mismatch, and it produced one
@@ -609,6 +638,13 @@ same array. Measured at 390px on one real account: 30 rows in the document, 4 vi
 save the payload, and it does not save the first parse: `usePhone` must start at the server's answer
 or the tree hydrates against HTML that disagrees with it, so the rows are sent and parsed either way.
 What it saves is their life after that first commit.
+
+**The rail's P&L row is dropped on the phone and KEPT on the desktop**, and the asymmetry is the
+point. On a phone the chart headline and that row are ~40px apart in one scroll and there is no
+Filters control, so the `, filtered` qualifier can never fire — it restates the headline under a
+condition that cannot be true. On desktop the filter is live, the row pairs with `Trades: 12 of 19`
+directly above it (a count with no money beside it is half a fact), and the two figures sit 300px
+apart in different columns, where agreeing is the whole guarantee `chart-view.tsx` exists to make.
 
 **Two summaries, two questions, and neither repeats.** `AccountRail` on the details page is what the
 account **is** (broker, firm, type, size, status) plus where its record came from. `TradesRail` on

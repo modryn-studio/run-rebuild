@@ -328,6 +328,17 @@ function DrawnArrowLeft(props: DrawnProps) {
     </Drawn>
   );
 }
+/** `edit`. A pencil at 45deg: the shaft, the ferrule cut across it, and the tip closing at the
+ *  point. One closed outline plus one crossing stroke, which is what keeps it legible at 18px where
+ *  a separately-drawn eraser and lead would collapse into a smudge. */
+function DrawnPencil(props: DrawnProps) {
+  return (
+    <Drawn {...props}>
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7.5 18.5 3 20l1.5-4.5Z" />
+      <path d="M14.5 5.5l3 3" />
+    </Drawn>
+  );
+}
 /** `settings`. An actual cog: a single closed path alternating root-arc and tooth-tip, not
  *  detached spokes (which reads as a sun/asterisk — a gear's teeth are part of its outline). */
 function DrawnGear(props: DrawnProps) {
@@ -440,6 +451,13 @@ const MARKS = {
   warn: TriangleAlert,
 
   // ── the tape (S5c) ─────────────────────────────────────────────────────────────────────────
+  /* `edit`. THE PHONE'S ACCOUNT BAR (2026-08-28, Luke: "i dont want to use a button in the header").
+     Drawn rather than borrowed, because a pencil is three straight strokes and inventing nothing:
+     the body, the tip, and the cut where the ferrule meets the shaft. Neither this set nor v2's 34
+     had one, and the file's own rule for that case is "draw it here, through `Drawn`" - a lucide
+     fallback is for marks with real geometry nobody wants to redraw (a warning triangle, a chevron
+     pair), not for a diagonal. */
+  edit: DrawnPencil,
   filter: DrawnFilter,
   // Which COLUMNS are drawn, never which trades are kept. See DrawnEye for why it is not `filter`.
   eye: DrawnEye,

@@ -53,7 +53,7 @@ import { ICON_BUTTON } from '@/components/ui/icon-button';
 import { useOverlayBack } from '@/lib/overlay-back';
 import { tradeTitle } from '@/lib/trades/title';
 import type { TapeRow } from '@/lib/trades/read';
-import { SheetHeader } from '@/components/ui/sheet-header';
+import { SheetHeader, SHEET_CONTROL_ICON } from '@/components/ui/sheet-header';
 import { TradeDetail } from './trade-detail';
 
 export function TradeSheet({
@@ -134,7 +134,7 @@ export function TradeSheet({
                 aria-label="Back to trades"
                 className={ICON_BUTTON}
               >
-                <Icon name="back" size={22} />
+                <Icon name="back" size={SHEET_CONTROL_ICON} />
               </button>
             }
           />

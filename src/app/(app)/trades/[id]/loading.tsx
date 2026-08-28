@@ -1,3 +1,4 @@
+import { SHEET_CONTROL_ICON } from '@/components/ui/sheet-header';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/icon';
 import { ICON_BUTTON } from '@/components/ui/icon-button';
@@ -42,7 +43,7 @@ export default function Loading() {
         <div className="bg-bg relative flex h-16 shrink-0 items-center justify-center px-2 md:hidden">
           <div className="absolute left-2">
             <Link href="/trades" aria-label="Back to trades" className={ICON_BUTTON}>
-              <Icon name="back" size={22} />
+              <Icon name="back" size={SHEET_CONTROL_ICON} />
             </Link>
           </div>
           <Skeleton className="h-6 w-36" />

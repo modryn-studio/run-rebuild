@@ -49,14 +49,12 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { PAGE_COLUMN } from '@/lib/shell';
 import { StickyRail } from '@/components/shell/sticky-rail';
-import { DetailPanel, DetailPanelBody } from '@/components/views/accounts/detail-panel';
 import { DesktopOnly } from '@/components/views/desktop-only';
 import { PnlChart } from '@/components/views/accounts/pnl-chart';
 import type { Point } from '@/lib/accounts/series';
 
 export function SubjectPage({
   header,
-  phoneHeader,
   tape,
   recent,
   rail,
@@ -71,10 +69,6 @@ export function SubjectPage({
 }: {
   /** The breadcrumb, title and any actions. An account's carries Edit; a product's will not. */
   header: ReactNode;
-  /* THE PHONE'S BAR, which does not scroll and therefore is not inside the scroller. Below `md` this
-     page is a full-screen panel covering the shell's own band, so it carries its own - back, the
-     subject's name, one action. See `detail-panel-header.tsx`. */
-  phoneHeader?: ReactNode;
   /** Normally the tape. A slot rather than props, so the route keeps its own query's shape. */
   tape: ReactNode;
   /* WHAT REPLACES THE TAPE ON A PHONE: four rows and a way to the rest (2026-08-28). A phone has one
@@ -98,13 +92,10 @@ export function SubjectPage({
   zone: string;
 }) {
   return (
-    <DetailPanel>
-      {phoneHeader}
-      <DetailPanelBody>
-        <div className={cn(PAGE_COLUMN, 'pb-8 max-md:px-0 max-md:pb-0')}>
-          {header}
+    <div className={cn(PAGE_COLUMN, 'pb-8 max-md:px-0 max-md:pb-0')}>
+      {header}
 
-          <PnlChart
+      <PnlChart
         label={chartLabel}
         note={chartNote}
         showCoverage={showCoverage}
@@ -112,51 +103,49 @@ export function SubjectPage({
         series={series}
         intradaySeries={intradaySeries}
         baseDollars={baseDollars}
-            zone={zone}
-          />
+        zone={zone}
+      />
 
-          {/* THE PHONE'S STACK, IN THE ORDER LUKE SPECIFIED: the chart, then Recent Trades, then a
+      {/* THE PHONE'S STACK, IN THE ORDER LUKE SPECIFIED: the chart, then Recent Trades, then a
               gap, then Summary, then a gap, then Data. `recent` is `md:hidden` here and the grid
               below is `max-md:hidden`, so exactly one of the two is ever in the document - the same
               rule `/trades/[id]` follows about not rendering its screen twice. */}
-          {recent && <div className="md:hidden">{recent}</div>}
+      {recent && <div className="md:hidden">{recent}</div>}
 
-          {/* 304px IS FIXED AND THE TAPE TAKES WHAT IS LEFT — the same geometry `/accounts` uses, and
+      {/* 304px IS FIXED AND THE TAPE TAKES WHAT IS LEFT — the same geometry `/accounts` uses, and
           that is the point rather than a coincidence. v2: "a rail that changed width between two
           pages of one section would read as a different app." Fixed rather than a fraction because
           a rail holds label/value pairs whose ideal width does not change with the viewport;
           letting it flex only stretches the gap between a word and its number.
           BELOW `lg` THE RAIL ORDERS LAST. The tape is what you came for; the summary is what you
           check afterwards. Same call `/accounts` makes about its own rail on a phone. */}
-          <div
-            className={cn(
-              'mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_304px]',
-              /* THE TAPE GOES, THE RAIL STAYS. When a `recent` slot is supplied the phone shows four
+      <div
+        className={cn(
+          'mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_304px]',
+          /* THE TAPE GOES, THE RAIL STAYS. When a `recent` slot is supplied the phone shows four
                  rows instead of the tape - but the rail's two tables are the FACTS about the
                  subject and belong on the page that is about it. So the grid keeps rendering below
                  `md`; only its first cell is dropped. */
-              recent && 'max-md:mt-6'
-            )}
-          >
-            {/* NOT `max-md:hidden`. That leaves the tape's 300 rows in the document on a phone so
+          recent && 'max-md:mt-6'
+        )}
+      >
+        {/* NOT `max-md:hidden`. That leaves the tape's 300 rows in the document on a phone so
                 that CSS can hide them, under a four-row table drawn from the same array. Measured at
                 390px on one real account: 30 rows built, 4 visible. `DesktopOnly` is a client gate,
                 which is the only thing that can actually not render them. */}
-            {recent ? (
-              <DesktopOnly>
-                <div className="min-w-0">{tape}</div>
-              </DesktopOnly>
-            ) : (
-              <div className="min-w-0">{tape}</div>
-            )}
+        {recent ? (
+          <DesktopOnly>
+            <div className="min-w-0">{tape}</div>
+          </DesktopOnly>
+        ) : (
+          <div className="min-w-0">{tape}</div>
+        )}
         {/* STICKY ONLY WHEN IT FITS, and `StickyRail` MEASURES that rather than guessing from the
             viewport. A rail taller than the screen cannot pin at top-0 without hiding its own
             bottom - which is also why there is no `max-h` + `overflow-y-auto` here: that is the
             second scrollbar Luke ruled out (2026-08-03, "i didn't want two scroll bars"). */}
-            <StickyRail>{rail}</StickyRail>
-          </div>
-        </div>
-      </DetailPanelBody>
-    </DetailPanel>
+        <StickyRail>{rail}</StickyRail>
+      </div>
+    </div>
   );
 }
