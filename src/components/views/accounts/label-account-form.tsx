@@ -248,14 +248,22 @@ export function LabelAccountForm({
       />
 
       {screen === 'type' && (
-        <ModalBody>
+        /* `px-6` IS THE MODAL'S OWN GUTTER AND IT WAS MISSING (2026-08-28, Luke: "the modal screen
+           (the edit screens) dont fit the modal properly"). `ModalBody` deliberately carries no
+           horizontal padding — the upload step's progress panel needs to reach the card's edges —
+           so every screen states its own, and these three stated none. Measured against v2: its
+           fields sit in a 24px gutter, mine ran to the card edge.
+           `key={screen}` + `value-fade` is the other half: the body fades when the screen changes,
+           which is what makes a three-screen stack read as one object changing rather than three
+           modals flickering. An animation only re-fires when its key does. */
+        <ModalBody key={screen} className="value-fade px-6 pt-1 pb-5">
           {realName && <NameFact account={account} />}
           <TypeRows onPick={pickType} current={type} />
         </ModalBody>
       )}
 
       {screen === 'firm' && (
-        <ModalBody>
+        <ModalBody key={screen} className="value-fade px-6 pt-4 pb-5">
           <FirmPicker
             autoFocus
             onPick={(f) => {
@@ -275,7 +283,7 @@ export function LabelAccountForm({
               NO BROKER-NAME BLOCK HERE. It belongs to the `type` screen, which is where a trader is
               being asked to identify a row they have not seen before. In the editor they already
               know which account they opened; the breadcrumb behind the modal says so. */}
-          <ModalBody>
+          <ModalBody key={screen} className="value-fade px-6 pt-4">
             {/* THE TRADER'S OWN NAME, and the reason it is the FIRST field is the copy-trader: five
                 50Ks under one login otherwise read as five identical rows differing in four digits.
                 Empty means "use the derived name", which is what almost every account will do - the

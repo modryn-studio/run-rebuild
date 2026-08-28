@@ -25,7 +25,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ModalShell, ModalBody } from './modal-shell';
+import { ModalShell, ModalBody, ModalFooter } from './modal-shell';
+import { Button } from '@/components/ui/button';
 import { ModalHeader, type Source } from './shared';
 import { FileUploadStep, type Picked } from './file-upload-step';
 import { ManualAccountForm } from './manual-account-form';
@@ -55,12 +56,22 @@ export function AddAccountModal({
   closing,
   connected,
   dryRun = false,
+  manual = true,
+  adoptAccountId,
+  title = 'Add account',
 }: {
   onClose: () => void;
   closing?: boolean;
   /** How many broker logins are already connected. Counts LOGINS rather than accounts, because a
    *  firm issues one Tradovate login and a copy-trader runs many accounts under it. */
   connected: number;
+  /** Whether the footer offers "Add manually". Off from an account page — see the footer's note. */
+  manual?: boolean;
+  /* THE ACCOUNT THIS IMPORT WAS LAUNCHED FROM. Passed straight to the upload step, which is what
+     lets a hand-added `pending:` row adopt the real account name — see `lib/intake/accounts.ts`. */
+  adoptAccountId?: string;
+  /** "Add account" from the roster; "Import trades" from an account's own page. */
+  title?: string;
   /* DEMO ONLY, AND THIS IS THE FIX FOR A REAL BUG (2026-08-15). `/kitchen-sink/demo`'s "doors" scene
    * mounted this component directly with no way to reach `FileUploadStep`'s `dryRun` — so clicking
    * through Import trades from that scene landed on the REAL upload step, which posts to
@@ -117,6 +128,7 @@ export function AddAccountModal({
         <FileUploadStep
           dryRun={dryRun}
           source={TRADOVATE}
+          adoptAccountId={adoptAccountId}
           onBack={() => setView('doors')}
           onClose={close}
           onDone={done}
@@ -136,7 +148,7 @@ export function AddAccountModal({
           {/* The first screen had NO close control at all in v2 until 2026-07-30 — only Escape and a
               backdrop click, neither of which is visible. Every later screen in the flow had an X,
               so the one screen a trader always sees first was the one with no way out. */}
-          <ModalHeader title="Add account" onClose={close} />
+          <ModalHeader title={title} onClose={close} />
           <ModalBody className="px-6 pb-6">
             <BrokerRow connected={connected} />
             <Door
@@ -145,16 +157,32 @@ export function AddAccountModal({
               desc="Import from CSV"
               onClick={() => setView('upload')}
             />
-            {/* THE THIRD DOOR, AND IT IS NOT A DOOR. A plain link under the two cards rather than a
-                third one beside them: the cards are ways to get a RECORD in, and this is what you do
-                when there is no record yet. Ranking it as their peer would say the three are
-                alternatives for one job. v2 puts it in the same place for the same reason. */}
-            <div className="mt-5 text-center">
-              <button type="button" onClick={() => setView('manual')} className="text-link hit-44">
-                Add manually
-              </button>
-            </div>
           </ModalBody>
+
+          {/* THE THIRD DOOR, AND IT IS NOT A DOOR. A full-width OUTLINE button in the footer rather
+              than a third card beside the two above: the cards are ways to get a RECORD in, and this
+              is what you do when there is no record yet. Ranking it as their peer would say the
+              three are alternatives for one job.
+              IT IS DELIBERATELY NOT LABELLED "Prop firms" as a peer of Brokers, which v2 considered
+              and rejected: a prop firm account IS a broker account — the firm does not hold the
+              trades, Tradovate does, under a firm-issued login. Two doors called "Brokers" and
+              "Prop firms" teach that false model, and a trader with an Apex account on Tradovate
+              would have no way to pick between them.
+              OFF FROM AN ACCOUNT PAGE (`manual={false}`), where the trader is already standing on an
+              account and creating a second one is not what they came for. A SWITCH rather than a
+              fork, so the doors above it can never drift apart. */}
+          {manual && (
+            <ModalFooter>
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full"
+                onClick={() => setView('manual')}
+              >
+                Add manually
+              </Button>
+            </ModalFooter>
+          )}
         </>
       )}
     </ModalShell>

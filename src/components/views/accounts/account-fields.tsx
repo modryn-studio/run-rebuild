@@ -35,11 +35,16 @@ export function Field({
 }) {
   return (
     <div className="mt-4 first:mt-3">
-      <p className="text-body text-muted mb-2 font-medium">
+      {/* `text-small` (12px), WHICH IS v2'S AND WAS 14px HERE (2026-08-28). A field label is CHROME
+          over its control, not prose beside it - and at 14px five of them stacked read as a list of
+          headings rather than as captions, which is most of why this screen felt taller than v2's.
+          `design-system.md` §2a bans `text-small` on `/trades`, where a ROW is one type size; a
+          modal's label-over-control stack is the case the rule was never about.
+          `text-muted` AT A LIGHTER WEIGHT rather than v2's `text-faint` for the hint: this build
+          deleted the third content tier (#67), so a hint is the same ink as its label and separates
+          by weight. Two tiers, never three. */}
+      <p className="text-small text-muted mb-2 font-medium">
         {label}
-        {/* `text-muted` AT A LIGHTER WEIGHT rather than v2's `text-faint`: this build deleted the
-            third content tier (#67), so a hint is the same ink as its label and separates by weight.
-            Two tiers, never three. */}
         {hint && <span className="font-normal"> {hint}</span>}
       </p>
       {children}

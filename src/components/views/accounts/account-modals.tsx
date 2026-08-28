@@ -32,7 +32,6 @@ import { createContext, useCallback, useContext, useMemo, useState } from 'react
 import { AddAccountModal } from './add-account-modal';
 import { LabelAccountModal } from './label-account-modal';
 import { ImportTradesModal } from './import-trades-modal';
-import { TRADOVATE } from './add-account-modal';
 import type { RosterAccount } from '@/lib/accounts/read';
 
 type Openers = {
@@ -101,11 +100,7 @@ export function AccountModalsProvider({
       {children}
       {adding && <AddAccountModal onClose={() => setAdding(false)} connected={connectedBrokers} />}
       {importingInto && (
-        <ImportTradesModal
-          accountId={importingInto}
-          source={TRADOVATE}
-          onClose={() => setImportingInto(null)}
-        />
+        <ImportTradesModal accountId={importingInto} onClose={() => setImportingInto(null)} />
       )}
       {labelling && (
         <LabelAccountModal
