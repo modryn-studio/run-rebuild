@@ -530,6 +530,59 @@ itself.
 **Respect `prefers-reduced-motion`,** and respect it *correctly*: see the skeleton note in §7. A
 reduced-motion block that freezes an animation mid-sweep is worse than one that never ran.
 
+### 6a. On a phone: no modals, and one rule decides whether a screen slides
+
+*(2026-08-28. Luke: "basically no modals on mobile is the rule.")*
+
+**Below 768px (`PHONE_QUERY`) a dismissible surface is a full-screen sheet, not a centred card.**
+`/trades` already worked this way with `FilterSheet` and `TradeSheet`; `/accounts` followed with add,
+import, edit and both confirmations. The sheet's shape is fixed and shared: `fixed inset-0 z-[70]`,
+always mounted, `.sheet-transition` for the timing and `translate-y-full` at the call site for the
+position, a `--scrim-nav` underlay, an `h-16` `SheetHeader` bar, and `inert` + `aria-hidden` +
+`pointer-events-none` on the root when closed. Three attributes, three audiences: only `inert`
+touches the tab order.
+
+**THE HEADER CHANGES, SO THE PAGE SLIDES. THE HEADER STAYS, SO THE BODY FADES.**
+
+| The step | What moves | Why |
+|---|---|---|
+| "Add manually" → "Evaluation" | a new layer slides up on `.sheet-transition` | the bar renames, so this is a place you arrived at |
+| "Evaluation" (firm) → (size) | the body only, `key` + `.value-fade` | the bar is unchanged, so it is one page answering its second half |
+
+This supersedes `filter-sheet.tsx`'s "one drill-in level, and no more". That limit was defended on
+the grounds that "the way back would be ambiguous" past one — and the way back is ambiguous *exactly
+when two stacked screens are named the same thing*. A screen that renames the bar carries its own
+answer to what Back means. Depth is bounded by the flows instead, at three positions
+(`MAX_LAYERS`), and a flow that wants a fourth is a flow asking too many questions.
+
+**The header never travels.** It is hosted above every layer and the active screen portals into it
+(`surface.tsx`), so it swaps on the frame of the tap while only the body moves. A bar rendered
+inside the sliding layer would slide with it, which is the thing Luke named on `/trades` first:
+"the header should just change ... that header should not pop up with the trade details page".
+
+**Do not add a third transition for a step change.** The fade is `.value-fade`, 0.14s opacity,
+already in the system. The one finding worth carrying from the 2026 research on multi-step forms is
+that a step transition which is *too fast* gets missed — people press Next and never register that
+the content changed — so 0.14s is the floor rather than a target to beat. Emil Kowalski's
+blur-masked crossfade (`ui-ux-sources.md`, tip 7) stays the thing to reach for **only if** a plain
+opacity swap ever feels wrong after duration and easing have both been tried.
+
+**A layer that has been popped stays mounted while it leaves.** `AccountSheet` holds the last node
+seen at each depth, because the flow stops supplying it on the frame Back is pressed. Held in state
+adjusted during render, never a ref — the React Compiler's lint refuses a ref read during render, and
+an effect would blank the layer for the first frame of its own travel.
+
+**Two containers, two clocks.** A modal fades out in 160ms (`MODAL_EXIT_MS`), a sheet travels the
+height of the screen in 200 (`SHEET_EXIT_MS`). Each has its own hook, because the owner is what
+unmounts and the owner cannot be what decides when.
+
+**A confirmation is a sheet too, and stacks by DOM order rather than by a second z-index.** Both
+`Close this account?` and `Delete this account?` are `ConfirmShell`, which picks a centred
+`alertdialog` above `md` and a sheet below it. The sheet underneath is put in `busy`, which stops it
+listening for Escape — two panels listening on `document` would *both* answer one press, because
+`stopPropagation` does not reach a sibling listener on the same node. The device Back button needs
+no equivalent: `useOverlayBack` orders its registrations by token and only the innermost answers.
+
 ---
 
 ## 7. States

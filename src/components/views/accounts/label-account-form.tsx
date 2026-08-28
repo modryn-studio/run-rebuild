@@ -44,6 +44,7 @@ import { Input } from '@/components/ui/input';
 import { slotSurface } from '@/components/ui/card';
 import { ModalHeader } from './shared';
 import { ModalBody, ModalFooter, ModalActions } from './modal-shell';
+import { AccountSheet } from './account-sheet';
 import { FirmPicker } from './firm-picker';
 import { CloseAccountModal } from './close-account-modal';
 import { DeleteAccountModal } from './delete-account-modal';
@@ -72,6 +73,7 @@ export function LabelAccountForm({
   onClose,
   onSaved,
   onBusyChange,
+  sheet,
 }: {
   account: RosterAccount;
   /* HOW MANY OTHER ACCOUNTS SHARE THIS ONE'S PREFIX. Computed by the caller, which holds the whole
@@ -80,6 +82,14 @@ export function LabelAccountForm({
   onClose: () => void;
   onSaved: () => void;
   onBusyChange: (busy: boolean) => void;
+  /* PRESENT MEANS "YOU ARE A SHEET" (2026-08-28). Below 768px this editor is not a card floating over
+     the roster but a full-screen panel whose SCREENS STACK - and `stack` is already exactly that
+     stack, one entry per screen, which is why this took a container rather than a rewrite. Each
+     entry becomes a layer, and because all three screens rename the bar ("Edit account" / "Which
+     kind of account?" / "Which firm?") every one of them slides, which is the rule
+     `account-sheet.tsx` states.
+     `open` is the owner's, because the panel has to travel before the owner unmounts it. */
+  sheet?: { open: boolean } | null;
 }) {
   const router = useRouter();
 
@@ -273,18 +283,32 @@ export function LabelAccountForm({
     }
   }
 
-  const title =
-    screen === 'type' ? 'Which kind of account?' : screen === 'firm' ? 'Which firm?' : 'Edit account';
+  /* `.value-fade` IS THE MODAL'S TRANSITION AND THE SHEET HAS ITS OWN. In a card the three screens
+     replace each other in place, so the body fades and that is the whole change the eye gets. In a
+     sheet each screen is its own layer arriving from the bottom, so a fade on top of the slide would
+     be two answers to one question - and the layer would be transparent for the first 140ms of its
+     travel, which reads as a rendering fault rather than as motion. */
+  const fade = sheet ? '' : 'value-fade';
 
-  return (
+  const TITLES: Record<Screen, string> = {
+    type: 'Which kind of account?',
+    firm: 'Which firm?',
+    edit: 'Edit account',
+  };
+
+  /* ONE SCREEN, BUILT BY NAME rather than by reading `screen` — because a sheet renders ALL of them
+     at once, one per layer, and only the modal renders the current one. The header is identical in
+     every layer and correct in every layer, since `SurfaceHeader` renders it only for the layer the
+     sheet considers active, which is always the top of this stack. */
+  const screenNode = (s: Screen) => (
     <>
       <ModalHeader
-        title={title}
+        title={TITLES[s]}
         onBack={stack.length > 1 ? back : undefined}
         onClose={saving ? undefined : onClose}
       />
 
-      {screen === 'type' && (
+      {s === 'type' && (
         /* `px-6` IS THE MODAL'S OWN GUTTER AND IT WAS MISSING (2026-08-28, Luke: "the modal screen
            (the edit screens) dont fit the modal properly"). `ModalBody` deliberately carries no
            horizontal padding — the upload step's progress panel needs to reach the card's edges —
@@ -293,14 +317,14 @@ export function LabelAccountForm({
            `key={screen}` + `value-fade` is the other half: the body fades when the screen changes,
            which is what makes a three-screen stack read as one object changing rather than three
            modals flickering. An animation only re-fires when its key does. */
-        <ModalBody key={screen} className="value-fade px-6 pt-1 pb-5">
+        <ModalBody key={s} className={cn(fade, 'px-6 pt-1 pb-5')}>
           {realName && <NameFact account={account} />}
           <TypeRows onPick={pickType} current={type} />
         </ModalBody>
       )}
 
-      {screen === 'firm' && (
-        <ModalBody key={screen} className="value-fade px-6 pt-4 pb-5">
+      {s === 'firm' && (
+        <ModalBody key={s} className={cn(fade, 'px-6 pt-4 pb-5')}>
           <FirmPicker
             autoFocus
             onPick={(f) => {
@@ -311,7 +335,7 @@ export function LabelAccountForm({
         </ModalBody>
       )}
 
-      {screen === 'edit' && (
+      {s === 'edit' && (
         <>
           {/* THE EDITOR: everything you can change about an account that already has a type. Type
               and Firm are ROWS you can change rather than screens you must pass through, and the
@@ -320,7 +344,7 @@ export function LabelAccountForm({
               NO BROKER-NAME BLOCK HERE. It belongs to the `type` screen, which is where a trader is
               being asked to identify a row they have not seen before. In the editor they already
               know which account they opened; the breadcrumb behind the modal says so. */}
-          <ModalBody key={screen} className="value-fade px-6 pt-4">
+          <ModalBody key={s} className={cn(fade, 'px-6 pt-4')}>
             {/* THE TRADER'S OWN NAME, and the reason it is the FIRST field is the copy-trader: five
                 50Ks under one login otherwise read as five identical rows differing in four digits.
                 Empty means "use the derived name", which is what almost every account will do - the
@@ -518,9 +542,16 @@ export function LabelAccountForm({
         </>
       )}
 
-      {/* THE CONFIRMATIONS SIT OUTSIDE THE SCREEN SWITCH, so they can appear over ANY of them. They
-          are reached only from the editor today, and putting them inside that branch would tie a
-          modal's lifetime to which question is showing underneath it. */}
+    </>
+  );
+
+  /* A CONFIRMATION IS NOT A SCREEN OF THIS FLOW, so it goes outside the container entirely: over the
+     modal on a desktop, and after the sheet in the DOM on a phone, which is what puts it on top
+     without a second z-index to keep in step. `ConfirmShell` picks its own shape.
+     They are reached only from the editor today, and putting them inside that branch would tie a
+     confirmation's lifetime to which question is showing underneath it. */
+  const confirmations = (
+    <>
       {confirmingClose && (
         <CloseAccountModal
           accountId={account.id}
@@ -561,6 +592,29 @@ export function LabelAccountForm({
           }}
         />
       )}
+    </>
+  );
+
+  return (
+    <>
+      {sheet ? (
+        <AccountSheet
+          open={sheet.open}
+          onClose={onClose}
+          onBack={back}
+          /* A CONFIRMATION ON TOP PUTS THIS ONE IN `busy`, so one Escape closes exactly one thing —
+             the same lock `ModalShell` takes on the desktop path. `saving` is here for the other
+             reason: a PATCH is in flight and the roster is about to change underneath. */
+          busy={saving || confirmingClose || confirmingDelete}
+          label="Edit account"
+          /* THE STACK IS THE LAYER LIST, unchanged. It was built to answer "what does Back mean",
+             which is the same question a sheet asks of its screens. */
+          layers={stack.map(screenNode)}
+        />
+      ) : (
+        screenNode(screen)
+      )}
+      {confirmations}
     </>
   );
 }

@@ -34,8 +34,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { ConfirmHeader, MODAL_TITLE_ID } from './shared';
+import { ConfirmHeader } from './shared';
+import { ConfirmShell, ConfirmFooter } from './confirm-shell';
 import { ModalActions } from './modal-shell';
 
 export function DeleteAccountModal({
@@ -89,67 +89,68 @@ export function DeleteAccountModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-      <div aria-hidden className="absolute inset-0" style={{ background: 'var(--scrim)' }} />
-      <Card
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={MODAL_TITLE_ID}
-        className="pop-in-center relative z-10 flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden"
-      >
-        <ConfirmHeader
-          title={refused ? 'This one keeps its record' : 'Delete this account?'}
-          onCancel={onCancel}
-        />
+    /* THE CONTAINER IS `ConfirmShell`'S CALL: a centred alert on a desktop, a full-screen sheet on a
+       phone. `dismiss` is the wrapped cancel, so every control that backs out uses it. */
+    <ConfirmShell
+      onCancel={onCancel}
+      busy={saving}
+      label={refused ? 'This one keeps its record' : 'Delete this account?'}
+    >
+      {(dismiss) => (
+        <>
+          <ConfirmHeader
+            title={refused ? 'This one keeps its record' : 'Delete this account?'}
+            onCancel={dismiss}
+          />
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-5">
-          {refused ? (
-            <>
-              <p className="text-body-lg text-text">{refused}</p>
-              {/* THE WAY FORWARD, NOT JUST THE REFUSAL. A trader who wanted this account gone still
-                  wants it gone; the honest offer is the one that does what they meant without
-                  destroying what they did not mean. */}
-              <p className="text-body text-muted mt-2">
-                Closing it marks how it ended and keeps every trade in your totals.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-body-lg text-text">
-                {title} will be removed. This cannot be undone.
-              </p>
-              {/* WHY IT IS SAFE TO OFFER AT ALL, said plainly: the only accounts that reach this
-                  button are the ones holding nothing. */}
-              <p className="text-body text-muted mt-2">
-                Nothing has been imported into it, so no trades are lost.
-              </p>
-            </>
-          )}
-        </div>
-
-        <div className="shrink-0 px-6 py-4">
-          {error && <p className="text-body text-neg mb-3 text-center">{error}</p>}
-          <ModalActions>
+          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-5">
             {refused ? (
-              /* ONE BUTTON WHEN THERE IS ONE THING LEFT TO DO. A Cancel beside a Close in the
-                 refused state would offer a choice between "go back" and "go back", since neither
-                 deletes anything. */
-              <Button size="sm" onClick={onCancel}>
-                Got it
-              </Button>
+              <>
+                <p className="text-body-lg text-text">{refused}</p>
+                {/* THE WAY FORWARD, NOT JUST THE REFUSAL. A trader who wanted this account gone
+                    still wants it gone; the honest offer is the one that does what they meant
+                    without destroying what they did not mean. */}
+                <p className="text-body text-muted mt-2">
+                  Closing it marks how it ended and keeps every trade in your totals.
+                </p>
+              </>
             ) : (
               <>
-                <Button variant="secondary" size="sm" onClick={onCancel} disabled={saving}>
-                  Cancel
-                </Button>
-                <Button size="sm" variant="danger" loading={saving} onClick={() => void confirm()}>
-                  Delete account
-                </Button>
+                <p className="text-body-lg text-text">
+                  {title} will be removed. This cannot be undone.
+                </p>
+                {/* WHY IT IS SAFE TO OFFER AT ALL, said plainly: the only accounts that reach this
+                    button are the ones holding nothing. */}
+                <p className="text-body text-muted mt-2">
+                  Nothing has been imported into it, so no trades are lost.
+                </p>
               </>
             )}
-          </ModalActions>
-        </div>
-      </Card>
-    </div>
+          </div>
+
+          <ConfirmFooter error={error}>
+            <ModalActions>
+              {refused ? (
+                /* ONE BUTTON WHEN THERE IS ONE THING LEFT TO DO. A Cancel beside a Close in the
+                   refused state would offer a choice between "go back" and "go back", since neither
+                   deletes anything. */
+                <Button size="sm" onClick={dismiss}>
+                  Got it
+                </Button>
+              ) : (
+                <>
+                  <Button variant="secondary" size="sm" onClick={dismiss} disabled={saving}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" variant="danger" loading={saving} onClick={() => void confirm()}>
+                    Delete account
+                  </Button>
+                </>
+              )}
+            </ModalActions>
+          </ConfirmFooter>
+        </>
+      )}
+    </ConfirmShell>
   );
 }

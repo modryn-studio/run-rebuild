@@ -105,3 +105,16 @@ export const SIDEBAR_OVERLAY_QUERY = '(max-width: 767px)';
  * browser, so baking it in would make one number mean two things.
  */
 export const BOTTOM_BAR_H = 'var(--bottom-bar-h)';
+
+/** Below this the product uses SHEETS instead of modals. 768px, the same crossing as
+ * `SIDEBAR_OVERLAY_QUERY` and deliberately a second name for it rather than a reuse.
+ *
+ * They are one number today and they are not one DECISION: the sidebar overlays because 224px of
+ * inline panel leaves 151px of content, and a modal becomes a sheet because a centred card with a
+ * backdrop is a desktop object. If either ever moves, the other must not follow by accident.
+ *
+ * THE RULE IT ENCODES (2026-08-28, Luke: "basically no modals on mobile is the rule"). Every
+ * dismissible surface on /accounts is a full-screen sheet below this width - add, import, edit and
+ * both confirmations - which is what `/trades` already does with `FilterSheet` and `TradeSheet`.
+ */
+export const PHONE_QUERY = '(max-width: 767px)';

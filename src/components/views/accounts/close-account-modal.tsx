@@ -40,9 +40,9 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { ConfirmHeader, MODAL_TITLE_ID } from './shared';
+import { ConfirmHeader } from './shared';
 import { ModalActions } from './modal-shell';
+import { ConfirmShell, ConfirmFooter } from './confirm-shell';
 import { ACCOUNT_TYPE_LABELS } from '@/lib/prop-firms';
 import { cn } from '@/lib/cn';
 import type { AccountStatus, AccountType } from '@/lib/db/schema';
@@ -115,114 +115,116 @@ export function CloseAccountModal({
   }
 
   return (
-    /* `z-[70]` OVER THE EDIT MODAL'S `z-[60]`. The shell underneath is put in `busy` while this is
-       up, which already blocks its Escape handler and its backdrop click - so one Escape closes
-       exactly one thing, and the form cannot be dismissed out from under its own confirmation. */
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-      <div aria-hidden className="absolute inset-0" style={{ background: 'var(--scrim)' }} />
-      <Card
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={MODAL_TITLE_ID}
-        className="pop-in-center relative z-10 flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden"
-      >
-        <ConfirmHeader title="Close this account?" onCancel={onCancel} />
+    /* THE CONTAINER IS `ConfirmShell`'S CALL, not this file's: a centred alert on a desktop, a
+       full-screen sheet on a phone. `dismiss` is the wrapped cancel - on a phone it lets the sheet
+       travel before the owner unmounts it - so every control that backs out must use it rather than
+       `onCancel`, including the header's X. */
+    <ConfirmShell onCancel={onCancel} busy={saving} label="Close this account?">
+      {(dismiss) => (
+        <>
+          <ConfirmHeader title="Close this account?" onCancel={dismiss} />
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-5">
-          {asks && (
-            <div className="mb-5">
-              <p className="text-body text-muted mb-2 font-medium">How did it end?</p>
-              <div className="flex flex-col gap-2">
-                {outcomes.map((o) => (
-                  <button
-                    key={o.value}
-                    type="button"
-                    onClick={() => setOutcome(o.value)}
-                    aria-pressed={outcome === o.value}
-                    className={cn(
-                      'flex w-full items-center rounded-[var(--radius)] px-4 py-3 text-left transition-colors',
-                      outcome === o.value
-                        ? 'select-pop border-accent text-accent'
-                        : 'bg-hover hover:bg-surface-2 text-text'
-                    )}
-                  >
-                    <span className="text-body-lg">{o.label}</span>
-                  </button>
-                ))}
+          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-5">
+            {asks && (
+              <div className="mb-5">
+                <p className="text-body text-muted mb-2 font-medium">How did it end?</p>
+                <div className="flex flex-col gap-2">
+                  {outcomes.map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      onClick={() => setOutcome(o.value)}
+                      aria-pressed={outcome === o.value}
+                      /* `min-h-14` BELOW `sm` (2026-08-28). These measure 48px from their padding,
+                         which clears the 44px floor already - but every other pick row on a phone in
+                         this product is 56px (`filter-sheet.tsx`'s `PickRow`), and a choice list
+                         that is 8px shorter than the choice list one screen away is drift nobody can
+                         name and everybody feels. */
+                      className={cn(
+                        'flex w-full items-center rounded-[var(--radius)] px-4 py-3 text-left transition-colors max-sm:min-h-14',
+                        outcome === o.value
+                          ? 'select-pop border-accent text-accent'
+                          : 'bg-hover hover:bg-surface-2 text-text'
+                      )}
+                    >
+                      <span className="text-body-lg">{o.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
+            )}
+
+            <div>
+              <p className="text-body text-muted mb-2 font-medium">Date closed</p>
+              {/* A NATIVE DATE INPUT rather than a picker component. It is keyboard-operable, it is
+                  localised by the browser, and it is the one field on this screen a trader will
+                  usually leave alone - building a calendar for it would be the most code in the
+                  modal spent on the least-touched control. */}
+              <Input
+                type="date"
+                value={closedOn}
+                max={new Date().toLocaleDateString('sv-SE')}
+                onChange={(e) => setClosedOn(e.target.value)}
+                aria-label="Date closed"
+              />
             </div>
-          )}
 
-          <div>
-            <p className="text-body text-muted mb-2 font-medium">Date closed</p>
-            {/* A NATIVE DATE INPUT rather than a picker component. It is keyboard-operable, it is
-                localised by the browser, and it is the one field on this screen a trader will
-                usually leave alone - building a calendar for it would be the most code in the modal
-                spent on the least-touched control. */}
-            <Input
-              type="date"
-              value={closedOn}
-              max={new Date().toLocaleDateString('sv-SE')}
-              onChange={(e) => setClosedOn(e.target.value)}
-              aria-label="Date closed"
-            />
+            {/* WHAT WILL CHANGE, stated before the button rather than discovered after it. Every
+                line is here because a trader closing an account is worried about exactly one thing -
+                that they are about to lose the record - and the second line is the answer.
+                v2's first line PROMISED TWO THINGS THAT DO NOT HAPPEN: "it comes off the active
+                roster and stops taking new fills". Closing writes `status` and `closed_on` and
+                nothing else, so the row stays exactly where it was wearing a chip; and an import
+                naming a closed account still files to it, which is the RIGHT behaviour - refusing a
+                historical backfill because the account has since ended would drop exactly the
+                sessions this product exists to keep. */}
+            <div className="bg-surface-2 mt-5 rounded-[var(--radius-sm)] p-4">
+              <p className="text-body-lg text-text font-medium">What changes</p>
+              <ul className="mt-2 flex flex-col gap-2">
+                {[
+                  /* "Hide takes it off your list" IS TRUE AGAIN. v2 fixed this line once, from a
+                     version claiming closing removed the row and stopped new fills - it does
+                     neither. I then shipped "It stays on your list", which was true but pointed at
+                     nothing, because Hide had no control in this build yet. It does now, one section
+                     up in the editor behind this modal, so v2's wording is both accurate and
+                     useful. */
+                  'It shows as closed. Hide takes it off your list.',
+                  `Every trade stays, and its P&L stays in your ${ACCOUNT_TYPE_LABELS[accountType ?? 'personal'].toLowerCase()} total.`,
+                  /* THE ONE A TRADER CLOSING AN ACCOUNT MOST NEEDS. Reopen is a button in the editor
+                     behind this, needing no confirmation of its own, so this promise is one press
+                     away rather than a claim. */
+                  'You can reopen it at any time.',
+                ].map((line) => (
+                  <li key={line} className="text-body text-muted flex gap-2">
+                    <span aria-hidden>&bull;</span>
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
-          {/* WHAT WILL CHANGE, stated before the button rather than discovered after it. Every line
-              is here because a trader closing an account is worried about exactly one thing - that
-              they are about to lose the record - and the second line is the answer.
-              v2's first line PROMISED TWO THINGS THAT DO NOT HAPPEN: "it comes off the active roster
-              and stops taking new fills". Closing writes `status` and `closed_on` and nothing else,
-              so the row stays exactly where it was wearing a chip; and an import naming a closed
-              account still files to it, which is the RIGHT behaviour - refusing a historical
-              backfill because the account has since ended would drop exactly the sessions this
-              product exists to keep. */}
-          <div className="bg-surface-2 mt-5 rounded-[var(--radius-sm)] p-4">
-            <p className="text-body-lg text-text font-medium">What changes</p>
-            <ul className="mt-2 flex flex-col gap-2">
-              {[
-                /* "Hide takes it off your list" IS TRUE AGAIN. v2 fixed this line once, from a
-                   version claiming closing removed the row and stopped new fills - it does neither.
-                   I then shipped "It stays on your list", which was true but pointed at nothing,
-                   because Hide had no control in this build yet. It does now, one section up in the
-                   editor behind this modal, so v2's wording is both accurate and useful. */
-                'It shows as closed. Hide takes it off your list.',
-                `Every trade stays, and its P&L stays in your ${ACCOUNT_TYPE_LABELS[accountType ?? 'personal'].toLowerCase()} total.`,
-                /* THE ONE A TRADER CLOSING AN ACCOUNT MOST NEEDS. Reopen is a button in the editor
-                   behind this, needing no confirmation of its own, so this promise is one press
-                   away rather than a claim. */
-                'You can reopen it at any time.',
-              ].map((line) => (
-                <li key={line} className="text-body text-muted flex gap-2">
-                  <span aria-hidden>&bull;</span>
-                  {line}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        <div className="shrink-0 px-6 py-4">
-          {error && <p className="text-body text-neg mb-3 text-center">{error}</p>}
-          <ModalActions>
-            <Button variant="secondary" size="sm" onClick={onCancel} disabled={saving}>
-              Cancel
-            </Button>
-            {/* RIGHTMOST, where Save sits everywhere else. Moving the commit position for the
-                dangerous case is the version of "are you sure" that makes people mis-click the
-                thing they were trying to avoid. */}
-            <Button
-              size="sm"
-              variant="danger"
-              disabled={!outcome || !closedOn}
-              loading={saving}
-              onClick={() => void confirm()}
-            >
-              Close account
-            </Button>
-          </ModalActions>
-        </div>
-      </Card>
-    </div>
+          <ConfirmFooter error={error}>
+            <ModalActions>
+              <Button variant="secondary" size="sm" onClick={dismiss} disabled={saving}>
+                Cancel
+              </Button>
+              {/* RIGHTMOST, where Save sits everywhere else. Moving the commit position for the
+                  dangerous case is the version of "are you sure" that makes people mis-click the
+                  thing they were trying to avoid. */}
+              <Button
+                size="sm"
+                variant="danger"
+                disabled={!outcome || !closedOn}
+                loading={saving}
+                onClick={() => void confirm()}
+              >
+                Close account
+              </Button>
+            </ModalActions>
+          </ConfirmFooter>
+        </>
+      )}
+    </ConfirmShell>
   );
 }

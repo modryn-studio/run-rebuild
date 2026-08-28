@@ -31,9 +31,22 @@
  * written with a `pending:` placeholder, and the ADOPTION PATH in `lib/intake/accounts.ts` is what
  * later gives it the real name — from an import the trader launches on this account's own page.
  * Asking someone to copy `FTDFYL100183704873` out of Tradovate is the chore this product ends.
+ *
+ * ─── WHY THE STATE IS A HOOK AND THE SCREENS ARE TWO NODES (2026-08-28) ──────────────────────────
+ *
+ * On a phone these steps are not one card swapping its contents, they are pages in a stack, and the
+ * rule that decides which is which is the HEADER (`account-sheet.tsx`):
+ *
+ *   "Add manually" -> "Evaluation"   the bar renames, so a new page SLIDES UP over the old one.
+ *   "Evaluation" (firm) -> (size)    the bar is unchanged, so the body FADES in place.
+ *
+ * A sheet's layers are siblings, so the flow above has to be able to hand the two pages to two
+ * different layers — which it cannot do if this component owns `type` privately and renders only
+ * whichever screen is current. Hence: the state and both nodes come out of `useManualAccount`, and
+ * `ManualAccountForm` is what a MODAL wants, which is only ever the current one.
  */
 
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { ModalHeader } from './shared';
@@ -48,7 +61,19 @@ import type { AccountType } from '@/lib/db/schema';
  * edge one. Capped low because past a handful the honest answer is an import, not a form. */
 const MAX_QTY = 10;
 
-export function ManualAccountForm({
+type Step = 'type' | 'firm' | 'detail';
+
+export type ManualFlow = {
+  step: Step;
+  /** Unwinds one answer, then leaves the flow. The sheet's Back button and Escape use it too. */
+  back: () => void;
+  /** "Add manually". Its own page, and the only one whose bar says that. */
+  typeScreen: ReactNode;
+  /** Firm and Size. ONE page, because they share a bar — see this file's header. */
+  detailScreen: ReactNode;
+};
+
+export function useManualAccount({
   onBack,
   onClose,
   onCreated,
@@ -58,7 +83,7 @@ export function ManualAccountForm({
   onClose: () => void;
   onCreated: () => void;
   onBusyChange: (busy: boolean) => void;
-}) {
+}): ManualFlow {
   const [type, setType] = useState<AccountType | null>(null);
   const [firm, setFirm] = useState('');
   const [size, setSize] = useState<number | null>(null);
@@ -78,7 +103,7 @@ export function ManualAccountForm({
      nothing behind it, so the answers genuinely are the position.
      PERSONAL NEVER LEAVES THE TYPE STEP: it has no firm and no size, so the screen after the
      question would hold one sentence of filler over a button. Picking it creates the account. */
-  const step = type === null || type === 'personal' ? 'type' : !firm ? 'firm' : 'detail';
+  const step: Step = type === null || type === 'personal' ? 'type' : !firm ? 'firm' : 'detail';
   const ready = type !== null && (!isProp || (Boolean(firm) && size !== null));
 
   // Back unwinds one answer at a time, in the order they were given.
@@ -133,105 +158,121 @@ export function ManualAccountForm({
 
   /* STEP 1 — WHICH KIND. No footer: every row IS the action, so a CTA underneath would be a second
      thing to press for a choice already made. */
-  if (step === 'type') {
-    return (
-      <>
-        <ModalHeader title="Add manually" onBack={back} onClose={onClose} />
-        <ModalBody className="px-6 pt-1 pb-5">
-          {/* SHARED WITH THE LABEL FORM (`account-fields`). Two forms asking the identical question
-              in two shapes is how they drift, which is the whole reason those fields are a module.
-              NO SUB-TEXT ON THE ROWS (v2, Luke 2026-07-30): "Evaluation" and "Sim Funded" are the
-              prop industry's own glossary terms, not jargon Run invented, and explaining them to a
-              trader who owns one is condescension wearing the costume of helpfulness. */}
-          <TypeRows
-            current={type}
-            busy={saving ? 'personal' : null}
-            onPick={(t) => (t === 'personal' ? void save('personal') : setType(t))}
-          />
-          {error && <p className="text-neg text-body mt-4">{error}</p>}
-        </ModalBody>
-      </>
-    );
-  }
-
-  /* STEP 2 — WHICH FIRM. Nothing else on the screen: a Size row visible under a list of
-     twenty-three firms was offering to answer a question the trader had not reached. */
-  if (step === 'firm') {
-    return (
-      <>
-        <ModalHeader title={ACCOUNT_TYPE_LABELS[type!]} onBack={back} onClose={onClose} />
-        <ModalBody className="px-6 pt-4 pb-5">
-          <FirmPicker onPick={setFirm} autoFocus />
-        </ModalBody>
-      </>
-    );
-  }
-
-  /* STEP 3 — HOW BIG, AND HOW MANY. The chosen firm is restated as a ROW, not as a filled-in search
-     field: a search box holding an answer reads as still-editable and still-searching, when the
-     choice is made and the only way to change it is to go back. */
-  return (
+  const typeScreen = (
     <>
-      <ModalHeader title={ACCOUNT_TYPE_LABELS[type!]} onBack={back} onClose={onClose} />
-
-      <ModalBody className="px-6 pt-4">
-        <div className="bg-hover flex items-center gap-3 rounded-[var(--radius)] px-4 py-2">
-          <AccountLogo propFirm={firm} size={32} />
-          <span className="min-w-0 flex-1">
-            <span className="text-body-lg text-text block truncate font-medium">{firm}</span>
-            {findPropFirm(firm) && (
-              <span className="text-body text-muted block truncate">{findPropFirm(firm)!.domain}</span>
-            )}
-          </span>
-        </div>
-
-        <SizeField value={size} onChange={setSize} />
-
-        {/* HOW MANY. The copy-trader case, and it is the normal one: traders buy the same SKU
-            several times and run one strategy across all of them. Without this they would walk three
-            screens per account, five times over. Shown only once a SIZE exists, so it cannot be
-            answered before the thing it counts. */}
-        {size !== null && (
-          <div className="mt-5">
-            <p className="text-body text-muted mb-2 font-medium">How many</p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label="Fewer"
-                disabled={qty <= 1}
-                onClick={() => setQty((n) => Math.max(1, n - 1))}
-                className="h-9 w-9 p-0"
-              >
-                {/* The icon set's `add` rotated is its CLOSE mark, and there is no minus glyph — so
-                    this one is the button's own text rather than an inline svg the house rule
-                    forbids. */}
-                <span className="text-body-lg leading-none">&minus;</span>
-              </Button>
-              <span className="text-body-lg text-text w-8 text-center font-medium tabular-nums">
-                {qty}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label="More"
-                disabled={qty >= MAX_QTY}
-                onClick={() => setQty((n) => Math.min(MAX_QTY, n + 1))}
-                className="h-9 w-9 p-0"
-              >
-                <Icon name="add" size={14} />
-              </Button>
-            </div>
-          </div>
-        )}
+      <ModalHeader title="Add manually" onBack={back} onClose={onClose} />
+      <ModalBody className="px-6 pt-1 pb-5">
+        {/* SHARED WITH THE LABEL FORM (`account-fields`). Two forms asking the identical question
+            in two shapes is how they drift, which is the whole reason those fields are a module.
+            NO SUB-TEXT ON THE ROWS (v2, Luke 2026-07-30): "Evaluation" and "Sim Funded" are the
+            prop industry's own glossary terms, not jargon Run invented, and explaining them to a
+            trader who owns one is condescension wearing the costume of helpfulness. */}
+        <TypeRows
+          current={type}
+          busy={saving ? 'personal' : null}
+          onPick={(t) => (t === 'personal' ? void save('personal') : setType(t))}
+        />
+        {error && <p className="text-neg text-body mt-4">{error}</p>}
       </ModalBody>
-
-      <ModalFooter>
-        {error && <p className="text-neg text-body mr-auto">{error}</p>}
-        <Button disabled={!ready} loading={saving} onClick={() => void save()} size="lg" className="w-full">
-          {qty > 1 ? `Add ${qty} accounts` : 'Add account'}
-        </Button>
-      </ModalFooter>
     </>
   );
+
+  /* STEPS 2 AND 3 — WHICH FIRM, THEN HOW BIG AND HOW MANY. ONE page under one bar, and the swap
+     between them is `key` + `.value-fade`: the same 0.14s opacity change `LabelAccountForm` uses
+     when its screen changes without its header changing. Not a slide, because nothing has been
+     navigated to — the bar still says "Evaluation", so this is one page answering its second half.
+     And not a hard cut: Luke, 2026-08-28, "it cant be just a hard chop to the next screen".
+     THE FIRM LIST IS ALONE ON ITS HALF. A Size row visible under twenty-three firms was offering to
+     answer a question the trader had not reached. */
+  const detailScreen = (
+    <>
+      <ModalHeader title={type ? ACCOUNT_TYPE_LABELS[type] : ''} onBack={back} onClose={onClose} />
+      {step === 'firm' ? (
+        <ModalBody key="firm" className="value-fade px-6 pt-4 pb-5">
+          <FirmPicker onPick={setFirm} autoFocus />
+        </ModalBody>
+      ) : (
+        <>
+          <ModalBody key="detail" className="value-fade px-6 pt-4">
+            {/* The chosen firm is restated as a ROW, not as a filled-in search field: a search box
+                holding an answer reads as still-editable and still-searching, when the choice is
+                made and the only way to change it is to go back. */}
+            <div className="bg-hover flex items-center gap-3 rounded-[var(--radius)] px-4 py-2">
+              <AccountLogo propFirm={firm} size={32} />
+              <span className="min-w-0 flex-1">
+                <span className="text-body-lg text-text block truncate font-medium">{firm}</span>
+                {findPropFirm(firm) && (
+                  <span className="text-body text-muted block truncate">
+                    {findPropFirm(firm)!.domain}
+                  </span>
+                )}
+              </span>
+            </div>
+
+            <SizeField value={size} onChange={setSize} />
+
+            {/* HOW MANY. The copy-trader case, and it is the normal one: traders buy the same SKU
+                several times and run one strategy across all of them. Without this they would walk
+                three screens per account, five times over. Shown only once a SIZE exists, so it
+                cannot be answered before the thing it counts. */}
+            {size !== null && (
+              <div className="mt-5">
+                <p className="text-body text-muted mb-2 font-medium">How many</p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label="Fewer"
+                    disabled={qty <= 1}
+                    onClick={() => setQty((n) => Math.max(1, n - 1))}
+                    className="h-9 w-9 p-0"
+                  >
+                    {/* The icon set's `add` rotated is its CLOSE mark, and there is no minus glyph
+                        — so this one is the button's own text rather than an inline svg the house
+                        rule forbids. */}
+                    <span className="text-body-lg leading-none">&minus;</span>
+                  </Button>
+                  <span className="text-body-lg text-text w-8 text-center font-medium tabular-nums">
+                    {qty}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label="More"
+                    disabled={qty >= MAX_QTY}
+                    onClick={() => setQty((n) => Math.min(MAX_QTY, n + 1))}
+                    className="h-9 w-9 p-0"
+                  >
+                    <Icon name="add" size={14} />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </ModalBody>
+
+          <ModalFooter>
+            {error && <p className="text-neg text-body mr-auto">{error}</p>}
+            <Button
+              disabled={!ready}
+              loading={saving}
+              onClick={() => void save()}
+              size="lg"
+              className="w-full"
+            >
+              {qty > 1 ? `Add ${qty} accounts` : 'Add account'}
+            </Button>
+          </ModalFooter>
+        </>
+      )}
+    </>
+  );
+
+  return { step, back, typeScreen, detailScreen };
+}
+
+/** WHAT A MODAL WANTS: one screen at a time, in the card. The sheet takes the two nodes instead and
+ *  puts them in two layers — see `add-account-modal.tsx`. */
+export function ManualAccountForm(args: Parameters<typeof useManualAccount>[0]) {
+  const flow = useManualAccount(args);
+  return flow.step === 'type' ? flow.typeScreen : flow.detailScreen;
 }

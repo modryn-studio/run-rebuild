@@ -21,17 +21,31 @@
  * when neither intake has anything to work with.
  * It brings `pending:<uuid>` account names with it, and therefore the ADOPTION PATH that
  * `resolveAccount` deliberately omitted until there was a caller for it.
+ *
+ * ─── TWO CONTAINERS, ONE FLOW (2026-08-28) ───────────────────────────────────────────────────────
+ *
+ * Below 768px this is not a modal at all but a full-screen sheet whose screens stack (Luke: "the add
+ * account modal on mobile is not a modal ... basically no modals on mobile is the rule"). The DOORS
+ * are byte-identical in both — same rows, same footer, same copy — so the screens are written once
+ * and only the frame around them changes, which is what `surface.tsx` exists to arrange.
+ *
+ * THE LAYER MAP IS THE FLOW'S JOB, NOT THE SHEET'S, because only this component knows that "Import
+ * from CSV" and "Add manually" are siblings one level down while the manual form's Firm/Size page is
+ * a level below THAT. The rule deciding it is the header: a screen that renames the bar is a new
+ * page and slides; a screen that does not is the same page and fades.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ModalShell, ModalBody, ModalFooter } from './modal-shell';
+import { AccountSheet, useSheet } from './account-sheet';
 import { Button } from '@/components/ui/button';
 import { ModalHeader, type Source } from './shared';
 import { FileUploadStep, type Picked } from './file-upload-step';
-import { ManualAccountForm } from './manual-account-form';
+import { useManualAccount } from './manual-account-form';
 import { Icon } from '@/components/ui/icon';
 import { cn } from '@/lib/cn';
+import { usePhone } from '@/lib/use-phone';
 import { slotSurface } from '@/components/ui/card';
 
 /* The one live rail. Named "Tradovate", NOT "Tradovate Prop" (`widening-plan.md` §5.1): a trader
@@ -82,6 +96,7 @@ export function AddAccountModal({
   dryRun?: boolean;
 }) {
   const router = useRouter();
+  const phone = usePhone();
   const [view, setView] = useState<View>('doors');
   /* Held here, not in FileUploadStep: stepping back to the doors and returning keeps a staged
      selection. Closing the modal still discards it, which is the intended discard. */
@@ -90,9 +105,15 @@ export function AddAccountModal({
      request, so the corpus write still lands while the result is thrown away. */
   const [busy, setBusy] = useState(false);
 
+  /* THE SHEET HAS TO TRAVEL BEFORE IT UNMOUNTS, and the owner above is what unmounts it — so the
+     exit is held here. The modal path already has the same arrangement one level up, in
+     `useModalClose`; `closing` is that hook's flag arriving as a prop. */
+  const sheet = useSheet(onClose);
+  const leave = phone ? sheet.requestClose : onClose;
+
   const close = useCallback(() => {
-    if (!busy) onClose();
-  }, [busy, onClose]);
+    if (!busy) leave();
+  }, [busy, leave]);
 
   /* `ModalShell`'s own dismiss guard only reaches Escape and the backdrop, both in-app. A refresh,
      a Back gesture, or closing the tab bypass it entirely — the write still lands (the corpus
@@ -108,83 +129,117 @@ export function AddAccountModal({
     return () => window.removeEventListener('beforeunload', warn);
   }, [busy]);
 
-  // Escape and the backdrop dismiss the TOP layer only: a sub-view steps back to the doors, the
-  // doors close the modal. The shell asks; this decides.
-  const dismiss = useCallback(() => {
-    if (view === 'doors') onClose();
-    else setView('doors');
-  }, [view, onClose]);
-
   /* The page is a Server Component reading the corpus, so `refresh()` is what makes a new account
      appear, not local state. One source of truth for what a trader owns. */
-  function done() {
+  const done = useCallback(() => {
     router.refresh();
-    onClose();
+    leave();
+  }, [router, leave]);
+
+  const toDoors = useCallback(() => setView('doors'), []);
+
+  /* THE MANUAL FORM'S STATE LIVES HERE rather than inside a component that mounts on `view`,
+     because on a phone its two pages go into two different LAYERS and a sheet's layers are
+     siblings. See `manual-account-form.tsx`. On the modal path only one of the two is ever
+     rendered, which is exactly what it was before. */
+  const manualFlow = useManualAccount({
+    onBack: toDoors,
+    onClose: close,
+    onCreated: done,
+    onBusyChange: setBusy,
+  });
+
+  const uploadScreen = (
+    <FileUploadStep
+      dryRun={dryRun}
+      source={TRADOVATE}
+      adoptAccountId={adoptAccountId}
+      onBack={toDoors}
+      onClose={close}
+      onDone={done}
+      onBusyChange={setBusy}
+      files={files}
+      setFiles={setFiles}
+    />
+  );
+
+  const doors = (
+    <>
+      {/* The first screen had NO close control at all in v2 until 2026-07-30 — only Escape and a
+          backdrop click, neither of which is visible. Every later screen in the flow had an X,
+          so the one screen a trader always sees first was the one with no way out. */}
+      <ModalHeader title={title} onClose={close} />
+      <ModalBody className="px-6 pb-6">
+        <BrokerRow connected={connected} />
+        <Door
+          icon={<Icon name="upload" size={16} />}
+          title="Import trades"
+          desc="Import from CSV"
+          onClick={() => setView('upload')}
+        />
+      </ModalBody>
+
+      {/* THE THIRD DOOR, AND IT IS NOT A DOOR. A full-width OUTLINE button in the footer rather
+          than a third card beside the two above: the cards are ways to get a RECORD in, and this
+          is what you do when there is no record yet. Ranking it as their peer would say the
+          three are alternatives for one job.
+          IT IS DELIBERATELY NOT LABELLED "Prop firms" as a peer of Brokers, which v2 considered
+          and rejected: a prop firm account IS a broker account — the firm does not hold the
+          trades, Tradovate does, under a firm-issued login. Two doors called "Brokers" and
+          "Prop firms" teach that false model, and a trader with an Apex account on Tradovate
+          would have no way to pick between them.
+          OFF FROM AN ACCOUNT PAGE (`manual={false}`), where the trader is already standing on an
+          account and creating a second one is not what they came for. A SWITCH rather than a
+          fork, so the doors above it can never drift apart. */}
+      {manual && (
+        <ModalFooter>
+          <Button variant="outline" size="lg" className="w-full" onClick={() => setView('manual')}>
+            Add manually
+          </Button>
+        </ModalFooter>
+      )}
+    </>
+  );
+
+  if (phone) {
+    /* BACK MEANS ONE STEP, AND WHICH STEP DEPENDS ON WHERE YOU ARE. Inside the manual form it
+       unwinds one ANSWER (Size back to Firm, Firm back to Type); anywhere else it returns to the
+       doors. The sheet asks; this decides — the same split `dismiss` makes on the modal path. */
+    const back = () => (view === 'manual' ? manualFlow.back() : toDoors());
+
+    return (
+      <AccountSheet
+        open={sheet.open}
+        onClose={close}
+        onBack={back}
+        label={title}
+        /* THE INDEX IS THE DEPTH, and the two lines below ARE the rule about headers.
+           Layer 1 renames the bar ("Import from CSV" / "Add manually"), so it slides up over the
+           doors. Layer 2 renames it again (the account type), so it slides up over layer 1. The
+           Firm-to-Size change does NOT rename it, which is why it is not a layer at all — it is a
+           keyed fade inside layer 2. */
+        layers={[
+          doors,
+          view === 'upload' ? uploadScreen : view === 'manual' ? manualFlow.typeScreen : null,
+          view === 'manual' && manualFlow.step !== 'type' ? manualFlow.detailScreen : null,
+        ]}
+      />
+    );
   }
+
+  // Escape and the backdrop dismiss the TOP layer only: a sub-view steps back to the doors, the
+  // doors close the modal. The shell asks; this decides.
+  const dismiss = () => (view === 'doors' ? onClose() : setView('doors'));
 
   return (
     <ModalShell onDismiss={dismiss} busy={busy} closing={closing}>
-      {view === 'upload' ? (
-        <FileUploadStep
-          dryRun={dryRun}
-          source={TRADOVATE}
-          adoptAccountId={adoptAccountId}
-          onBack={() => setView('doors')}
-          onClose={close}
-          onDone={done}
-          onBusyChange={setBusy}
-          files={files}
-          setFiles={setFiles}
-        />
-      ) : view === 'manual' ? (
-        <ManualAccountForm
-          onBack={() => setView('doors')}
-          onClose={close}
-          onCreated={done}
-          onBusyChange={setBusy}
-        />
-      ) : (
-        <>
-          {/* The first screen had NO close control at all in v2 until 2026-07-30 — only Escape and a
-              backdrop click, neither of which is visible. Every later screen in the flow had an X,
-              so the one screen a trader always sees first was the one with no way out. */}
-          <ModalHeader title={title} onClose={close} />
-          <ModalBody className="px-6 pb-6">
-            <BrokerRow connected={connected} />
-            <Door
-              icon={<Icon name="upload" size={16} />}
-              title="Import trades"
-              desc="Import from CSV"
-              onClick={() => setView('upload')}
-            />
-          </ModalBody>
-
-          {/* THE THIRD DOOR, AND IT IS NOT A DOOR. A full-width OUTLINE button in the footer rather
-              than a third card beside the two above: the cards are ways to get a RECORD in, and this
-              is what you do when there is no record yet. Ranking it as their peer would say the
-              three are alternatives for one job.
-              IT IS DELIBERATELY NOT LABELLED "Prop firms" as a peer of Brokers, which v2 considered
-              and rejected: a prop firm account IS a broker account — the firm does not hold the
-              trades, Tradovate does, under a firm-issued login. Two doors called "Brokers" and
-              "Prop firms" teach that false model, and a trader with an Apex account on Tradovate
-              would have no way to pick between them.
-              OFF FROM AN ACCOUNT PAGE (`manual={false}`), where the trader is already standing on an
-              account and creating a second one is not what they came for. A SWITCH rather than a
-              fork, so the doors above it can never drift apart. */}
-          {manual && (
-            <ModalFooter>
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full"
-                onClick={() => setView('manual')}
-              >
-                Add manually
-              </Button>
-            </ModalFooter>
-          )}
-        </>
-      )}
+      {view === 'upload'
+        ? uploadScreen
+        : view === 'manual'
+          ? manualFlow.step === 'type'
+            ? manualFlow.typeScreen
+            : manualFlow.detailScreen
+          : doors}
     </ModalShell>
   );
 }

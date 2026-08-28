@@ -9,6 +9,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
 import { Icon } from '@/components/ui/icon';
+import { SheetHeader } from '@/components/ui/sheet-header';
+import { SurfaceHeader, useSurface } from './surface';
 
 /** `ModalShell` labels its dialog by this id, so exactly one element per screen carries it — the
  *  header's title, or the completion screen's headline, which IS that screen's title. */
@@ -31,6 +33,45 @@ export function ModalHeader({
   onBack?: () => void;
   onClose?: () => void;
 }) {
+  const { mode } = useSurface();
+
+  /* ON A PHONE THIS IS THE SHEET'S BAR, and `SurfaceHeader` is what puts it there — outside the
+     layer that travels, so it swaps on the frame of the tap while only the body slides.
+     THE SAME BAR THE TAPE'S SCREENS WEAR, from `ui/sheet-header.tsx`, rather than this grid scaled
+     up: h-16 against h-14, `text-h3` against `text-title`, 22px controls against 14. A trader moving
+     between Filters, a trade and Add account meets one header, which is the whole reason that
+     component was pulled out of `views/trades`. */
+  if (mode === 'sheet') {
+    return (
+      <SurfaceHeader>
+        <SheetHeader
+          /* THE BAR TAKES THE PANEL'S GROUND, NOT ITS OWN. `SheetHeader` defaults to `bg-bg`
+             because the trade screens it was built for are `bg-bg` all the way down; these panels
+             are `bg-surface`, and the default painted a visible band across the top of every one of
+             them. The bar is opaque either way - it has to be, since a travelling body passes
+             underneath it - so what varies is only WHICH opaque, and that is the container's fact
+             rather than the component's. */
+          className="bg-surface"
+          title={title}
+          lead={
+            onBack && (
+              <IconButton onClick={onBack} aria-label="Back">
+                <Icon name="back" size={22} />
+              </IconButton>
+            )
+          }
+          trail={
+            onClose && (
+              <IconButton onClick={onClose} aria-label="Close">
+                <Icon name="close" size={22} />
+              </IconButton>
+            )
+          }
+        />
+      </SurfaceHeader>
+    );
+  }
+
   return (
     <div className="grid h-14 shrink-0 grid-cols-[36px_1fr_36px] items-center px-3">
       {/* IconButton, not a hand-rolled square. In v2 these carried their own flat hover fill, which
@@ -69,6 +110,32 @@ export function ModalHeader({
  * needs a visible twin.
  */
 export function ConfirmHeader({ title, onCancel }: { title: string; onCancel: () => void }) {
+  const { mode } = useSurface();
+
+  /* A CONFIRMATION ON A PHONE IS STILL A SHEET (2026-08-28, Luke: "basically no modals on mobile is
+     the rule"), and it keeps its QUESTION as the bar's title rather than being renamed to a place.
+     The left-alignment this component exists for is a desktop distinction - a centred title reads as
+     somewhere you arrived, a left-aligned one as a sentence addressed to you - and it does not
+     survive a 390px bar that every other screen centres. What carries the distinction here instead
+     is that the bar has no back arrow: there is nothing to go back TO, because a confirmation
+     interrupts rather than being a step you walked through. */
+  if (mode === 'sheet') {
+    return (
+      <SurfaceHeader>
+        <SheetHeader
+          className="bg-surface"
+          title={title}
+          lead={null}
+          trail={
+            <IconButton onClick={onCancel} aria-label="Cancel">
+              <Icon name="close" size={22} />
+            </IconButton>
+          }
+        />
+      </SurfaceHeader>
+    );
+  }
+
   return (
     <div className="flex items-start justify-between gap-3 px-6 pt-5">
       <h2 id={MODAL_TITLE_ID} className="text-title text-text font-medium">
@@ -104,11 +171,7 @@ export function ImportComplete({ onDone, imported }: { onDone: () => void; impor
     <>
       {/* The X is the only chrome, and it is not a duplicate control here: this screen has no
           forward, so dismiss IS the action. */}
-      <div className="flex h-14 shrink-0 items-center justify-end pr-3">
-        <IconButton onClick={onDone} aria-label="Close">
-          <Icon name="close" size={14} />
-        </IconButton>
-      </div>
+      <CompleteHeader onDone={onDone} />
       <div className="flex flex-col items-center px-6 pt-4 pb-2 text-center">
         <span className="bg-accent text-accent-fg flex h-14 w-14 items-center justify-center rounded-full">
           <Icon name="check" size={28} className="check-draw" />
@@ -129,6 +192,37 @@ export function ImportComplete({ onDone, imported }: { onDone: () => void; impor
         </div>
       </div>
     </>
+  );
+}
+
+/* THE COMPLETION SCREEN'S ONLY CHROME. A bare X in a modal, because the headline below carries the
+ * title; a full bar on a sheet, because a phone screen with a floating X and no bar reads as a
+ * broken header rather than as a deliberate absence — and because the bar is 64px of the ground
+ * everything else on the phone is measured against. */
+function CompleteHeader({ onDone }: { onDone: () => void }) {
+  const { mode } = useSurface();
+  if (mode === 'sheet') {
+    return (
+      <SurfaceHeader>
+        <SheetHeader
+          className="bg-surface"
+          title=""
+          lead={null}
+          trail={
+            <IconButton onClick={onDone} aria-label="Close">
+              <Icon name="close" size={22} />
+            </IconButton>
+          }
+        />
+      </SurfaceHeader>
+    );
+  }
+  return (
+    <div className="flex h-14 shrink-0 items-center justify-end pr-3">
+      <IconButton onClick={onDone} aria-label="Close">
+        <Icon name="close" size={14} />
+      </IconButton>
+    </div>
   );
 }
 

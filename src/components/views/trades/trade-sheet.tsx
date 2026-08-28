@@ -53,7 +53,7 @@ import { ICON_BUTTON } from '@/components/ui/icon-button';
 import { useOverlayBack } from '@/lib/overlay-back';
 import { tradeTitle } from '@/lib/trades/title';
 import type { TapeRow } from '@/lib/trades/read';
-import { SheetHeader } from './sheet-header';
+import { SheetHeader } from '@/components/ui/sheet-header';
 import { TradeDetail } from './trade-detail';
 
 export function TradeSheet({

@@ -186,7 +186,11 @@ export function FileUploadStep({
 
   return (
     <>
-      <ModalHeader title="Upload your exports" onBack={onBack} onClose={onClose} />
+      {/* "Import from CSV", WHICH IS WHAT THE DOOR THAT OPENED IT SAYS (2026-08-28, Luke). It read
+          "Upload your exports", so the row said one thing and the screen it led to said another -
+          and the trader had to work out that the two were the same place. The door's sub-line is the
+          honest name of the destination, so the destination takes it. */}
+      <ModalHeader title="Import from CSV" onBack={onBack} onClose={onClose} />
 
       <ModalBody>
         {/* WHICH BROKER, STATED AS A FACT. A trader arriving with a TradeStation or Rithmic export
@@ -198,16 +202,24 @@ export function FileUploadStep({
           <div className="flex items-center justify-center gap-2">
             <SourceMark source={source} size="h-6" />
           </div>
+          {/* "From the Reports tab." IS GONE (2026-08-28, Luke: "we could probably just say 'How to
+              export' and remove the 'From the Reports tab.' copy. then have that reports tab info in
+              the instructions"). It was half an instruction standing outside the instructions: not
+              enough to act on alone, and it made the one control on the line read as a footnote to
+              a sentence rather than as the thing to press. The fact it carried is now step one,
+              where the rest of the steps are. */}
           <p className="text-body text-muted mt-2">
-            From the Reports tab.{' '}
             <button onClick={() => setHowOpen((o) => !o)} className="text-link">
               How to export
             </button>
           </p>
           {howOpen && (
             <ol className="text-small text-muted mx-auto mt-3 max-w-sm list-decimal space-y-1 pl-5 text-left">
-              <li>In Tradovate, open the account and click the settings gear.</li>
-              <li>Download Fills, Position History, Cash History and Orders.</li>
+              <li>In Tradovate, open the Reports tab for the account.</li>
+              <li>
+                Click the settings gear, then download Fills, Position History, Cash History and
+                Orders.
+              </li>
               <li>Account Balance History is optional, and checks your net against the broker.</li>
             </ol>
           )}
@@ -259,7 +271,18 @@ export function FileUploadStep({
             >
               <Icon name="upload" size={16} />
             </span>
-            <p className="text-body text-muted">Drop CSV files here, or browse</p>
+            {/* A PHONE CANNOT DROP A FILE, so it must not be told to (2026-08-28, Luke: "users
+                can't drop CSV files. they can browse though"). The BOX stays - it is the tap target
+                and the thing the staged list hangs off, and replacing it with a button would take
+                the centre out of the screen - so only the sentence changes.
+                TWO SPANS AND A BREAKPOINT, not `usePhone()`, because the fact being described is the
+                POINTER rather than the container: a desktop window narrowed under 768px still drags,
+                and the drag handlers above stay wired at every width because they cost nothing and a
+                touch device simply never fires them. */}
+            <p className="text-body text-muted">
+              <span className="max-md:hidden">Drop CSV files here, or browse</span>
+              <span className="md:hidden">Browse for CSV files</span>
+            </p>
           </div>
 
           {notice && <p className="text-caption text-neg mt-2 text-center">{notice}</p>}

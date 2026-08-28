@@ -18,6 +18,7 @@ import { BrandSection } from './sections/brand';
 import { InstrumentMarkSection } from './sections/instrument-mark';
 import { ColumnsMenuSection } from './sections/columns-menu';
 import { FilterSheetSection } from './sections/filter-sheet';
+import { AccountSheetSection } from './sections/account-sheet';
 import { ScopeTabsSection } from './sections/scope-tabs';
 import { PnlPlotSection } from './sections/pnl-plot';
 import { RosterRowSection } from './sections/roster-row';
@@ -93,6 +94,7 @@ export default function KitchenSinkPage() {
         <SwitchMenuSection />
         <FiltersSection />
         <FilterSheetSection />
+        <AccountSheetSection />
         <ScopeTabsSection />
         <PnlPlotSection />
         <RosterRowSection />

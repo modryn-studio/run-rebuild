@@ -2,6 +2,11 @@
  * border. `FilterSheet` set this shape and the trade screens follow it, so the header is the one
  * thing that does NOT change as a trader moves between the two.
  *
+ * IT LIVES IN `ui/` RATHER THAN IN ONE FEATURE'S FOLDER (2026-08-28), because /accounts' sheets now
+ * wear it too. There is ONE phone header bar in this product and there had better be: two bars that
+ * merely resemble each other is the drift every rule in this codebase is written to stop, and Luke
+ * asked for these screens explicitly "just like we do on the trades page".
+ *
  * IT IS SHARED BECAUSE IT IS RENDERED TWICE, and the two are genuinely different objects: the tape
  * opens a trade as an OVERLAY whose control is a `<button>` (it dismisses client state, and there
  * is no href that expresses "close"), while `/trades/[id]` opened cold renders the same bar
@@ -27,10 +32,16 @@ import { cn } from '@/lib/cn';
 export function SheetHeader({
   title,
   lead,
+  trail,
   className,
 }: {
   title: string;
   lead: React.ReactNode;
+  /* THE FAR RIGHT, and it is optional because the trade screens have nothing to put there: they are
+     reached by drilling INTO a row, so their one control is the way back. A flow's screen has two
+     exits that mean different things - back one question, or abandon the whole flow - and both have
+     to be visible or the trader guesses which the arrow does. */
+  trail?: React.ReactNode;
   className?: string;
 }) {
   return (
@@ -48,6 +59,7 @@ export function SheetHeader({
       <div className="absolute left-2">{lead}</div>
       {/* `px-12` keeps the centred text clear of the control at either end. */}
       <h2 className="text-h3 text-text min-w-0 truncate px-12 font-medium">{title}</h2>
+      {trail && <div className="absolute right-2">{trail}</div>}
     </div>
   );
 }

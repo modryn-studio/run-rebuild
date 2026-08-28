@@ -22,7 +22,9 @@
 
 import { useState } from 'react';
 import { ModalShell, useModalClose } from './modal-shell';
+import { useSheet } from './account-sheet';
 import { LabelAccountForm } from './label-account-form';
+import { usePhone } from '@/lib/use-phone';
 import type { RosterAccount } from '@/lib/accounts/read';
 
 export function LabelAccountModal({
@@ -34,26 +36,39 @@ export function LabelAccountModal({
   siblingCount: number;
   onClose: () => void;
 }) {
+  const phone = usePhone();
   const { closing, requestClose } = useModalClose(onClose);
+  const sheet = useSheet(onClose);
   const [busy, setBusy] = useState(false);
 
+  /* TWO CONTAINERS, TWO CLOCKS. A modal fades out in 160ms and a sheet travels the height of the
+     screen in 200, and each hook owns the delay before the owner above unmounts anything. Both are
+     called unconditionally because hooks must be; only one of them is ever driven. */
+  const close = phone ? sheet.requestClose : requestClose;
+
+  const form = (
+    <LabelAccountForm
+      account={account}
+      siblingCount={siblingCount}
+      onClose={close}
+      /* SAVED AND CLOSING ARE THE SAME GESTURE HERE. The form has already called
+         `router.refresh()`, so by the time this runs the surfaces behind are being re-read;
+         closing on top of that is what makes the change appear to happen "in" the page rather
+         than after it. */
+      onSaved={close}
+      onBusyChange={setBusy}
+      /* ON A PHONE THE FORM IS THE CONTAINER. It has to be: its three screens become three layers,
+         and the confirmations have to sit OUTSIDE the panel that holds them — neither of which a
+         wrapper around it could arrange. See the `sheet` prop's own note. */
+      sheet={phone ? { open: sheet.open } : null}
+    />
+  );
+
+  if (phone) return form;
+
   return (
-    <ModalShell
-      onDismiss={() => !busy && requestClose()}
-      busy={busy}
-      closing={closing}
-    >
-      <LabelAccountForm
-        account={account}
-        siblingCount={siblingCount}
-        onClose={requestClose}
-        /* SAVED AND CLOSING ARE THE SAME GESTURE HERE. The form has already called
-           `router.refresh()`, so by the time this runs the surfaces behind the modal are being
-           re-read; closing on top of that is what makes the change appear to happen "in" the page
-           rather than after it. */
-        onSaved={requestClose}
-        onBusyChange={setBusy}
-      />
+    <ModalShell onDismiss={() => !busy && requestClose()} busy={busy} closing={closing}>
+      {form}
     </ModalShell>
   );
 }
