@@ -432,7 +432,8 @@ export function LabelAccountForm({
                   action={
                     <Button
                       variant="secondary"
-                      size="sm"
+                      size="md"
+                      className="max-sm:min-h-11"
                       disabled={saving || type === null}
                       /* `busy` LOCKS THE SHELL UNDERNEATH, so Escape and a backdrop click land on
                          the confirmation rather than dismissing this form out from under it. */
@@ -455,7 +456,8 @@ export function LabelAccountForm({
                   action={
                     <Button
                       variant="secondary"
-                      size="sm"
+                      size="md"
+                      className="max-sm:min-h-11"
                       loading={reopening}
                       onClick={() => void reopen()}
                     >
@@ -479,13 +481,13 @@ export function LabelAccountForm({
                     action={
                       <Button
                         variant="secondary"
-                        size="sm"
+                        size="md"
                         disabled={saving}
                         /* `text-neg` RATHER THAN v2'S INLINE `style={{ color: ... }}`. Same result,
                            and it follows the theme without a second declaration. The FILL stays
                            `secondary`: the red belongs on the confirmation's commit button, not on
                            the thing that merely opens it. */
-                        className="text-neg"
+                        className="text-neg max-sm:min-h-11"
                         onClick={() => {
                           setConfirmingDelete(true);
                           onBusyChange(true);
@@ -620,17 +622,21 @@ function ChangeableRow({
   onChange: () => void;
 }) {
   return (
-    <div className="bg-hover flex min-h-11 items-center gap-3 rounded-[var(--radius)] px-4 py-2">
+    /* `min-h-13` (52px), UP FROM 44: the row now holds a 36px button plus its 8px of vertical air,
+       and at `min-h-11` the control was flush against both edges. The `Field` gap above it is
+       unchanged, so the form's rhythm is the same and only the row breathes. */
+    <div className="bg-hover flex min-h-13 items-center gap-3 rounded-[var(--radius)] px-4 py-2">
       {logo}
       <span className="text-body-lg text-text min-w-0 flex-1 truncate font-medium">{label}</span>
-      <button
-        type="button"
-        onClick={onChange}
-        // `-my-2 py-2` grows the tap box without moving the row's height.
-        className="text-body text-muted hover:text-text -my-2 shrink-0 py-2 underline underline-offset-2 transition-colors"
-      >
+      {/* A REAL `Button`, NOT A TEXT LINK (2026-08-28, Luke: "i like buttons better than text links
+          for the 'change' link"). v2 draws this as an underlined muted link, and the inconsistency
+          it creates is the argument against it: the Actions rows directly below carry `Close` and
+          `Delete` as `secondary` buttons, so the modal had two different control CLASSES doing the
+          identical job - a thing on the right of a row that acts on that row.
+          `secondary` and `md`, matching those, so all four rows read as one family. */}
+      <Button variant="secondary" size="md" onClick={onChange} className="max-sm:min-h-11 shrink-0">
         Change
-      </button>
+      </Button>
     </div>
   );
 }
