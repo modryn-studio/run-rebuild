@@ -49,6 +49,8 @@ export interface TapeRow {
   /** The firm's mark, resolved here so the row does not have to know how logos are addressed.
    *  Null when the account is unlabelled, which is a normal state until the labelling step lands. */
   firmLogo: string | null;
+  /** `evaluation` | `sim_funded` | `personal`, or null while the account is unlabelled. */
+  accountType: AccountType | null;
   symbolRoot: string;
   contract: string | null;
   direction: 'long' | 'short' | null;
@@ -240,6 +242,11 @@ async function selectTapeRows(
       externalAccountId: account.externalAccountId,
       propFirm: account.propFirm,
       sizeDollars: account.sizeDollars,
+      /* WHAT KIND OF ACCOUNT IT IS, for the detail screen's sub-line (2026-08-28). It is not on the
+         ROW - a tape row is one line and this would be a second - but the detail has room and it is
+         the fact that decides what the figure above it MEANS: the same +$12.60 is play money on an
+         evaluation and a payout on a funded account. Null until the account has been labelled. */
+      accountType: account.accountType,
       symbolRoot: trade.symbolRoot,
       contract: trade.contract,
       direction: trade.direction,

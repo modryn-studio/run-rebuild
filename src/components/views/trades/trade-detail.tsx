@@ -18,6 +18,7 @@
  * ever rendered at once.
  */
 
+import { ACCOUNT_TYPE_LABELS } from '@/lib/prop-firms';
 import { Icon } from '@/components/ui/icon';
 import { fmtMoney, fmtPriceDecimal, fmtDuration } from '@/lib/format';
 import { productName } from '@/lib/instruments';
@@ -84,6 +85,21 @@ export function TradeDetail({
                   {t.accountTail && <span className="shrink-0">{t.accountTail}</span>}
                 </span>
               </span>
+              {/* WHAT KIND OF ACCOUNT, under the name (2026-08-28, Luke, from v2's screen). It is
+                  the fact that decides what the figure above it MEANS - the same +$12.60 is play
+                  money on an evaluation and a payout on a funded account - and this is the only
+                  surface with room to say it.
+                  `text-caption`, WHICH IS ALREADY THE FINE-PRINT ROLE (the required-file ticks and
+                  `.eyebrow` both read it). No new token: the step below `text-body` exists and this
+                  is exactly what it is for. And it is the same MUTED ink as the name above it, not a
+                  third tier - `design-system.md` allows two, and what separates these two lines is
+                  SIZE. Omitted entirely while the account is unlabelled, rather than printed as
+                  "Unlabelled": that word belongs to the roster, where it is a call to action. */}
+              {t.accountType && (
+                <span className="text-caption text-muted mt-0.5 block text-right">
+                  {ACCOUNT_TYPE_LABELS[t.accountType]}
+                </span>
+              )}
             </div>
           </div>
 

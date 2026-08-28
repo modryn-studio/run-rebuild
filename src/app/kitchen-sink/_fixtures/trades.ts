@@ -29,6 +29,10 @@ export const row = (
   /* THE TWO HALVES THE TAPE TRUNCATES BETWEEN. A long firm name on purpose: the rack's job is to
      show the row under squeeze, and "Tradeify" alone never reaches the width where the cut
      happens. */
+  /* SIM FUNDED, so the detail screen's sub-line has something to draw. The rack should show the
+     line that exists on almost every real trade, not the null case - `DRAWER_TRADE_BARE` is where
+     the unlabelled account is specimened. */
+  accountType: 'sim_funded',
   accountHead: 'Tradeify',
   accountTail: '50K (...0007)',
   // A real firm mark, because the row's account cell is one of the things being reviewed here and
@@ -157,9 +161,11 @@ export const DRAWER_TRADE_QUARANTINED = row('d3', {
   direction: null,
 });
 
-/** No broker ids and no fees: the two fallbacks that state a gap instead of filling it with
- *  something that looks like provenance. */
+/** No broker ids, no fees, and no account TYPE: three fallbacks that state a gap instead of filling
+ *  it with something that looks like provenance. The type line is omitted entirely rather than
+ *  printed as "Unlabelled" - that word belongs to the roster, where it is a call to action. */
 export const DRAWER_TRADE_BARE = row('d4', {
+  accountType: null,
   entryAt: at('2027-03-06T15:30:00Z'),
   exitAt: at('2027-03-06T15:31:00Z'),
   sessionDate: '2027-03-06',

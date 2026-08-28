@@ -149,13 +149,31 @@ export function AccountSheet({
      modified" as far as it can tell. Built whole, compared whole. */
   if (shown.length !== held.length || shown.some((node, i) => node !== held[i])) setHeld(shown);
 
-  /* THE DEVICE BACK BUTTON ANSWERS ONE LEVEL AT A TIME, innermost first — `useOverlayBack` orders
-     the registrations by the token it issues, so one press closes exactly one thing. Three fixed
-     calls rather than a loop, because hooks cannot be conditional and `MAX_LAYERS` is the cap.
-     NO URL for any of them: a half-answered flow is not a place, the call `FilterSheet` makes. */
-  useOverlayBack(open, onClose);
-  useOverlayBack(open && depth >= 1, onBack);
-  useOverlayBack(open && depth >= 2, onBack);
+  /* ONE HISTORY ENTRY, RE-ARMED PER LEVEL, and this replaces one registration PER DEPTH
+     (2026-08-28, Luke: "on mobile it doesn't work. and it locks me out. I can't go back").
+     Three registrations meant up to three live entries, and closing one of them from inside called
+     `history.back()` — whose `popstate` the OTHER two also hear. Whichever was innermost by then
+     answered it as though the trader had pressed Back, so changing a firm (which unwinds the stack
+     by itself, without any press) fired a cascade: the sheet ate presses it had already spent and
+     the way out stopped working. It is the same defect the filter sheet had, and the same fix.
+     THE HANDLER RETURNS `true` WHILE THERE IS STILL A LEVEL TO GO BACK TO, which tells the hook to
+     hand back a fresh entry: the sheet is still up, one screen shallower, and still owes Back an
+     answer. So Back walks the stack one press at a time on one entry at a time.
+     `depthRef` because the handler is read out of a ref long after the render that made it.
+     NO URL: a half-answered flow is not a place, the call `FilterSheet` makes. */
+  const depthRef = useRef(depth);
+  useEffect(() => {
+    depthRef.current = depth;
+  }, [depth]);
+
+  useOverlayBack(open, () => {
+    if (depthRef.current > 0) {
+      onBack();
+      return true;
+    }
+    onClose();
+    return false;
+  });
 
   /* ESCAPE BACKS OUT ONE LEVEL, THEN CLOSES. Dismissing the whole sheet from a sub-screen would
      throw away the screen the trader was reading rather than the one they opened. This reaches a

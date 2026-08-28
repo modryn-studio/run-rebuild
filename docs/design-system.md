@@ -682,6 +682,13 @@ override lives at the END of `globals.css` because the `thin` declaration it bea
 source order is what decides. Scrolling is untouched; only the indicator is.
 
 **An overlay owns ONE history entry at a time, however many screens it has inside it, and RE-ARMS on
+the way out. This applies to EVERY layered surface, not just the filter sheet** — `AccountSheet` was
+left on one-registration-per-depth for a commit longer and it locked the trader in: changing a firm
+unwinds the sheet's own stack with no press at all, each closing registration called
+`history.back()`, and the other registrations heard that pop and answered it as though it were the
+trader's. The way out stopped working.
+
+**An overlay owns ONE history entry at a time, however many screens it has inside it, and RE-ARMS on
 the way out.** One entry per level is what made the filter apply "sometimes": a commit from inside a
 drill-in left a second live entry whose cleanup called `history.back()` ~300ms later, and a
 `popstate` is dispatched as its own task, so it always landed after the write and undid it. No
