@@ -29,13 +29,15 @@ import { ACCOUNT_SIZES } from '@/lib/prop-firms';
  *   EVERY FIELD IS APPLIED ONLY WHEN PRESENT, never defaulted. A form that sends two fields must not
  *   silently reset the third — v2 states the same rule and it is what makes a partial edit safe.
  *
- * ─── WHAT IS DELIBERATELY NOT HERE (Luke, 2026-08-27) ──────────────────────────────────────────
- * No `dailyLine`: the column is cut (`s6-plan.md` D2).
- * No `hidden` / `excludedFromTotals`: the roster owns those.
- * No `displayName`: there is no free-text rename. The title is derived from firm + size + last 4,
- *   and a typed name competing with it on every roster row is new design rather than a port.
- * Each of those is a real field in v2's own route; leaving them out is a decision, and adding one
- * back means adding its surface with it.
+ * ─── WHAT IS DELIBERATELY NOT HERE (Luke, 2026-08-28) ──────────────────────────────────────────
+ * No `dailyLine`, and it is the only one of v2's fields still missing. The column is cut
+ * (`s6-plan.md` D2), nothing reads the value in v2 either, and `psychology.md` puts the armed-line
+ * ritual in a later slice where the number is set per SESSION rather than stored as a default.
+ * Adding the column now would ship a field that does nothing.
+ *
+ * `displayName`, `hidden` and `excludedFromTotals` WERE missing and are not any more (2026-08-28).
+ * They were left out on my own call while porting the modal, and the call was wrong twice over: all
+ * three are in v2's Edit modal, and all three columns already exist in this schema.
  */
 
 const log = createRouteLogger('accounts-label');
@@ -46,6 +48,8 @@ const log = createRouteLogger('accounts-label');
 const MAX_FIRM_LEN = 60;
 /** The firm's own SKU name — "Growth", "Select". Free text for the same reason. */
 const MAX_PRODUCT_LEN = 60;
+/** A display name is a label on a row, not prose. See the field's own note below. */
+const MAX_NAME_LEN = 60;
 
 /* THE PREFIX REACHES A `LIKE` PATTERN, so it is letters only and capped. `_` and `%` inside it
    would silently widen the match to accounts the trader never named — which on this route means
@@ -92,6 +96,19 @@ const bodySchema = z.object({
      ONLY THE FIRM SPREADS. Type and size stay per-account — a trader farming five evaluations can
      have exactly one of them promoted, and spreading that would be Run inventing a fact. */
   applyFirmToPrefix: prefixSchema.optional(),
+  /* THE TRADER'S OWN NAME FOR THE ROW, and an EMPTY STRING IS A REAL ANSWER meaning "go back to the
+     derived name" - so it is normalised to null below rather than stored as "". `accountRowTitle`
+     already prefers it over the derived form, everywhere, which is why nothing downstream needs to
+     learn about this field.
+     A label on a row, not prose: long enough for "Apex 50K - the aggressive one", short enough that
+     it cannot be used as a storage field. */
+  displayName: z.string().trim().max(MAX_NAME_LEN).optional(),
+  /* TWO KINDS OF "DO NOT SHOW ME THIS", and they are genuinely different questions. `hidden` is
+     about the LIST: the row leaves the roster and every figure is untouched. `excludedFromTotals`
+     is about the ARITHMETIC: the row stays and its P&L leaves the chart and the totals. Neither
+     touches an event, which is what lets a trader use them without fear. */
+  hidden: z.boolean().optional(),
+  excludedFromTotals: z.boolean().optional(),
 });
 
 export async function PATCH(req: Request): Promise<Response> {
@@ -107,8 +124,19 @@ export async function PATCH(req: Request): Promise<Response> {
       return log.end(ctx, Response.json({ error: 'Not signed in' }, { status: 401 }));
     }
 
-    const { id, propFirm, accountType, sizeDollars, productName, applyFirmToPrefix, status, closedOn } =
-      parsed.data;
+    const {
+      id,
+      propFirm,
+      accountType,
+      sizeDollars,
+      productName,
+      applyFirmToPrefix,
+      status,
+      closedOn,
+      displayName,
+      hidden,
+      excludedFromTotals,
+    } = parsed.data;
 
     const patch: Partial<typeof account.$inferInsert> = {};
     if (propFirm !== undefined) {
@@ -123,6 +151,11 @@ export async function PATCH(req: Request): Promise<Response> {
     if (productName !== undefined) patch.productName = productName || null;
     if (status !== undefined) patch.status = status;
     if (closedOn !== undefined) patch.closedOn = closedOn;
+    // `|| null` rather than a truthiness guard: "" is the trader clearing the name, which is an
+    // answer, and storing it as an empty string would leave `accountRowTitle` preferring nothing.
+    if (displayName !== undefined) patch.displayName = displayName || null;
+    if (hidden !== undefined) patch.hidden = hidden;
+    if (excludedFromTotals !== undefined) patch.excludedFromTotals = excludedFromTotals;
 
     if (Object.keys(patch).length === 0) {
       return log.end(ctx, Response.json({ error: 'Nothing to update' }, { status: 400 }));

@@ -40,6 +40,7 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { slotSurface } from '@/components/ui/card';
 import { ModalHeader } from './shared';
 import { ModalBody, ModalFooter, ModalActions } from './modal-shell';
@@ -101,6 +102,9 @@ export function LabelAccountForm({
   const [type, setType] = useState<AccountType | null>(account.accountType);
   const [size, setSize] = useState<number | null>(account.sizeDollars);
   const [applyToSiblings, setApplyToSiblings] = useState(true);
+  const [displayName, setDisplayName] = useState(account.displayName ?? '');
+  const [hidden, setHidden] = useState(account.hidden);
+  const [excluded, setExcluded] = useState(account.excludedFromTotals);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const savingRef = useRef(false);
@@ -161,6 +165,17 @@ export function LabelAccountForm({
     answered(t !== 'personal' && !firm ? 'firm' : 'edit');
   };
 
+  /* WHAT THE ROW WOULD BE CALLED WITH NO DISPLAY NAME, shown as the field's placeholder - so an
+     empty box STATES the fallback rather than leaving the trader to guess it. Computed off the
+     PENDING answers rather than the saved ones, so changing the size updates the placeholder and the
+     trader can see what they are opting out of. */
+  const derivedTitle = accountRowTitle({
+    ...account,
+    displayName: null,
+    propFirm: isProp ? firm || account.propFirm : PERSONAL_FIRM,
+    sizeDollars: isProp ? size : null,
+  });
+
   const ready = type !== null && (!isProp || (Boolean(firm) && size !== null));
 
   async function save() {
@@ -185,6 +200,12 @@ export function LabelAccountForm({
              a personal account has to CLEAR the size, or the row keeps a firm-set size it no longer
              has and every percentage downstream is computed against a number that means nothing. */
           sizeDollars: isProp ? size : null,
+          /* SENT ON EVERY SAVE, INCLUDING EMPTY. "" is the trader clearing the name back to the
+             derived form, which is an answer rather than an absence - the route normalises it to
+             null. Omitting it when empty would make "clear this name" impossible. */
+          displayName,
+          hidden,
+          excludedFromTotals: excluded,
           /* ONLY WHEN THERE IS SOMETHING TO SPREAD TO, and only for a real broker name: a
              placeholder key has no prefix, and the route refuses anything that is not 2-16 letters
              anyway. Belt and braces, because this one writes to rows the trader is not looking at. */
@@ -247,92 +268,143 @@ export function LabelAccountForm({
 
       {screen === 'edit' && (
         <>
+          {/* THE EDITOR: everything you can change about an account that already has a type. Type
+              and Firm are ROWS you can change rather than screens you must pass through, and the
+              sections below them render only when they apply - a personal account has no firm and
+              no size, and shows neither.
+              NO BROKER-NAME BLOCK HERE. It belongs to the `type` screen, which is where a trader is
+              being asked to identify a row they have not seen before. In the editor they already
+              know which account they opened; the breadcrumb behind the modal says so. */}
           <ModalBody>
-            {realName && <NameFact account={account} />}
+            {/* THE TRADER'S OWN NAME, and the reason it is the FIRST field is the copy-trader: five
+                50Ks under one login otherwise read as five identical rows differing in four digits.
+                Empty means "use the derived name", which is what almost every account will do - the
+                placeholder shows what that name currently is, so an empty box is not a mystery. */}
+            <Field label="Name" hint="optional">
+              <Input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder={derivedTitle}
+                maxLength={60}
+                aria-label="Account name"
+              />
+            </Field>
 
-            {/* EACH ANSWER AS A ROW WITH A CHANGE LINK, which is what makes this an editor rather
-                than a second pass through the wizard. */}
             <Field label="Type">
-              <Answer value={ACCOUNT_TYPE_LABELS[type ?? 'personal']} onChange={() => open('type')} />
+              <ChangeableRow
+                label={ACCOUNT_TYPE_LABELS[type ?? 'personal']}
+                onChange={() => open('type')}
+              />
             </Field>
 
             {isProp && (
-              <>
-                <Field label="Firm">
-                  <Answer
-                    value={firm || 'Not named yet'}
-                    muted={!firm}
-                    mark={firm || null}
-                    onChange={() => open('firm')}
-                  />
-                </Field>
+              <Field label="Firm">
+                <ChangeableRow
+                  label={firm || 'Not named yet'}
+                  logo={firm ? <AccountLogo propFirm={firm} size={32} /> : undefined}
+                  onChange={() => open('firm')}
+                />
+              </Field>
+            )}
 
-                {/* THE SIBLINGS OFFER, and it appears only when there ARE siblings - a switch that
-                    would affect nothing is a control that does nothing. It says the count, because
-                    "also apply to 10 accounts" is a different decision from "also apply to 1". */}
-                {realName && prefix && siblingCount > 0 && (
-                  <div className="mt-4">
-                    {/* `Switch` OWNS ITS OWN TITLE AND NOTE, so this is the primitive rather than a
-                        hand-rolled row around a toggle - the same object `/trades`' filter sheet
-                        uses. The note says the COUNT, because "also apply to 10 accounts" is a
-                        different decision from "also apply to 1", and it says what does NOT spread,
-                        because that is the part a trader would otherwise have to trust. */}
-                    <Switch
-                      on={applyToSiblings}
-                      onToggle={() => setApplyToSiblings((v) => !v)}
-                      title={`Apply to your other ${prefix} accounts`}
-                      note={`${siblingCount} ${siblingCount === 1 ? 'account shares' : 'accounts share'} this login. Only the firm is copied.`}
+            {isProp && <SizeField value={size} onChange={setSize} />}
+
+            {/* OFFERED ONLY WHEN THERE IS SOMETHING TO SPREAD IT TO, and default ON: a trader with
+                siblings almost always wants this, and the alternative is answering the same question
+                eleven times.
+                NO NOTE UNDER IT (v2, Luke 2026-08-05: "the copy is confusing... do we even need this
+                copy?"). It read "One login per firm, so they are all the same firm", which argued a
+                premise back at the person who set the login up. The TITLE already carries the
+                evidence: it names the PREFIX, and the prefix is the whole reason these accounts are
+                known to be one firm. A switch that has to explain itself in a second sentence is
+                usually a title that has not done its job, and this title had. */}
+            {isProp && realName && prefix && siblingCount > 0 && (
+              <div className="mt-4">
+                <Switch
+                  on={applyToSiblings}
+                  onToggle={() => setApplyToSiblings((v) => !v)}
+                  title={`Apply this firm to my other ${siblingCount} ${prefix} account${siblingCount === 1 ? '' : 's'}`}
+                />
+              </div>
+            )}
+
+            {/* TWO KINDS OF "DO NOT SHOW ME THIS", and they are genuinely different questions.
+                Hiding is about the LIST; excluding is about the ARITHMETIC. Neither touches an
+                event, which is what lets a trader use them without fear.
+                HIDE IS NOT A ONE-WAY DOOR HERE, which is the bug v2 shipped: it filtered hidden
+                rows out in SQL, and the roster row was the only route back to this modal. This
+                build's `getRoster` deliberately does not filter them and `roster-card.tsx` puts
+                them in a disclosure flap instead, so a hidden account is one tap from being
+                un-hidden. */}
+            <Section title="Visibility">
+              <Switch
+                on={hidden}
+                onToggle={() => setHidden((v) => !v)}
+                title="Hide account"
+                note="Hides it from your Accounts page."
+              />
+              <div className="mt-2">
+                <Switch
+                  on={excluded}
+                  onToggle={() => setExcluded((v) => !v)}
+                  title="Exclude account P&L"
+                  note="Keeps its P&L out of your Accounts chart and totals. The row stays."
+                />
+              </div>
+            </Section>
+
+            {/* ACTIONS: everything above changes a LABEL, everything here changes what the account
+                IS - and unlike everything above, these COMMIT ON PRESS through their own
+                confirmation. The rule that this modal never auto-saves is about a bare tap having
+                consequences; each of these has a confirmation screen, which is the moment of intent
+                that rule was asking for. Cancel does not undo a close.
+                CARDS, matching the Visibility switches exactly, with the control on the right where
+                their switches sit - so "a thing you can do to this account" and "a thing you can set
+                about this account" are the same object with a different control in the slot.
+                WHICH ONES APPEAR: Close only on an `active` account, because `active` is the only
+                status you can close FROM and a null type may only be active. Delete only at zero
+                trades, because the route refuses anything else with a 409 - and a button that is
+                going to be refused should not be how a trader learns the rule.
+                A CLOSED ACCOUNT SHOWS NEITHER, which is the honest gap rather than an oversight:
+                Reopen is real work with its own question, and a Close button a closed account
+                cannot use would be worse than nothing. */}
+            {(account.status === 'active' || account.trades === 0) && (
+              <Section title="Actions">
+                {account.status === 'active' && type !== null && (
+                  <ActionRow
+                    title="Close account"
+                    note="Mark how it ended. Every trade stays."
+                    action={
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setConfirmingClose(true)}
+                        disabled={saving}
+                      >
+                        Close
+                      </Button>
+                    }
+                  />
+                )}
+                {account.trades === 0 && (
+                  <div className={account.status === 'active' ? 'mt-2' : ''}>
+                    <ActionRow
+                      title="Delete account"
+                      note="Nothing has been imported into it, so no trades are lost."
+                      action={
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setConfirmingDelete(true)}
+                          disabled={saving}
+                        >
+                          Delete
+                        </Button>
+                      }
                     />
                   </div>
                 )}
-
-                <SizeField
-                  value={size}
-                  onChange={setSize}
-                  hint={account.sizeDollars !== null ? '(read from your import)' : undefined}
-                />
-              </>
-            )}
-            {/* ─── ACTIONS, BELOW THE ANSWERS AND SEPARATED FROM THEM ─────────────────────────
-                Everything above this rule edits what the account IS. These two end it, and the rule
-                is what stops a mis-aimed tap: the fields are things you change and come back from,
-                these are not.
-                CLOSE IS OFFERED ONLY ON A LIVE ACCOUNT. `active` is the only status you can close
-                FROM, and the schema's CHECK is what settles which statuses an account of this type
-                may move to - see `close-account-modal.tsx`. An unlabelled account cannot close at
-                all, because a null type may only be `active`.
-                DELETE IS OFFERED ONLY AT ZERO TRADES. The route refuses anything else with a 409,
-                and the modal renders that refusal - but a button that is going to be refused should
-                not be the first thing a trader learns, so the normal path is simply not to show it.
-                A CLOSED ACCOUNT SHOWS NEITHER, and that is the honest gap rather than an oversight:
-                Reopen is real work with its own confirmation question, and shipping a Close button
-                that a closed account cannot use would be worse than shipping nothing. */}
-            {(account.status === 'active' || account.trades === 0) && (
-              <div className="border-rule mt-6 border-t pt-4">
-                <p className="text-body text-muted mb-2 font-medium">Actions</p>
-                <div className="flex flex-wrap gap-2">
-                  {account.status === 'active' && type !== null && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setConfirmingClose(true)}
-                      disabled={saving}
-                    >
-                      Close account
-                    </Button>
-                  )}
-                  {account.trades === 0 && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setConfirmingDelete(true)}
-                      disabled={saving}
-                    >
-                      Delete account
-                    </Button>
-                  )}
-                </div>
-              </div>
+              </Section>
             )}
           </ModalBody>
 
@@ -407,29 +479,70 @@ function NameFact({ account }: { account: RosterAccount }) {
   );
 }
 
-/** One settled answer, with the way to change it. */
-function Answer({
-  value,
+/* A STATED ANSWER WITH ONE WAY TO CHANGE IT. The row is not a field: the value is settled, and the
+ * only affordance is the word that unsettles it. A filled-in search box reads as still-searching,
+ * which is the mistake this shape exists to avoid.
+ *
+ * FILLED, NOT BORDERED, and UNDERLINED rather than accent (2026-08-28, correcting the first port).
+ * It shipped as a bordered box with an accent "Change", which made a settled answer look like an
+ * input and made the link compete with Save for the one accent on the screen. v2 draws it on
+ * `bg-hover` with a muted underlined link - the underline is what marks it as a link where the
+ * colour no longer does. */
+function ChangeableRow({
+  label,
+  logo,
   onChange,
-  muted,
-  mark,
 }: {
-  value: string;
+  label: string;
+  logo?: React.ReactNode;
   onChange: () => void;
-  muted?: boolean;
-  mark?: string | null;
 }) {
   return (
-    <div className="border-border flex min-h-12 items-center gap-3 rounded-[var(--radius-sm)] border px-4">
-      {mark && <AccountLogo propFirm={mark} size={24} />}
-      <span className={cn('text-body min-w-0 flex-1 truncate', muted ? 'text-muted' : 'text-text')}>
-        {value}
-      </span>
-      {/* A BUTTON, NOT A LINK: it goes nowhere, it changes which screen of this dialog is showing.
-          `text-link` because that is what it reads as beside a stated value. */}
-      <button type="button" onClick={onChange} className="text-link hit-44 shrink-0">
+    <div className="bg-hover flex min-h-11 items-center gap-3 rounded-[var(--radius)] px-4 py-2">
+      {logo}
+      <span className="text-body-lg text-text min-w-0 flex-1 truncate font-medium">{label}</span>
+      <button
+        type="button"
+        onClick={onChange}
+        // `-my-2 py-2` grows the tap box without moving the row's height.
+        className="text-body text-muted hover:text-text -my-2 shrink-0 py-2 underline underline-offset-2 transition-colors"
+      >
         Change
       </button>
+    </div>
+  );
+}
+
+/** A titled group of settings. `mt-8` rather than a rule: the gap IS the separation. */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-8">
+      <p className="text-body-lg text-text mb-4 font-medium">{title}</p>
+      {children}
+    </div>
+  );
+}
+
+/* A THING YOU CAN DO TO THIS ACCOUNT, drawn as the same card the Visibility switches are, with the
+ * control in the slot their switch sits in. That is the whole reason it is a card rather than a
+ * button in a row: "a thing you can set" and "a thing you can do" read as one family, and the only
+ * difference is what is on the right. */
+function ActionRow({
+  title,
+  note,
+  action,
+}: {
+  title: string;
+  note: string;
+  action: React.ReactNode;
+}) {
+  return (
+    <div className="bg-hover flex items-center gap-4 rounded-[var(--radius)] p-4">
+      <div className="min-w-0 flex-1">
+        <p className="text-body-lg text-text">{title}</p>
+        <p className="text-body text-muted mt-0.5">{note}</p>
+      </div>
+      <div className="shrink-0">{action}</div>
     </div>
   );
 }
