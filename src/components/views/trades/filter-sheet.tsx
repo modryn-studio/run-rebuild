@@ -146,9 +146,10 @@ function Chip({ value, onRemove }: { value: ChipValue; onRemove?: () => void }) 
         <button
           type="button"
           onClick={(e) => {
-            /* THE ROW BEHIND THIS IS A BUTTON THAT DRILLS IN. Without this, removing a chip also
-               opened the axis it belonged to - the click bubbled to the row and the trader was
-               dropped onto a list they had not asked for. */
+            /* KEPT EVEN THOUGH THE ROW IS NO LONGER AN ANCESTOR BUTTON. The stretched target is a
+               SIBLING now, so a click here cannot bubble to it - but the row's own container may
+               grow a handler later, and a remove that also navigated is a bug worth being immune
+               to rather than one to rediscover. */
             e.stopPropagation();
             onRemove();
           }}
@@ -158,7 +159,10 @@ function Chip({ value, onRemove }: { value: ChipValue; onRemove?: () => void }) 
              this safe is that removing a filter is REVERSIBLE in one tap and the row it sits in is
              the 44px+ target for the destructive-free action. Same call the tape's row makes about
              its own inline marks. */
-          className="hover:bg-surface-2 active:bg-bg flex size-7 shrink-0 items-center justify-center rounded-full transition-colors"
+          /* THE ONE THING IN THE ROW THAT TAKES THE POINTER BACK. Its ancestor is
+             `pointer-events-none` so a tap anywhere else falls through to the stretched button that
+             opens the axis - which is what makes a tap on a chip's LABEL still drill in. */
+          className="pointer-events-auto hover:bg-surface-2 active:bg-bg flex size-7 shrink-0 items-center justify-center rounded-full transition-colors"
         >
           <Icon name="close" size={13} className="text-muted" />
         </button>
@@ -195,16 +199,35 @@ function DrillRow({
 }) {
   const has = chips && chips.length > 0;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
+    /* A DIV WITH A STRETCHED BUTTON INSIDE IT, NOT A BUTTON (2026-08-28), and this is a correctness
+       fix rather than a refactor. The row shipped as a `<button>` the moment chips arrived, and each
+       chip's x is a button too - so the DOM held a button inside a button. React said so
+       ("<button> cannot contain a nested <button>. This will cause a hydration error"), the tree
+       regenerated on the client, and the damage was not cosmetic: the regeneration swallowed the
+       router push that `Clear all` had just made, which is why that button looked broken on a screen
+       whose filters were otherwise fine.
+       THE OVERLAY IS THE ROW'S TARGET. It sits under the content, so the whole row still opens the
+       axis - including a tap on a chip's LABEL, which falls through because the content is
+       `pointer-events-none`. Only the x buttons take the pointer back. */
+    <div
       className={cn(
-        'border-rule flex min-h-14 w-full items-center gap-3 border-b px-4 py-2 text-left transition-colors',
-        onClick && 'active:bg-hover'
+        'border-rule relative flex min-h-14 w-full items-center gap-3 border-b px-4 py-2 text-left',
+        onClick && 'active:bg-hover transition-colors'
       )}
     >
-      <span className="flex min-w-0 flex-1 flex-col gap-2">
+      {onClick && (
+        <button
+          type="button"
+          onClick={onClick}
+          /* NAMED, because it has no text of its own - the label it would have read is a sibling
+             sitting on top of it. A stretched hit area with no accessible name is a control a screen
+             reader announces as "button". */
+          aria-label={label}
+          className="absolute inset-0"
+        />
+      )}
+
+      <span className="pointer-events-none relative flex min-w-0 flex-1 flex-col gap-2">
         <span className="text-body-lg text-text">{label}</span>
         {has && (
           <span className="flex flex-wrap gap-2">
@@ -218,11 +241,22 @@ function DrillRow({
           </span>
         )}
       </span>
+
       {/* The muted value survives for the one row that has no chips to show: the date range, whose
           answer is a single phrase rather than a set. */}
-      {value && !has && <span className="text-body text-muted shrink-0 truncate">{value}</span>}
-      {onClick && <Icon name="chevron" size={18} className="text-muted shrink-0 -rotate-90" />}
-    </button>
+      {value && !has && (
+        <span className="text-body text-muted pointer-events-none relative shrink-0 truncate">
+          {value}
+        </span>
+      )}
+      {onClick && (
+        <Icon
+          name="chevron"
+          size={18}
+          className="text-muted pointer-events-none relative shrink-0 -rotate-90"
+        />
+      )}
+    </div>
   );
 }
 
@@ -367,8 +401,22 @@ export function FilterSheet({
      list, and back again takes the sheet down - the same two steps the header's own controls make.
      NO URL for either: a staged, uncommitted draft is not a place, and writing one would make a
      half-finished filter shareable. The trade sheet passes one because a trade IS a place. */
-  useOverlayBack(open, onClose);
+  /* THE MARKER THE HOOK HANDS BACK. Calling it says "the next close is a navigation replacing this
+     entry, not a dismissal", so the entry is left standing for the router's `replace` to overwrite.
+     See the hook's own note for the race this settles. */
+  const markReplacing = useOverlayBack(open, onClose);
   useOverlayBack(page !== null, () => setPage(null));
+
+  /* EVERY COMMIT GOES THROUGH HERE - Apply, Clear all, and a quick range, which commits on the tap.
+     Three call sites that must all raise the flag is three chances to forget; one wrapper is none.
+     `useCallback` keeps it stable for the deps of anything that ends up holding it. */
+  const commit = useCallback(
+    (d: FilterSheetDraft) => {
+      markReplacing();
+      onApply(d);
+    },
+    [markReplacing, onApply]
+  );
 
   /* ESCAPE BACKS OUT ONE LEVEL, THEN CLOSES. Dismissing the whole sheet from a sub-page would throw
      away the screen the trader was reading rather than the one they opened. */
@@ -404,6 +452,10 @@ export function FilterSheet({
     }));
   const allAccountsLocked =
     accountChips.length > 0 && accountChips.every((c) => c.locked);
+
+  /** Picking replaces; picking the ticked one clears. See the Result page's own note. */
+  const pickResult = (t: ResultToken) =>
+    setDraft((d) => ({ ...d, results: d.results[0] === t ? [] : [t] }));
 
   const toggle = (key: 'products' | 'results' | 'accounts' | 'status' | 'types', value: string) =>
     setDraft((d) => {
@@ -543,7 +595,7 @@ export function FilterSheet({
                 key: t,
                 label: t === 'win' ? 'Wins' : 'Losses',
               }))}
-              onRemove={(v) => toggle('results', v)}
+              onRemove={(v) => pickResult(v as ResultToken)}
               onClick={() => setPage('results')}
             />
             <DrillRow
@@ -668,7 +720,7 @@ export function FilterSheet({
                       select="one"
                       label={RANGE_LABEL[r]}
                       on={pickedRange(r)}
-                      onClick={() => onApply({ ...draft, range: r, from: null, to: null })}
+                      onClick={() => commit({ ...draft, range: r, from: null, to: null })}
                     />
                   ))}
                 </div>
@@ -690,16 +742,26 @@ export function FilterSheet({
                 />
               ))}
 
-            {shown === 'results' &&
-              RESULT_TOKENS.map((t) => (
-                <PickRow
-                  key={t}
-                  select="many"
-                  label={t === 'win' ? 'Wins' : 'Losses'}
-                  on={draft.results.includes(t)}
-                  onClick={() => toggle('results', t)}
-                />
-              ))}
+            {/* RESULT IS A CHOICE OF ONE (2026-08-28, Luke: "we shouldn't be able to select both win
+                and losses at the same time"). Wins AND losses is every trade, so both ticked
+                narrowed nothing while lighting a `2` on the badge and drawing two chips.
+                `select="one"` is the honest ARIA too: a radio, where the previous answer is
+                replaced. Tapping the ticked one clears the axis, which is the one thing a radio
+                group does not normally allow and which this needs - "no result filter" is a state a
+                trader must be able to get back to without Clear all. */}
+            {shown === 'results' && (
+              <div role="radiogroup" aria-label="Result">
+                {RESULT_TOKENS.map((t) => (
+                  <PickRow
+                    key={t}
+                    select="one"
+                    label={t === 'win' ? 'Wins' : 'Losses'}
+                    on={draft.results[0] === t}
+                    onClick={() => pickResult(t)}
+                  />
+                ))}
+              </div>
+            )}
 
             {shown === 'types' &&
               typeOpts.map((v) => (
@@ -773,11 +835,11 @@ export function FilterSheet({
               variant="secondary"
               size="md"
               className="hit-44 flex-1"
-              onClick={() => onApply(NOTHING)}
+              onClick={() => commit(NOTHING)}
             >
               Clear all
             </Button>
-            <Button size="md" className="hit-44 flex-1" onClick={() => onApply(draft)}>
+            <Button size="md" className="hit-44 flex-1" onClick={() => commit(draft)}>
               Apply
             </Button>
           </div>

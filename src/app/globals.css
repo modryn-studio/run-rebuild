@@ -939,6 +939,28 @@
   .num { font-family: var(--font-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 }
 
+/* NO SCROLLBARS AT ALL ON A PHONE (2026-08-28, Luke: "i have decided that we do not need a scroll
+   bar for mobile. remove all scroll bars for mobile screens").
+   He is right and the reason is not taste: a touch scroller has no bar to grab, so the bar is pure
+   report - it says "there is more" to a thumb that already knows, and it costs 10px of a 390px
+   column on every pane, sheet, drawer and menu in the product. iOS has never drawn one; Android
+   draws a transient one the OS owns and this does not touch.
+   `*`, MATCHING THE RULE IT OVERRIDES. The `thin` declaration above is on `*` for the reason its own
+   note gives - `scrollbar-width` does not inherit - so an override that named panes one by one would
+   miss the next one somebody adds. Same selector, same reasoning, one breakpoint apart.
+   BOTH SYNTAXES, or half the phones keep it: the standard property and the WebKit pseudo-element do
+   not compose, and Android Chrome honours the first while some WebViews only honour the second.
+   SCROLLING IS UNTOUCHED. This hides the indicator; `overflow` is what makes a box scroll and no
+   rule here changes one. */
+@media (max-width: 767px) {
+  * {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* ── The app pane's scrollbar ──────────────────────────────────────────────────────────
    Measured 2026-07-29: `scrollbar-width: thin`, which Chrome renders as a 10px track against the
    platform default's 15px. Worth having because the default
@@ -1704,5 +1726,6 @@ input[type='search']::-webkit-search-decoration {
 /* Blinking cursor for streaming AI text (see modryn-hq@v3:playbooks/generative-ui.md). */
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 .cursor-blink { animation: blink 1s step-end infinite; }
+
 
 

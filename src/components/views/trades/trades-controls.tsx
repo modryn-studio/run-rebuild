@@ -24,7 +24,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { HeaderControl, HeaderSlot } from '@/components/shell/header-slot';
@@ -70,8 +70,15 @@ const windowed = (f: Pick<TradesFilter, 'range' | 'from' | 'to'>) =>
 /* ONE WRITER FOR THE URL, so no panel has its own idea of how a param is spelled. An empty value
  * DELETES the key rather than writing `?products=`: a URL a trader might read should not carry the
  * debris of a filter they turned off. */
+/* IT WRITES TO THE PAGE IT WAS CALLED FROM, and hard-coding `/trades` was a real bug (2026-08-28).
+ * On `/accounts/details/<id>/trades` every write on this path built `/trades?...` as its
+ * destination, so the search box, the filter sheet, Apply and Clear all all aimed at the global
+ * tape - a filter control that navigates off the screen it belongs to.
+ * `usePathname()` rather than a prop: every caller writes to its own address, and a prop is a thing
+ * each new surface has to remember to pass, which is exactly what the literal was. */
 function useParamWriter() {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useSearchParams();
   return useCallback(
     /* `replace` FOR ANYTHING THAT FIRES WHILE THE TRADER IS STILL TYPING. Every other control here
@@ -86,11 +93,11 @@ function useParamWriter() {
         else next.set(k, v);
       }
       const qs = next.toString();
-      const href = qs ? `/trades?${qs}` : '/trades';
+      const href = qs ? `${pathname}?${qs}` : pathname;
       if (mode === 'replace') router.replace(href, { scroll: false });
       else router.push(href, { scroll: false });
     },
-    [params, router]
+    [params, pathname, router]
   );
 }
 
@@ -360,30 +367,38 @@ export function TradesSearchPill({
         products={products}
         accounts={accounts}
         facetRows={facetRows}
+        /* IT WRITES AND CLOSES IN ONE GESTURE, and the sheet has already told `useOverlayBack` to
+           leave its history entry standing (see `replacing` there). So the `replace` below
+           overwrites THAT entry: the stack ends one deep at the new address, with the tape as it
+           was before the sheet opened behind it. One press of Back returns to it unfiltered, which
+           is what a trader means by Back after applying a filter.
+           WITHOUT THAT FLAG THIS DID NOT WORK AT ALL. The hook consumed its entry with
+           `history.back()` in the same commit, its popstate arrived after the router's write, and
+           the write was reverted - which is what "the clear all button seems to not be working"
+           was. It was never Clear all; Apply had it too, on both surfaces. */
         onApply={(d) => {
-          write({
-            range: d.range === DEFAULT_RANGE ? null : d.range,
-            from: d.from,
-            to: d.to,
-            products: d.products.join(',') || null,
-            results: d.results.join(',') || null,
-            status: d.status.join(',') || null,
-            types: d.types.join(',') || null,
-            /* EVERY ACCOUNT TICKED IS NOT A FILTER, and the phone was the only surface that did not
-               know it (2026-08-25, postcheck). The desktop panel normalises this away; this path
-               joined unconditionally, so ticking all three accounts wrote `accounts=a,b,c`, lit the
-               narrowed dot, showed Clear and flipped the empty state to "No trades in this range"
-               for a filter that narrows nothing - and the two surfaces produced different URLs for
-               an identical tape. */
-            accounts: d.accounts.length === accounts.length ? null : d.accounts.join(',') || null,
-            /* CLEAR ALL DROPS THE SEARCH TERM TOO (2026-08-25, postcheck). The band's `Clear` does,
-               with a note saying that otherwise "the one button that promises to clear everything
-               leaves the search term narrowing the tape". The phone's `Clear all` did not, so it
-               left a term applied while `sheetCount` read 0 - the button lying in exactly the way
-               the desktop note forbids. Detected by the draft being empty on every axis, which is
-               what `Clear all` commits and what nothing else can produce. */
-            q: isNothing(d) ? null : applied.q,
-          });
+          write(
+            {
+              range: d.range === DEFAULT_RANGE ? null : d.range,
+              from: d.from,
+              to: d.to,
+              products: d.products.join(',') || null,
+              results: d.results.join(',') || null,
+              status: d.status.join(',') || null,
+              types: d.types.join(',') || null,
+              /* EVERY ACCOUNT TICKED IS NOT A FILTER, and the phone was the only surface that did
+                 not know it (2026-08-25, postcheck). The desktop panel normalises this away; this
+                 path joined unconditionally, so ticking all three accounts wrote `accounts=a,b,c`,
+                 lit the narrowed dot and flipped the empty state for a filter narrowing nothing. */
+              accounts: d.accounts.length === accounts.length ? null : d.accounts.join(',') || null,
+              /* CLEAR ALL DROPS THE SEARCH TERM TOO (2026-08-25, postcheck), or the one button that
+                 promises to clear everything leaves the term narrowing the tape. `isNothing`
+                 detects it: an empty draft on every axis is what Clear all commits and nothing else
+                 produces. */
+              q: isNothing(d) ? null : applied.q,
+            },
+            'replace'
+          );
           setSheet(false);
         }}
       />
@@ -846,6 +861,16 @@ function FiltersPopover({
   const toggleToken = (key: 'products' | 'results' | 'status' | 'types', v: string) =>
     setDraft((d) => {
       const list = d[key] as string[];
+      /* RESULT IS A CHOICE OF ONE (2026-08-28, Luke: "we shouldn't be able to select both win and
+         losses at the same time"). The codebase already half-knew it: `isResultFiltered` reads
+         `length > 0 && length < RESULT_TOKENS.length`, which is a long way of saying that picking
+         both narrows nothing. Both ticked lit a `2` on the badge and hid no rows - a filter claiming
+         to do something it cannot. Picking REPLACES, and picking the ticked one clears.
+         Every other axis stays multi-select, because every other axis has more than two values and
+         their combinations mean something. */
+      if (key === 'results') {
+        return { ...d, results: list[0] === v ? [] : [v] } as Draft;
+      }
       return {
         ...d,
         [key]: list.includes(v) ? list.filter((x) => x !== v) : [...list, v],

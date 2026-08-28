@@ -675,6 +675,31 @@ ticked nine products is owed nine, and the sheet scrolls. A **locked** chip has 
 no chevron — on an account's own trades screen the account is not a choice, it is what the screen is,
 and it still counts toward the badge because the tape genuinely is narrowed to it.
 
+**No scrollbars below 768px, on `*`.** A touch scroller has no bar to grab, so the bar is pure
+report: it tells a thumb that already knows there is more, and costs 10px of a 390px column on every
+pane, sheet, drawer and menu. Both syntaxes (`scrollbar-width` and `::-webkit-scrollbar`), and the
+override lives at the END of `globals.css` because the `thin` declaration it beats is also on `*` and
+source order is what decides. Scrolling is untouched; only the indicator is.
+
+**An overlay that COMMITS a navigation must say so — `useOverlayBack` returns a marker for it.**
+The filter sheet writes the URL and closes in one gesture, and inside a React commit every effect
+CLEANUP runs first: the hook's `history.back()` went before the router's write, and the popstate
+arrived after it and reverted it. Clear all wrote a cleared address and then unwrote it; Apply had
+the same defect on both surfaces from the day the sheet learned to answer the Back button. No guard
+can fix it — at the instant the cleanup runs, a navigation-in-flight and a plain dismissal are
+indistinguishable — so the surface calls the marker and the entry is left for the `replace` to
+overwrite. It is a returned function rather than a ref parameter because the React Compiler refuses a
+component that mutates a ref it handed to a hook.
+
+**A filter control writes to the page it was called from.** `useParamWriter` hard-coded `/trades`,
+so on an account's own tape the search box, Apply and Clear all all navigated off the screen they
+belonged to. `usePathname()`, never a prop: a prop is a thing each new surface has to remember.
+
+**Result is a choice of ONE.** Wins and losses is every trade, so both ticked narrowed nothing while
+lighting a `2` on the badge. Picking replaces; picking the ticked one clears. Every other axis stays
+multi-select, because every other axis has more than two values and their combinations mean
+something. `isResultFiltered` had been saying this in arithmetic all along.
+
 **A confirmation is a sheet too, and stacks by DOM order rather than by a second z-index.** Both
 `Close this account?` and `Delete this account?` are `ConfirmShell`, which picks a centred
 `alertdialog` above `md` and a sheet below it. The sheet underneath is put in `busy`, which stops it
