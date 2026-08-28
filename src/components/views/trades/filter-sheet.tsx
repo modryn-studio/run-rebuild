@@ -404,24 +404,28 @@ export function FilterSheet({
   /* THE MARKERS THE HOOK HANDS BACK, one per level. Calling one says "the next close is a
      navigation replacing this entry, not a dismissal", so the entry is left standing for the
      router's `replace` to overwrite. See the hook's own note for the race this settles. */
-  /* ONE HISTORY ENTRY FOR THE WHOLE SHEET, AND THE DEVICE BACK CLOSES IT FROM ANY DEPTH
-     (2026-08-28). This was one entry PER LEVEL, and that is what made the filter intermittent:
-     a commit made from inside a drill-in - which is most of them, because the footer is on every
-     screen - left a second live entry whose cleanup called `history.back()` about 300ms later. Its
-     `popstate` is dispatched as its own task, so it always landed AFTER the write and undid it.
-     Every ordering was wrong and unwinding by hand only moved the race. With one entry there is
-     nothing to unwind and the intermittency has no mechanism left. Measured after: six commits from
-     a drill-in and five stacked on an existing filter, all landing.
+  /* ONE HISTORY ENTRY FOR THE WHOLE SHEET, RE-ARMED PER LEVEL (2026-08-28).
+     One entry per LEVEL is what made the filter apply "sometimes": a commit from inside a drill-in
+     left a second live entry whose cleanup called `history.back()` ~300ms later, and a `popstate` is
+     dispatched as its own task, so it always landed after the write and undid it.
+     So the sheet owns exactly one entry at a time. The handler returns `true` from a drill-in, which
+     tells the hook to hand back a fresh entry: the sheet is still up, one screen shallower, and
+     still owes the Back button an answer. Back therefore still walks drill-in, list, closed - one
+     press each - on one entry at a time, with nothing for a commit to unwind.
+     `pageRef` because the handler is read out of a ref long after the render that made it. */
+  const pageRef = useRef(page);
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
 
-     WHAT THIS COSTS, STATED PLAINLY: the device Back from an axis page closes the whole sheet
-     rather than stepping up to the list. The in-app back ARROW still steps up one level, and so
-     does Escape, so the affordance is on screen either way - but this is a real reduction against
-     `useOverlayBack`'s own rule that an overlay answers Back one level at a time.
-     A RE-ARMING VARIANT WAS BUILT AND DOES NOT WORK YET: the pop that steps up re-pushes an entry
-     correctly (verified), but the NEXT pop then fails to close the sheet, for a reason not yet
-     found. Losing a filter is worse than a Back press that closes one screen too many, so the
-     deterministic shape ships and the other is a bug to finish rather than a design to argue. */
-  const markReplacing = useOverlayBack(open, onClose);
+  const markReplacing = useOverlayBack(open, () => {
+    if (pageRef.current !== null) {
+      setPage(null);
+      return true;
+    }
+    onClose();
+    return false;
+  });
 
   /* EVERY COMMIT GOES THROUGH HERE - Apply, Clear all, and a quick range, which commits on the tap.
      Three call sites that must all mark is three chances to forget; one wrapper is none.

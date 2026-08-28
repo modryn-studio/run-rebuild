@@ -681,13 +681,17 @@ pane, sheet, drawer and menu. Both syntaxes (`scrollbar-width` and `::-webkit-sc
 override lives at the END of `globals.css` because the `thin` declaration it beats is also on `*` and
 source order is what decides. Scrolling is untouched; only the indicator is.
 
-**An overlay owns ONE history entry, however many screens it has inside it.** One per level is what
-made the filter apply "sometimes": a commit from inside a drill-in left a second live entry whose
-cleanup called `history.back()` ~300ms later, and a `popstate` is dispatched as its own task, so it
-always landed after the write and undid it. No ordering fixes that; unwinding by hand only moves it.
-*Known cost:* the device Back from an axis page closes the whole sheet rather than stepping up. The
-in-app back arrow and Escape still step up one level. A re-arming variant (the pop re-pushes an
-entry) steps up correctly but then fails to close on the next press — unfinished, not chosen.
+**An overlay owns ONE history entry at a time, however many screens it has inside it, and RE-ARMS on
+the way out.** One entry per level is what made the filter apply "sometimes": a commit from inside a
+drill-in left a second live entry whose cleanup called `history.back()` ~300ms later, and a
+`popstate` is dispatched as its own task, so it always landed after the write and undid it. No
+ordering fixes that; unwinding by hand only moves it.
+
+The handler returns `true` to mean "I consumed a level and I am still open" — the hook then pushes a
+fresh entry from inside the pop, which is the only place it can, because `open` has not changed and
+the effect will not re-run. So Back still walks drill-in → list → closed, one press each, with only
+ever one entry live and therefore nothing for a commit to unwind. Verified: 6 applies and 6 clears in
+one session, all landing, plus the three-press walk.
 
 **`useOverlayBack` decides who answers a pop from a module array it owns, never from
 `history.state`.** Next's router copies existing history state forward on its own pushes and
