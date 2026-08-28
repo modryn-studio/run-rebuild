@@ -653,6 +653,28 @@ session). Its `Accounts` line is dropped when the filter pins exactly one — th
 page you are on. Filters and search live only on the child route, so the page underneath can never
 be left silently narrowed with no control to clear it.
 
+**Every layer box of a sheet is rendered from the first frame, empty.** A transition needs a FROM
+value the browser has actually painted; a box created at the moment it becomes visible has none, so
+the *first* drill-in cut and every later one slid. Parked, `inert` and contentless, they paint
+nothing.
+
+**A phone panel that is a DESTINATION stops above the tab bar; one that is a QUESTION covers it.**
+`.panel-above-bar` (`calc(var(--bottom-bar-h) + env(safe-area-inset-bottom))`) for the account page
+and its tape — taking the way out of the app away from a page someone sits on for minutes is how a
+drill-down starts to feel like a trap. The edit sheet and the filter sheet cover it: they are one
+question, and each has an x.
+
+**Render off `usePhone()`, ACT off `usePhoneState()`.** The first answers `false` before the query is
+read so hydration matches the server; the second answers `null` until it is known. Anything that
+navigates, writes or fetches on the breakpoint must wait for a real answer — the account tape's
+desktop redirect acted on the placeholder and bounced a phone straight back to the page it left.
+
+**A filter sheet's rows show WHAT is picked, not how many, and grow to hold it.** Each chip carries
+its own x, so removing one costs a tap on the thing being removed. No cap and no `+N`: a trader who
+ticked nine products is owed nine, and the sheet scrolls. A **locked** chip has no x and its row has
+no chevron — on an account's own trades screen the account is not a choice, it is what the screen is,
+and it still counts toward the badge because the tape genuinely is narrowed to it.
+
 **A confirmation is a sheet too, and stacks by DOM order rather than by a second z-index.** Both
 `Close this account?` and `Delete this account?` are `ConfirmShell`, which picks a centred
 `alertdialog` above `md` and a sheet below it. The sheet underneath is put in `busy`, which stops it

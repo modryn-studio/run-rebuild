@@ -54,7 +54,11 @@ import { cn } from '@/lib/cn';
  * still open - the trade sheet, the filter sheet, the edit sheet. */
 export function DetailPanel({ children }: { children: ReactNode }) {
   return (
-    <div className="bg-bg mx-auto w-full max-md:fixed max-md:inset-0 max-md:z-[60] max-md:flex max-md:flex-col">
+    /* IT STOPS ABOVE THE TAB BAR rather than covering it (2026-08-28). `.panel-above-bar` sets the
+       bottom; the three other edges are utilities. An account page and its tape are DESTINATIONS,
+       so the way out of them to Today or Trades stays on screen - unlike the edit sheet and the
+       filter sheet, which are one question with an x and cover the bar deliberately. */
+    <div className="panel-above-bar bg-bg mx-auto w-full max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:z-[60] max-md:flex max-md:flex-col">
       {children}
     </div>
   );

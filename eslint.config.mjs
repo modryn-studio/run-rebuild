@@ -112,6 +112,9 @@ export default [
             'menu-panel',
             // ONE motion for a panel opening or closing, shared by the sidebar and the summary rail
             // so the two panels framing the work cannot drift apart. globals.css argues it.
+            // A full-screen phone panel that stops ABOVE the tab bar rather than covering it. The
+            // value needs calc() around env(safe-area-inset-bottom), which no utility can express.
+            'panel-above-bar',
             'panel-transition',
             // The trade drawer's own timing: same 0.3s duration as panel-transition, but ease-out
             // rather than ease-in-out, because the drawer enters and leaves rather than resizing in

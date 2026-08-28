@@ -60,10 +60,32 @@ export function ForcePhone({ value, children }: { value: boolean; children: Reac
  * scope so the hook called below is unconditional. */
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
-export function usePhone(): boolean {
+/* `null` UNTIL THE QUERY HAS ACTUALLY BEEN READ, and the tri-state is a bug fix rather than
+ * fastidiousness (2026-08-28). `usePhone` answers `false` on the first client render so hydration
+ * matches the server - which is correct for anything RENDERING a branch, and wrong for anything
+ * ACTING on one. The account trades screen redirects to the details page above `md`; on a phone that
+ * effect saw the initial `false` and redirected before the layout effect could correct it, so
+ * "View all trades" bounced straight back.
+ *
+ * So: render off `usePhone()`, act off `usePhoneState()`. A component that navigates, writes or
+ * fetches on the answer must wait until there IS one.
+ *
+ * The same shape `app-shell.tsx` arrived at for its own breakpoint, for its own version of this:
+ * "nothing acts on a breakpoint until the breakpoint has actually been read, so there is no wrong
+ * first answer to race." */
+export function usePhoneState(): boolean | null {
   const forced = useContext(Forced);
-  /* FALSE, WHICH IS WHAT THE SERVER RENDERED. Never a `matchMedia` read: see the note above. */
-  const [phone, setPhone] = useState(false);
+  const resolved = usePhoneQuery();
+  return forced ?? resolved;
+}
+
+export function usePhone(): boolean {
+  return usePhoneState() ?? false;
+}
+
+function usePhoneQuery(): boolean | null {
+  /* `null`, NOT `false`, and never a `matchMedia` read here: see the note at the top of the file. */
+  const [phone, setPhone] = useState<boolean | null>(null);
 
   useIsomorphicLayoutEffect(() => {
     const mq = window.matchMedia(PHONE_QUERY);
@@ -73,8 +95,5 @@ export function usePhone(): boolean {
     return () => mq.removeEventListener('change', sync);
   }, []);
 
-  /* THE OVERRIDE WINS, AND IT IS READ AFTER THE HOOKS ABOVE HAVE RUN. Returning early on it would
-     make the hook order depend on whether a provider is present, which React forbids and which would
-     break the moment the demo mounted a scene inside one. */
-  return forced ?? phone;
+  return phone;
 }

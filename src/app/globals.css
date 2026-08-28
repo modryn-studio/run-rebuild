@@ -1269,6 +1269,23 @@ input[type='search']::-webkit-search-decoration {
   }
 }
 
+/* A FULL-SCREEN PANEL THAT STOPS ABOVE THE PHONE'S TAB BAR (2026-08-28, Luke: "we are supposed to
+   still have the app's footer on the /accounts/details page ... that footer should still be there on
+   the trade details page as well. do not need it on the edit account page and the filters page").
+   That split is the right one and it is about what the surface IS. An account page and its tape are
+   DESTINATIONS - you are still in the app, and taking the way out of the app away from a page you
+   might sit on for minutes is how a drill-down starts to feel like a trap. A modal flow and a filter
+   sheet are not destinations: they are one question, and every one of them has an x.
+   A HAND-WRITTEN RULE rather than two utilities, for the reason `.pane-bottom-clearance` is one: the
+   value needs `calc()` around `env(safe-area-inset-bottom)`, and the inset is reported at runtime so
+   it cannot be folded into the token. `--bottom-bar-h` is the bar's content height; the inset is the
+   home indicator underneath it, and the bar pads itself by exactly that.
+   NO MEDIA QUERY. Above `md` the element carrying this is `position: static`, where `bottom` has no
+   effect at all - so the desktop needs no override and cannot accidentally get one. */
+.panel-above-bar {
+  bottom: calc(var(--bottom-bar-h) + env(safe-area-inset-bottom));
+}
+
 /* ── The compact icon button's chip (components/ui/icon-button.tsx) ────────────────────
    REST = nothing, HOVER = a raised chip appears, PRESS = the same chip pushes in. Harvested from
    a measured reference; the full measurement and the dark-mode reasoning live in the component,
@@ -1687,4 +1704,5 @@ input[type='search']::-webkit-search-decoration {
 /* Blinking cursor for streaming AI text (see modryn-hq@v3:playbooks/generative-ui.md). */
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 .cursor-blink { animation: blink 1s step-end infinite; }
+
 

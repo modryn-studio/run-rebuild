@@ -42,6 +42,7 @@ import { useOverlayBack } from '@/lib/overlay-back';
 import type { FacetAccount } from '@/lib/trades/read';
 import type { FacetRow } from '@/lib/trades/facets';
 import { productName } from '@/lib/instruments';
+import { AccountLogo } from '@/components/views/accounts/account-logo';
 import { STATUS_LABELS, TYPE_LABELS } from '@/lib/accounts/roster-filter';
 import { ACCOUNT_STATUSES, ACCOUNT_TYPES } from '@/lib/db/schema';
 import type { AccountStatus, AccountType } from '@/lib/db/schema';
@@ -100,27 +101,127 @@ function SectionBand({ children }: { children: React.ReactNode }) {
   return <p className="eyebrow bg-band text-muted border-rule border-y px-4 py-3">{children}</p>;
 }
 
+/** One selected value, as it appears on the axis row that owns it. */
+type ChipValue = { key: string; label: string; firm?: string | null; locked?: boolean };
+
+/* WHAT IS PICKED, SHOWN RATHER THAN COUNTED (2026-08-28, Luke: "i would actually like to use little
+ * pills for options that are selected in the filters menu instead of just numbers of how many
+ * options are selected").
+ *
+ * The row said `3`, which is the one thing about a filter a trader already knows - they made the
+ * three choices. What they cannot recall is WHICH three, and that was a drill-in away on a screen
+ * whose whole job is to say what the tape is currently showing.
+ *
+ * EACH CHIP CARRIES ITS OWN x, so removing one costs a tap on the thing being removed instead of a
+ * drill-in, a scan and a second tap. The reference does exactly this and it is the interaction that
+ * makes the pattern worth the height.
+ *
+ * A LOCKED CHIP HAS NO x. On an account's own trades screen the account is not a choice - it is what
+ * the screen IS - so the chip states it and refuses to be removed. Drawn identically otherwise,
+ * because it is the same fact; what says it cannot change is that there is nothing to press.
+ */
+function Chip({ value, onRemove }: { value: ChipValue; onRemove?: () => void }) {
+  return (
+    <span
+      className={cn(
+        /* `rounded-full`, WHICH IS A DELIBERATE EXCEPTION TO THE RADIUS SCALE and the same one the
+           roster's status chips take: the scale is slot 12 / control 8 / badge 6, and a chip that
+           wraps a word plus a mark is a BADGE at any length. `design-system.md` §4 names this. */
+        /* `min-h-7` SO A LOCKED CHIP IS THE SAME HEIGHT AS A REMOVABLE ONE. Without it the row's
+           height comes from whether the x is there - measured at 85px with, 77px without - so a
+           mixed row would sit ragged and two rows of one list would disagree by 8px for a reason
+           nobody could name. */
+        'bg-hover text-body text-text inline-flex min-h-7 max-w-full items-center gap-1.5 rounded-full py-1',
+        /* Tighter on the right when there is an x, because the button carries its own padding. */
+        onRemove ? 'pr-1 pl-2' : 'px-3'
+      )}
+    >
+      {/* The firm's mark, on the permanently-light tile `AccountLogo` owns - the same face the
+          roster row and the desktop filter panel put on the same account. */}
+      {value.firm !== undefined && value.firm !== null && (
+        <AccountLogo propFirm={value.firm} size={18} />
+      )}
+      <span className="min-w-0 truncate">{value.label}</span>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={(e) => {
+            /* THE ROW BEHIND THIS IS A BUTTON THAT DRILLS IN. Without this, removing a chip also
+               opened the axis it belonged to - the click bubbled to the row and the trader was
+               dropped onto a list they had not asked for. */
+            e.stopPropagation();
+            onRemove();
+          }}
+          aria-label={`Remove ${value.label}`}
+          /* 28px, NOT the 44px floor, and it is a stated exception. A chip is 28px tall and the
+             floor cannot be met inside it without making the chip a button-sized object; what makes
+             this safe is that removing a filter is REVERSIBLE in one tap and the row it sits in is
+             the 44px+ target for the destructive-free action. Same call the tape's row makes about
+             its own inline marks. */
+          className="hover:bg-surface-2 active:bg-bg flex size-7 shrink-0 items-center justify-center rounded-full transition-colors"
+        >
+          <Icon name="close" size={13} className="text-muted" />
+        </button>
+      )}
+    </span>
+  );
+}
+
 /* A ROW THAT DRILLS IN. `min-h-14` (56px) is the reference's row height on this screen and well
  * over the 44px touch floor. The label is full ink and the current value muted beside it — the
- * label is the thing you are choosing, the value is a property of it. */
+ * label is the thing you are choosing, the value is a property of it.
+ *
+ * IT GROWS WITH WHAT IS PICKED (2026-08-28, Luke: "make the filter sheet's drill row grow in height
+ * depending on how many filters choices are selected"). With chips the label takes its own line and
+ * the cloud wraps underneath it, which is the reference's own layout; with nothing picked it is the
+ * single line it always was. No cap and no `+N`: a trader who ticked nine products is owed the list
+ * of nine, and this sheet scrolls.
+ *
+ * THE CHEVRON STAYS VERTICALLY CENTRED against however tall the row becomes, which is what keeps a
+ * column of rows of different heights reading as one list. */
 function DrillRow({
   label,
   value,
+  chips,
+  onRemove,
   onClick,
 }: {
   label: string;
   value?: string;
-  onClick: () => void;
+  chips?: ChipValue[];
+  onRemove?: (key: string) => void;
+  /** Absent means the row states a fact and does not open anything — a locked axis. */
+  onClick?: () => void;
 }) {
+  const has = chips && chips.length > 0;
   return (
     <button
       type="button"
       onClick={onClick}
-      className="border-rule active:bg-hover flex min-h-14 w-full items-center gap-3 border-b px-4 text-left transition-colors"
+      disabled={!onClick}
+      className={cn(
+        'border-rule flex min-h-14 w-full items-center gap-3 border-b px-4 py-2 text-left transition-colors',
+        onClick && 'active:bg-hover'
+      )}
     >
-      <span className="text-body-lg text-text flex-1">{label}</span>
-      {value && <span className="text-body text-muted shrink-0 truncate">{value}</span>}
-      <Icon name="chevron" size={18} className="text-muted shrink-0 -rotate-90" />
+      <span className="flex min-w-0 flex-1 flex-col gap-2">
+        <span className="text-body-lg text-text">{label}</span>
+        {has && (
+          <span className="flex flex-wrap gap-2">
+            {chips.map((c) => (
+              <Chip
+                key={c.key}
+                value={c}
+                onRemove={c.locked || !onRemove ? undefined : () => onRemove(c.key)}
+              />
+            ))}
+          </span>
+        )}
+      </span>
+      {/* The muted value survives for the one row that has no chips to show: the date range, whose
+          answer is a single phrase rather than a set. */}
+      {value && !has && <span className="text-body text-muted shrink-0 truncate">{value}</span>}
+      {onClick && <Icon name="chevron" size={18} className="text-muted shrink-0 -rotate-90" />}
     </button>
   );
 }
@@ -173,6 +274,7 @@ export function FilterSheet({
   products,
   accounts,
   facetRows,
+  lockedAccounts = [],
   onApply,
   className,
 }: {
@@ -182,6 +284,10 @@ export function FilterSheet({
   products: string[];
   accounts: FacetAccount[];
   facetRows: FacetRow[];
+  /* ACCOUNTS THE TRADER MAY NOT REMOVE (2026-08-28). An account's own trades screen pins itself:
+     the row is there to SAY which account you are looking at, not to offer a choice, so its chip
+     carries no x and the axis does not drill in. Empty everywhere else. */
+  lockedAccounts?: string[];
   onApply: (d: FilterSheetDraft) => void;
   /* WHERE THIS IS ALLOWED TO EXIST IS THE CALLER'S CALL, NOT THIS COMPONENT'S. `md:hidden` used to
      be baked into the root, which is a component deciding its own breakpoint — and it made the sheet
@@ -282,6 +388,22 @@ export function FilterSheet({
   /* WHICH QUICK RANGE IS TICKED. A custom window overrides the shortcut, so while one is set NONE
      of them is ticked — including `all`, which would otherwise claim the tape was unnarrowed. */
   const pickedRange = (r: Range) => draft.range === r && !draft.from && !draft.to;
+
+  /* WHICH ACCOUNTS THE ROW SHOWS. The draft's own ticks, PLUS anything pinned - a locked account is
+     always in the filter whether or not the draft lists it, because the route puts it there.
+     Sorted by the roster's order rather than by tick order, so the chips and the list behind them
+     read the same way round. */
+  const lockedSet = new Set(lockedAccounts);
+  const accountChips = accounts
+    .filter((a) => lockedSet.has(a.id) || draft.accounts.includes(a.id))
+    .map((a) => ({
+      key: a.id,
+      label: `${a.firm} ${a.short}`.trim(),
+      firm: a.firm,
+      locked: lockedSet.has(a.id),
+    }));
+  const allAccountsLocked =
+    accountChips.length > 0 && accountChips.every((c) => c.locked);
 
   const toggle = (key: 'products' | 'results' | 'accounts' | 'status' | 'types', value: string) =>
     setDraft((d) => {
@@ -407,18 +529,27 @@ export function FilterSheet({
             {accounts.length > 0 && (
               <DrillRow
                 label="Accounts"
-                value={draft.accounts.length ? String(draft.accounts.length) : undefined}
-                onClick={() => setPage('accounts')}
+                chips={accountChips}
+                onRemove={(id) => toggle('accounts', id)}
+                /* NO DRILL-IN WHEN EVERY CHIP IS LOCKED. The screen pins its one account, so the
+                   list behind this row holds exactly that account and nothing to change - opening
+                   it would be a screen with one row you cannot untick. */
+                onClick={allAccountsLocked ? undefined : () => setPage('accounts')}
               />
             )}
             <DrillRow
               label="Result"
-              value={draft.results.length ? String(draft.results.length) : undefined}
+              chips={draft.results.map((t) => ({
+                key: t,
+                label: t === 'win' ? 'Wins' : 'Losses',
+              }))}
+              onRemove={(v) => toggle('results', v)}
               onClick={() => setPage('results')}
             />
             <DrillRow
               label="Product"
-              value={draft.products.length ? String(draft.products.length) : undefined}
+              chips={draft.products.map((v) => ({ key: v, label: productName(v) ?? v }))}
+              onRemove={(v) => toggle('products', v)}
               onClick={() => setPage('products')}
             />
             {/* Gated on the roster holding more than one answer, same as the desktop rail: an axis
@@ -426,14 +557,16 @@ export function FilterSheet({
             {typeOpts.length > 1 && (
               <DrillRow
                 label="Type"
-                value={draft.types.length ? String(draft.types.length) : undefined}
+                chips={draft.types.map((v) => ({ key: v, label: TYPE_LABELS[v] }))}
+                onRemove={(v) => toggle('types', v)}
                 onClick={() => setPage('types')}
               />
             )}
             {statusOpts.length > 1 && (
               <DrillRow
                 label="Status"
-                value={draft.status.length ? String(draft.status.length) : undefined}
+                chips={draft.status.map((v) => ({ key: v, label: STATUS_LABELS[v] }))}
+                onRemove={(v) => toggle('status', v)}
                 onClick={() => setPage('status')}
               />
             )}

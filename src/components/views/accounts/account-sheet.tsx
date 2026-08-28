@@ -131,11 +131,19 @@ export function AccountSheet({
      IT TERMINATES because `layers` is the same array on the re-render it schedules: the second pass
      finds every entry already stored and sets nothing. */
   const [held, setHeld] = useState<ReactNode[]>([]);
-  /* PADDED TO THE DEEPEST LAYER EVER SEEN, not to `layers.length`. The edit form passes one entry
-     per screen in its stack, so the array SHRINKS on a back press - and reading only what it passes
-     would drop the departing layer from the document instead of sliding it away. */
-  const span = Math.min(Math.max(held.length, layers.length), MAX_LAYERS);
-  const shown = Array.from({ length: span }, (_, i) => layers[i] ?? held[i] ?? null);
+  /* EVERY LAYER BOX EXISTS FROM THE FIRST RENDER, EMPTY, and that is a bug fix rather than tidiness
+     (2026-08-28, Luke: "it does not do it on the first try. so on first load it does not slide up
+     but then if i go back and try it again, it does slide up").
+     This was padded to the deepest layer ever SEEN, so the box for a screen nobody had opened yet
+     did not exist - and on the first Change tap it mounted ALREADY at depth 1, with
+     `translate-y-full` never painted. A transition needs a FROM value that the browser has actually
+     rendered; there was none, so the first open cut and every later one slid. Rendering the box
+     empty and parked off-screen gives it that first frame.
+     They cost nothing: an `inert`, translated, contentless `absolute` box paints nothing.
+     THE HELD CONTENT STILL LAGS DELIBERATELY. The edit form passes one entry per screen in its
+     stack, so the array SHRINKS on a back press - reading only what it passes would drop the
+     departing layer from the document instead of sliding it away. */
+  const shown = Array.from({ length: MAX_LAYERS }, (_, i) => layers[i] ?? held[i] ?? null);
   /* NO MUTATION ANYWHERE ABOVE, which is the second thing the React Compiler's lint asked for after
      it refused the ref: a copied array written into in a loop is still "a value that cannot be
      modified" as far as it can tell. Built whole, compared whole. */

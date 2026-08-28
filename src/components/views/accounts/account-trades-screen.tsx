@@ -41,7 +41,7 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { usePhone } from '@/lib/use-phone';
+import { usePhoneState } from '@/lib/use-phone';
 import { WithSummaryRail } from '@/components/shell/summary-rail';
 import { ACCOUNT_TRADES_BAR_HOST } from './detail-panel-header';
 
@@ -55,7 +55,10 @@ export function AccountTradesScreen({
   rail: ReactNode;
   children: ReactNode;
 }) {
-  const phone = usePhone();
+  /* THE TRI-STATE, NOT `usePhone()`. This EFFECT ACTS on the answer, and `usePhone` answers false
+     before the query has been read so hydration matches the server - which sent a phone straight
+     back to the page it had just left. `null` means "not known yet" and nothing happens. */
+  const phone = usePhoneState();
   const router = useRouter();
   const back = `/accounts/details/${accountId}`;
 
@@ -66,7 +69,7 @@ export function AccountTradesScreen({
      null to save the work and cost the phone its server-rendered HTML: `usePhone` answers false on
      the server, so the whole screen came back empty and the tape was built client-side only. */
   useEffect(() => {
-    if (!phone) router.replace(back);
+    if (phone === false) router.replace(back);
   }, [phone, router, back]);
 
   return (

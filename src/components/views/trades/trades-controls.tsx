@@ -136,12 +136,15 @@ export function TradesSearchPill({
   products,
   accounts,
   facetRows,
+  lockedAccounts,
   hostId,
 }: {
   applied: TradesFilter;
   products: string[];
   accounts: FacetAccount[];
   facetRows: FacetRow[];
+  /** Accounts the trader may not remove. See `FilterSheet`'s own note. */
+  lockedAccounts?: string[];
   /* A HOST THAT IS NOT THE SHELL'S BAND (2026-08-28). An account's own trades screen is a
      full-screen panel covering that band, and it publishes a band of its own directly under its
      bar. Absent means the shell's, which is `/trades`. */
@@ -352,6 +355,7 @@ export function TradesSearchPill({
         className="md:hidden"
         open={sheet}
         onClose={() => setSheet(false)}
+        lockedAccounts={lockedAccounts}
         applied={applied}
         products={products}
         accounts={accounts}

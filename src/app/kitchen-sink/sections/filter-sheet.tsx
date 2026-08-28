@@ -51,9 +51,35 @@ const NARROWED: TradesFilter = {
   results: ['win'],
 };
 
-const CASES: { label: string; applied: TradesFilter; note: string }[] = [
+/** Every axis at once, to see a drill row grow and the chips wrap rather than truncate. */
+const CROWDED: TradesFilter = {
+  ...EMPTY_FILTER,
+  products: PRODUCTS,
+  results: ['win', 'loss'],
+  accounts: ACCOUNTS_FIXTURE.map((a) => a.id),
+};
+
+/** One account, pinned. What an account's own trades screen passes. */
+const PINNED: TradesFilter = { ...EMPTY_FILTER, accounts: [ACCOUNTS_FIXTURE[0].id] };
+
+const CASES: { label: string; applied: TradesFilter; note: string; locked?: string[] }[] = [
   { label: 'Nothing applied', applied: NONE, note: 'every drill row bare, All time ticked' },
-  { label: 'Three narrowings', applied: NARROWED, note: 'counts on the rows, a window on the date row' },
+  {
+    label: 'Three narrowings',
+    applied: NARROWED,
+    note: 'chips on the rows, a window on the date row',
+  },
+  {
+    label: 'Every axis',
+    applied: CROWDED,
+    note: 'the rows grow and the chips wrap; no cap and no +N',
+  },
+  {
+    label: 'One account, locked',
+    applied: PINNED,
+    locked: [ACCOUNTS_FIXTURE[0].id],
+    note: 'the chip has no x and the row does not drill in',
+  },
 ];
 
 export function FilterSheetSection() {
@@ -93,6 +119,11 @@ export function FilterSheetSection() {
           </p>
         )}
         <Note>
+          The rows show WHAT is picked rather than how many, each chip carrying its own x, and they
+          grow to hold it. A locked chip has no x and its row has no chevron: on an account&apos;s own
+          trades screen the account is not a choice, it is what the screen is.
+        </Note>
+        <Note>
           Open one and tap a quick range: single-select commits on the tap and takes the sheet down,
           because picking a range is a whole answer and there is no second tap that could refine it.
           Accounts, Result and Product stage a draft and wait for Apply, because two products is two
@@ -129,6 +160,7 @@ export function FilterSheetSection() {
         <FilterSheet
           open
           onClose={() => setOpen(null)}
+          lockedAccounts={CASES[open].locked}
           applied={applied}
           products={PRODUCTS}
           accounts={ACCOUNTS_FIXTURE}

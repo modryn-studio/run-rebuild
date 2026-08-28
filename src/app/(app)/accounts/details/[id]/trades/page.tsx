@@ -4,7 +4,7 @@ import { requireTrader } from '@/lib/trader';
 import { getAccount } from '@/lib/accounts/read';
 import { getTape, getTapeIds, getFacetRows, getDigest } from '@/lib/trades/read';
 import { EMPTY_FILTER, type ResultToken } from '@/lib/trades/filter';
-import { accountRowTitle } from '@/lib/prop-firms';
+import { accountRowTitle, accountShortTitle, UNLABELLED_FIRM } from '@/lib/prop-firms';
 import { TradesTape } from '@/components/views/trades/trades-tape';
 import { TradesRail } from '@/components/views/trades/trades-rail';
 import { TradesSearchPill } from '@/components/views/trades/trades-controls';
@@ -108,9 +108,27 @@ export default async function AccountTradesPage({
       <TradesSearchPill
         hostId={ACCOUNT_TRADES_BAND_HOST}
         applied={filter}
-        /* NO ACCOUNTS. The sheet's Accounts axis renders nothing for a single-account list already,
-           and passing this screen's one account would offer a filter that cannot change the set. */
-        accounts={[]}
+        /* THE ACCOUNT IS PASSED AND LOCKED (2026-08-28, Luke: "it will be locked so user cant add or
+           remove. it is just there to show that we are on that account"). This shipped as `[]` on
+           the reasoning that an axis which cannot change the set has no job - true of the CONTROL
+           and false of the STATEMENT. The sheet's Accounts row now says which account the tape is
+           pinned to, as a chip with the firm's mark and no x, and does not drill in. It is also
+           what makes the badge's `1` name something rather than being a number with no referent. */
+        /* BUILT THE WAY `getFacets` BUILDS ONE, field for field, so the chip here and a chip on
+           `/trades` name the same account identically. `firm` + `short` rather than the whole
+           title: the chip composes them, and `accountShortTitle` is the half that does not repeat
+           the firm the mark beside it already shows. */
+        accounts={[
+          {
+            id: account.id,
+            name: accountRowTitle(account),
+            firm: account.propFirm ?? UNLABELLED_FIRM,
+            short: accountShortTitle(account),
+            status: account.status,
+            accountType: account.accountType,
+          },
+        ]}
+        lockedAccounts={[account.id]}
         products={products}
         facetRows={own}
       />
