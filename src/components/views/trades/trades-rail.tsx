@@ -119,10 +119,18 @@ export function TradesRail({
           <Money cents={digest.netCents} strong />
         </Line>
         {/* Plural even at one: the question is "how many is this pooling", and "1 account" answers
-            it rather than reading as an awkward singular. */}
-        <Line label="Accounts">
-          <Count n={digest.accounts} />
-        </Line>
+            it rather than reading as an awkward singular.
+            GONE WHEN THE FILTER PINS EXACTLY ONE (2026-08-28), which is what an account's own trades
+            screen does on every request. There the answer is 1 by construction - it is not a fact
+            about the trades, it is a restatement of which page you are on, under a header already
+            carrying the account's name. `filter.accounts`, not `digest.accounts`: the digest counts
+            what the rows happen to cover, and a filtered set that returned nothing would count 0 and
+            put the row back on the one screen it does not belong to. */}
+        {filter.accounts.length !== 1 && (
+          <Line label="Accounts">
+            <Count n={digest.accounts} />
+          </Line>
+        )}
 
         <Group />
 

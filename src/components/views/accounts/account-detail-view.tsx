@@ -23,6 +23,7 @@ import type { ReactNode } from 'react';
 import { ChartViewProvider } from './chart-view';
 import { AccountModalsProvider } from './account-modals';
 import { AccountDetailHeader } from './account-detail-header';
+import { DetailPanelHeader, EditAccountControl } from './detail-panel-header';
 import { SubjectPage } from '@/components/views/subject-page';
 import { cumulate, foldIntraday, type Point } from '@/lib/accounts/series';
 import { sessionWindow } from '@/lib/time/session';
@@ -43,6 +44,7 @@ export function AccountDetailView({
   filters,
   rail,
   tape,
+  recent,
 }: {
   account: RosterAccount;
   /** THIS ACCOUNT'S days only. The route scopes the read; nothing is filtered here. */
@@ -71,6 +73,9 @@ export function AccountDetailView({
   };
   rail: ReactNode;
   tape: ReactNode;
+  /* THE PHONE'S FOUR ROWS AND ITS WAY TO THE REST. Built by the route, like the tape and the rail,
+     because it is the same query's rows. */
+  recent: ReactNode;
 }) {
   const series = useMemo(
     () => cumulate(days.map((d) => ({ day: d.day, cents: d.cents }))),
@@ -108,6 +113,18 @@ export function AccountDetailView({
     <AccountModalsProvider siblingsFor={() => siblingCount}>
       <ChartViewProvider byAccount={byAccount} intraday={intraday} endsOn={endsOn}>
       <SubjectPage
+        /* THE PHONE'S BAR: back to the roster, the account's name, Edit. It is not a variant of the
+           header below it - that one portals a breadcrumb and two controls into the SHELL's band,
+           which this width does not have because the panel covers it. */
+        phoneHeader={
+          <DetailPanelHeader
+            account={account}
+            title={title}
+            backHref="/accounts"
+            backLabel="Back to accounts"
+            trail={<EditAccountControl account={account} />}
+          />
+        }
         header={
           <AccountDetailHeader
             account={account}
@@ -145,6 +162,7 @@ export function AccountDetailView({
         zone={zone}
         rail={rail}
         tape={tape}
+        recent={recent}
         />
       </ChartViewProvider>
     </AccountModalsProvider>

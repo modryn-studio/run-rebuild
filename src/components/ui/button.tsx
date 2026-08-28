@@ -136,6 +136,26 @@ const sizeClasses: Record<ButtonSize, string> = {
   lg: 'h-12 px-6 text-body-lg',
 };
 
+/* THE LOOK, WITHOUT THE `<button>`. For the one shape this primitive cannot be: a full-width CTA
+ * that NAVIGATES. `RecentTrades`' "View all trades" is a link - it owes middle-click, cmd-click and
+ * "copy link address", none of which a button with an `onClick` gives - and `ICON_BUTTON` is
+ * exported from `icon-button.tsx` for exactly the same reason and by exactly this mechanism.
+ *
+ * NOT `asChild`. A Slot implementation would clone the child and merge props, which is more
+ * machinery than one string composition needs, and it would put a second way to render a button in
+ * a system whose whole discipline is having one. A caller wanting the look states that it wants the
+ * look. */
+export function buttonClasses(
+  variant: ButtonVariant = 'primary',
+  size: ButtonSize = 'md',
+  className?: string
+): string {
+  return cn(BUTTON_BASE, variantClasses[variant], sizeClasses[size], className);
+}
+
+const BUTTON_BASE =
+  'rounded-[var(--radius-sm)] inline-flex items-center justify-center gap-2 font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow] duration-100 disabled:cursor-not-allowed';
+
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
@@ -187,12 +207,7 @@ export function Button({
        * 384px button against a 408px label. Moved onto the span below, which is a flex ITEM and can
        * therefore shrink (`overflow-hidden` gives a flex item an automatic minimum size of 0), so it
        * now does what it always claimed to: one clean ellipsis at the end. */
-      className={cn(
-        'rounded-[var(--radius-sm)] inline-flex items-center justify-center gap-2 font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow] duration-100 disabled:cursor-not-allowed',
-        variantClasses[variant],
-        sizeClasses[size],
-        className
-      )}
+      className={buttonClasses(variant, size, className)}
       {...props}
     >
       {/* THE LABEL KEEPS ITS WIDTH WHILE LOADING. Swapping children outright collapsed the button

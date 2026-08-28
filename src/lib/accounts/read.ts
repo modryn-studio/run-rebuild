@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import type { AccountStatus, AccountType } from '@/lib/db/schema';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
@@ -269,11 +270,18 @@ export async function getFreshness(traderId: string): Promise<Map<string, Date>>
  * would throw from the driver rather than return nothing. Guarded here so a hand-typed URL is a 404
  * like any other miss. Same rule `readTradesFilter` applies to `?accounts=`.
  */
-export async function getAccount(traderId: string, id: string): Promise<RosterAccount | null> {
-  if (!UUID.test(id)) return null;
-  const [row] = await getRoster(traderId, { accountId: id });
-  return row ?? null;
-}
+/* CACHED FOR THE REQUEST, because three things in the details segment need this same row: the
+ * layout (which names the phone's header bar and owns the Edit modal), the page, and
+ * `generateMetadata`. React's `cache` dedupes them into ONE query per render pass rather than three
+ * identical single-row reads - and it is the mechanism Next documents for exactly this, rather than
+ * threading the row down through props that would have to cross a Server/Client boundary. */
+export const getAccount = cache(
+  async (traderId: string, id: string): Promise<RosterAccount | null> => {
+    if (!UUID.test(id)) return null;
+    const [row] = await getRoster(traderId, { accountId: id });
+    return row ?? null;
+  }
+);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

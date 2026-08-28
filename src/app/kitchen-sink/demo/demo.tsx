@@ -30,6 +30,8 @@ import { useState } from 'react';
 import { AddAccountModal } from '@/components/views/accounts/add-account-modal';
 import { FileUploadStep, type Picked } from '@/components/views/accounts/file-upload-step';
 import { ModalShell } from '@/components/views/accounts/modal-shell';
+import { AccountSheet } from '@/components/views/accounts/account-sheet';
+import { ForcePhone } from '@/lib/use-phone';
 import { ImportComplete, type Source } from '@/components/views/accounts/shared';
 import { ImportRefused } from '@/components/views/accounts/import-refused';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -116,6 +118,17 @@ export function AddAccountDemo() {
      returns you to the roster; closing one here returns you to this picker. In v2 every close was a
      no-op at first, which made the scenes feel stuck. */
   const [scene, setScene] = useState<Scene | null>('doors');
+  /* THE PHONE LANE (2026-08-28, Luke: "you know how on the /kitchen-sink, we have the upload screens
+     laid out for demo purposes? we should do the same for the mobile screen").
+     It was not there, and could not be: every flow picks its container from `usePhone()`, and this
+     page runs at whatever width the reviewer's window is - which on a desktop is a modal, every
+     scene, with no way to reach the sheet. `ForcePhone` is the override, and it exists for this page
+     alone.
+     THE SHEET STILL FILLS THE VIEWPORT here rather than a phone-shaped frame, because it is
+     `fixed inset-0` and a frame would need a transform - which creates a containing block and would
+     make the specimen behave differently from the shipped one. Narrow the window to review
+     proportions; use this to review the SCREENS. */
+  const [phone, setPhone] = useState(false);
   /* Remounts the modal so a scene re-opens at its first step rather than wherever it was left. */
   const [nonce, setNonce] = useState(0);
 
@@ -134,6 +147,21 @@ export function AddAccountDemo() {
             Real components, scripted state. Nothing here writes to the database.
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            setPhone((p) => !p);
+            setNonce((n) => n + 1);
+          }}
+          aria-pressed={phone}
+          className={`text-small rounded-[var(--radius-sm)] border px-3 py-1.5 transition ${
+            phone
+              ? 'border-accent text-accent select-pop'
+              : 'border-border bg-surface text-muted hover:text-text'
+          }`}
+        >
+          {phone ? 'Phone screens' : 'Desktop modals'}
+        </button>
         <a href="/kitchen-sink" className="text-link text-small">
           Back to the rack
         </a>
@@ -163,41 +191,71 @@ export function AddAccountDemo() {
           : 'Closed. Pick a scene to mount it again.'}
       </p>
 
-      {scene === 'doors' && <AddAccountModal key={nonce} onClose={close} connected={0} dryRun />}
+      <ForcePhone value={phone}>
+        {scene === 'doors' && <AddAccountModal key={nonce} onClose={close} connected={0} dryRun />}
 
-      {scene === 'upload' && (
-        <ModalShell key={nonce} onDismiss={close}>
-          <UploadScene onClose={close} />
-        </ModalShell>
-      )}
+        {/* THE RAW SCREENS NEED A CONTAINER, and which one is the whole point of the lane. `Shell`
+            below picks the same pair the app does - a card above `md`, a full-screen sheet below -
+            so these four scenes are reviewed in the frame they actually ship in. */}
+        {scene === 'upload' && (
+          <Shell key={nonce} phone={phone} onDismiss={close} label="Import from CSV">
+            <UploadScene onClose={close} />
+          </Shell>
+        )}
 
       {/* THE REAL COMPONENT, not a local composition. This scene used to hand-roll the refusal out
           of ModalHeader + ProgressPanel + FindingList, and that clone is exactly how the same scroll
           bug had to be fixed twice on 2026-08-15: once in the shipped screen and once here. Mounting
           `ImportRefused` means this scene cannot drift from what ships again. */}
-      {scene === 'failed' && (
-        <ModalShell key={nonce} onDismiss={close}>
-          <ImportRefused
-            findings={DEMO_FINDINGS}
-            error={null}
-            partiallySaved
-            onBack={close}
-            onRetry={close}
-          />
-        </ModalShell>
-      )}
+        {scene === 'failed' && (
+          <Shell key={nonce} phone={phone} onDismiss={close} label="Nothing was imported">
+            <ImportRefused
+              findings={DEMO_FINDINGS}
+              error={null}
+              partiallySaved
+              onBack={close}
+              onRetry={close}
+            />
+          </Shell>
+        )}
 
-      {scene === 'complete' && (
-        <ModalShell key={nonce} onDismiss={close}>
-          <ImportComplete imported={777} onDone={close} />
-        </ModalShell>
-      )}
+        {scene === 'complete' && (
+          <Shell key={nonce} phone={phone} onDismiss={close} label="Your record is in">
+            <ImportComplete imported={777} onDone={close} />
+          </Shell>
+        )}
 
-      {scene === 'already-saved' && (
-        <ModalShell key={nonce} onDismiss={close}>
-          <ImportComplete imported={0} onDone={close} />
-        </ModalShell>
-      )}
+        {scene === 'already-saved' && (
+          <Shell key={nonce} phone={phone} onDismiss={close} label="Already saved">
+            <ImportComplete imported={0} onDone={close} />
+          </Shell>
+        )}
+      </ForcePhone>
     </div>
+  );
+}
+
+/** A card or a sheet, matching what the shipped flow would choose at this width. One layer: these
+ *  scenes are single screens rather than stacks, so Back and Close are the same gesture. */
+function Shell({
+  phone,
+  onDismiss,
+  label,
+  children,
+}: {
+  phone: boolean;
+  onDismiss: () => void;
+  label: string;
+  children: React.ReactNode;
+}) {
+  if (!phone) return <ModalShell onDismiss={onDismiss}>{children}</ModalShell>;
+  return (
+    <AccountSheet
+      open
+      onClose={onDismiss}
+      onBack={onDismiss}
+      label={label}
+      layers={[children]}
+    />
   );
 }

@@ -26,6 +26,7 @@
 
 import Link from 'next/link';
 import { HeaderSlot } from '@/components/shell/header-slot';
+import { usePhone } from '@/lib/use-phone';
 import { Icon } from '@/components/ui/icon';
 import { ICON_BUTTON } from '@/components/ui/icon-button';
 import { AccountLogo } from './account-logo';
@@ -52,6 +53,19 @@ export function AccountDetailHeader({
   facetRows: FacetRow[];
 }) {
   const label = useLabelAccount();
+  const phone = usePhone();
+
+  /* NOTHING IN THE SHELL'S BAND ON A PHONE (2026-08-28). Below `md` this page is a full-screen panel
+     that COVERS the band, and it carries its own bar - back, the account's name, Edit
+     (`detail-panel-header.tsx`). Leaving these portalled in would put a breadcrumb, an Edit and a
+     Filters chip behind an opaque panel: invisible, and still in the tab order, which is the exact
+     failure `inert` exists for elsewhere in this codebase.
+     FILTERS GOES WITH THEM, and that is a decision rather than a side effect. The phone's details
+     page shows the four most recent trades and nothing else, so a control that narrows a list of
+     four has nothing to do. It lives on `/accounts/details/<id>/trades`, which is the screen that
+     has a list worth narrowing. */
+  if (phone) return null;
+
   return (
     <>
       <Breadcrumb account={account} title={title} />

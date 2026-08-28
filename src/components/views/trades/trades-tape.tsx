@@ -373,7 +373,7 @@ export function TradesTape({
               </div>
               <div className="divide-rule divide-y">
                 {d.trades.map((row) => (
-                  <Row
+                  <TradeRow
                     hidden={hiddenColumns}
                     key={row.id}
                     trade={row}
@@ -484,7 +484,13 @@ function groupBySession(rows: TapeRow[]): { sessionDate: string; trades: TapeRow
  * `useLinkStatus` spinner in the row, and that spinner has since been removed as the wrong mark for
  * the event - the wait belongs at the destination, in the shape of what is arriving. The anchor
  * stays regardless: middle-click and cmd-click are reason enough for a control that navigates. */
-function Row({
+/* EXPORTED SINCE 2026-08-28, for `RecentTrades` on the phone's account page. A second table
+ * rendering its own lookalike row is how two lists of the same object stop agreeing about what a
+ * row is - and this one already carries a dozen measured decisions (the 45px mark inset, the 14px
+ * phone step it shares with the roster row, which columns drop below `sm`, where the net figure's
+ * right edge sits). The other table differs in its HEADER and its LENGTH, which is all it should
+ * differ in. */
+export function TradeRow({
   trade: t,
   zone,
   onOpen,

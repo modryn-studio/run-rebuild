@@ -14,6 +14,7 @@ import { EMPTY_FILTER, type ResultToken } from '@/lib/trades/filter';
 import { accountPrefix, accountRowTitle } from '@/lib/prop-firms';
 import { AccountDetailView } from '@/components/views/accounts/account-detail-view';
 import { AccountRail } from '@/components/views/accounts/account-rail';
+import { RecentTrades } from '@/components/views/accounts/recent-trades';
 import { TradesTape } from '@/components/views/trades/trades-tape';
 
 /* ONE ACCOUNT'S OWN PAGE (`S6d`), reached by tapping a roster row.
@@ -178,6 +179,16 @@ export default async function AccountDetailPage({
           account={account}
           provenance={provenance}
           view={digest ? { trades: digest.trades, netCents: digest.netCents } : null}
+        />
+      }
+      /* FOUR ROWS AND A WAY TO THE REST, on the phone only. The SAME rows the tape is built from -
+         one query, one order, so the short list and the long one can never disagree about what the
+         most recent trade was. */
+      recent={
+        <RecentTrades
+          trades={sessions.flatMap((d) => d.trades)}
+          zone={trader.displayTimezone}
+          allHref={`/accounts/details/${account.id}/trades`}
         />
       }
       tape={

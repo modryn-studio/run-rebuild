@@ -576,6 +576,47 @@ an effect would blank the layer for the first frame of its own travel.
 height of the screen in 200 (`SHEET_EXIT_MS`). Each has its own hook, because the owner is what
 unmounts and the owner cannot be what decides when.
 
+### 6b. A drill-down PAGE on a phone, and why it is not `<ViewTransition>`
+
+*(2026-08-28.)* `/accounts/details/<id>` and its `/trades` child are ROUTES that look like sheets:
+`max-md:fixed max-md:inset-0 max-md:z-[60]`, their own `SheetHeader`, an ordinary page column above
+`md`. That container is `/trades/[id]`'s, unchanged — one tree, two frames, so the page is never in
+the document twice.
+
+**React's `<ViewTransition>` was the plan and it does not build here.** This install is react
+19.2.7 stable, which does not export it, and `next/dist/lib/needs-experimental-react.js` shows Next
+16.3 swapping to its vendored *experimental* React only when `blockingSSR`, `taint`,
+`transitionIndicator` or `gestureTransition` is set. Turning one on to get a route animation swaps
+the whole React runtime for an experimental build. Not on this repo. **If that check ever passes on
+stable React, revisit** — the mechanism below is a substitute, not a preference.
+
+So the panel animates itself: `translate-y-full` → `0` on the first rAF, on `.sheet-transition`.
+**It lives in the component the route renders, and there is no `loading.tsx` on those segments** —
+a boundary and its page each mounting the panel is the "entrance runs twice" bug §7 names.
+
+**There is no exit.** A route cannot animate away without holding the navigation. `TradeSheet` gets
+one because it is client state over a page that never left; this is a page.
+
+**`usePhone` starts at the server's answer, never at `matchMedia`.** Reading the query in the
+initial state is the "server/client branch" React names in a hydration mismatch, and it produced one
+the day `/accounts/details` started using the hook — the modals it was written for mount on a click,
+so nothing had caught it. The real value arrives in a **layout** effect, flushed before paint, so
+there is still no frame of the desktop container on a phone.
+
+**`DesktopOnly`, not `max-md:hidden`, for a tape the phone replaces.** The class hides pixels: the
+subject page's first 300 rows were still built and laid out under a four-row table drawn from the
+same array. Measured at 390px on one real account: 30 rows in the document, 4 visible. It does not
+save the payload, and it does not save the first parse: `usePhone` must start at the server's answer
+or the tree hydrates against HTML that disagrees with it, so the rows are sent and parsed either way.
+What it saves is their life after that first commit.
+
+**Two summaries, two questions, and neither repeats.** `AccountRail` on the details page is what the
+account **is** (broker, firm, type, size, status) plus where its record came from. `TradesRail` on
+the `/trades` child is how the set on screen **did** (sessions, win rate, average and best and worst
+session). Its `Accounts` line is dropped when the filter pins exactly one — there it restates which
+page you are on. Filters and search live only on the child route, so the page underneath can never
+be left silently narrowed with no control to clear it.
+
 **A confirmation is a sheet too, and stacks by DOM order rather than by a second z-index.** Both
 `Close this account?` and `Delete this account?` are `ConfirmShell`, which picks a centred
 `alertdialog` above `md` and a sheet below it. The sheet underneath is put in `busy`, which stops it

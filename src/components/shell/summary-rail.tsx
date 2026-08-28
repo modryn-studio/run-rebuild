@@ -35,10 +35,21 @@ const RAIL_COLLAPSE_KEY = 'run_rail_collapsed';
 export function WithSummaryRail({
   rail,
   children,
+  toggleHostId,
+  overPanel = false,
 }: {
   /** The digest itself. Rendered by the page, since only the page knows the filtered set. */
   rail: React.ReactNode;
   children: React.ReactNode;
+  /* WHERE THE TOGGLE GOES WHEN THE SHELL'S BAND IS NOT VISIBLE (2026-08-28). The account's own
+     trades screen is a full-screen panel covering that band, so it publishes its bar as a host and
+     names it here. Absent means the shell's band, which is every other caller. */
+  toggleHostId?: string;
+  /* THE DRAWER HAS TO OUTRANK THE PANEL IT OPENS OVER. The detail panel is `z-[60]`, so the phone
+     drawer's own `z-50` and its scrim's `z-40` would both open BEHIND it - visible only as a dimmed
+     nothing. Raised rather than made unconditional, because on `/trades` there is no panel and the
+     lower pair is correct: it must stay under the modals at `z-[60]` and above. */
+  overPanel?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [ready, setReady] = useState(false);
@@ -170,7 +181,7 @@ export function WithSummaryRail({
           the header does both jobs, staying mounted and just flipping icon rotation, `data-active`
           and the tooltip label. A control that vanishes on close is a control with no way back that
           isn't also invisible. */}
-      <HeaderSlot>
+      <HeaderSlot hostId={toggleHostId}>
         {/* ON A PHONE IT ONLY OPENS (2026-08-24, Luke: "the 'hide summary' button inside the summary
             panel is unnecessary at this point. remove it"). Below `md` the rail is a drawer, and a
             drawer already has two ways out that a column does not: the scrim and, as of this change,
@@ -223,7 +234,8 @@ export function WithSummaryRail({
         onClick={toggle}
         style={{ background: 'var(--scrim-nav)' }}
         className={cn(
-          'fixed inset-0 z-40 transition-opacity ease-out md:hidden',
+          'fixed inset-0 transition-opacity ease-out md:hidden',
+          overPanel ? 'z-[65]' : 'z-40',
           collapsed ? 'pointer-events-none opacity-0' : 'opacity-100'
         )}
       />
@@ -270,7 +282,8 @@ export function WithSummaryRail({
                to `/trades/[id]` there), so the right edge is free and the two never collide.
                A SECOND DRAWER, DELIBERATELY SYMMETRIC: nav slides from the left off the hamburger,
                summary from the right off its own toggle. */
-            'max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-50 max-md:w-[min(20rem,85vw)] max-md:overflow-y-auto',
+            'max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:w-[min(20rem,85vw)] max-md:overflow-y-auto',
+            overPanel ? 'max-md:z-[70]' : 'max-md:z-50',
             collapsed && 'max-md:translate-x-full',
             lgUp && collapsed ? 'overflow-hidden' : 'clip-allow-shadow',
             /* `panel-transition` so the rail and the sidebar are ONE declaration rather than two

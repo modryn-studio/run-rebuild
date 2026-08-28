@@ -136,11 +136,16 @@ export function TradesSearchPill({
   products,
   accounts,
   facetRows,
+  hostId,
 }: {
   applied: TradesFilter;
   products: string[];
   accounts: FacetAccount[];
   facetRows: FacetRow[];
+  /* A HOST THAT IS NOT THE SHELL'S BAND (2026-08-28). An account's own trades screen is a
+     full-screen panel covering that band, and it publishes a band of its own directly under its
+     bar. Absent means the shell's, which is `/trades`. */
+  hostId?: string;
 }) {
   const write = useParamWriter();
   const [draft, setDraft] = useState(applied.q ?? '');
@@ -241,7 +246,7 @@ export function TradesSearchPill({
         full-width row above the scroller, so `<main>`'s scrollbar starts beneath it.
         `z-20` goes too: the band is a sibling of `<main>` rather than a child, so nothing in the
         pane can paint over it and there is no stack to win. */}
-      <HeaderSlot slot="band">
+      <HeaderSlot slot="band" hostId={hostId}>
         <div className="bg-bg border-border border-b px-4 pt-2 pb-3 md:hidden">
           {/* ONE FIELD, WITH THE FILTER MARK INSIDE IT. The reference puts its filter control at the
           right edge of the search field rather than beside it, which is what keeps the row to a

@@ -69,9 +69,15 @@ export const HEADER_BAND_SLOT_ID = 'page-header-band-slot';
 export function HeaderSlot({
   children,
   slot = 'controls',
+  hostId,
 }: {
   children: ReactNode;
   slot?: 'controls' | 'title' | 'band';
+  /* A HOST THAT IS NOT THE SHELL'S (2026-08-28). `/accounts/details` on a phone is a full-screen
+     panel that COVERS the shell's band, so a control portalled into that band would be invisible
+     and still focusable. The panel publishes its own bar as a host and passes its id here.
+     It wins over `slot`, which is the shell's three named positions. */
+  hostId?: string;
 }) {
   const [host, setHost] = useState<HTMLElement | null>(null);
 
@@ -79,9 +85,14 @@ export function HeaderSlot({
   // render would be work that can only ever return the same node.
   useIsomorphicLayoutEffect(() => {
     const id =
-      slot === 'title' ? HEADER_TITLE_SLOT_ID : slot === 'band' ? HEADER_BAND_SLOT_ID : HEADER_SLOT_ID;
+      hostId ??
+      (slot === 'title'
+        ? HEADER_TITLE_SLOT_ID
+        : slot === 'band'
+          ? HEADER_BAND_SLOT_ID
+          : HEADER_SLOT_ID);
     setHost(document.getElementById(id));
-  }, [slot]);
+  }, [slot, hostId]);
 
   return host ? createPortal(children, host) : null;
 }

@@ -30,6 +30,7 @@
  */
 
 import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/cn';
 import { Icon } from '@/components/ui/icon';
 import { StatusChip } from './roster-card';
 import { ImportIntoAccount } from './import-into-account';
@@ -69,11 +70,9 @@ export function AccountRail({
 
   return (
     <div className="flex flex-col gap-4">
-      <Card className="overflow-hidden">
-        <div className="px-5 py-4">
-          <h2 className="text-title text-text font-medium">Summary</h2>
-        </div>
-        <dl className="border-rule border-t pb-2">
+      <Card className={RAIL_CARD}>
+        <RailHead>Summary</RailHead>
+        <dl className="border-rule border-t pb-2 max-md:pb-1">
           {/* BROKER AND FIRM ARE TWO DIFFERENT FACTS, and collapsing them was a real bug in v2
               (Luke, 2026-07-31: "the summary card says Firm: Personal. the firm is tradovate").
               That row read `propFirm`, which stores the literal `Personal` sentinel for a personal
@@ -174,7 +173,12 @@ export function AccountRail({
           {/* THE SAME FIGURE THE CHART IS DRAWING, so the two cannot disagree. The `of` form does
               not work for money - "$907.96 of $521.60" is nonsense when a filtered subset exceeds
               the whole - so the label carries the qualifier instead. */}
-          <Line
+          {/* OFF ON A PHONE (2026-08-28). The chart states this exact figure 300px above, and the
+              `, filtered` half of the label is about a Filters control that does not exist at this
+              width - it moved to `/accounts/details/<id>/trades`, which is the screen with a list
+              worth narrowing. A row that restates the headline under a qualifier that can never be
+              true is two kinds of noise at once. */}
+          <Line className="max-md:hidden"
             label={`${provenance.hasFees ? 'Net P&L' : 'Gross P&L'}${view ? ', filtered' : ''}`}
           >
             <span className="text-text tabular-nums">
@@ -184,11 +188,9 @@ export function AccountRail({
         </dl>
       </Card>
 
-      <Card className="overflow-hidden">
-        <div className="px-5 py-4">
-          <h2 className="text-title text-text font-medium">Data</h2>
-        </div>
-        <dl className="border-rule border-t pb-2">
+      <Card className={RAIL_CARD}>
+        <RailHead>Data</RailHead>
+        <dl className="border-rule border-t pb-2 max-md:pb-1">
           {/* v2 HARDCODED "CSV upload" HERE, on every account including one the trader typed in by
               hand that has never seen a file - directly contradicting the "Last import: Never" row
               underneath it. An account whose key is still a placeholder has by definition never been
@@ -274,11 +276,42 @@ function Group() {
 /* One label/value row. `dt`/`dd` rather than two spans, because that is what this is - a list of
  * terms and their definitions - and saying so costs nothing.
  * `items-start` so a value that wraps still lines up with the top of its label. */
-function Line({ label, children }: { label: string; children: React.ReactNode }) {
+function Line({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex items-start justify-between gap-4 px-5 py-1.5">
+    <div className={cn('flex items-start justify-between gap-4 px-5 py-1.5 max-md:px-4 max-md:py-2', className)}>
       <dt className="text-body text-muted shrink-0">{label}</dt>
       <dd className="text-body min-w-0 text-right">{children}</dd>
+    </div>
+  );
+}
+
+/* THESE ARE CARDS ON A DESKTOP AND TABLES ON A PHONE (2026-08-28, Luke: "so right now on the
+ * /account/details page for mobile we are using cards for the summary and data info. we dont want to
+ * do that. we want those to be consistent with the trades table").
+ *
+ * FULL BLEED, NO RADIUS, NO SHADOW below `md` - the same three cancellations `TradesTape` and
+ * `RecentTrades` make at this width, so the three surfaces stacked down the phone's column share one
+ * left edge and one ground instead of reading as three floating sheets. Above `md` nothing changes:
+ * the rail is a column of cards beside the tape and always was.
+ */
+const RAIL_CARD = 'overflow-hidden max-md:-mx-4 max-md:rounded-none max-md:shadow-none';
+
+/* THE CARD'S TITLE, WHICH BECOMES A TABLE HEADER ROW ON A PHONE. `min-h-13` and the row's own
+ * gutter, matching `RecentTrades`' caption exactly - three tables down one column whose headers
+ * disagreed about height would read as three components rather than one page.
+ * `text-title` STAYS ABOVE `md`, where this is a card heading beside a chart and a tape. */
+function RailHead({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="px-5 py-4 max-md:flex max-md:min-h-13 max-md:items-center max-md:px-4 max-md:py-0">
+      <h2 className="text-title text-text max-md:text-body-lg font-medium">{children}</h2>
     </div>
   );
 }

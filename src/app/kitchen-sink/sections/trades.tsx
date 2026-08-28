@@ -16,6 +16,7 @@ import { TradesRailSkeleton } from '@/components/views/trades/trades-rail-skelet
 import { QuarantineNotice } from '@/components/views/trades/quarantine-notice';
 import { EMPTY_FILTER } from '@/lib/trades/filter';
 import { Note, Row, Section } from '../_components/section';
+import { RecentTrades } from '@/components/views/accounts/recent-trades';
 import {
   DIGEST_FIXTURE,
   DIGEST_FIXTURE_IDS,
@@ -115,6 +116,32 @@ export function TradesSection() {
           Download CSV sits at the FOOT of the card, below the ledger, because it is what you do with
           these numbers rather than one of them. It renders only when the selection is non-empty: an
           empty file is a worse answer than no offer, since the trader has to open it to find out.
+        </Note>
+      </Row>
+
+      {/* THE PHONE'S TABLE ON AN ACCOUNT PAGE, racked here beside the tape it borrows its row from -
+          which is the point of putting it here rather than in a section of its own. The two are one
+          object with two headers and two lengths, and a rack row is where that either holds or
+          visibly does not. */}
+      <Row label="Recent Trades" note="four rows, the tape's own row, Monarch's inset CTA">
+        <RecentTrades
+          trades={TAPE_FIXTURE.flatMap((d) => d.trades)}
+          zone="America/Chicago"
+          allHref="#"
+        />
+        <Note>
+          The header row is `min-h-13` and takes the row&apos;s own gutter, so it reads as the
+          table&apos;s caption rather than as the tape&apos;s toolbar, which is `min-h-15` and
+          carries three controls. The CTA is a full-width `lg` button inside the card&apos;s padding:
+          the same object the modal footers use, not a size invented for one table.
+        </Note>
+      </Row>
+
+      <Row label="Recent Trades, day one" note="the empty case says so rather than drawing a button">
+        <RecentTrades trades={[]} zone="America/Chicago" allHref="#" />
+        <Note>
+          No narrowed variant. These four rows are never filtered. The Filters control lives on the
+          screen the button leads to, which is the screen with a list worth narrowing.
         </Note>
       </Row>
 
