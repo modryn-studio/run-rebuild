@@ -60,7 +60,7 @@ import {
   PERSONAL_FIRM,
   placeholderAccountTitle,
 } from '@/lib/prop-firms';
-import type { AccountType } from '@/lib/db/schema';
+import type { AccountStatus, AccountType } from '@/lib/db/schema';
 import type { RosterAccount } from '@/lib/accounts/read';
 
 /** The three things this modal can be showing. See the navigation note inside the component. */
@@ -110,6 +110,13 @@ export function LabelAccountForm({
   const savingRef = useRef(false);
   const [confirmingClose, setConfirmingClose] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  /* STATUS AND ITS DATE ARE HELD HERE, not read off `account` on every render, because Close and
+     Reopen COMMIT ON PRESS and the form stays open underneath them. Reading the prop would leave the
+     Actions row saying "Close account" until the trader dismissed and reopened the whole modal —
+     which is the one place a write is invisible to the screen that caused it. */
+  const [status, setStatus] = useState(account.status);
+  const [closedOn, setClosedOn] = useState(account.closedOn);
+  const [reopening, setReopening] = useState(false);
 
   const isProp = type !== null && type !== 'personal';
 
@@ -177,6 +184,36 @@ export function LabelAccountForm({
   });
 
   const ready = type !== null && (!isProp || (Boolean(firm) && size !== null));
+
+  /* REOPEN WRITES ON PRESS AND NEEDS NO CONFIRMATION, because it IS the undo. A control that asks
+     "are you sure you want to undo?" is the reason people stop trusting undo.
+     IT IS ALSO THE ONLY THING THAT UNDOES A CLOSE. Cancel does not: by the time this row is on
+     screen the close has already been written, and letting Cancel silently revert it would mean the
+     trader confirmed something and then had it taken back.
+     LEGAL FOR EVERY TYPE. The schema's CHECK permits `active` against all three types and against a
+     null one, so a reopen can never be refused for an incoherent pair — unlike a close. */
+  async function reopen() {
+    if (reopening) return;
+    setReopening(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/accounts', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: account.id, status: 'active', closedOn: null }),
+      });
+      if (!res.ok) throw new Error('patch failed');
+      setStatus('active');
+      setClosedOn(null);
+      /* The roster behind this modal is now stale, and the trader may leave via Cancel, which does
+         not refresh. Refreshing here keeps every immediate write self-contained. */
+      router.refresh();
+    } catch {
+      setError('Could not reopen this account. Try again.');
+    } finally {
+      setReopening(false);
+    }
+  }
 
   async function save() {
     if (savingRef.current || !ready || type === null) return;
@@ -362,58 +399,105 @@ export function LabelAccountForm({
             </Section>
 
             {/* ACTIONS: everything above changes a LABEL, everything here changes what the account
-                IS - and unlike everything above, these COMMIT ON PRESS through their own
-                confirmation. The rule that this modal never auto-saves is about a bare tap having
-                consequences; each of these has a confirmation screen, which is the moment of intent
-                that rule was asking for. Cancel does not undo a close.
+                IS - and unlike everything above, these COMMIT ON PRESS. The rule that this modal
+                never auto-saves is about a bare tap having consequences; Close and Delete each have
+                a confirmation screen, which is the moment of intent that rule was asking for.
+                CANCEL DOES NOT UNDO A CLOSE. Only Reopen does.
                 CARDS, matching the Visibility switches exactly, with the control on the right where
                 their switches sit - so "a thing you can do to this account" and "a thing you can set
                 about this account" are the same object with a different control in the slot.
-                WHICH ONES APPEAR: Close only on an `active` account, because `active` is the only
-                status you can close FROM and a null type may only be active. Delete only at zero
-                trades, because the route refuses anything else with a 409 - and a button that is
-                going to be refused should not be how a trader learns the rule.
-                A CLOSED ACCOUNT SHOWS NEITHER, which is the honest gap rather than an oversight:
-                Reopen is real work with its own question, and a Close button a closed account
-                cannot use would be worse than nothing. */}
-            {(account.status === 'active' || account.trades === 0) && (
-              <Section title="Actions">
-                {account.status === 'active' && type !== null && (
+
+                ─── WHY CLOSE EXISTS AT ALL ────────────────────────────────────────────────────
+                Nothing in this build detects a breach or a hit target: there is no drawdown tracking
+                and no profit-target figure, so an account's ending cannot be inferred. Close IS the
+                manual statement of it, and that is the whole job — the trader says the account ended
+                and how, and the roster's chip and every "your evaluation total" figure follow from
+                that one answer. If breach detection ever lands, it proposes this answer rather than
+                replacing the control.
+
+                AN UNLABELLED ACCOUNT CANNOT CLOSE, and the schema is why rather than a preference:
+                a null `account_type` may only be `active` (`schema.ts`'s CHECK). There is no outcome
+                to offer, because "how did it end" has no answer until the account is one of three
+                kinds. Labelling it first is not a hoop - it is the question that makes the next one
+                answerable. */}
+            <Section title="Actions">
+              {status === 'active' ? (
+                <ActionRow
+                  title="Close account"
+                  note={
+                    type === null
+                      ? 'Pick a type above first, so the outcome can be one this kind of account has.'
+                      : 'Mark how it ended. Every trade stays.'
+                  }
+                  action={
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={saving || type === null}
+                      /* `busy` LOCKS THE SHELL UNDERNEATH, so Escape and a backdrop click land on
+                         the confirmation rather than dismissing this form out from under it. */
+                      onClick={() => {
+                        setConfirmingClose(true);
+                        onBusyChange(true);
+                      }}
+                    >
+                      Close
+                    </Button>
+                  }
+                />
+              ) : (
+                /* THE SAME ROW, ONE STATE LATER. It states the outcome and the date the trader gave,
+                   because a year on "how did it end" is the single most useful fact about a closed
+                   account - and it is the fact a chip alone cannot carry. */
+                <ActionRow
+                  title="Account is closed"
+                  note={closedNote(status, closedOn)}
+                  action={
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={reopening}
+                      onClick={() => void reopen()}
+                    >
+                      Reopen
+                    </Button>
+                  }
+                />
+              )}
+
+              {/* DELETE IS OFFERED WHENEVER THERE IS NOTHING TO LOSE, closed or not, and its absence
+                  is deliberately NOT explained: a paragraph of policy where a button is missing is
+                  policy nobody asked for. An account holding trades cannot be deleted - the route
+                  refuses it with a 409 and the foreign keys refuse it underneath that - because the
+                  whole claim of this product is that it keeps the tape. Hide sits directly above and
+                  is the answer a trader who is done looking actually wants. */}
+              {account.trades === 0 && (
+                <div className="mt-2">
                   <ActionRow
-                    title="Close account"
-                    note="Mark how it ended. Every trade stays."
+                    title="Delete account"
+                    note="Nothing has been imported yet, so there is nothing to lose."
                     action={
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => setConfirmingClose(true)}
                         disabled={saving}
+                        /* `text-neg` RATHER THAN v2'S INLINE `style={{ color: ... }}`. Same result,
+                           and it follows the theme without a second declaration. The FILL stays
+                           `secondary`: the red belongs on the confirmation's commit button, not on
+                           the thing that merely opens it. */
+                        className="text-neg"
+                        onClick={() => {
+                          setConfirmingDelete(true);
+                          onBusyChange(true);
+                        }}
                       >
-                        Close
+                        Delete
                       </Button>
                     }
                   />
-                )}
-                {account.trades === 0 && (
-                  <div className={account.status === 'active' ? 'mt-2' : ''}>
-                    <ActionRow
-                      title="Delete account"
-                      note="Nothing has been imported into it, so no trades are lost."
-                      action={
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setConfirmingDelete(true)}
-                          disabled={saving}
-                        >
-                          Delete
-                        </Button>
-                      }
-                    />
-                  </div>
-                )}
-              </Section>
-            )}
+                </div>
+              )}
+            </Section>
           </ModalBody>
 
           <ModalFooter>
@@ -439,14 +523,20 @@ export function LabelAccountForm({
         <CloseAccountModal
           accountId={account.id}
           accountType={type}
-          onCancel={() => setConfirmingClose(false)}
-          onClosed={() => {
+          onCancel={() => {
             setConfirmingClose(false);
-            /* THE SAME EXIT A SAVE TAKES. The write already happened, so `router.refresh()` and a
-               close is what makes the change appear to happen IN the page. Staging it would mean
-               Cancel could silently undo a decision the trader believes they made. */
+            onBusyChange(false);
+          }}
+          onClosed={(nextStatus, nextClosedOn) => {
+            setConfirmingClose(false);
+            onBusyChange(false);
+            /* THE FORM STAYS OPEN and its Actions row flips to "Account is closed / Reopen". Closing
+               the whole modal here would leave the trader unable to see what they just did, or to
+               take it back, without reopening the editor - and Reopen is the only undo a close has.
+               The write already happened, so the roster behind is refreshed rather than staged. */
+            setStatus(nextStatus);
+            setClosedOn(nextClosedOn);
             router.refresh();
-            onSaved();
           }}
         />
       )}
@@ -455,7 +545,10 @@ export function LabelAccountForm({
         <DeleteAccountModal
           accountId={account.id}
           title={accountRowTitle(account)}
-          onCancel={() => setConfirmingDelete(false)}
+          onCancel={() => {
+            setConfirmingDelete(false);
+            onBusyChange(false);
+          }}
           onDeleted={() => {
             setConfirmingDelete(false);
             /* THE SECOND HALF OF v2'S DELETE BUG. The row is gone, and on `/accounts/details` the
@@ -485,6 +578,27 @@ function NameFact({ account }: { account: RosterAccount }) {
       </span>
     </div>
   );
+}
+
+/* "Passed on July 31, 2026. Every trade is still here." - the outcome and the date the trader
+ * stated, in one line, with the reassurance attached to it rather than left to be inferred.
+ *
+ * `passed` IS THE ONLY STATUS THAT GETS ITS OWN WORD. `failed` and `closed` both read as "Closed"
+ * because the row above already carries the chip that distinguishes them, and because "Failed on
+ * July 31" is a sentence a trader does not need read back to them twice.
+ *
+ * PARSED AS UTC, because it is a plain YYYY-MM-DD with no time in it - letting the browser read it
+ * as local would shift the day back for anyone west of Greenwich. */
+function closedNote(status: AccountStatus, closedOn: string | null): string {
+  const word = status === 'passed' ? 'Passed' : 'Closed';
+  if (!closedOn) return `${word}. Every trade is still here.`;
+  const on = new Date(`${closedOn}T00:00:00Z`).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+  return `${word} on ${on}. Every trade is still here.`;
 }
 
 /* A STATED ANSWER WITH ONE WAY TO CHANGE IT. The row is not a field: the value is settled, and the

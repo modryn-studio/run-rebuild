@@ -610,11 +610,25 @@ function Group({
                   </div>
                 </div>
               </div>
+              {/* THE CARD'S FOOTER, AND IT IS SIZED AS ONE (2026-08-28, Luke: "make the row the same
+                  size as the account card header... think of it as the account card's footer").
+                  It was `min-h-11` at every width against a header of `min-h-15`, so the card stood
+                  4px taller at the top than at the bottom - a difference small enough to read as
+                  sloppiness rather than as a decision. Same pair as the header now, phone step
+                  included, so the two ends of the card move together forever.
+                  ONLY SOME CARDS HAVE IT: a group with nothing hidden has no footer at all, which is
+                  why this is a conditional rather than a permanent row.
+                  NO DIVOT (2026-08-28). A rounded cap was built here and then removed at Luke's
+                  call. It was invisible where it mattered: the notch reveals the page ground
+                  (#f6f5f3) from under the hover ground (#fbfaf8), five units apart, so the cut it
+                  was supposed to make read as nothing at all. Recorded rather than silently dropped,
+                  because the idea is sound and the grounds are what defeat it - if this region ever
+                  moves onto `surface`, the cap becomes worth having. */}
               <button
                 type="button"
                 onClick={() => setShowHidden((v) => !v)}
                 aria-expanded={showHidden}
-                className="border-rule text-body text-muted hover:text-text flex min-h-11 w-full items-center gap-2 border-t px-5 py-2 text-left transition-colors"
+                className="border-rule text-body text-muted hover:text-text flex min-h-15 w-full items-center gap-2 border-t px-5 py-2 text-left transition-colors max-sm:min-h-11 max-sm:px-4"
               >
                 <Icon name="eye" size={16} className="shrink-0" />
                 {showHidden ? 'Collapse' : 'Show'} {hiddenRows.length} hidden{' '}

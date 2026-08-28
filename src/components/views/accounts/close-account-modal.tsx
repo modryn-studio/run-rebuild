@@ -75,7 +75,10 @@ export function CloseAccountModal({
      exact account that needs it. The write carries the type too, for the CHECK constraint's sake. */
   accountType: AccountType | null;
   onCancel: () => void;
-  onClosed: () => void;
+  /* HANDS BACK WHAT IT COMMITTED, so the form underneath can repaint without a round trip - its
+     Actions row flips to "Account is closed" and states this date. Passing nothing would mean the
+     form either re-reads the server or shows a stale row, and it stays open either way. */
+  onClosed: (status: AccountStatus, closedOn: string) => void;
 }) {
   const outcomes = accountType ? OUTCOMES[accountType] : [];
   const asks = outcomes.length > 0;
@@ -104,7 +107,7 @@ export function CloseAccountModal({
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error || 'Could not close this account. Try again.');
       }
-      onClosed();
+      onClosed(outcome, closedOn);
     } catch (e) {
       setSaving(false);
       setError(e instanceof Error ? e.message : 'Could not close this account. Try again.');
@@ -178,9 +181,17 @@ export function CloseAccountModal({
             <p className="text-body-lg text-text font-medium">What changes</p>
             <ul className="mt-2 flex flex-col gap-2">
               {[
-                'It shows as closed. It stays on your list.',
+                /* "Hide takes it off your list" IS TRUE AGAIN. v2 fixed this line once, from a
+                   version claiming closing removed the row and stopped new fills - it does neither.
+                   I then shipped "It stays on your list", which was true but pointed at nothing,
+                   because Hide had no control in this build yet. It does now, one section up in the
+                   editor behind this modal, so v2's wording is both accurate and useful. */
+                'It shows as closed. Hide takes it off your list.',
                 `Every trade stays, and its P&L stays in your ${ACCOUNT_TYPE_LABELS[accountType ?? 'personal'].toLowerCase()} total.`,
-                'A later import still files to it.',
+                /* THE ONE A TRADER CLOSING AN ACCOUNT MOST NEEDS. Reopen is a button in the editor
+                   behind this, needing no confirmation of its own, so this promise is one press
+                   away rather than a claim. */
+                'You can reopen it at any time.',
               ].map((line) => (
                 <li key={line} className="text-body text-muted flex gap-2">
                   <span aria-hidden>&bull;</span>
