@@ -17,6 +17,7 @@ change. Point agents at the file, never at your memory of it.
 | `docs/design-system.md` | Every visual decision, with the measurement behind it |
 | `docs/scar-tissue.md` | The evidence behind every rule below. **Read before arguing with one** |
 | `docs/wireframes.md` · `docs/problem-brief.md` | Structure · the problem and the kill signal |
+| `docs/user-guide.md` | Every screen, what it leads to, and what Back does. Unbuilt ones dashed |
 | `docs/psychology.md` | Why the product changes behaviour, what it must never build, the advice line |
 | `docs/blueprint-instrumentation.md` | Open questions, friction log, retro. **Append friction in the moment** |
 

@@ -195,8 +195,25 @@ export function useOverlayBack(
          that still saw `ours.current === true` would call `back()` for an entry the OS has already
          popped, sending the trader a screen further back than they asked to go. */
       ours.current = false;
-      /* RE-ARMED IN THE POP ITSELF, which is where it has to happen: the effect will not re-run,
-         because `open` has not changed - the overlay is still up, it is just one screen shallower. */
+      /* RE-ARMED IN THE POP ITSELF, and CHROME MAY THROW THE NEW ENTRY AWAY. Read this before
+         reaching for it (2026-08-29, Luke: "while deep in the filters screen on mobile, i click the
+         back button on my phone and it minimizes the entire chrome app").
+
+         Chromium's HISTORY MANIPULATION INTERVENTION: "If a history entry is added but there is no
+         user gesture by the time the user hits back, the page adding the history entry will be
+         skipped and the popstate event will not fire." A pushState inside a popstate handler is
+         exactly that - the pop is the browser's gesture, not the document's - so the entry is marked
+         skippable, the NEXT back walks straight past it without firing anything, and on a phone
+         whose tab has nothing older than the app that means Chrome minimises.
+
+         SO DEPTH IS NOT DONE THIS WAY ANY MORE. A surface with levels registers ONE HOOK PER LEVEL
+         (`filter-sheet.tsx`, `account-sheet.tsx`), so every entry is pushed by the tap that opened
+         its level and every entry survives. What is left here is the case that has no tap behind it
+         and no alternative: a press SPENT while a write is in flight, where the overlay must stay up
+         and still owe Back an answer. That entry is skippable, and the cost is bounded - a second
+         back with no tap in between leaves the page, which during an import is the trader insisting.
+
+         Docs: https://chromium.googlesource.com/chromium/src/+/main/docs/history_manipulation_intervention.md */
       if (latest.current() === true) {
         token = ++counter;
         live.push(token);

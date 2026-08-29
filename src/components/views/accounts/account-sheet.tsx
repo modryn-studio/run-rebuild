@@ -168,28 +168,35 @@ export function AccountSheet({
      answer. So Back walks the stack one press at a time on one entry at a time.
      `depthRef` because the handler is read out of a ref long after the render that made it.
      NO URL: a half-answered flow is not a place, the call `FilterSheet` makes. */
-  const depthRef = useRef(depth);
-  useEffect(() => {
-    depthRef.current = depth;
-  }, [depth]);
   const busyRef = useRef(busy);
   useEffect(() => {
     busyRef.current = busy;
   }, [busy]);
 
+  /* ONE REGISTRATION PER DEPTH, EACH PUSHED BY THE TAP THAT DRILLED IN - and `filter-sheet.tsx`
+     carries the full reasoning, because both files had the same defect for the same day. The short
+     version: an entry re-armed inside a `popstate` handler has no user gesture behind it, and
+     Chrome's history manipulation intervention silently discards it, so the next Back walked past
+     the app and minimised the browser.
+     `MAX_LAYERS` REGISTRATIONS, NOT `depth` OF THEM, because a hook count may not vary between
+     renders. Each is live only at or below its own depth, so the stack of entries matches the stack
+     of screens exactly.
+     A WRITE IN FLIGHT SPENDS THE PRESS. Returning `true` re-arms, which is the one place this file
+     still does - the sheet must stay up and still owe Back an answer, and there is no tap to hang a
+     fresh entry on. `overlay-back.ts` states what that costs. */
   const markReplacing = useOverlayBack(open, () => {
-    /* A WRITE IS IN FLIGHT, so the press is SPENT rather than obeyed (2026-08-28, postcheck).
-       Returning `true` re-arms the entry, so the sheet stays up and still owes Back an answer -
-       which is what `busy` means everywhere else on this component and what the Escape handler
-       below has always done. Without it the OS gesture walked out of a running import past a
-       header that deliberately shows no back arrow and no X, unmounting the progress panel while
-       the corpus write carried on with nowhere to report. */
     if (busyRef.current) return true;
-    if (depthRef.current > 0) {
-      onBack();
-      return true;
-    }
     onClose();
+    return false;
+  });
+  useOverlayBack(open && depth >= 1, () => {
+    if (busyRef.current) return true;
+    onBack();
+    return false;
+  });
+  useOverlayBack(open && depth >= 2, () => {
+    if (busyRef.current) return true;
+    onBack();
     return false;
   });
 

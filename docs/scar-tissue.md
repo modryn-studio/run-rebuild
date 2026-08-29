@@ -346,6 +346,36 @@ Verified over 16 open/close cycles mixing in-app controls and the device button:
 returns to no-overlay every time, the URL returns to `/trades`, and four consecutive drill-in round
 trips produce byte-identical state.
 
+### Chrome throws away a history entry pushed inside a `popstate` handler
+
+**2026-08-29, Luke, on a real phone:** *"while deep in the filters screen on mobile, i click the back
+button on my phone and it minimizes the entire chrome app. it should actually close out the filters
+menu."*
+
+Nothing in our code was wrong by inspection, which is why this is here. Chromium's **history
+manipulation intervention**:
+
+> If a history entry is added but there is no user gesture by the time the user hits back, the page
+> adding the history entry will be skipped and the popstate event will not fire.
+
+The sheet had just been changed to own ONE entry, re-armed inside its own pop handler. A pop is the
+browser's gesture, not the document's - so every re-armed entry was created with no gesture behind
+it, Chrome marked it skippable, and the next Back walked straight past it **without firing
+`popstate`**. On a tab whose oldest entry is the app, past it is out of the app.
+
+**So depth is one registration per LEVEL again, each entry pushed by the tap that opened its level.**
+That was the original shape, and it was unsafe for two reasons that are both fixed underneath it
+now: `markReplacing` stops a commit from taking its entry back, and the module declares the pops it
+causes itself so the level underneath does not answer one. The re-arm survives for exactly one case -
+a press SPENT while a write is in flight, where there is no tap to hang an entry on - and that entry
+is knowingly skippable.
+
+**The general rule: a history entry needs a user gesture behind it, or the browser is entitled to
+decide it never happened.** Anything that pushes from a timer, an effect with no interaction in its
+causal chain, or a `popstate` handler is building on an entry that may not be there.
+
+[Chromium docs](https://chromium.googlesource.com/chromium/src/+/main/docs/history_manipulation_intervention.md)
+
 ### An overlay's own `history.back()`, answered by the overlay underneath it
 
 **2026-08-28, postcheck, and it is the cause behind "the back button isn't working correctly with all

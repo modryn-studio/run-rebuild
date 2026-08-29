@@ -31,7 +31,7 @@
  */
 
 import { SHEET_CONTROL_ICON } from '@/components/ui/sheet-header';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
 import { Icon } from '@/components/ui/icon';
 import { IconButton } from '@/components/ui/icon-button';
@@ -40,7 +40,7 @@ import { DateInput } from '@/components/ui/date-input';
 import { BOTTOM_BAR_H } from '@/lib/shell';
 import { useOverlayBack } from '@/lib/overlay-back';
 import type { FacetAccount } from '@/lib/trades/read';
-import type { FacetRow } from '@/lib/trades/facets';
+import { facetCounts, type FacetRow } from '@/lib/trades/facets';
 import { productName } from '@/lib/instruments';
 import { AccountLogo } from '@/components/views/accounts/account-logo';
 import { STATUS_LABELS, TYPE_LABELS } from '@/lib/accounts/roster-filter';
@@ -272,21 +272,34 @@ function PickRow({
   onClick,
   trailing,
   select,
+  inert = false,
 }: {
   label: string;
   on: boolean;
   onClick: () => void;
   trailing?: string;
   select: 'one' | 'many';
+  /* NOTHING TO REACH UNDER THE OTHER AXES: shown, greyed and unpressable, which is the treatment
+     and the exact `opacity-40` the desktop panel's own `Row` uses (`ui/filter-rows.tsx`).
+     SHOWN RATHER THAN HIDDEN (2026-08-29, Luke's call). A row that vanishes as you tick makes the
+     list jump under your thumb and leaves a product you know you traded simply missing, with no
+     account of where it went. Greyed, with its `0` beside it, says the thing that is true: the
+     combination has no trades in it. */
+  inert?: boolean;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={inert ? undefined : onClick}
+      disabled={inert}
+      aria-disabled={inert || undefined}
       role={select === 'one' ? 'radio' : undefined}
       aria-checked={select === 'one' ? on : undefined}
       aria-pressed={select === 'many' ? on : undefined}
-      className="border-rule active:bg-hover flex min-h-14 w-full items-center gap-3 border-b px-4 text-left transition-colors"
+      className={cn(
+        'border-rule flex min-h-14 w-full items-center gap-3 border-b px-4 text-left transition-colors',
+        inert ? 'cursor-default opacity-40' : 'active:bg-hover'
+      )}
     >
       <span className={cn('text-body-lg text-text flex-1', on && 'font-medium')}>{label}</span>
       {/* `text-body-lg` to match this row's own label, for the reason `filter-rows.tsx` gives:
@@ -402,31 +415,48 @@ export function FilterSheet({
      list, and back again takes the sheet down - the same two steps the header's own controls make.
      NO URL for either: a staged, uncommitted draft is not a place, and writing one would make a
      half-finished filter shareable. The trade sheet passes one because a trade IS a place. */
-  /* THE MARKERS THE HOOK HANDS BACK, one per level. Calling one says "the next close is a
-     navigation replacing this entry, not a dismissal", so the entry is left standing for the
-     router's `replace` to overwrite. See the hook's own note for the race this settles. */
-  /* ONE HISTORY ENTRY FOR THE WHOLE SHEET, RE-ARMED PER LEVEL (2026-08-28).
-     One entry per LEVEL is what made the filter apply "sometimes": a commit from inside a drill-in
-     left a second live entry whose cleanup called `history.back()` ~300ms later, and a `popstate` is
-     dispatched as its own task, so it always landed after the write and undid it.
-     So the sheet owns exactly one entry at a time. The handler returns `true` from a drill-in, which
-     tells the hook to hand back a fresh entry: the sheet is still up, one screen shallower, and
-     still owes the Back button an answer. Back therefore still walks drill-in, list, closed - one
-     press each - on one entry at a time, with nothing for a commit to unwind.
-     `pageRef` because the handler is read out of a ref long after the render that made it. */
-  const pageRef = useRef(page);
-  useEffect(() => {
-    pageRef.current = page;
-  }, [page]);
-
-  const markReplacing = useOverlayBack(open, () => {
-    if (pageRef.current !== null) {
-      setPage(null);
-      return true;
-    }
+  /* ONE ENTRY PER LEVEL, AND EACH IS PUSHED BY THE TAP THAT OPENED ITS LEVEL.
+   *
+   * This has now been both shapes, and the history of it is the argument for this one.
+   *
+   * IT STARTED as two registrations. A commit from inside a drill-in left the outer entry live, its
+   * cleanup called `history.back()` ~300ms later, and a `popstate` is dispatched as its own task -
+   * so it always landed after the write and undid it. That is what made the filter apply
+   * "sometimes".
+   *
+   * IT BECAME one entry re-armed inside the pop handler, which fixed that and broke something
+   * worse (2026-08-29, Luke: "while deep in the filters screen on mobile, i click the back button
+   * on my phone and it minimizes the entire chrome app"). Chromium's history manipulation
+   * intervention SKIPS an entry pushed with no user gesture behind it, and a pushState inside a
+   * popstate handler has none - so the re-armed entry was thrown away, the next back found nothing
+   * of ours, and Chrome went looking further back than the app.
+   *
+   * SO IT IS TWO REGISTRATIONS AGAIN, and the two defects that made that shape unsafe are both
+   * fixed underneath it: `markReplacing` means a commit leaves its entry for the router rather than
+   * taking it back, and `overlay-back.ts` now declares the pops it causes so the sheet underneath
+   * does not answer the drill-in's own. Every entry here is pushed by a tap, which is what keeps
+   * Chrome from discarding it.
+   *
+   * INNERMOST LAST, because the hook orders its registrations by token and the entries stack the
+   * way the screens do. Back walks drill-in, list, closed - one press each.
+   * NO URL for either: a staged, uncommitted draft is not a place, and writing one would make a
+   * half-finished filter shareable. The trade sheet passes one because a trade IS a place. */
+  const markSheet = useOverlayBack(open, () => {
     onClose();
     return false;
   });
+  const markPage = useOverlayBack(open && page !== null, () => {
+    setPage(null);
+    return false;
+  });
+
+  /* BOTH MARKERS, ALWAYS. A commit can come from the list or from inside a drill-in, and marking
+     only the level that happens to be showing is the version that works until someone applies from
+     the Date screen. Two calls is cheaper than one condition nobody re-reads. */
+  const markReplacing = useCallback(() => {
+    markSheet();
+    markPage();
+  }, [markSheet, markPage]);
 
   /* EVERY COMMIT GOES THROUGH HERE - Apply, Clear all, and a quick range, which commits on the tap.
      Three call sites that must all mark is three chances to forget; one wrapper is none.
@@ -496,13 +526,33 @@ export function FilterSheet({
   const statusOpts = ACCOUNT_STATUSES.filter((v) => heldStatus.has(v));
   const typeOpts = ACCOUNT_TYPES.filter((v) => heldTypes.has(v));
 
-  const byAccount = new Map<string, number>();
-  const byProduct = new Map<string, number>();
-  for (const r of facetRows) {
-    const n = r.wins + r.losses;
-    byAccount.set(r.accountId, (byAccount.get(r.accountId) ?? 0) + n);
-    byProduct.set(r.product, (byProduct.get(r.product) ?? 0) + n);
-  }
+  /* THE SAME NARROWING THE DESKTOP PANEL HAS, WHICH THIS SHEET SHIPPED WITHOUT.
+   *
+   * 2026-08-29, Luke: "if the user has a filter applied such as status active, then some choices
+   * should not be displayed as available such as product micro crude oil, because that combo would
+   * produce no results. for desktop, we have the filter menu drop down implemented in a fashion
+   * that this is taken care of."
+   *
+   * It was: `facetCounts` has done this since S5c and this file totalled the raw rows instead, so
+   * the phone offered every product in the corpus at its all-time count no matter what else was
+   * ticked, and picking one produced "No trades match this filter". That is the exact guessing v2's
+   * own note describes ("so im always guessing"), on the surface where a wasted tap costs most.
+   *
+   * AGAINST THE DRAFT, NOT THE APPLIED FILTER, so the lists narrow WHILE ticking rather than after
+   * Apply - which is the whole point, since the guessing happens during. And `facetCounts` excludes
+   * each axis from its own narrowing, so a second product stays addable after the first is picked.
+   *
+   * STATUS AND TYPE ARE COUNTED IN ACCOUNTS, not trades: "Failed 1" is one account. `facets.ts`
+   * argues it, and the `meta` lookup below is what lets that file stay free of the database. */
+  const meta = useMemo(() => {
+    const m = new Map(accounts.map((a) => [a.id, a]));
+    return {
+      status: (id: string) => m.get(id)?.status ?? null,
+      type: (id: string) => m.get(id)?.accountType ?? null,
+    };
+  }, [accounts]);
+
+  const counts = useMemo(() => facetCounts(facetRows, draft, meta), [facetRows, draft, meta]);
 
   return (
     <div
@@ -756,11 +806,18 @@ export function FilterSheet({
                   key={a.id}
                   select="many"
                   label={`${a.firm} ${a.short}`.trim()}
-                  trailing={(byAccount.get(a.id) ?? 0).toLocaleString('en-US')}
+                  trailing={(counts.accounts.get(a.id) ?? 0).toLocaleString('en-US')}
                   /* ONE ACCOUNT READS AS ON AND CANNOT GO OFF, matching the desktop panel and the
                      header's own selector: with one account, "all" and "that one" are the same
                      set. */
                   on={accounts.length === 1 || draft.accounts.includes(a.id)}
+                  /* A TICKED ROW IS NEVER DEAD, on every axis below too: greying the option a
+                     trader already picked would take away the only way back out of it. */
+                  inert={
+                    accounts.length > 1 &&
+                    !draft.accounts.includes(a.id) &&
+                    (counts.accounts.get(a.id) ?? 0) === 0
+                  }
                   onClick={() => accounts.length > 1 && toggle('accounts', a.id)}
                 />
               ))}
@@ -779,7 +836,9 @@ export function FilterSheet({
                     key={t}
                     select="one"
                     label={t === 'win' ? 'Wins' : 'Losses'}
+                    trailing={(counts.results.get(t) ?? 0).toLocaleString('en-US')}
                     on={draft.results[0] === t}
+                    inert={draft.results[0] !== t && (counts.results.get(t) ?? 0) === 0}
                     onClick={() => pickResult(t)}
                   />
                 ))}
@@ -792,7 +851,9 @@ export function FilterSheet({
                   key={v}
                   select="many"
                   label={TYPE_LABELS[v]}
+                  trailing={(counts.types.get(v) ?? 0).toLocaleString('en-US')}
                   on={draft.types.includes(v)}
+                  inert={!draft.types.includes(v) && (counts.types.get(v) ?? 0) === 0}
                   onClick={() => toggle('types', v)}
                 />
               ))}
@@ -803,7 +864,9 @@ export function FilterSheet({
                   key={v}
                   select="many"
                   label={STATUS_LABELS[v]}
+                  trailing={(counts.status.get(v) ?? 0).toLocaleString('en-US')}
                   on={draft.status.includes(v)}
+                  inert={!draft.status.includes(v) && (counts.status.get(v) ?? 0) === 0}
                   onClick={() => toggle('status', v)}
                 />
               ))}
@@ -814,8 +877,9 @@ export function FilterSheet({
                   key={p}
                   select="many"
                   label={productName(p) ?? p}
-                  trailing={(byProduct.get(p) ?? 0).toLocaleString('en-US')}
+                  trailing={(counts.products.get(p) ?? 0).toLocaleString('en-US')}
                   on={draft.products.includes(p)}
+                  inert={!draft.products.includes(p) && (counts.products.get(p) ?? 0) === 0}
                   onClick={() => toggle('products', p)}
                 />
               ))}
