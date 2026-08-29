@@ -79,11 +79,12 @@ export function AccountFieldsSection() {
           two beside it.
         </Note>
         <Note>
-          The words are the whole screen. There is no sub-copy under the options and no sentence
-          explaining why the question appeared: an evaluation passes or fails, a funded account ends
-          in good standing or blown, and which token the database stores for either is not something
-          a trader should be told. Personal is not racked here because it never asks: a personal
-          account only closes, and a list of one is not a choice.
+          The words are the whole screen. No sub-copy under the options, and no sentence explaining
+          why the question appeared: which token the database stores is not something a trader should
+          be told. A funded account gets Ended rather than a name for the rare ending, because the
+          only split that is real is whether a rule was broken, and Failed sits last in both lists so
+          the second row means one thing everywhere. Personal is not racked here because it never
+          asks: a personal account only closes, and a list of one is not a choice.
         </Note>
       </Row>
 

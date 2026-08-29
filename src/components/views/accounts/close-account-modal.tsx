@@ -26,8 +26,10 @@
  * The constraint is also RIGHT about the vocabulary, which is what makes this a port rather than a
  * workaround. Luke made the same point about v2's copy on 2026-07-31: *"sim funded you dont pass
  * really"*. There is no target on a funded account. It ends by breaching, by finishing its payout
- * ladder, or by being retired - so `closed` is the honest token and "Ended in good standing" is the
- * honest label for it.
+ * ladder, or by being retired - so `closed` is the honest token.
+ *
+ * THE LABEL FOR IT TOOK LONGER THAN THE TOKEN DID, and the reasoning now lives beside the table in
+ * `prop-firms.ts` (`ACCOUNT_ENDINGS`) rather than here, because two screens ask this question.
  *
  * NO FIRM-SPECIFIC NUMBERS anywhere below. Targets, drawdown types and consistency rules differ per
  * firm AND per product and change without notice - the same reason `account-fields.tsx` refuses to

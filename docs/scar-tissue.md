@@ -419,7 +419,7 @@ type change stranded one.
 
 1. `ACCOUNT_ENDINGS` in `lib/prop-firms.ts` is the CHECK restated in the vocabulary layer, and
    `close-account-modal.tsx` now reads it instead of holding its own copy. Two copies of "a
-   sim-funded account is closed or blown" is how one of them eventually offers an ending the
+   sim-funded account is failed or closed" is how one of them eventually offers an ending the
    database refuses.
 2. The editor asks, on Save, in a modal of its own (`ending-modal.tsx`), and the write carries both
    columns. Relabelling anything as Personal has exactly one possible ending, so that one is taken
@@ -453,6 +453,34 @@ type change stranded one.
 **The general rule, and it is why this is here rather than in a commit message: a constraint can
 only REFUSE, and it refuses in the shape of a driver error.** Every CHECK that a UI can reach needs
 a question in front of it, or its correctness shows up as a 500 on the screen furthest from it.
+
+**THE FUNDED ACCOUNT'S TWO WORDS TOOK THREE GOES**, and the research is worth keeping because this
+is the kind of decision that gets re-litigated by whoever reads the table next.
+
+v2 offers "Ended in good standing" / "Blown". This build ported it, and Luke refused it (2026-08-28):
+*"i am not okay with the copy of Ended in good standing and blown. absolutely not... we dont use that
+copy."* His candidates were `failed yes/no`, `failed/deactivated`, `failed/closed`.
+
+**`Deactivated` is out, and the firms are why.** FundedNext's own help centre: a funded account is
+`Active`, `Inactive` or `Breached`, and *"Once breached, the account will be deactivated"* -
+deactivation is downstream of BOTH endings. My Funded Futures **breaches** an account for inactivity
+(no trade in 7 days), so on the firm whose accounts are in this corpus the two words name one event.
+A label that cannot tell the two endings apart has no job on a screen whose only job is telling them
+apart.
+
+**So the split is the only one that is real: it broke a rule, or it did not.** Everything else a
+funded account does - retired, stopped paying the fee, payouts finished, promoted to live - is the
+second one, and naming any of them is inventing a story out of a token. Luke: *"hardly anyone gets to
+a point of a sim funded account closed for anything other than failing."*
+
+**`Ended` / `Failed`**, and `Failed` is LAST in both lists on purpose: the same word in the same
+position whichever kind of account is being closed, so the second row means one thing across the
+product. The cost, stated when the choice was made and accepted: "Ended" is true of the failed one
+too, so the pair leans on the reader to take it as "just ended". Two words that lean on their
+neighbour beat two words that invent a reason.
+
+Sources: [FundedNext, Active / Inactive / Breached](https://help.fundednext.com/en/articles/8394166-what-do-active-inactive-and-breached-accounts-mean-in-the-fundednext-dashboard) ·
+[My Funded Futures, inactivity rule](https://help.myfundedfutures.com/en/articles/11972075-inactivity-rule)
 
 **WHAT v2 DOES, reviewed 2026-08-28 at Luke's request.** It never hits this, and the reason is not
 one to copy: v2 has three statuses (`active | passed | failed`) and no CHECK pairing them with the

@@ -263,8 +263,26 @@ export const ACCOUNT_TYPE_ORDER: AccountTypeKey[] = ['sim_funded', 'evaluation',
  * failed and has no third ending. The trader saw "Could not save the account" and no way forward.
  * Two facts had to move together and only one of them was on screen.
  *
- * THE LABELS ARE NOT v2'S, and `close-account-modal.tsx` carries the reasoning: there is no target
- * on a funded account, so "you dont pass really" - it ends in good standing, or blown.
+ * THE LABELS ARE NOT v2'S, and they are not this build's first attempt either.
+ *
+ * An evaluation is easy: it is passed or it is failed, and those are the trader's own words for it.
+ * A FUNDED ACCOUNT TOOK THREE GOES. v2 offered "Ended in good standing" / "Blown", which this build
+ * ported, and Luke refused it outright (2026-08-28): *"i am not okay with the copy of Ended in good
+ * standing and blown. absolutely not... we dont use that copy."*
+ *
+ * WHAT THE FIRMS THEMSELVES SHOW, checked the same day: a funded account is `Active`, `Inactive` or
+ * `Breached`, and "deactivated" is DOWNSTREAM OF BOTH endings - FundedNext: "Once breached, the
+ * account will be deactivated". My Funded Futures BREACHES an account for inactivity, so on the very
+ * firm in this corpus the two words name one event. That is why `Deactivated` is not an option here:
+ * it cannot tell the two endings apart, which is the only job it would have.
+ *
+ * SO THE SPLIT IS THE ONLY ONE THAT IS REAL: it broke a rule, or it did not. Everything else a
+ * funded account does - retired, stopped paying, payouts finished, promoted to live - is the second
+ * one, and naming any of them would be inventing a story out of a token. Luke: *"hardly anyone gets
+ * to a point of a sim funded account closed for anything other than failing."*
+ *
+ * `Failed` IS LAST IN BOTH LISTS, deliberately. It is the same word in the same position whichever
+ * kind of account is being closed, so the second row means one thing across the product.
  *
  * `active` IS DELIBERATELY ABSENT. Every type permits it, and an unlabelled account permits
  * NOTHING ELSE, so it is not an ending and belongs in `accountStatusFits` rather than in a row
@@ -278,8 +296,8 @@ export const ACCOUNT_ENDINGS: Record<
     { value: 'failed', label: 'Failed' },
   ],
   sim_funded: [
-    { value: 'closed', label: 'Ended in good standing' },
-    { value: 'failed', label: 'Blown' },
+    { value: 'closed', label: 'Ended' },
+    { value: 'failed', label: 'Failed' },
   ],
   /* ONE ENDING, WHICH IS NOT THE SAME AS NO QUESTION. A personal account just closes, so nothing is
      asked - but the single value still has to be READABLE, because the relabelling path needs to

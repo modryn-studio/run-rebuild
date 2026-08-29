@@ -207,7 +207,7 @@ export function LabelAccountForm({
   /* ─── THE ENDING HAS TO MOVE WITH THE TYPE ─────────────────────────────────────────────────────
    *
    * `schema.ts`'s CHECK pairs them: an evaluation is passed or failed, a sim-funded account is
-   * closed or blown, a personal one only closes. So a CLOSED sim-funded account relabelled as an
+   * failed or closed, a personal one only closes. So a CLOSED sim-funded account relabelled as an
    * evaluation is a pair the database refuses - and it refused it in production (2026-08-28, Luke,
    * on his own corpus), as a 500 and "Could not save the account" with no way forward. The type row
    * offered the change, Save sent the type alone, and the second fact was never asked for.
