@@ -421,17 +421,46 @@ type change stranded one.
    `close-account-modal.tsx` now reads it instead of holding its own copy. Two copies of "a
    sim-funded account is closed or blown" is how one of them eventually offers an ending the
    database refuses.
-2. The editor asks. While the type on screen cannot hold the stored ending, the Actions section
-   grows a "How did it end?" block under the "Account is closed" row, Save is held until it is
-   answered, and the write carries both columns. Relabelling anything as Personal has exactly one
-   possible ending, so that one is forced rather than offered - a list of one is not a choice.
-3. The route checks the pair before writing and answers **409 with the same sentence** the editor
-   states. It reads the row to do it, because either half may be absent from the body. That read
-   also moves the 404 earlier, which is strictly better.
+2. The editor asks, on Save, in a modal of its own (`ending-modal.tsx`), and the write carries both
+   columns. Relabelling anything as Personal has exactly one possible ending, so that one is taken
+   rather than asked for and no modal opens - a list of one is not a choice.
+
+   **It shipped for one commit as a block at the bottom of the editor, and that was wrong twice.**
+   Luke, 2026-08-28: *"i think that was lazy. for an open eval, when user goes into the edit modal
+   and selects 'close', a second modal opens with the question. that is better."* He is describing a
+   shape v2 had already settled and written down: a question that INTERRUPTS, gets one answer, and
+   hands control back to the form underneath. Growing a section at the foot of the Actions list put
+   a question the trader had not asked for below two rows about things they had.
+
+   The one way it differs from its sibling: **it does not write.** Close is a moment of intent, so
+   it commits on confirm. Nothing is ending here - a label is being corrected - so the correction
+   belongs to the same Save as the type that forced it. v2 states the rule for its own form: "Every
+   value on this screen goes in one request, `status` included. One commit point, no races."
+
+   **And the explanation under the question had to go.** It read *"An evaluation is passed or
+   failed. This one is closed."* Luke, 2026-08-28: *"this is unnecessary copy... a eval can be
+   closed in sense, right? closed as passed or failed. we dont need to harp on the user about what
+   closed means... The user doesn't care what the backend considers as closed."* He is right, and it
+   is v2's OWN scar re-earned one level up - v2 removed the sub-copy under these same options on
+   2026-07-31 with the note "teaching a trader their own vocabulary back to them". `passed`,
+   `failed` and `closed` are storage tokens. An evaluation IS closed, in the only sense a trader
+   means it. The question is the whole screen.
+3. The route checks the pair before writing and answers **409 with a sentence** rather than a 500.
+   It reads the row to do it, because either half may be absent from the body. That read also moves
+   the 404 earlier, which is strictly better. The sentence names no status token, for the reason
+   above: it is a backstop for a client that did not ask, not a lecture.
 
 **The general rule, and it is why this is here rather than in a commit message: a constraint can
 only REFUSE, and it refuses in the shape of a driver error.** Every CHECK that a UI can reach needs
 a question in front of it, or its correctness shows up as a 500 on the screen furthest from it.
+
+**WHAT v2 DOES, reviewed 2026-08-28 at Luke's request.** It never hits this, and the reason is not
+one to copy: v2 has three statuses (`active | passed | failed`) and no CHECK pairing them with the
+phase, so `evaluation` and `sim_funded` both take passed/failed and nothing can disagree. A personal
+account that ended is stored `failed` and DISPLAYED as "Closed" - the derived label
+`architecture.md` §status calls a bug, and the reason this build carries a fourth value. So v2 buys
+its silence with incoherent data. What IS worth taking from it is the shape of the question (a
+second modal, not a screen), the single commit point, and the copy discipline under the options.
 
 ### `tradeTitle` was exported from a `'use client'` file
 

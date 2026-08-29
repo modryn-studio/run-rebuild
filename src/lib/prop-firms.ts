@@ -288,26 +288,6 @@ export const ACCOUNT_ENDINGS: Record<
   personal: [{ value: 'closed', label: 'Closed' }],
 };
 
-/* HOW EACH TYPE ENDS, AS PROSE, and it is a second string rather than the button labels joined
- * (2026-08-28, postcheck). The labels were written for a 56px pick row - "Ended in good standing" -
- * and reading them back inside a sentence produced "Sim Funded accounts are ended in good standing
- * or blown, not passed", which is not English. This sentence is shown in the editor AND returned as
- * the 409 body, so it is two user-facing surfaces on one string and it has to read like one. */
-const ENDING_PROSE: Record<AccountTypeKey, string> = {
-  evaluation: 'An evaluation is passed or failed.',
-  sim_funded: 'A sim-funded account ends in good standing, or blown.',
-  personal: 'A personal account is closed.',
-};
-
-/** The trader's word for a status, lowercase, for use inside a sentence. `active` never appears in
- *  one of these, because a live account has not ended. */
-const ENDING_WORD: Record<AccountStatus, string> = {
-  active: 'open',
-  passed: 'passed',
-  failed: 'failed',
-  closed: 'closed',
-};
-
 /* WHETHER A (TYPE, STATUS) PAIR IS ONE THE DATABASE WILL ACCEPT. The CHECK in four lines:
      null type       -> active only, because nothing has happened to it yet
      any real type    -> active, plus that type's own endings. */
@@ -317,13 +297,18 @@ export function accountStatusFits(type: AccountTypeKey | null, status: AccountSt
   return ACCOUNT_ENDINGS[type].some((o) => o.value === status);
 }
 
-/* WHY THE PAIR WAS REFUSED, in the trader's own vocabulary, built from the same table so the
- * sentence can never describe endings the picker does not offer. ONE SENTENCE, TWO SURFACES: the
- * editor states it beside the question, and the route sends it back on the 409 for anything that
- * reaches the write path without having asked. */
-export function accountEndingMismatch(type: AccountTypeKey | null, status: AccountStatus): string {
-  if (type === null) return 'An account with no type yet can only be open.';
-  return `${ENDING_PROSE[type]} This one is ${ENDING_WORD[status]}.`;
+/* THE 409'S SENTENCE, AND ONLY THE 409'S. It is a backstop for a client that reached the write path
+ * without asking; the editor asks instead, in `ending-modal.tsx`, and shows no explanation at all.
+ *
+ * IT NAMES NO STATUS TOKEN, deliberately (2026-08-28, Luke: "this is unnecessary copy... we dont
+ * need to harp on the user about what closed means"). It said "An evaluation is passed or failed.
+ * This one is closed", which is the schema read back to a person. An evaluation IS closed in the
+ * only sense a trader means it - closed as passed, or closed as failed. Which token the row carries
+ * is this codebase's business, not theirs. v2 learned the same lesson about the same screen's
+ * sub-copy and wrote it down: "teaching a trader their own vocabulary back to them". */
+export function accountEndingMismatch(type: AccountTypeKey | null): string {
+  if (type === null) return 'Pick what kind of account this is first.';
+  return 'Say how this account ended.';
 }
 
 /* AN ACCOUNT WITH NO TYPE YET, and it is an ABSENCE rather than a fourth type - `trades/facets.ts`

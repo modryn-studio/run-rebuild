@@ -42,11 +42,12 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { slotSurface } from '@/components/ui/card';
-import { ModalHeader, EndingChoice } from './shared';
+import { ModalHeader } from './shared';
 import { ModalBody, ModalFooter, ModalActions } from './modal-shell';
 import { AccountSheet } from './account-sheet';
 import { FirmPicker } from './firm-picker';
 import { CloseAccountModal } from './close-account-modal';
+import { EndingModal } from './ending-modal';
 import { DeleteAccountModal } from './delete-account-modal';
 import { Field, TypeRows, SizeField } from './account-fields';
 import { AccountLogo } from './account-logo';
@@ -54,7 +55,6 @@ import { cn } from '@/lib/cn';
 import {
   ACCOUNT_ENDINGS,
   ACCOUNT_TYPE_LABELS,
-  accountEndingMismatch,
   accountStatusFits,
   accountRowTitle,
   accountPrefix,
@@ -130,10 +130,11 @@ export function LabelAccountForm({
   const [status, setStatus] = useState(account.status);
   const [closedOn, setClosedOn] = useState(account.closedOn);
   const [reopening, setReopening] = useState(false);
-  /* THE ENDING THE TRADER RESTATES when a type change leaves the stored one behind. Held separately
-     from `status` rather than overwriting it, because nothing is written until Save: the Actions row
-     above must keep saying what the account IS while this says what it would become. */
+  /* THE ENDING THE TRADER RESTATES when a type change leaves the stored one behind, and the modal
+     that asks for it. Held separately from `status` rather than overwriting it, because nothing is
+     written until Save: the Actions row above must keep saying what the account IS. */
   const [ending, setEnding] = useState<AccountStatus | null>(null);
+  const [askingEnding, setAskingEnding] = useState(false);
 
   const isProp = type !== null && type !== 'personal';
 
@@ -211,10 +212,9 @@ export function LabelAccountForm({
    * on his own corpus), as a 500 and "Could not save the account" with no way forward. The type row
    * offered the change, Save sent the type alone, and the second fact was never asked for.
    *
-   * SO THE EDITOR ASKS. `restating` is true only while a stored ENDING cannot survive the type on
-   * screen, which means it can never fire on an active account - every type permits `active`.
-   * ONE ENDING IS NOT A QUESTION: relabelling anything as Personal can only mean `closed`, so that
-   * answer is forced rather than offered, and Save is not held behind a list of one. */
+   * SO THE EDITOR ASKS, on Save, in a modal of its own (`ending-modal.tsx`). `needsEnding` is true
+   * only while a stored ENDING cannot survive the type on screen, so it can never fire on an active
+   * account - every type permits `active`. */
   /* CLOSE COMMITS ON PRESS AND CARRIES THE TYPE ON SCREEN, which is right when that type is the
      stored one and wrong the moment it is not (2026-08-28, postcheck). Staging Personal -> Evaluation
      and then pressing Close wrote `accountType: 'evaluation'` WITHOUT the firm and size that
@@ -226,13 +226,14 @@ export function LabelAccountForm({
   const typeStaged = type !== account.accountType;
 
   const endings = type ? ACCOUNT_ENDINGS[type] : [];
-  const restating = type !== null && !accountStatusFits(type, status);
-  const nextStatus = restating ? (endings.length === 1 ? endings[0].value : ending) : null;
+  const needsEnding = type !== null && !accountStatusFits(type, status);
+  /* ONE ENDING IS NOT A QUESTION: relabelling anything as Personal can only mean `closed`, so that
+     answer is taken rather than asked for and no modal ever opens. */
+  const forcedEnding = needsEnding && endings.length === 1 ? endings[0].value : null;
 
-  const ready =
-    type !== null &&
-    (!isProp || (Boolean(firm) && size !== null)) &&
-    (!restating || nextStatus !== null);
+  /* SAVE IS PRESSABLE, and the modal is what collects the answer. Holding the button disabled until
+     a question the trader has not been asked yet is answered is a dead end with no sign on it. */
+  const ready = type !== null && (!isProp || (Boolean(firm) && size !== null));
 
   /* REOPEN WRITES ON PRESS AND NEEDS NO CONFIRMATION, because it IS the undo. A control that asks
      "are you sure you want to undo?" is the reason people stop trusting undo.
@@ -264,8 +265,21 @@ export function LabelAccountForm({
     }
   }
 
-  async function save() {
+  /* `picked` ARRIVES FROM THE MODAL, because a `setState` two lines earlier is not readable here -
+     the answer has to travel as an argument or the first save after it would still send nothing. */
+  async function save(picked?: AccountStatus) {
     if (savingRef.current || !ready || type === null) return;
+
+    /* THE ONE QUESTION THE FORM STILL OWES. Asked here rather than at the type row, so changing a
+       type is one uninterrupted gesture and the interruption lands where the trader has already
+       said they are finished. Cancel on the modal returns to the editor with nothing written. */
+    const nextStatus = needsEnding ? (forcedEnding ?? picked ?? ending) : null;
+    if (needsEnding && !nextStatus) {
+      setAskingEnding(true);
+      onBusyChange(true);
+      return;
+    }
+
     savingRef.current = true;
     setSaving(true);
     onBusyChange(true);
@@ -536,35 +550,6 @@ export function LabelAccountForm({
                 />
               )}
 
-              {/* THE ENDING, RE-ASKED, and only while the type on screen disagrees with the one
-                  stored. It sits UNDER the "Account is closed" row rather than replacing it,
-                  because those are two different facts: that row states what the account IS, and
-                  this states what Save would make it. Replacing it would hide the Reopen button,
-                  which is the other honest way out of exactly this situation.
-                  IT IS NOT A CONFIRMATION and does not commit on press - unlike Close and Reopen
-                  beside it. Nothing has ended here; a label is being corrected, and a correction
-                  belongs to the same Save as the type that forced it. */}
-              {restating && type && (
-                <div className="mt-4">
-                  <p className="text-body text-muted font-medium">
-                    {endings.length > 1 ? 'How did it end?' : 'The ending changes with it'}
-                  </p>
-                  <p className="text-body text-muted mt-1">{accountEndingMismatch(type, status)}</p>
-                  {endings.length > 1 && (
-                    <div className="mt-3 flex flex-col gap-2">
-                      {endings.map((o) => (
-                        <EndingChoice
-                          key={o.value}
-                          label={o.label}
-                          on={ending === o.value}
-                          onPick={() => setEnding(o.value)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* DELETE IS OFFERED WHENEVER THERE IS NOTHING TO LOSE, closed or not, and its absence
                   is deliberately NOT explained: a paragraph of policy where a button is missing is
                   policy nobody asked for. An account holding trades cannot be deleted - the route
@@ -608,7 +593,7 @@ export function LabelAccountForm({
               <Button variant="secondary" onClick={onClose} disabled={saving}>
                 Cancel
               </Button>
-              <Button onClick={save} disabled={!ready || saving} loading={saving}>
+              <Button onClick={() => void save()} disabled={!ready || saving} loading={saving}>
                 Save
               </Button>
             </ModalActions>
@@ -648,6 +633,23 @@ export function LabelAccountForm({
         />
       )}
 
+      {askingEnding && type && (
+        <EndingModal
+          type={type}
+          onCancel={() => {
+            setAskingEnding(false);
+            onBusyChange(false);
+          }}
+          onPicked={(picked) => {
+            setAskingEnding(false);
+            setEnding(picked);
+            /* STRAIGHT ON WITH THE SAVE the trader already pressed. `onBusyChange` stays true -
+               the form is now writing, which is the same lock the question was holding. */
+            void save(picked);
+          }}
+        />
+      )}
+
       {confirmingDelete && (
         <DeleteAccountModal
           accountId={account.id}
@@ -679,7 +681,7 @@ export function LabelAccountForm({
           /* A CONFIRMATION ON TOP PUTS THIS ONE IN `busy`, so one Escape closes exactly one thing —
              the same lock `ModalShell` takes on the desktop path. `saving` is here for the other
              reason: a PATCH is in flight and the roster is about to change underneath. */
-          busy={saving || confirmingClose || confirmingDelete}
+          busy={saving || confirmingClose || confirmingDelete || askingEnding}
           label="Edit account"
           /* THE STACK IS THE LAYER LIST, unchanged. It was built to answer "what does Back mean",
              which is the same question a sheet asks of its screens. */

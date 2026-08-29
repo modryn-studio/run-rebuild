@@ -16,7 +16,7 @@ import { useState } from 'react';
 import { Chip, Field, SizeField, TypeRows } from '@/components/views/accounts/account-fields';
 import { FirmPicker } from '@/components/views/accounts/firm-picker';
 import { EndingChoice } from '@/components/views/accounts/shared';
-import { ACCOUNT_ENDINGS, ACCOUNT_TYPE_ORDER, accountEndingMismatch } from '@/lib/prop-firms';
+import { ACCOUNT_ENDINGS } from '@/lib/prop-firms';
 import type { AccountStatus, AccountType } from '@/lib/db/schema';
 import { Note, Row, Section } from '../_components/section';
 
@@ -52,46 +52,38 @@ export function AccountFieldsSection() {
 
       <Row
         label="Ending"
-        note="asked by the close confirmation, and again by the editor when a type change strands the stored one"
+        note="the question the close confirmation asks, and the editor asks again after a type change"
       >
-        <div className="grid max-w-3xl gap-8 sm:grid-cols-3">
-          {ACCOUNT_TYPE_ORDER.map((t) => {
-            const endings = ACCOUNT_ENDINGS[t];
-            /* THE STATUS EACH COLUMN IS MOVING AWAY FROM: an ending its own type cannot hold, which
-               is the only situation that puts this control in the editor. */
-            const from: AccountStatus = t === 'evaluation' ? 'closed' : 'passed';
-            return (
-              <div key={t}>
-                <p className="text-body text-muted font-medium">
-                  {endings.length > 1 ? 'How did it end?' : 'The ending changes with it'}
-                </p>
-                <p className="text-body text-muted mt-1">{accountEndingMismatch(t, from)}</p>
-                {endings.length > 1 && (
-                  <div className="mt-3 flex flex-col gap-2">
-                    {endings.map((o) => (
-                      <EndingChoice
-                        key={o.value}
-                        label={o.label}
-                        on={ending[t] === o.value}
-                        onPick={() => setEnding((e) => ({ ...e, [t]: o.value }))}
-                      />
-                    ))}
-                  </div>
-                )}
+        <div className="grid max-w-2xl gap-8 sm:grid-cols-2">
+          {(['evaluation', 'sim_funded'] as const).map((t) => (
+            <div key={t}>
+              <p className="text-body text-muted mb-2 font-medium">How did it end?</p>
+              <div className="flex flex-col gap-2">
+                {ACCOUNT_ENDINGS[t].map((o) => (
+                  <EndingChoice
+                    key={o.value}
+                    label={o.label}
+                    on={ending[t] === o.value}
+                    onPick={() => setEnding((e) => ({ ...e, [t]: o.value }))}
+                  />
+                ))}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
         <Note>
-          The pairing is the database&rsquo;s: an evaluation is passed or failed, a sim-funded
-          account is closed or blown, a personal one only closes. A CHECK constraint holds that line,
-          but a constraint can only refuse, and it refuses as a driver error. This is the question
-          asked before the refusal.
+          One answered and one not, side by side, because the resting state is the one that ships
+          wrong: an unpicked list has to read as a question rather than as a disabled row. The
+          selected row carries a border and a tinted ground, not just accent ink: an accent border
+          with no width behind it emits nothing, and the picked row ended up reading lighter than the
+          two beside it.
         </Note>
         <Note>
-          Personal gets no buttons, because a list of one is not a choice. The sentence states what
-          Save will write instead, which is the same information without a control that cannot be
-          answered wrongly.
+          The words are the whole screen. There is no sub-copy under the options and no sentence
+          explaining why the question appeared: an evaluation passes or fails, a funded account ends
+          in good standing or blown, and which token the database stores for either is not something
+          a trader should be told. Personal is not racked here because it never asks: a personal
+          account only closes, and a list of one is not a choice.
         </Note>
       </Row>
 

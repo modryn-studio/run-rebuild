@@ -277,7 +277,7 @@ export async function PATCH(req: Request): Promise<Response> {
       if (!accountStatusFits(nextType, nextStatus)) {
         return log.end(
           ctx,
-          Response.json({ error: accountEndingMismatch(nextType, nextStatus) }, { status: 409 })
+          Response.json({ error: accountEndingMismatch(nextType) }, { status: 409 })
         );
       }
     }
