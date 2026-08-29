@@ -58,7 +58,10 @@ export function DeleteAccountModal({
      a button that will never work. */
   const [refused, setRefused] = useState<string | null>(null);
 
-  async function confirm() {
+  /* `markReplacing` ARRIVES AS AN ARGUMENT rather than being closed over, because it is the shell's
+     render-prop value and this function is declared above it. One parameter is cheaper than moving
+     the whole write into the JSX. */
+  async function confirm(markReplacing: () => void) {
     if (saving) return;
     setSaving(true);
     setError(null);
@@ -81,6 +84,8 @@ export function DeleteAccountModal({
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error || 'Could not delete this account. Try again.');
       }
+      /* THE ENTRY IS LEFT FOR THE `replace`, not taken back. `onDeleted` navigates. */
+      markReplacing();
       onDeleted();
     } catch (e) {
       setSaving(false);
@@ -96,7 +101,7 @@ export function DeleteAccountModal({
       busy={saving}
       label={refused ? 'This one keeps its record' : 'Delete this account?'}
     >
-      {(dismiss) => (
+      {(dismiss, markReplacing) => (
         <>
           <ConfirmHeader
             title={refused ? 'This one keeps its record' : 'Delete this account?'}
@@ -142,7 +147,7 @@ export function DeleteAccountModal({
                   <Button variant="secondary" size="sm" onClick={dismiss} disabled={saving}>
                     Cancel
                   </Button>
-                  <Button size="sm" variant="danger" loading={saving} onClick={() => void confirm()}>
+                  <Button size="sm" variant="danger" loading={saving} onClick={() => void confirm(markReplacing)}>
                     Delete account
                   </Button>
                 </>

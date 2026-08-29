@@ -646,10 +646,17 @@ export function RosterCard({
   accounts,
   freshness,
   onAdd,
+  narrowed = false,
 }: {
   accounts: RosterAccount[];
   freshness: Map<string, Date>;
   onAdd: () => void;
+  /* THE TRADER HAS ACCOUNTS AND NONE OF THEM ARE SHOWING, which is a different sentence from "no
+     accounts yet" and the page was saying the wrong one (2026-08-28, postcheck). A legal filter
+     that matches nothing - `?status=passed&types=personal`, or a scope chip - drew the first-run
+     empty state over a roster that is not empty. `TradesTape` takes the same flag for the same
+     reason; the roster had no equivalent. */
+  narrowed?: boolean;
 }) {
   /* NULL UNTIL STORAGE HAS BEEN READ, not the natural order as the initial value. The server
      renders the natural order, and reading `localStorage` during the first client render is a
@@ -695,7 +702,7 @@ export function RosterCard({
 
   /* AFTER THE HOOKS, NEVER BEFORE THEM. An early return above `useState` would change the hook
      count between an empty roster and a populated one, which React rejects outright. */
-  if (accounts.length === 0) return <EmptyRoster onAdd={onAdd} />;
+  if (accounts.length === 0) return narrowed ? <NoMatches /> : <EmptyRoster onAdd={onAdd} />;
 
   /* `gap-3` ON A PHONE: the same 5% coming out of the space BETWEEN cards. Four cards, 4px each. */
   return (
@@ -730,6 +737,23 @@ export function RosterCard({
 
 /* THE EMPTY ROSTER NAMES THE NEXT ACTION IN THE TRADER'S OWN WORDS (P9), and it names the thing
    Run does that nothing else does: it keeps the sessions the broker deletes. */
+/* WHAT IS TRUE WHEN A FILTER EMPTIED THE LIST. No button: `RosterClear` is already in the header
+   band directly above this, and a second control doing the same job in the same eyeful is the kind
+   of duplication that makes a trader wonder whether they are different. */
+function NoMatches() {
+  return (
+    <Card className="flex flex-col items-center px-6 py-14 text-center">
+      <span className="text-muted">
+        <Icon name="accounts" size={24} />
+      </span>
+      <p className="text-body-lg text-text mt-4 font-medium">No accounts match</p>
+      <p className="text-body text-muted mt-1 max-w-sm leading-relaxed">
+        Every account you have is still here. Clear the filter above to see them.
+      </p>
+    </Card>
+  );
+}
+
 function EmptyRoster({ onAdd }: { onAdd: () => void }) {
   return (
     <Card className="flex flex-col items-center px-6 py-14 text-center">

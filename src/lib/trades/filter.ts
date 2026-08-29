@@ -109,7 +109,18 @@ const isRange = (v: unknown): v is Range => RANGES.includes(v as Range);
 /** `YYYY-MM-DD` or nothing. Guards the URL, so a hand-edited param cannot reach the SQL as a date.
  *  Session dates are plain calendar strings throughout this codebase and compare correctly as text,
  *  which is why the window below never needs to build a `Date`. */
-const isDay = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const isDay = (v: unknown): v is string => {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  /* THE SHAPE WAS NOT ENOUGH (2026-08-28, postcheck). `2026-13-45`, `0000-00-00` and `2026-02-31`
+     all match the regex, and `session_date` is a `date` column drizzle binds the string to verbatim
+     - so `?from=2026-13-45` reached Postgres, answered "date/time field value out of range", threw
+     the Server Component and put the trader on Next's bare error screen. There is no `error.tsx`
+     under `src/app` to soften it. This is the SAME failure the `isUuid` guard below was added for,
+     on the axis that check missed, and the same one line: parse it, then make it prove it survived
+     the round trip. February 31st becomes March 3rd and no longer equals what was sent. */
+  const parsed = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === v;
+};
 /* AN ACCOUNT ID IS A UUID OR IT IS NOT AN ACCOUNT ID (2026-08-25, postcheck). `accounts` was the one
    list here that reached SQL unchecked, and `trade.account_id` is a `uuid` column - so `?accounts=x`
    made Postgres answer "invalid input syntax for type uuid", the Server Component throw, and the

@@ -42,7 +42,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { slotSurface } from '@/components/ui/card';
-import { ModalHeader } from './shared';
+import { ModalHeader, EndingChoice } from './shared';
 import { ModalBody, ModalFooter, ModalActions } from './modal-shell';
 import { AccountSheet } from './account-sheet';
 import { FirmPicker } from './firm-picker';
@@ -52,7 +52,10 @@ import { Field, TypeRows, SizeField } from './account-fields';
 import { AccountLogo } from './account-logo';
 import { cn } from '@/lib/cn';
 import {
+  ACCOUNT_ENDINGS,
   ACCOUNT_TYPE_LABELS,
+  accountEndingMismatch,
+  accountStatusFits,
   accountRowTitle,
   accountPrefix,
   isPersonalFirm,
@@ -127,6 +130,10 @@ export function LabelAccountForm({
   const [status, setStatus] = useState(account.status);
   const [closedOn, setClosedOn] = useState(account.closedOn);
   const [reopening, setReopening] = useState(false);
+  /* THE ENDING THE TRADER RESTATES when a type change leaves the stored one behind. Held separately
+     from `status` rather than overwriting it, because nothing is written until Save: the Actions row
+     above must keep saying what the account IS while this says what it would become. */
+  const [ending, setEnding] = useState<AccountStatus | null>(null);
 
   const isProp = type !== null && type !== 'personal';
 
@@ -179,6 +186,9 @@ export function LabelAccountForm({
      rather than wrong, and keeping them means every answer survives a change of mind. */
   const pickType = (t: AccountType) => {
     setType(t);
+    /* A NEW TYPE, SO THE ANSWER TO "how did it end" IS STALE. Evaluation -> Sim Funded -> Evaluation
+       must not carry `closed` across, and clearing here is the only place that sees every change. */
+    setEnding(null);
     answered(t !== 'personal' && !firm ? 'firm' : 'edit');
   };
 
@@ -193,7 +203,36 @@ export function LabelAccountForm({
     sizeDollars: isProp ? size : null,
   });
 
-  const ready = type !== null && (!isProp || (Boolean(firm) && size !== null));
+  /* ─── THE ENDING HAS TO MOVE WITH THE TYPE ─────────────────────────────────────────────────────
+   *
+   * `schema.ts`'s CHECK pairs them: an evaluation is passed or failed, a sim-funded account is
+   * closed or blown, a personal one only closes. So a CLOSED sim-funded account relabelled as an
+   * evaluation is a pair the database refuses - and it refused it in production (2026-08-28, Luke,
+   * on his own corpus), as a 500 and "Could not save the account" with no way forward. The type row
+   * offered the change, Save sent the type alone, and the second fact was never asked for.
+   *
+   * SO THE EDITOR ASKS. `restating` is true only while a stored ENDING cannot survive the type on
+   * screen, which means it can never fire on an active account - every type permits `active`.
+   * ONE ENDING IS NOT A QUESTION: relabelling anything as Personal can only mean `closed`, so that
+   * answer is forced rather than offered, and Save is not held behind a list of one. */
+  /* CLOSE COMMITS ON PRESS AND CARRIES THE TYPE ON SCREEN, which is right when that type is the
+     stored one and wrong the moment it is not (2026-08-28, postcheck). Staging Personal -> Evaluation
+     and then pressing Close wrote `accountType: 'evaluation'` WITHOUT the firm and size that
+     `save()` pairs with a type change - landing an evaluation whose firm is the `Personal` sentinel
+     and whose size is null, which is exactly the incoherent row `save()` normalises to prevent. It
+     also walked straight past `ready`, so it could commit a change Save itself was refusing.
+     SO CLOSE WAITS FOR SAVE. It is one press either way, and the alternative - having Close quietly
+     write the rest of the form - would make Cancel a lie about a change the trader had not saved. */
+  const typeStaged = type !== account.accountType;
+
+  const endings = type ? ACCOUNT_ENDINGS[type] : [];
+  const restating = type !== null && !accountStatusFits(type, status);
+  const nextStatus = restating ? (endings.length === 1 ? endings[0].value : ending) : null;
+
+  const ready =
+    type !== null &&
+    (!isProp || (Boolean(firm) && size !== null)) &&
+    (!restating || nextStatus !== null);
 
   /* REOPEN WRITES ON PRESS AND NEEDS NO CONFIRMATION, because it IS the undo. A control that asks
      "are you sure you want to undo?" is the reason people stop trusting undo.
@@ -253,6 +292,10 @@ export function LabelAccountForm({
           displayName,
           hidden,
           excludedFromTotals: excluded,
+          /* SENT ONLY WHEN THE TYPE CHANGE FORCED IT, never on an ordinary save. `closedOn` is
+             deliberately left alone: the account ended on the day it ended, and only the WORD for
+             that ending is what the new type disagrees with. */
+          ...(nextStatus ? { status: nextStatus } : {}),
           /* ONLY WHEN THERE IS SOMETHING TO SPREAD TO, and only for a real broker name: a
              placeholder key has no prefix, and the route refuses anything that is not 2-16 letters
              anyway. Belt and braces, because this one writes to rows the trader is not looking at. */
@@ -451,14 +494,16 @@ export function LabelAccountForm({
                   note={
                     type === null
                       ? 'Pick a type above first, so the outcome can be one this kind of account has.'
-                      : 'Mark how it ended. Every trade stays.'
+                      : typeStaged
+                        ? 'Save your type change first, so the outcome fits the kind of account this is.'
+                        : 'Mark how it ended. Every trade stays.'
                   }
                   action={
                     <Button
                       variant="secondary"
                       size="md"
                       className="max-sm:min-h-11"
-                      disabled={saving || type === null}
+                      disabled={saving || type === null || typeStaged}
                       /* `busy` LOCKS THE SHELL UNDERNEATH, so Escape and a backdrop click land on
                          the confirmation rather than dismissing this form out from under it. */
                       onClick={() => {
@@ -489,6 +534,35 @@ export function LabelAccountForm({
                     </Button>
                   }
                 />
+              )}
+
+              {/* THE ENDING, RE-ASKED, and only while the type on screen disagrees with the one
+                  stored. It sits UNDER the "Account is closed" row rather than replacing it,
+                  because those are two different facts: that row states what the account IS, and
+                  this states what Save would make it. Replacing it would hide the Reopen button,
+                  which is the other honest way out of exactly this situation.
+                  IT IS NOT A CONFIRMATION and does not commit on press - unlike Close and Reopen
+                  beside it. Nothing has ended here; a label is being corrected, and a correction
+                  belongs to the same Save as the type that forced it. */}
+              {restating && type && (
+                <div className="mt-4">
+                  <p className="text-body text-muted font-medium">
+                    {endings.length > 1 ? 'How did it end?' : 'The ending changes with it'}
+                  </p>
+                  <p className="text-body text-muted mt-1">{accountEndingMismatch(type, status)}</p>
+                  {endings.length > 1 && (
+                    <div className="mt-3 flex flex-col gap-2">
+                      {endings.map((o) => (
+                        <EndingChoice
+                          key={o.value}
+                          label={o.label}
+                          on={ending === o.value}
+                          onPick={() => setEnding(o.value)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* DELETE IS OFFERED WHENEVER THERE IS NOTHING TO LOSE, closed or not, and its absence

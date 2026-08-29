@@ -688,7 +688,7 @@ export async function getFacets(
  * filter option reading "MNQ 12" that resolves to 9 usable rows would be a number that cannot be
  * reconciled against the tape it filters.
  */
-export async function getFacetRows(traderId: string): Promise<FacetRow[]> {
+export async function getFacetRows(traderId: string, accountId?: string): Promise<FacetRow[]> {
   const rows = await db
     .select({
       accountId: trade.accountId,
@@ -707,7 +707,18 @@ export async function getFacetRows(traderId: string): Promise<FacetRow[]> {
       losses: sql<number>`count(*) filter (where ${NET} <= 0)`.mapWith(Number),
     })
     .from(trade)
-    .where(and(eq(trade.traderId, traderId), eq(trade.state, 'ok')))
+    /* SCOPED BY ACCOUNT WHEN THE CALLER IS ABOUT ONE (2026-08-28, postcheck). Both account surfaces
+       asked for the trader's WHOLE facet set and then filtered it in JavaScript to the one account
+       the page is about - an aggregate over every trade a copy-trader owns, to keep a tenth of the
+       rows. CLAUDE.md: "Scope every read by account and window from the first query. Free now,
+       unretrofittable once four surfaces depend on it." There were three. */
+    .where(
+      and(
+        eq(trade.traderId, traderId),
+        eq(trade.state, 'ok'),
+        accountId ? eq(trade.accountId, accountId) : undefined
+      )
+    )
     .groupBy(trade.accountId, trade.symbolRoot);
   return rows;
 }

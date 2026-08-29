@@ -32,10 +32,10 @@
  * forget, where a context would be one more thing a new call site has to know to read.
  */
 
-import { type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { AccountSheet, useSheet } from './account-sheet';
-import { MODAL_TITLE_ID } from './shared';
+import { CONFIRM_TITLE_ID } from './shared';
 import { usePhone } from '@/lib/use-phone';
 
 export function ConfirmShell({
@@ -49,11 +49,23 @@ export function ConfirmShell({
   busy?: boolean;
   /** Names the dialog for a screen reader on the sheet path, where the title is portalled away. */
   label: string;
-  children: (dismiss: () => void) => ReactNode;
+  /* THE SECOND ARGUMENT IS FOR A CONFIRMATION THAT NAVIGATES (2026-08-28, postcheck). Delete is the
+     one: it answers by leaving for `/accounts`, and on a phone this shell owns a history entry whose
+     cleanup would otherwise `history.back()` into the URL of the account just deleted - the exact
+     "v2 delete bug" `label-account-form.tsx` says it is avoiding. Call it BEFORE the write's
+     callback, and the entry is left standing for `router.replace` to overwrite. A no-op on the
+     desktop path, which pushes no entry. */
+  children: (dismiss: () => void, markReplacing: () => void) => ReactNode;
 }) {
   const phone = usePhone();
   const sheet = useSheet(onCancel);
   const dismiss = phone ? sheet.requestClose : onCancel;
+  /* HELD AS STATE, not a ref: the sheet hands its marker up once, and a ref crossing that boundary
+     is what the React Compiler refuses. `setMark(() => fn)` because a bare function argument to a
+     setter is read as an updater. */
+  const [mark, setMark] = useState<(() => void) | null>(null);
+  const receiveMark = useCallback((fn: () => void) => setMark(() => fn), []);
+  const markReplacing = useCallback(() => mark?.(), [mark]);
 
   if (phone) {
     return (
@@ -65,7 +77,8 @@ export function ConfirmShell({
         onBack={dismiss}
         busy={busy}
         label={label}
-        layers={[children(dismiss)]}
+        onMark={receiveMark}
+        layers={[children(dismiss, markReplacing)]}
       />
     );
   }
@@ -79,10 +92,10 @@ export function ConfirmShell({
       <Card
         role="alertdialog"
         aria-modal="true"
-        aria-labelledby={MODAL_TITLE_ID}
+        aria-labelledby={CONFIRM_TITLE_ID}
         className="pop-in-center relative z-10 flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden"
       >
-        {children(dismiss)}
+        {children(dismiss, markReplacing)}
       </Card>
     </div>
   );

@@ -99,6 +99,7 @@ export function AccountSheet({
   busy,
   label,
   layers,
+  onMark,
 }: {
   open: boolean;
   onClose: () => void;
@@ -109,13 +110,19 @@ export function AccountSheet({
      does not reach a sibling listener on the same node — only `stopImmediatePropagation` does, and
      racing on registration order is not a mechanism. So the sheet underneath is told to stop
      listening instead, exactly as `ModalShell` is. The device Back button needs no equivalent:
-     `useOverlayBack` orders its registrations by token and only the innermost answers a pop.
-     It also blocks the exit during a write in flight, which is `AddAccountModal`'s use of it. */
+     `useOverlayBack` orders its registrations by token and only the innermost answers a pop, and
+     since 2026-08-28 it also declares the pops it causes itself so the sheet underneath does not
+     read one as a press.
+     It also blocks the exit during a write in flight, which is `AddAccountModal`'s use of it - and
+     the device Back button DOES need an equivalent for that half, which is why the handler below
+     spends the press rather than obeying it. */
   busy?: boolean;
   /** Names the dialog for a screen reader. The visible title is the active screen's own header. */
   label: string;
   /** Index IS depth. `null` means that layer is off-screen; index 0 is the base and never is. */
   layers: (ReactNode | null)[];
+  /** Handed `useOverlayBack`'s marker once, for a caller that commits a navigation. See below. */
+  onMark?: (mark: () => void) => void;
 }) {
   const host = useId();
   const depth = layers.reduce<number>((d, node, i) => (node == null ? d : i), 0);
@@ -165,8 +172,19 @@ export function AccountSheet({
   useEffect(() => {
     depthRef.current = depth;
   }, [depth]);
+  const busyRef = useRef(busy);
+  useEffect(() => {
+    busyRef.current = busy;
+  }, [busy]);
 
-  useOverlayBack(open, () => {
+  const markReplacing = useOverlayBack(open, () => {
+    /* A WRITE IS IN FLIGHT, so the press is SPENT rather than obeyed (2026-08-28, postcheck).
+       Returning `true` re-arms the entry, so the sheet stays up and still owes Back an answer -
+       which is what `busy` means everywhere else on this component and what the Escape handler
+       below has always done. Without it the OS gesture walked out of a running import past a
+       header that deliberately shows no back arrow and no X, unmounting the progress panel while
+       the corpus write carried on with nowhere to report. */
+    if (busyRef.current) return true;
     if (depthRef.current > 0) {
       onBack();
       return true;
@@ -174,6 +192,20 @@ export function AccountSheet({
     onClose();
     return false;
   });
+
+  /* THE MARKER IS HANDED OUT, because a caller that COMMITS A NAVIGATION has to be able to say so
+     (2026-08-28, postcheck). `useOverlayBack`'s cleanup consumes this sheet's history entry with
+     `history.back()`, and inside one React commit every effect cleanup runs before anything else -
+     so Delete's `router.replace('/accounts')` was racing a `back()` that would have popped it onto
+     the URL of the account it had just deleted. `FilterSheet` calls the same marker for the same
+     reason and it is the only thing that made `Clear all` stick.
+     A CALLBACK, NOT A REF OUT-PARAM. The first shape filled a `RefObject` the caller passed in, and
+     the React Compiler refuses it - "Passing a ref to a function may read its value during render" -
+     which is the same rule that shaped `markReplacing` itself. Handing the function upward once is
+     the version that has no ref crossing a boundary at all. */
+  useEffect(() => {
+    onMark?.(markReplacing);
+  }, [onMark, markReplacing]);
 
   /* ESCAPE BACKS OUT ONE LEVEL, THEN CLOSES. Dismissing the whole sheet from a sub-screen would
      throw away the screen the trader was reading rather than the one they opened. This reaches a

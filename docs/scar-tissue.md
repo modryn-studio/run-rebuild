@@ -346,6 +346,93 @@ Verified over 16 open/close cycles mixing in-app controls and the device button:
 returns to no-overlay every time, the URL returns to `/trades`, and four consecutive drill-in round
 trips produce byte-identical state.
 
+### An overlay's own `history.back()`, answered by the overlay underneath it
+
+**2026-08-28, postcheck, and it is the cause behind "the back button isn't working correctly with all
+the pages" on a phone.**
+
+`live` orders the overlays correctly for a pop the OS starts: listeners fire in registration order,
+and the innermost token is still last when they run, so only the innermost answers. It could not
+order the pop an overlay causes when it dismisses **itself**. The cleanup drops its own token FIRST
+and only then calls `history.back()`, whose `popstate` arrives a task later - by which time the OUTER
+overlay's token is last, its listener is still registered, and its guard passes.
+
+What that looked like: open Edit on an account, tap **Close account**, tap **Cancel**. The
+confirmation consumed its own entry, and the editor underneath heard the pop and closed too, taking
+with it the Reopen button its own copy had just promised. On the SUCCESSFUL close it was worse, since
+that path exists to leave the form open showing what was written. Entry A was also never consumed, so
+the next real Back press did nothing visible.
+
+**The module announces its own pops.** `selfBacks` is raised immediately before `history.back()` and
+spent by the first listener to see the event, which marks the EVENT so every later listener agrees
+about the same pop rather than each racing a counter. The guard is registered from the first
+`useOverlayBack` effect, so nothing this module adds can run before it.
+
+It cannot strand a count: the only `back()` is guarded by `location.href === pushedHref`, which means
+our entry is the current one, so there is always an entry to pop and always a `popstate` to spend the
+raise on.
+
+**The general rule: a mechanism that orders LISTENERS still has to say which EVENTS are its own.**
+
+### Clear all was detected, and detection cannot tell two gestures apart
+
+**2026-08-28, postcheck.** The phone filter sheet's owner decided whether `Clear all` had been pressed
+by testing the committed draft for emptiness on every axis (`isNothing`). That is also the state of a
+trader who has only searched - so `/trades?q=tradeify` -> filter mark -> **Apply** deleted the search
+term and widened the tape. Pressing a button labelled Apply lost the only narrowing they had.
+
+The predicate had already been patched once, when two new axes were added and a real "clear
+everything" started looking like an ordinary apply. That patch was correct and the shape was still
+wrong: every axis added to the product was one more line to remember here, and no amount of
+remembering fixes two gestures producing one draft.
+
+`Clear all` now says so - one boolean, passed with the commit. **Never infer which control was
+pressed from the state it produced.**
+
+### A CHECK the UI could reach, and no question in front of it
+
+**2026-08-28, on Luke's own corpus, in production.** A CLOSED sim-funded account, relabelled to
+Evaluation and given a new firm and size. The type row offered Evaluation, Save sent
+`accountType: 'evaluation'` on its own, and Postgres refused:
+
+```
+new row for relation "account" violates check constraint "account_type_status_check"
+  Failing row contains (..., evaluation, ..., closed, ...)
+```
+
+**The refusal was correct.** `account_type_status_check` (`drizzle/0013`) pairs the two columns: an
+evaluation is `passed` or `failed`, a sim-funded account is `failed` or `closed`, a personal one only
+`closed`. `evaluation + closed` is not a state that means anything, and the constraint exists
+precisely because v2 left this pairing to its UI and accepted incoherent rows.
+
+**What was wrong was everything in front of it.** The route caught the `NeonDbError` in its generic
+`catch` and answered 500 with "Could not save the account". The editor showed that sentence under
+the Save button and offered nothing else. So a legitimate data rule arrived as a fault, on a screen
+with no way forward: the trader could not save, and could not tell whether the fault was theirs.
+
+Two facts had to move together and only one of them was on screen. The other one already had a
+question written for it - `close-account-modal.tsx` asks "How did it end?" and offers the endings
+that fit the type - but that question was only ever asked on the way IN to an ending, never when a
+type change stranded one.
+
+**The fix, in three parts.**
+
+1. `ACCOUNT_ENDINGS` in `lib/prop-firms.ts` is the CHECK restated in the vocabulary layer, and
+   `close-account-modal.tsx` now reads it instead of holding its own copy. Two copies of "a
+   sim-funded account is closed or blown" is how one of them eventually offers an ending the
+   database refuses.
+2. The editor asks. While the type on screen cannot hold the stored ending, the Actions section
+   grows a "How did it end?" block under the "Account is closed" row, Save is held until it is
+   answered, and the write carries both columns. Relabelling anything as Personal has exactly one
+   possible ending, so that one is forced rather than offered - a list of one is not a choice.
+3. The route checks the pair before writing and answers **409 with the same sentence** the editor
+   states. It reads the row to do it, because either half may be absent from the body. That read
+   also moves the 404 earlier, which is strictly better.
+
+**The general rule, and it is why this is here rather than in a commit message: a constraint can
+only REFUSE, and it refuses in the shape of a driver error.** Every CHECK that a UI can reach needs
+a question in front of it, or its correctness shows up as a 500 on the screen furthest from it.
+
 ### `tradeTitle` was exported from a `'use client'` file
 
 Straight into the rule CLAUDE.md already states — *every export of a `'use client'` module becomes a

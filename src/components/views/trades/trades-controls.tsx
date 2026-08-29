@@ -78,7 +78,15 @@ const windowed = (f: Pick<TradesFilter, 'range' | 'from' | 'to'>) =>
  * each new surface has to remember to pass, which is exactly what the literal was. */
 function useParamWriter() {
   const router = useRouter();
-  const pathname = usePathname();
+  /* THE PATH THIS SCREEN WAS MOUNTED AT, HELD (2026-08-28, postcheck). `usePathname()` follows a
+     native `pushState`, and `TradeSheet` pushes `/trades/<id>` onto this very page when a row is
+     tapped on a phone - so a keystroke still inside the 250ms search debounce could land as
+     `router.replace('/trades/<id>?q=...')` and navigate out of the tape it was narrowing. The
+     address of the SCREEN does not change while the screen is mounted; only the overlay's does.
+     `useState`'s initialiser rather than a ref, because reading a ref during render is what the
+     React Compiler refuses. */
+  const here = usePathname();
+  const [pathname] = useState(here);
   const params = useSearchParams();
   return useCallback(
     /* `replace` FOR ANYTHING THAT FIRES WHILE THE TRADER IS STILL TYPING. Every other control here
@@ -123,20 +131,12 @@ function useParamWriter() {
  * IT WRITES THE SAME `q` PARAM the desktop panel does, through the same `useParamWriter`, so the
  * two are one narrowing rather than two that happen to agree.
  */
-/** True only for the draft `Clear all` commits: every axis at its resting value. */
-const isNothing = (d: FilterSheetDraft) =>
-  d.range === DEFAULT_RANGE &&
-  !d.from &&
-  !d.to &&
-  d.products.length === 0 &&
-  d.results.length === 0 &&
-  d.accounts.length === 0 &&
-  /* THE TWO NEW AXES COUNT HERE TOO (2026-08-26). This predicate is how `Clear all` is DETECTED -
-     an empty draft is the only thing that produces it - so an axis missing from the list would make
-     a real "clear everything" look like an ordinary apply, and the search term would survive it.
-     That is the exact defect a postcheck found on this path once already. */
-  d.status.length === 0 &&
-  d.types.length === 0;
+/* `isNothing` IS GONE (2026-08-28, postcheck), and what replaced it is the sheet SAYING which
+   button was pressed. It detected `Clear all` by testing the draft for emptiness on every axis,
+   which is also the state of a trader who has only searched - so `/trades?q=tradeify` -> filter
+   mark -> Apply silently deleted the search term and widened the tape. Every axis added to the
+   product was one more line that had to be remembered here, and the predicate was still wrong for
+   a reason no amount of remembering fixes: two different gestures produce the same draft. */
 
 export function TradesSearchPill({
   applied,
@@ -376,7 +376,7 @@ export function TradesSearchPill({
            `history.back()` in the same commit, its popstate arrived after the router's write, and
            the write was reverted - which is what "the clear all button seems to not be working"
            was. It was never Clear all; Apply had it too, on both surfaces. */
-        onApply={(d) => {
+        onApply={(d, cleared) => {
           write(
             {
               range: d.range === DEFAULT_RANGE ? null : d.range,
@@ -395,7 +395,7 @@ export function TradesSearchPill({
                  promises to clear everything leaves the term narrowing the tape. `isNothing`
                  detects it: an empty draft on every axis is what Clear all commits and nothing else
                  produces. */
-              q: isNothing(d) ? null : applied.q,
+              q: cleared ? null : applied.q,
             },
             'replace'
           );

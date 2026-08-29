@@ -1033,10 +1033,16 @@ suppressed everywhere within a week and stop meaning anything.
 
 **Allowlist** — hand-written utilities defined in `globals.css` outside `@theme`, and nowhere else.
 Each is a CSS *rule* rather than a scale value, which is why `@theme` has nowhere to put it:
-`cursor-blink` · `num` · `serif` · `soft-pulse` · `lift-rest` · `lift-press` · `btn-secondary` ·
-`pop-in` · `menu-panel` · `panel-transition` · `drawer-transition` · `clip-allow-shadow` ·
-`select-pop` · `text-link` · `check-draw` ·
-`steps-track` · `scroll-thin` · `no-scrollbar` · `skeleton` · `sr-only` · `group`.
+`cursor-blink` · `scroll-none` · `pop-in-center` · `wait-reveal` · `hit-44` · `eyebrow` · `ticker` ·
+`num` · `serif` · `value-fade` · `draw-in` · `bar-rise` · `soft-pulse` · `lift-rest` · `lift-press` ·
+`btn-secondary` · `pop-in` · `menu-panel` · `panel-above-bar` · `panel-transition` ·
+`drawer-transition` · `clip-allow-shadow` · `icon-btn` · `sheet-transition` ·
+`pane-bottom-clearance` · `select-pop` · `text-link` · `check-draw` · `steps-track` · `scroll-thin` ·
+`no-scrollbar` · `skeleton` · `sr-only` · `group`.
+
+*(Reconciled against `eslint.config.mjs` on 2026-08-28 after a postcheck found it eight entries
+behind. A list maintained by hand in two places drifts; the build's copy is the one that decides,
+and this one is a transcription of it.)*
 
 **If this list grows past a handful, that is a signal the system is missing a token, not that the
 rule is wrong.**

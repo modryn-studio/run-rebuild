@@ -60,6 +60,46 @@ let counter = 0;
  * An array we own cannot be copied by anybody. It is module-level for the same reason `counter` is:
  * the ordering is between SEPARATE component instances, which have no other place to meet. */
 const live: number[] = [];
+/* ─── A POP THIS MODULE CAUSED IS NOT A BACK PRESS ──────────────────────────────────────────────
+ *
+ * 2026-08-28, postcheck, and it is the cause behind "the back button isn't working correctly with
+ * all the pages" on a phone. `live` orders the overlays correctly for a pop the OS starts, because
+ * the innermost token is still last when the listeners run. It cannot order the pop an overlay
+ * causes when it dismisses ITSELF: the cleanup drops its own token FIRST and only then calls
+ * `history.back()`, whose `popstate` arrives a task later - by which time the OUTER overlay's token
+ * is last, its listener is still registered, and its guard passes. It answers as if the trader had
+ * pressed Back.
+ *
+ * What that looked like: open Edit on an account, tap Close account, tap Cancel. The confirmation
+ * consumed its own entry, and the editor underneath heard the pop and closed too - taking the
+ * Reopen button its own copy had just promised. On the SUCCESSFUL close it was worse, because that
+ * path is meant to leave the form open showing what was written.
+ *
+ * SO THE MODULE ANNOUNCES ITS OWN POPS. `selfBacks` is raised immediately before `history.back()`
+ * and spent by the first listener to see the event, which marks the event itself so every later
+ * listener agrees about the same pop rather than each racing the counter.
+ *
+ * THE GUARD IS REGISTERED BEFORE ANY OVERLAY'S, because it is armed from the first `useOverlayBack`
+ * effect and listeners fire in registration order. Nothing this module adds can run before it.
+ *
+ * IT CANNOT STRAND A COUNT. The only `back()` here is guarded by `location.href === pushedHref`,
+ * which means our entry is the current one - so there is always an entry to pop and always a
+ * `popstate` to spend the raise on. */
+let selfBacks = 0;
+const selfPops = new WeakSet<PopStateEvent>();
+let guarded = false;
+function armSelfPopGuard(): void {
+  if (guarded) return;
+  guarded = true;
+  window.addEventListener('popstate', (e: PopStateEvent) => {
+    if (selfBacks > 0) {
+      selfBacks--;
+      selfPops.add(e);
+    }
+  });
+}
+const isSelfPop = (e: PopStateEvent): boolean => selfPops.has(e);
+
 const drop = (t: number) => {
   const i = live.indexOf(t);
   if (i !== -1) live.splice(i, 1);
@@ -118,6 +158,8 @@ export function useOverlayBack(
   useEffect(() => {
     if (!open) return;
 
+    armSelfPopGuard();
+
     /* LOWERED ON EVERY OPEN, because the next dismissal is far more likely to be an ordinary one. */
     replacing.current = false;
     let token = ++counter;
@@ -136,7 +178,10 @@ export function useOverlayBack(
        actually about our entry. */
     const pushedHref = window.location.href;
 
-    const onPop = () => {
+    const onPop = (e: PopStateEvent) => {
+      /* A POP WE CAUSED IS NOT A BACK PRESS, and this line is the whole of finding #1 (2026-08-28,
+         postcheck). See `armSelfPopGuard` for the failure it prevents. */
+      if (isSelfPop(e)) return;
       /* ONLY THE INNERMOST OVERLAY ANSWERS A GIVEN POP, and getting this wrong was visible on the
          first test: one press of Back from the Date Range screen closed the drill-in AND the sheet
          under it. `popstate` is a WINDOW event, so every registered overlay hears every pop - two
@@ -181,6 +226,8 @@ export function useOverlayBack(
          NOT consulted: Next copies it forward, so it can say yes when the answer is no. */
       if (ours.current && window.location.href === pushedHref) {
         ours.current = false;
+        /* DECLARED BEFORE IT IS CAUSED, so the overlay UNDERNEATH does not read it as a press. */
+        selfBacks++;
         window.history.back();
       }
       ours.current = false;

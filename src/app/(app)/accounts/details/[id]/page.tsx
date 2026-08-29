@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireTrader } from '@/lib/trader';
-import { getAccount, getProvenance, countPrefixSiblings } from '@/lib/accounts/read';
+import { getAccount, getProvenance } from '@/lib/accounts/read';
 import {
   getTape,
   getTapeIds,
@@ -11,7 +11,7 @@ import {
   getDigest,
 } from '@/lib/trades/read';
 import { EMPTY_FILTER, type ResultToken } from '@/lib/trades/filter';
-import { accountPrefix, accountRowTitle } from '@/lib/prop-firms';
+import { accountRowTitle } from '@/lib/prop-firms';
 import { AccountDetailView } from '@/components/views/accounts/account-detail-view';
 import { AccountRail } from '@/components/views/accounts/account-rail';
 import { RecentTrades } from '@/components/views/accounts/recent-trades';
@@ -118,7 +118,7 @@ export default async function AccountDetailPage({
     getProvenance(trader.id, account.id),
     getTape(trader.id, filter, window, { limit: FIRST_PAGE }),
     getTapeIds(trader.id, filter, window),
-    getFacetRows(trader.id),
+    getFacetRows(trader.id, account.id),
   ]);
 
   /* NARROWED MEANS "THE TRADER NARROWED IT", NOT "THE QUERY HAS A WHERE CLAUSE", and the difference
@@ -132,11 +132,10 @@ export default async function AccountDetailPage({
   const narrowed =
     applied.products.length > 0 || applied.results.length > 0 || applied.q !== null;
 
-  /* THE SIBLING COUNT, for the label form's "apply to your other TDFY accounts" switch. One integer
-     rather than the whole roster - see `countPrefixSiblings`. Skipped entirely for a placeholder
-     key, which has no prefix and therefore no siblings by construction. */
-  const prefix = accountPrefix(account.externalAccountId);
-  const siblingCount = prefix ? await countPrefixSiblings(trader.id, prefix, account.id) : 0;
+  /* THE SIBLING COUNT IS THE LAYOUT'S, and was being read twice (2026-08-28, postcheck). It moved
+     to `layout.tsx` when the provider did; this copy stayed behind, ran the same
+     `LIKE 'PREFIX%'` count on every load and assigned it to a variable nothing read. Lint cannot
+     see it - the value was assigned, just never used past the assignment. */
 
   /* THE RAIL'S RECORD GROUP FOLLOWS THE FILTER, and it reads the SAME aggregate `/trades`' own rail
      does - one `where`, so the rail, the chart and the tape are three views of one query rather
@@ -146,7 +145,8 @@ export default async function AccountDetailPage({
 
   /* THE OPTIONS ARE COUNTED ON THE WHOLE ACCOUNT, never on the filtered tape: an option that
      vanished because the current filter hid its trades could never be un-picked. */
-  const own = facetRows.filter((r) => r.accountId === account.id);
+  /* ALREADY THIS ACCOUNT'S - the read is scoped, so there is nothing left to filter out here. */
+  const own = facetRows;
   const productOptions = [...new Set(own.map((r) => r.product))]
     .sort()
     .map((value) => ({ value, label: value }));

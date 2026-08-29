@@ -4,7 +4,11 @@ import { createRouteLogger } from '@/lib/route-logger';
 import { getTrader } from '@/lib/trader';
 import { db } from '@/lib/db';
 import { account, importBatch, trade, ACCOUNT_TYPES, ACCOUNT_STATUSES } from '@/lib/db/schema';
-import { ACCOUNT_SIZES } from '@/lib/prop-firms';
+import {
+  ACCOUNT_SIZES,
+  accountEndingMismatch,
+  accountStatusFits,
+} from '@/lib/prop-firms';
 
 /* LABEL AN ACCOUNT THAT ALREADY EXISTS — the three questions Tradovate cannot answer (`S6d` C3).
  *
@@ -240,6 +244,42 @@ export async function PATCH(req: Request): Promise<Response> {
 
     if (Object.keys(patch).length === 0) {
       return log.end(ctx, Response.json({ error: 'Nothing to update' }, { status: 400 }));
+    }
+
+    /* THE PAIR IS CHECKED HERE SO IT CAN COME BACK AS A SENTENCE. `account_type_status_check` is
+     * still the authority and this does not replace it - but a CHECK can only REFUSE, and it
+     * refuses as a `NeonDbError` that this route turns into a 500 and "Could not save the account".
+     * That is what a trader got on 2026-08-28 relabelling a CLOSED sim-funded account as an
+     * evaluation: a legitimate refusal, delivered as a fault, with nothing in it to act on.
+     *
+     * IT READS THE ROW because either half of the pair may be absent from the body - the editor
+     * sends a type change alone, the close flow sends a status with the type beside it. Whichever
+     * is missing is the one already stored, so the check needs the row to know what the pair would
+     * BECOME rather than what was sent. One indexed single-row read, on a write path a trader
+     * touches a handful of times per account.
+     *
+     * IT ALSO MOVES THE 404 EARLIER, which is free and strictly better: a guessed uuid now fails
+     * before anything is written rather than after the primary update matched nothing.
+     *
+     * 409, NOT 400. The request is well-formed and the trader owns the row; what refuses it is the
+     * state of the thing - the same reasoning `DELETE` below states for a row holding trades. */
+    if (accountType !== undefined || status !== undefined) {
+      const [row] = await db
+        .select({ accountType: account.accountType, status: account.status })
+        .from(account)
+        .where(and(eq(account.id, id), eq(account.traderId, trader.id)))
+        .limit(1);
+      if (!row) {
+        return log.end(ctx, Response.json({ error: 'Account not found' }, { status: 404 }));
+      }
+      const nextType = accountType ?? row.accountType;
+      const nextStatus = status ?? row.status;
+      if (!accountStatusFits(nextType, nextStatus)) {
+        return log.end(
+          ctx,
+          Response.json({ error: accountEndingMismatch(nextType, nextStatus) }, { status: 409 })
+        );
+      }
     }
 
     /* SCOPED TO THE TRADER IN THE `WHERE`, not checked separately. Object-level permission belongs

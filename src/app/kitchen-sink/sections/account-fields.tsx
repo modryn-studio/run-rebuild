@@ -15,7 +15,9 @@
 import { useState } from 'react';
 import { Chip, Field, SizeField, TypeRows } from '@/components/views/accounts/account-fields';
 import { FirmPicker } from '@/components/views/accounts/firm-picker';
-import type { AccountType } from '@/lib/db/schema';
+import { EndingChoice } from '@/components/views/accounts/shared';
+import { ACCOUNT_ENDINGS, ACCOUNT_TYPE_ORDER, accountEndingMismatch } from '@/lib/prop-firms';
+import type { AccountStatus, AccountType } from '@/lib/db/schema';
 import { Note, Row, Section } from '../_components/section';
 
 export function AccountFieldsSection() {
@@ -23,6 +25,12 @@ export function AccountFieldsSection() {
   const [size, setSize] = useState<number | null>(100_000);
   const [offScale, setOffScale] = useState<number | null>(104_300);
   const [picked, setPicked] = useState<string | null>(null);
+  /* ONE ANSWERED AND ONE NOT, side by side, because the resting state of this control is the one
+     that ships wrong: an unpicked list has to read as a question rather than as a disabled row. */
+  const [ending, setEnding] = useState<Record<string, AccountStatus | null>>({
+    evaluation: 'passed',
+    sim_funded: null,
+  });
 
   return (
     <Section
@@ -39,6 +47,51 @@ export function AccountFieldsSection() {
           one, continue&rdquo;, so the row is the honest shape and the screen needs no footer button.
           The current value is ticked, because an editor that does not show what you picked is a form
           that makes you remember.
+        </Note>
+      </Row>
+
+      <Row
+        label="Ending"
+        note="asked by the close confirmation, and again by the editor when a type change strands the stored one"
+      >
+        <div className="grid max-w-3xl gap-8 sm:grid-cols-3">
+          {ACCOUNT_TYPE_ORDER.map((t) => {
+            const endings = ACCOUNT_ENDINGS[t];
+            /* THE STATUS EACH COLUMN IS MOVING AWAY FROM: an ending its own type cannot hold, which
+               is the only situation that puts this control in the editor. */
+            const from: AccountStatus = t === 'evaluation' ? 'closed' : 'passed';
+            return (
+              <div key={t}>
+                <p className="text-body text-muted font-medium">
+                  {endings.length > 1 ? 'How did it end?' : 'The ending changes with it'}
+                </p>
+                <p className="text-body text-muted mt-1">{accountEndingMismatch(t, from)}</p>
+                {endings.length > 1 && (
+                  <div className="mt-3 flex flex-col gap-2">
+                    {endings.map((o) => (
+                      <EndingChoice
+                        key={o.value}
+                        label={o.label}
+                        on={ending[t] === o.value}
+                        onPick={() => setEnding((e) => ({ ...e, [t]: o.value }))}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <Note>
+          The pairing is the database&rsquo;s: an evaluation is passed or failed, a sim-funded
+          account is closed or blown, a personal one only closes. A CHECK constraint holds that line,
+          but a constraint can only refuse, and it refuses as a driver error. This is the question
+          asked before the refusal.
+        </Note>
+        <Note>
+          Personal gets no buttons, because a list of one is not a choice. The sentence states what
+          Save will write instead, which is the same information without a control that cannot be
+          answered wrongly.
         </Note>
       </Row>
 

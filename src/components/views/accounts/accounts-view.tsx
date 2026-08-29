@@ -177,7 +177,7 @@ export function AccountsView({
             BELOW `lg` THE RAIL ORDERS LAST. On a phone it is a screenful of totals standing between
             the trader and the accounts they opened the page for. */}
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_304px]">
-          <Roster accounts={scoped} freshness={freshness} />
+          <Roster accounts={scoped} freshness={freshness} narrowed={allAccounts.length > 0} />
           {/* SCOPED, LIKE EVERYTHING ELSE ON THE PAGE. It used to arrive from the server as finished
               JSX over the unscoped roster, which is how it came to disagree with the chart above it
               the moment the phone's chips could narrow one and not the other. */}
@@ -195,13 +195,17 @@ export function AccountsView({
 function Roster({
   accounts,
   freshness,
+  narrowed,
 }: {
   accounts: RosterAccount[];
   freshness: Record<string, string>;
+  /* Whether the trader owns any accounts AT ALL, which is the only thing that decides which of the
+     two empty states is true. `accounts` here is already scoped and filtered. */
+  narrowed: boolean;
 }) {
   const add = useAddAccount();
   const stamps = new Map<string, Date>(
     Object.entries(freshness).map(([id, iso]) => [id, new Date(iso)])
   );
-  return <RosterCard accounts={accounts} freshness={stamps} onAdd={add} />;
+  return <RosterCard accounts={accounts} freshness={stamps} onAdd={add} narrowed={narrowed} />;
 }

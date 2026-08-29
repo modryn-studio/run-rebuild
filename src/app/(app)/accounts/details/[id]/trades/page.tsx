@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { requireTrader } from '@/lib/trader';
 import { getAccount } from '@/lib/accounts/read';
 import { getTape, getTapeIds, getFacetRows, getDigest } from '@/lib/trades/read';
-import { EMPTY_FILTER, type ResultToken } from '@/lib/trades/filter';
+import { DEFAULT_RANGE, rangeWindow, readTradesFilter } from '@/lib/trades/filter';
+import { sessionDateFor } from '@/lib/time/session';
 import { accountRowTitle, accountShortTitle, UNLABELLED_FIRM } from '@/lib/prop-firms';
 import { TradesTape } from '@/components/views/trades/trades-tape';
 import { TradesRail } from '@/components/views/trades/trades-rail';
@@ -44,7 +45,7 @@ export default async function AccountTradesPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ products?: string; results?: string; q?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
   /* SCOPED BY `trader_id` FROM THE SESSION, NEVER FROM THE REQUEST. `getAccount` puts the trader in
@@ -54,20 +55,25 @@ export default async function AccountTradesPage({
   const account = await getAccount(trader.id, id);
   if (!account) notFound();
 
-  const query = await searchParams;
-  const list = (v?: string) => (v ? v.split(',').filter(Boolean) : []);
-  const applied = {
-    products: list(query.products),
-    results: list(query.results).filter((r): r is ResultToken => r === 'win' || r === 'loss'),
-    q: query.q?.trim() || null,
-  };
-  const filter = { ...EMPTY_FILTER, accounts: [account.id], ...applied };
-  const window = { from: null, to: null };
+  /* THE SAME PARSER `/trades` USES, NOT A HAND-ROLLED ONE (2026-08-28, postcheck). This page read
+     three params off a typed object and pinned `window` to nulls - so the filter sheet's Date range
+     row, which renders unconditionally and commits on tap, wrote `?range=last30` to the URL and
+     changed nothing. A dead control that also leaves a lying address. `status` and `types` were
+     dead the same way and survived only because the sheet hides those rows when the screen has one
+     account, which is an accident of this page rather than a guarantee.
+     ONE PARSER MEANS THE WRITER AND THE READER CANNOT DISAGREE, which is the whole reason
+     `readTradesFilter` exists and why it also carries the guards - a hand-edited `?from=2026-13-45`
+     is dropped here rather than reaching SQL. */
+  const requested = readTradesFilter(await searchParams);
+  /* THE ACCOUNT IS PINNED LAST, so no `?accounts=` in the URL can widen this screen past the one
+     account it is about. */
+  const filter = { ...requested, accounts: [account.id] };
+  const window = rangeWindow(filter, sessionDateFor(new Date()));
 
   const [sessions, ids, facetRows, digest] = await Promise.all([
     getTape(trader.id, filter, window, { limit: FIRST_PAGE }),
     getTapeIds(trader.id, filter, window),
-    getFacetRows(trader.id),
+    getFacetRows(trader.id, account.id),
     getDigest(trader.id, filter, window),
   ]);
 
@@ -76,11 +82,19 @@ export default async function AccountTradesPage({
      unconditionally and the empty state could never say "day one". Same derivation the details page
      makes, and for the defect it was written to fix. */
   const narrowed =
-    applied.products.length > 0 || applied.results.length > 0 || applied.q !== null;
+    filter.products.length > 0 ||
+    filter.results.length > 0 ||
+    filter.status.length > 0 ||
+    filter.types.length > 0 ||
+    filter.range !== DEFAULT_RANGE ||
+    filter.from !== null ||
+    filter.to !== null ||
+    filter.q !== null;
 
   /* THE OPTIONS ARE COUNTED ON THE WHOLE ACCOUNT, never on the filtered tape: an option that
      vanished because the current filter hid its trades could never be un-picked. */
-  const own = facetRows.filter((r) => r.accountId === account.id);
+  /* ALREADY THIS ACCOUNT'S - the read is scoped, so there is nothing left to filter out here. */
+  const own = facetRows;
   const products = [...new Set(own.map((r) => r.product))].sort();
 
   return (
@@ -96,7 +110,7 @@ export default async function AccountTradesPage({
           /* WHICH FIGURES A RESULT FILTER MAKES MEANINGLESS - the rail's own guard, and it takes the
              flag rather than re-deriving it so this screen and `/trades` cannot disagree about when
              a win rate is a tautology. */
-          resultFiltered={applied.results.length === 1}
+          resultFiltered={filter.results.length === 1}
           ids={ids}
         />
       }

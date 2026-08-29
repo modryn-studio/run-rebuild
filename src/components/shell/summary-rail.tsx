@@ -240,7 +240,18 @@ export function WithSummaryRail({
         )}
       />
 
-      <div className={cn(PAGE_COLUMN, 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]')}>
+      {/* `max-md:px-0` INSIDE THE PANEL (2026-08-28, postcheck). `DetailPanelBody` already supplies
+          the phone's gutter, so the column's own `px-4` doubled it: the tape rendered 16px inset
+          while its `loading.tsx` - which correctly has no column - rendered full bleed, and the
+          skeleton stepped 16px sideways as the page committed. `SubjectPage` zeroes the same gutter
+          for the sibling route and states the same reason. */}
+      <div
+        className={cn(
+          PAGE_COLUMN,
+          'grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]',
+          overPanel && 'max-md:px-0'
+        )}
+      >
         <div className="min-w-0">{children}</div>
 
         {/* `StickyRail` OWNS THE PIN, and it measures rather than assuming. This carried a blanket

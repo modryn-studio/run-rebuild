@@ -28,6 +28,7 @@ import { V2ReferenceSection } from './sections/v2-reference';
 import { TradesSection } from './sections/trades';
 import { IntakeSection } from './sections/intake';
 import { NavRowSection } from './sections/nav-row';
+import { SheetHeaderSection } from './sections/sheet-header';
 import { FeedbackSection } from './sections/feedback';
 import { PatternsSection } from './sections/patterns';
 import { OverflowSection } from './sections/overflow';
@@ -99,6 +100,7 @@ export default function KitchenSinkPage() {
         <PnlPlotSection />
         <RosterRowSection />
         <AccountFieldsSection />
+        <SheetHeaderSection />
         <NavRowSection />
         <FeedbackSection />
         <BrandSection />

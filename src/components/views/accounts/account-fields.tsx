@@ -128,7 +128,11 @@ export function TypeRows({
             aria-current={on ? 'true' : undefined}
             className={cn(
               slotSurface,
-              'mt-3 flex w-full items-center gap-3 px-4 py-4 text-left disabled:opacity-60',
+              /* `border` IN THE BASE, or `border-accent` colours a zero-width border and emits
+                 nothing - Tailwind's preflight is `border: 0 solid` (2026-08-28, postcheck). The
+                 check mark carried the selection on its own, so this was invisible rather than
+                 wrong; `border-transparent` keeps the row's box identical either way. */
+              'mt-3 flex w-full items-center gap-3 border border-transparent px-4 py-4 text-left disabled:opacity-60',
               on && 'border-accent'
             )}
           >

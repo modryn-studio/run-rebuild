@@ -89,14 +89,19 @@ export function TradeDetail({
                   the fact that decides what the figure above it MEANS - the same +$12.60 is play
                   money on an evaluation and a payout on a funded account - and this is the only
                   surface with room to say it.
-                  `text-caption`, WHICH IS ALREADY THE FINE-PRINT ROLE (the required-file ticks and
-                  `.eyebrow` both read it). No new token: the step below `text-body` exists and this
-                  is exactly what it is for. And it is the same MUTED ink as the name above it, not a
-                  third tier - `design-system.md` allows two, and what separates these two lines is
-                  SIZE. Omitted entirely while the account is unlabelled, rather than printed as
-                  "Unlabelled": that word belongs to the roster, where it is a call to action. */}
+                  `text-body` MUTED, NOT `text-caption` (corrected 2026-08-28, postcheck). It
+                  shipped at 11px on the argument that size should separate it from the name above.
+                  `design-system.md` §2a settles it the other way: this surface's secondary tier IS
+                  `text-body` muted, and `text-caption` is reserved for DISCLOSURE - the rail's
+                  provenance line and the inline quarantine reason - which are read by a different
+                  kind of attention. It also made three type steps in one right-aligned column, at
+                  the smallest size in the product, for what the comment above correctly calls the
+                  fact that decides what the figure means. The name and the type are one identity
+                  block, so reading as one block is right. Omitted entirely while the account is
+                  unlabelled, rather than printed as "Unlabelled": that word belongs to the roster,
+                  where it is a call to action. */}
               {t.accountType && (
-                <span className="text-caption text-muted mt-0.5 block text-right">
+                <span className="text-body text-muted mt-1 block text-right">
                   {ACCOUNT_TYPE_LABELS[t.accountType]}
                 </span>
               )}

@@ -12,6 +12,12 @@
  * firm picker), and this is the vocabulary layer: it must not import the data layer.
  */
 
+/* THE ONE IMPORT, AND IT IS ERASED. `import type` compiles to nothing, so the rule above still
+   holds: no drizzle reaches a client bundle through this line. The alternative was re-declaring the
+   four status strings here, which is the drift this file's own comments spend paragraphs warning
+   about. */
+import type { AccountStatus } from '@/lib/db/schema';
+
 /* THE PREFIX IS A LOOKUP, NEVER AN INFERENCE. This distinction cost a real mistake on 2026-07-30
  * and is the reason this file reads the way it does.
  *
@@ -244,6 +250,81 @@ export const ACCOUNT_TYPE_KEYS = Object.keys(ACCOUNT_TYPE_LABELS) as AccountType
  * account's result is money, an evaluation's is a pass or a fail, and a personal account is
  * whatever the trader wants it to be. */
 export const ACCOUNT_TYPE_ORDER: AccountTypeKey[] = ['sim_funded', 'evaluation', 'personal'];
+
+/* HOW EACH KIND OF ACCOUNT CAN END, and it is `schema.ts`'s CHECK constraint `account_type_status_
+ * check` restated in the vocabulary layer. The constraint stays the authority - a screen cannot be
+ * trusted to hold the line on what is coherent data - but a constraint can only REFUSE, and it
+ * refuses in the shape of a driver error. This table is what lets a screen ask the question before
+ * the answer becomes a 500.
+ *
+ * IT SHIPPED AS A MISSING QUESTION (2026-08-28, Luke, on his own corpus): a CLOSED sim-funded
+ * account relabelled as an evaluation. The type row offered Evaluation, Save sent it alone, and
+ * Postgres refused the pair `evaluation + closed` - correctly, because an evaluation is passed or
+ * failed and has no third ending. The trader saw "Could not save the account" and no way forward.
+ * Two facts had to move together and only one of them was on screen.
+ *
+ * THE LABELS ARE NOT v2'S, and `close-account-modal.tsx` carries the reasoning: there is no target
+ * on a funded account, so "you dont pass really" - it ends in good standing, or blown.
+ *
+ * `active` IS DELIBERATELY ABSENT. Every type permits it, and an unlabelled account permits
+ * NOTHING ELSE, so it is not an ending and belongs in `accountStatusFits` rather than in a row
+ * here. */
+export const ACCOUNT_ENDINGS: Record<
+  AccountTypeKey,
+  readonly { value: AccountStatus; label: string }[]
+> = {
+  evaluation: [
+    { value: 'passed', label: 'Passed' },
+    { value: 'failed', label: 'Failed' },
+  ],
+  sim_funded: [
+    { value: 'closed', label: 'Ended in good standing' },
+    { value: 'failed', label: 'Blown' },
+  ],
+  /* ONE ENDING, WHICH IS NOT THE SAME AS NO QUESTION. A personal account just closes, so nothing is
+     asked - but the single value still has to be READABLE, because the relabelling path needs to
+     know what to write when it stops asking. An empty array said "do not ask" and lost the answer
+     with it. */
+  personal: [{ value: 'closed', label: 'Closed' }],
+};
+
+/* HOW EACH TYPE ENDS, AS PROSE, and it is a second string rather than the button labels joined
+ * (2026-08-28, postcheck). The labels were written for a 56px pick row - "Ended in good standing" -
+ * and reading them back inside a sentence produced "Sim Funded accounts are ended in good standing
+ * or blown, not passed", which is not English. This sentence is shown in the editor AND returned as
+ * the 409 body, so it is two user-facing surfaces on one string and it has to read like one. */
+const ENDING_PROSE: Record<AccountTypeKey, string> = {
+  evaluation: 'An evaluation is passed or failed.',
+  sim_funded: 'A sim-funded account ends in good standing, or blown.',
+  personal: 'A personal account is closed.',
+};
+
+/** The trader's word for a status, lowercase, for use inside a sentence. `active` never appears in
+ *  one of these, because a live account has not ended. */
+const ENDING_WORD: Record<AccountStatus, string> = {
+  active: 'open',
+  passed: 'passed',
+  failed: 'failed',
+  closed: 'closed',
+};
+
+/* WHETHER A (TYPE, STATUS) PAIR IS ONE THE DATABASE WILL ACCEPT. The CHECK in four lines:
+     null type       -> active only, because nothing has happened to it yet
+     any real type    -> active, plus that type's own endings. */
+export function accountStatusFits(type: AccountTypeKey | null, status: AccountStatus): boolean {
+  if (status === 'active') return true;
+  if (type === null) return false;
+  return ACCOUNT_ENDINGS[type].some((o) => o.value === status);
+}
+
+/* WHY THE PAIR WAS REFUSED, in the trader's own vocabulary, built from the same table so the
+ * sentence can never describe endings the picker does not offer. ONE SENTENCE, TWO SURFACES: the
+ * editor states it beside the question, and the route sends it back on the 409 for anything that
+ * reaches the write path without having asked. */
+export function accountEndingMismatch(type: AccountTypeKey | null, status: AccountStatus): string {
+  if (type === null) return 'An account with no type yet can only be open.';
+  return `${ENDING_PROSE[type]} This one is ${ENDING_WORD[status]}.`;
+}
 
 /* AN ACCOUNT WITH NO TYPE YET, and it is an ABSENCE rather than a fourth type - `trades/facets.ts`
  * says the same thing about the firm axis for the same reason. It gets a key so a control can

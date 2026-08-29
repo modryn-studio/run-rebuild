@@ -24,7 +24,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Icon } from '@/components/ui/icon';
 import { HeaderControl } from '@/components/shell/header-slot';
 import { usePopover } from '@/components/ui/use-popover';
@@ -61,6 +61,7 @@ export function RosterFilters({
   accounts: RosterAccount[];
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useSearchParams();
 
   const [draft, setDraft] = useState<RosterFilter>(applied);
@@ -126,7 +127,12 @@ export function RosterFilters({
     set('status', next.status);
     set('types', next.types);
     const s = q.toString();
-    router.replace(s ? `/accounts?${s}` : '/accounts', { scroll: false });
+    /* `usePathname()`, NOT `/accounts` (2026-08-28, postcheck). CLAUDE.md: "A filter control writes
+       to `usePathname()`, never a hard-coded route" - the rule exists because `trades-controls.tsx`
+       shipped the same literal and Clear all silently navigated off the account's own tape. Benign
+       here only for as long as this control is mounted on exactly one route, which is not a
+       property anyone will remember to preserve. */
+    router.replace(s ? `${pathname}?${s}` : pathname, { scroll: false });
     setOpen(false);
   };
 
@@ -440,6 +446,7 @@ export function RosterFilters({
  */
 export function RosterClear({ applied }: { applied: RosterFilter }) {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useSearchParams();
   if (!activeCount(applied)) return null;
   return (
@@ -451,7 +458,7 @@ export function RosterClear({ applied }: { applied: RosterFilter }) {
         const q = new URLSearchParams(params.toString());
         for (const k of ['accounts', 'status', 'types']) q.delete(k);
         const s = q.toString();
-        router.replace(s ? `/accounts?${s}` : '/accounts', { scroll: false });
+        router.replace(s ? `${pathname}?${s}` : pathname, { scroll: false });
       }}
     >
       Clear

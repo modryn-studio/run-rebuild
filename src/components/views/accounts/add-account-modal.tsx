@@ -212,6 +212,9 @@ export function AddAccountModal({
         open={sheet.open}
         onClose={close}
         onBack={back}
+        /* AN IMPORT IN FLIGHT LOCKS THE EXIT, and this prop was simply missing (2026-08-28,
+           postcheck) - `account-sheet.tsx` names this component as its reason for having it. */
+        busy={busy}
         label={title}
         /* THE INDEX IS THE DEPTH, and the two lines below ARE the rule about headers.
            Layer 1 renames the bar ("Import from CSV" / "Add manually"), so it slides up over the

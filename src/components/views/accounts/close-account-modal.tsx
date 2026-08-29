@@ -40,27 +40,20 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ConfirmHeader } from './shared';
+import { ConfirmHeader, EndingChoice } from './shared';
 import { ModalActions } from './modal-shell';
 import { ConfirmShell, ConfirmFooter } from './confirm-shell';
-import { ACCOUNT_TYPE_LABELS } from '@/lib/prop-firms';
-import { cn } from '@/lib/cn';
+import { ACCOUNT_ENDINGS, ACCOUNT_TYPE_LABELS } from '@/lib/prop-firms';
 import type { AccountStatus, AccountType } from '@/lib/db/schema';
 
-type Outcome = { value: AccountStatus; label: string };
-
-const OUTCOMES: Record<AccountType, Outcome[]> = {
-  evaluation: [
-    { value: 'passed', label: 'Passed' },
-    { value: 'failed', label: 'Failed' },
-  ],
-  sim_funded: [
-    { value: 'closed', label: 'Ended in good standing' },
-    { value: 'failed', label: 'Blown' },
-  ],
-  // A personal account has no such split: it just closes. No question is asked.
-  personal: [],
-};
+/* THE OUTCOMES MOVED TO `prop-firms.ts` (2026-08-28) and this file now reads them. They were
+ * declared here first, which was right while this was the only screen that knew what an ending is -
+ * and stopped being right the moment the EDITOR had to ask the same question, when a type change
+ * leaves a stored ending the new type cannot hold. Two copies of "a sim-funded account is closed or
+ * blown" is how one of them eventually offers an ending the CHECK constraint refuses.
+ * A PERSONAL ACCOUNT NOW CARRIES ONE OUTCOME rather than none. `asks` below is what decides whether
+ * a question appears, and it reads the LENGTH - so the single value is still there to be written,
+ * where the empty array used to mean "do not ask" and lose the answer at the same time. */
 
 export function CloseAccountModal({
   accountId,
@@ -80,9 +73,13 @@ export function CloseAccountModal({
      form either re-reads the server or shows a stale row, and it stays open either way. */
   onClosed: (status: AccountStatus, closedOn: string) => void;
 }) {
-  const outcomes = accountType ? OUTCOMES[accountType] : [];
-  const asks = outcomes.length > 0;
-  const [outcome, setOutcome] = useState<AccountStatus | null>(asks ? null : 'closed');
+  const outcomes = accountType ? ACCOUNT_ENDINGS[accountType] : [];
+  /* ONE OUTCOME IS NOT A QUESTION. A personal account only closes, so offering a list of one asks a
+     trader to pick the only thing that could happen. */
+  const asks = outcomes.length > 1;
+  const [outcome, setOutcome] = useState<AccountStatus | null>(
+    asks ? null : (outcomes[0]?.value ?? 'closed')
+  );
   /* TODAY IN THE BROWSER'S CLOCK, which is the trader's - and `new Date()` is safe here where it is
      not in a server-rendered component, because this only ever mounts on a click. `sv-SE` is the
      shortest way to a YYYY-MM-DD that respects the local day rather than UTC's. */
@@ -130,25 +127,12 @@ export function CloseAccountModal({
                 <p className="text-body text-muted mb-2 font-medium">How did it end?</p>
                 <div className="flex flex-col gap-2">
                   {outcomes.map((o) => (
-                    <button
+                    <EndingChoice
                       key={o.value}
-                      type="button"
-                      onClick={() => setOutcome(o.value)}
-                      aria-pressed={outcome === o.value}
-                      /* `min-h-14` BELOW `sm` (2026-08-28). These measure 48px from their padding,
-                         which clears the 44px floor already - but every other pick row on a phone in
-                         this product is 56px (`filter-sheet.tsx`'s `PickRow`), and a choice list
-                         that is 8px shorter than the choice list one screen away is drift nobody can
-                         name and everybody feels. */
-                      className={cn(
-                        'flex w-full items-center rounded-[var(--radius)] px-4 py-3 text-left transition-colors max-sm:min-h-14',
-                        outcome === o.value
-                          ? 'select-pop border-accent text-accent'
-                          : 'bg-hover hover:bg-surface-2 text-text'
-                      )}
-                    >
-                      <span className="text-body-lg">{o.label}</span>
-                    </button>
+                      label={o.label}
+                      on={outcome === o.value}
+                      onPick={() => setOutcome(o.value)}
+                    />
                   ))}
                 </div>
               </div>

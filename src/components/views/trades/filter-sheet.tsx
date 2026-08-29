@@ -322,7 +322,8 @@ export function FilterSheet({
      the row is there to SAY which account you are looking at, not to offer a choice, so its chip
      carries no x and the axis does not drill in. Empty everywhere else. */
   lockedAccounts?: string[];
-  onApply: (d: FilterSheetDraft) => void;
+  /** `cleared` is true only from `Clear all`, which is the one commit that also drops the search. */
+  onApply: (d: FilterSheetDraft, cleared: boolean) => void;
   /* WHERE THIS IS ALLOWED TO EXIST IS THE CALLER'S CALL, NOT THIS COMPONENT'S. `md:hidden` used to
      be baked into the root, which is a component deciding its own breakpoint — and it made the sheet
      impossible to put in `/kitchen-sink`, because the rack runs at desktop width and the component
@@ -433,9 +434,9 @@ export function FilterSheet({
      the router's `replace` overwrites it - so the stack ends one deep at the new address with the
      tape as it was before the sheet opened behind it. One press of Back returns to it unfiltered. */
   const commit = useCallback(
-    (d: FilterSheetDraft) => {
+    (d: FilterSheetDraft, cleared = false) => {
       markReplacing();
-      onApply(d);
+      onApply(d, cleared);
     },
     [markReplacing, onApply]
   );
@@ -857,7 +858,11 @@ export function FilterSheet({
               variant="secondary"
               size="md"
               className="hit-44 flex-1"
-              onClick={() => commit(NOTHING)}
+              /* CLEAR ALL SAYS SO (2026-08-28, postcheck). The owner used to INFER it from the
+                 draft being empty on every axis - which is also true of a trader whose only
+                 narrowing was the search term, so pressing Apply with nothing ticked deleted their
+                 search. A button knows what it is; nothing else has to guess. */
+              onClick={() => commit(NOTHING, true)}
             >
               Clear all
             </Button>

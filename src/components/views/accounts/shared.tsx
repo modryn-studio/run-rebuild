@@ -11,10 +11,17 @@ import { IconButton } from '@/components/ui/icon-button';
 import { Icon } from '@/components/ui/icon';
 import { SheetHeader, SHEET_CONTROL_ICON } from '@/components/ui/sheet-header';
 import { SurfaceHeader, useSurface } from './surface';
+import { cn } from '@/lib/cn';
 
 /** `ModalShell` labels its dialog by this id, so exactly one element per screen carries it — the
  *  header's title, or the completion screen's headline, which IS that screen's title. */
 export const MODAL_TITLE_ID = 'accounts-modal-title';
+
+/* A CONFIRMATION NEEDS ITS OWN (2026-08-28, postcheck). `ConfirmShell` renders OVER a form that is
+   still mounted, so while Delete is up there were two live elements carrying `MODAL_TITLE_ID` -
+   and `aria-labelledby` resolves to the FIRST in document order, which is the editor's. A screen
+   reader announced the alertdialog as "Edit account" rather than "Delete this account?". */
+export const CONFIRM_TITLE_ID = 'accounts-confirm-title';
 
 /* CENTRED, ONE ROW — back left, title middle, close right.
  *
@@ -138,7 +145,7 @@ export function ConfirmHeader({ title, onCancel }: { title: string; onCancel: ()
 
   return (
     <div className="flex items-start justify-between gap-3 px-6 pt-5">
-      <h2 id={MODAL_TITLE_ID} className="text-title text-text font-medium">
+      <h2 id={CONFIRM_TITLE_ID} className="text-title text-text font-medium">
         {title}
       </h2>
       <IconButton onClick={onCancel} aria-label="Cancel">
@@ -319,5 +326,53 @@ export function SourceMark({ source, size = 'h-11' }: { source: Source; size?: s
         onError={() => setFailed(true)}
       />
     </>
+  );
+}
+
+/* ONE ANSWER TO "HOW DID IT END?", and it is a shared component because TWO screens ask that
+ * question of the same account. `close-account-modal.tsx` asks it when the account is still open,
+ * and the editor asks it when a type change leaves a stored ending the new type cannot hold. They
+ * were the same fifteen lines of markup twice, which is exactly the drift `design-system.md` names:
+ * peers in a choice list are one component at one size, varying only what is in them.
+ *
+ * `min-h-14` BELOW `md`, NOT `sm` (2026-08-28, postcheck). These measure 48px from their padding,
+ * which clears the 44px floor already - but every other pick row on a phone in this product is 56px
+ * (`filter-sheet.tsx`'s `PickRow`, unconditionally), and a choice list that is 8px shorter than the
+ * choice list one screen away is drift nobody can name and everybody feels. `max-sm` is 639px and
+ * `PHONE_QUERY` - the width at which this becomes a full-screen sheet - is 767px, so the version
+ * this shipped with left a 128px band where the sheet was up and the rows were short.
+ *
+ * `border` IS IN THE BASE, and that is not decoration (2026-08-28, postcheck). Tailwind's preflight
+ * sets `border: 0 solid`, so `border-accent` on its own colours a zero-width border and emits
+ * NOTHING - the selected row was signalled by LOSING its `bg-hover` fill, which read lighter and
+ * flatter than the two unselected ones beside it. `.select-pop` is animation only. The fill and the
+ * border are the pattern `account-fields.tsx`'s `Chip` already uses, and this now matches it.
+ *
+ * `aria-pressed` RATHER THAN A RADIO, because that is what it is: a set of toggles where pressing
+ * one releases the others, and a screen reader gets the state without a fieldset the sighted layout
+ * does not have. */
+export function EndingChoice({
+  label,
+  on,
+  onPick,
+}: {
+  label: string;
+  on: boolean;
+  onPick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      aria-pressed={on}
+      className={cn(
+        'flex w-full items-center rounded-[var(--radius)] border px-4 py-3 text-left transition-colors max-md:min-h-14',
+        on
+          ? 'select-pop border-accent text-accent bg-accent/8'
+          : 'border-transparent bg-hover hover:bg-surface-2 text-text'
+      )}
+    >
+      <span className="text-body-lg">{label}</span>
+    </button>
   );
 }
