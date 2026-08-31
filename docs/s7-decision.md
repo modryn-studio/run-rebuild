@@ -353,6 +353,14 @@ alive, opening with a textbook definition of profit factor. `competitor-failures
 Added 2026-08-31 at Luke's direction, after reading `spin.md` §2, the `twin` prototype
 (`modryn-prototypes/twin`), the June-30 `run` context, and the `prop-eval` / `trade-ready` skills.
 
+> ⚠️ **EVERYTHING IN THIS SECTION IS AN IDEA, and they sit at four different maturities.** B is a
+> working prototype in another repo. C and D are skills running in `modryn-hq` against Luke's real
+> sessions. **None of them is a decision about `run-rebuild`, none is in `spec.md`, and two of them
+> (`B`, `C`) are currently NOT IN V1 by the spec's own text.** They are recorded here so the
+> budget in §6 is not planned against a false assumption, and so the ideas are reasoned from rather
+> than remembered. Luke, 2026-08-31: *"all this info is theoretical. they are ideas and should be
+> treated as such."*
+
 **§6's budget assumed ONE generated artefact per trader per day. That assumption is wrong.** There
 are four, they have four different cost shapes, and only one of them scales the way §6 modelled.
 
