@@ -1,92 +1,22 @@
-# S7 — pattern or reading, and what a read may cost
+# AI economics — what it costs, what the market charges, and what has to fit
 
-> ⚠️ **PRELIMINARY AND OPEN.** This is a working document for a decision that has not been made.
-> Nothing here amends `spec.md`, which is LOCKED at `p2-gate` — when the decision lands, the spec is
-> amended first and in the same change ([#2](https://github.com/modryn-studio/run-rebuild/issues/2)).
+> **This document is about money.** What one generated artefact costs Run, what the category charges
+> for AI, how comparable products get paid for it, and how many artefacts have to fit inside that.
 >
-> **Opened 2026-08-31**, to hold the research from one session rather than lose it. Two of the four
-> inputs are settled (§1); two are still open (§8).
-
-**The blocking question**, in one line: *does a claim earn its place by recurring, or by being true
-once and verifiable?* — and, added this session, *what may it cost to find out?*
-
----
-
-## 1. What Luke has already settled
-
-| Question | Answer | Consequence |
-|---|---|---|
-| Is `History` a launch requirement? | **Yes — it is the differentiator** | A persistent claim must exist from day one. Claim matching across days becomes a v1 engineering problem. |
-| The within-subject control (`psychology.md` §8)? | **Yes, from day one** | Every read must emit SEVERAL candidates, name one, and store the rest unshown. The evidence cannot be reconstructed later. |
-
-**Together these kill option 2 ("reading wins").** A `read` table holding prose plus provenance
-cannot carry a tracked claim or an unnamed candidate. Whatever ships must persist claims.
-
-**Still open:** what a read may cost, and what cadence it runs on. §7 proposes an answer to both;
-§8 lists what is still unanswered.
+> **It is not where the `S7` decision lives.** Pattern versus reading is
+> [#2](https://github.com/modryn-studio/run-rebuild/issues/2), and the two answers Luke has already
+> given are recorded there. The two were tangled in one document for a day and that is part of why
+> it got confusing.
+>
+> **Sections 6 and 7 are PROPOSALS**, marked as such. Everything before them is measured or cited.
+>
+> Opened 2026-08-31. Nothing here amends `spec.md`, which is LOCKED at `p2-gate`.
 
 ---
 
-## 2. The gap, restated from the code rather than the spec
-
-`src/lib/desk/read.ts` returns:
-
-```ts
-export interface DeskRead {
-  text: string;                 // 150-450 words of prose
-  lenses: LensRead[];
-  synthesis: Usage & { ms: number };
-  numberCheck: NumberCheck;     // numeric tokens NOT asserted by the tape
-  totalMs: number;
-  costUsd: number;
-}
-```
-
-It is a letter. `spec.md` §4.2 specifies an object:
-
-| `spec.md` / `architecture.md` expects | The desk call produces |
-|---|---|
-| `pattern` — key, `watching`/`named`/`improving`/`resolved` | nothing persistent |
-| `pattern_occurrence` — session date, trade, cost, outcome | nothing |
-| `read.pattern_id` | no pattern to point at |
-| `read.working` — occurrence count, outcome count, baseline | prose only |
-| `read.state` — finding / watching / quiet | no state; it always has something to say |
-| `History` — *"named Jul 14 · $4,215 · ↑41%"* | no named claim to track |
-| The floor — 8 occurrences + baseline separation | no occurrences to count |
-
-**One thing the engine already has that the spec does not name:** `checkNumbers()` compares every
-numeric token in the final prose against the figures the tape asserts, and reports the unverified
-ones. That is the mechanism that lets an LLM-authored claim stay inside the doctrine *"every number
-in a read comes from SQL."*
-
 ---
 
-## 3. The floor would have suppressed the finding that saved the project
-
-`problem-brief.md`, the finding that cleared phase 1's kill signal:
-
-> On 07-16 he moved from MNQ to NQ and kept his stop distances. One MNQ point is $2, one NQ point is
-> $20. Down in lots, up tenfold in risk. **12 trades, −$2,331.40, 61.8% of the ten-day loss** — and
-> Luke did not know.
-
-It happened **once**. `spec.md` §8's floor is **8 occurrences + separation from the trader's own
-baseline**. Applied literally it waits for that to happen seven more times at roughly $2,300 each.
-
-§8 already half-names the resolution, and this document adopts it:
-
-| Kind of claim | What earns it |
-|---|---|
-| **Rate** — *"you size up 40-60% after three losses"* | the floor: 8 occurrences + separation from the trader's own baseline |
-| **Structural** — *"your risk per point changed tenfold and your stops did not"* | not frequency. Arithmetic on the tape, verifiable from one instance, true or false |
-
-**The open risk, recorded so it is not forgotten:** what stops "structural" becoming the loophole
-every thin claim escapes through. Proposed test — *a structural claim is one whose evidence is an
-identity, not a correlation.* Risk per point is a multiplication. "You trade worse on Fridays" is
-not, however few Fridays it took.
-
----
-
-## 4. What a read costs today, measured
+## 1. What a read costs today, measured
 
 `DESK_MODEL = 'claude-opus-5'`, `effort: high`, two lenses plus a synthesizer. Billed, not
 estimated (`lenses.ts` header, two arms on the same ten-day tape):
@@ -108,7 +38,9 @@ the tape changes every day, and thinking tokens are never discounted.
 
 ---
 
-## 5. What the market pays, and how the category handles AI cost
+---
+
+## 2. What the market charges, and how the category handles AI cost
 
 | Product | Price | AI |
 |---|---|---|
@@ -135,105 +67,9 @@ A $39 journal is not the line item that hurts.
 
 ---
 
-## 6. What an AI-native product can spend
-
-2026 benchmarks:
-
-- **AI-native gross margin runs 50-60%**, against traditional SaaS's 60-80%, because inference is
-  COGS rather than fixed R&D. ICONIQ's surveyed average is **52% for 2026**, up from 41% in 2024.
-- **Inference alone consumes ≈23% of revenue** at scaling-stage AI B2B companies. Reported ranges go
-  from 4-9% as a discrete line item up to 40-50%+ for AI-first startups, which compresses margin to
-  25-60%.
-
-Applied to the band, at 23% of revenue and 30 reads a month:
-
-| Price/mo | Inference budget | Per read |
-|---|---|---|
-| $29 | $6.67 | $0.22 |
-| **$39** | **$8.97** | **$0.30** |
-| $49 | $11.27 | $0.38 |
-| $79 | $18.17 | $0.61 |
-
-**Today's read is 5× over budget at $39 and 2.6× over even at $79** — and it grows with the corpus.
-
 ---
 
-## 7. The proposal: two speeds, and the spec already asked for it
-
-`spec.md` §5-S5 settles this and nobody noticed it was also the cost architecture:
-
-> **"The daily read is NOT 'a new pattern every day'... patterns are longitudinal. A daily read that
-> owes the user a fresh revelation every morning will start inventing them by day four."**
->
-> **"The daily read is: here's your pattern, and here's what yesterday did to it."**
-
-A daily read does not need to discover anything. It needs SQL against a claim that already exists,
-plus one sentence.
-
-| | What runs | Model | Cost | Cadence |
-|---|---|---|---|---|
-| **Discovery** | the desk read over a **windowed** tape, emitting structured claims | Opus 5 (lenses possibly Sonnet 5) | ~$1.58, less with levers | weekly, or every N new sessions |
-| **Daily** | SQL against open claims; the LLM writes one sentence around finished figures | Haiku 4.5 or Sonnet 5 | ~$0.02 | nightly, every trader, always |
-
-**≈$7.45 per trader per month unoptimised.** With batch (−50% on a job nobody waits for), Sonnet 5
-lenses, and `effort: medium` on discovery, nearer **$4**.
-
-**That is inside budget across the entire market band, $29 to $99** — which means this architecture
-does not wait on the pricing decision `spec.md` §6 deliberately defers.
-
-### The shape it implies
-
-> **The reading is the engine. The pattern is its precipitate. The daily read is SQL.**
-
-- **No hand-coded detectors.** That is the engine the previous build killed, for two recorded
-  reasons: it could not notice what it was not told to look for, and it shipped a false read that
-  would have cost the trader $960 in bad advice.
-- **Discovery emits claims** — a key, the trades cited, the arithmetic — all tape-verified by
-  `checkNumbers()`. `pattern` rows are written by the reading rather than by a detector.
-- **One claim is named. The rest are stored and never shown** — the §8 control group, free.
-- **The floor becomes shown working rather than a gate**, which §8 already resolved: *"the user
-  judges the confidence themselves."* Structural claims publish at n=1; rate claims wait for 8.
-
-### Unsolved
-
-**Claim identity across runs.** Does Monday's *"you size up after losses"* match Thursday's? Keying
-on the cited trades plus a match against open claims is the obvious approach and it is not proven.
-This is the one real engineering risk in the proposal.
-
----
-
-## 8. Cost doctrine — five principles, proposed
-
-Written in the register of `CLAUDE.md`'s other doctrine, because that is where they would go.
-
-1. **A read's price is decided before its prompt is written.** `costUsd` already exists on
-   `DeskRead`; it becomes a monitored figure rather than a curiosity.
-2. **Inference is COGS and it is capped as a share of revenue.** 23% is the industry benchmark;
-   Run's target is lower, because the read is one part of a product whose other claim is the record.
-3. **The tape a read sees is windowed, always.** An unbounded prompt is an unbounded bill.
-   `renderTape()` has no cap today.
-4. **Nightly work is batch work.** Half price on a job nobody is waiting for is the default, not an
-   optimisation.
-5. **A number the LLM could have got from SQL is money spent to be less reliable.** Already doctrine
-   for correctness. Cost is the second reason, and it points the same way.
-
----
-
-## 9. Still open
-
-| # | Question | Why it blocks |
-|---|---|---|
-| **O1** | **Discovery cadence** — weekly, every N new sessions, or on demand? | The difference between a $4 and a $12 trader. |
-| ~~**O2**~~ | ~~Is the read in the base price, or gated to a top tier?~~ | **ANSWERED PROVISIONALLY 2026-08-31 — base price, no meter.** §10. Every companion product includes it; every metered one is a tool; and the meter is what `psychology.md` §7 forbids. |
-| **O3** | **Claim identity** — how does a claim from Monday match one from Thursday? | The one unproven mechanism in §7. |
-| **O4** | **What stops "structural" being a loophole** for every thin claim? | §3's proposed identity-not-correlation test is untested. |
-| ~~**O5**~~ | ~~Analogous-product pricing~~ | **DONE 2026-08-31 — §10.** |
-| **O7** | Does a higher tier exist for something OTHER than AI — more accounts, longer history, a faster discovery cadence? | Packaging, not architecture. Does not block `S7`. |
-| ~~**O6**~~ | ~~Other AI uses Luke has in mind~~ | **DONE 2026-08-31 — §12.** Four artefacts, four cost shapes. Raised O8-O12. |
-
----
-
-## 10. How analogous products price AI — added 2026-08-31 at Luke's direction
+## 3. How analogous products price their AI
 
 `analogous-products.md` already priced the analogs. It did not price their **AI**, which is the
 question. There are exactly three models in market, and the split between them is not random.
@@ -301,7 +137,7 @@ the end of 2024.** So an AI tier converts roughly one payer in eleven.
 puts it in the Whoop/Monarch column: **one price, no meter** — which is also what the doctrine
 already says, what `psychology.md` §7 requires, and what the 2026 evidence supports.
 
-**The consequence is that the cost work in §7 is not optional.** Metering would let Run skip it by
+**The consequence is that the cost work in §6 is not optional.** Metering would let Run skip it by
 passing the bill to the trader. Including the read means the read has to fit the budget, which is
 exactly what the two-speed split is for.
 
@@ -311,44 +147,34 @@ discovery cadence — which is a packaging question rather than an AI question.
 
 ---
 
-## 11. A correction the reference docs force on `spec.md` §4.2
+---
 
-**`spec.md` calls History "the tab neither competitor has." That is no longer exactly true**, and the
-evidence is in this repo (`recon.md` Round 10, read first-hand on 2026-08-10):
+## 4. What an AI-native product can spend
 
-> `Reports → Recaps & Insights` is a document library filtered `First Import Analysis · Monthly
-> Recap · Weekly Recap`, with columns TYPE / CREATED / ACCOUNT / DATE RANGE / TRADES / STATUS.
+2026 benchmarks:
 
-**A periodic generated recap is already a first-class object at the leader.** Two more that were
-assumed unclaimed and are not:
+- **AI-native gross margin runs 50-60%**, against traditional SaaS's 60-80%, because inference is
+  COGS rather than fixed R&D. ICONIQ's surveyed average is **52% for 2026**, up from 41% in 2024.
+- **Inference alone consumes ≈23% of revenue** at scaling-stage AI B2B companies. Reported ranges go
+  from 4-9% as a discrete line item up to 40-50%+ for AI-first startups, which compresses margin to
+  25-60%.
 
-- **`PropFirm Sync → Breach insights`** — *"Understand why your accounts get breached and spot
-  patterns."* ⇒ *"Stop treating 'study your failures' as unclaimed language."*
-- **`Progress Tracker → Current rules`** — RULE | CONDITION | RULE STREAK | AVERAGE PERFORMANCE |
-  FOLLOW RATE. Stated intent measured against actual behaviour, in market, with the rules editor
-  grouping them **PREPARE / TRADE / REFLECT** — Run's before/during/after, shipped.
+Applied to the band, at 23% of revenue and 30 reads a month:
 
-**What is still genuinely unclaimed is narrower and better:** not a history of *documents* but a
-history of **claims** — the same named pattern, with its dollar cost then and its dollar cost now.
-TradeZella keeps the recaps. Nobody keeps the claim.
+| Price/mo | Inference budget | Per read |
+|---|---|---|
+| $29 | $6.67 | $0.22 |
+| **$39** | **$8.97** | **$0.30** |
+| $49 | $11.27 | $0.38 |
+| $79 | $18.17 | $0.61 |
 
-**This strengthens the pattern model rather than weakening it.** A library of past prose is a thing
-the leader already ships. A tracked claim is not. If Run shipped option 2 ("reading wins"), History
-would be *the leader's feature, later* — and the differentiator would be gone in the way that
-matters.
-
-**And the same source sets the quality bar.** Their flagship AI artefact, on Luke's own 187 trades,
-rendered **`MAX DRAWDOWN / WATCH OUT / 1644.2%`** and a Key Takeaway true of every losing trader
-alive, opening with a textbook definition of profit factor. `competitor-failures.md` §4:
-
-> **"Every insight Run surfaces must be something the trader could not have read off the chart - his
-> own pattern, priced, over time. If it fails that test, it doesn't ship."**
+**Today's read is 5× over budget at $39 and 2.6× over even at $79** — and it grows with the corpus.
 
 ---
 
 ---
 
-## 12. O6 — the other AI uses, and what they do to the budget
+## 5. The four artefacts that have to fit in that budget
 
 Added 2026-08-31 at Luke's direction, after reading `spin.md` §2, the `twin` prototype
 (`modryn-prototypes/twin`), the June-30 `run` context, and the `prop-eval` / `trade-ready` skills.
@@ -361,7 +187,7 @@ Added 2026-08-31 at Luke's direction, after reading `spin.md` §2, the `twin` pr
 > than remembered. Luke, 2026-08-31: *"all this info is theoretical. they are ideas and should be
 > treated as such."*
 
-**§6's budget assumed ONE generated artefact per trader per day. That assumption is wrong.** There
+**§4's budget assumed ONE generated artefact per trader per day. That assumption is wrong.** There
 are four, they have four different cost shapes, and only one of them scales the way §6 modelled.
 
 | # | Artefact | Cadence | Cost scales with | Status |
@@ -450,16 +276,16 @@ MFFU, $200-800 before a first payout.** A one-shot artefact aimed at a decision 
 dollars is the one thing in this list with an obvious willingness to pay attached.
 
 **If anything in Run is ever gated or sold separately, this is the candidate** — not the daily read.
-Gating the read breaks §10's finding that companion AI is included; gating a one-shot, high-value
+Gating the read breaks §3's finding that companion AI is included; gating a one-shot, high-value
 kit does not, and it is closer to how the audience already buys.
 
-### What this does to §6's budget
+### What this does to §4's budget
 
 The base-price inference budget now has to cover **A + B + C**, not A alone:
 
 | | Cadence | Rough share of the budget |
 |---|---|---|
-| **A+C** as one artefact, two halves | daily | the bulk — and §7's two-speed split is what makes it fit |
+| **A+C** as one artefact, two halves | daily | the bulk — and §6's two-speed split is what makes it fit |
 | **B** the drawer | on demand | small at first; genuinely unbounded per trader |
 | **D** the eval kit | per evaluation | not in the base budget at all if it is packaged separately |
 
@@ -493,6 +319,136 @@ document **it has been running against a real account**. Whatever it has learned
 and rule evolution is the closest thing to an answer to **O3** that exists.
 
 ---
+
+---
+
+---
+
+## 6. PROPOSAL — two speeds
+
+`spec.md` §5-S5 settles this and nobody noticed it was also the cost architecture:
+
+> **"The daily read is NOT 'a new pattern every day'... patterns are longitudinal. A daily read that
+> owes the user a fresh revelation every morning will start inventing them by day four."**
+>
+> **"The daily read is: here's your pattern, and here's what yesterday did to it."**
+
+A daily read does not need to discover anything. It needs SQL against a claim that already exists,
+plus one sentence.
+
+| | What runs | Model | Cost | Cadence |
+|---|---|---|---|---|
+| **Discovery** | the desk read over a **windowed** tape, emitting structured claims | Opus 5 (lenses possibly Sonnet 5) | ~$1.58, less with levers | weekly, or every N new sessions |
+| **Daily** | SQL against open claims; the LLM writes one sentence around finished figures | Haiku 4.5 or Sonnet 5 | ~$0.02 | nightly, every trader, always |
+
+**≈$7.45 per trader per month unoptimised.** With batch (−50% on a job nobody waits for), Sonnet 5
+lenses, and `effort: medium` on discovery, nearer **$4**.
+
+**That is inside budget across the entire market band, $29 to $99** — which means this architecture
+does not wait on the pricing decision `spec.md` §6 deliberately defers.
+
+### The shape it implies
+
+> **The reading is the engine. The pattern is its precipitate. The daily read is SQL.**
+
+- **No hand-coded detectors.** That is the engine the previous build killed, for two recorded
+  reasons: it could not notice what it was not told to look for, and it shipped a false read that
+  would have cost the trader $960 in bad advice.
+- **Discovery emits claims** — a key, the trades cited, the arithmetic — all tape-verified by
+  `checkNumbers()`. `pattern` rows are written by the reading rather than by a detector.
+- **One claim is named. The rest are stored and never shown** — the §8 control group, free.
+- **The floor becomes shown working rather than a gate**, which §8 already resolved: *"the user
+  judges the confidence themselves."* Structural claims publish at n=1; rate claims wait for 8.
+
+### Unsolved
+
+**Claim identity across runs.** Does Monday's *"you size up after losses"* match Thursday's? Keying
+on the cited trades plus a match against open claims is the obvious approach and it is not proven.
+This is the one real engineering risk in the proposal.
+
+---
+
+---
+
+## 7. PROPOSAL — five cost principles
+
+Written in the register of `CLAUDE.md`'s other doctrine, because that is where they would go.
+
+1. **A read's price is decided before its prompt is written.** `costUsd` already exists on
+   `DeskRead`; it becomes a monitored figure rather than a curiosity.
+2. **Inference is COGS and it is capped as a share of revenue.** 23% is the industry benchmark;
+   Run's target is lower, because the read is one part of a product whose other claim is the record.
+3. **The tape a read sees is windowed, always.** An unbounded prompt is an unbounded bill.
+   `renderTape()` has no cap today.
+4. **Nightly work is batch work.** Half price on a job nobody is waiting for is the default, not an
+   optimisation.
+5. **A number the LLM could have got from SQL is money spent to be less reliable.** Already doctrine
+   for correctness. Cost is the second reason, and it points the same way.
+
+---
+
+---
+
+## 8. What is actually unclaimed, and the correction it forces on `spec.md`
+
+**`spec.md` calls History "the tab neither competitor has." That is no longer exactly true**, and the
+evidence is in this repo (`recon.md` Round 10, read first-hand on 2026-08-10):
+
+> `Reports → Recaps & Insights` is a document library filtered `First Import Analysis · Monthly
+> Recap · Weekly Recap`, with columns TYPE / CREATED / ACCOUNT / DATE RANGE / TRADES / STATUS.
+
+**A periodic generated recap is already a first-class object at the leader.** Two more that were
+assumed unclaimed and are not:
+
+- **`PropFirm Sync → Breach insights`** — *"Understand why your accounts get breached and spot
+  patterns."* ⇒ *"Stop treating 'study your failures' as unclaimed language."*
+- **`Progress Tracker → Current rules`** — RULE | CONDITION | RULE STREAK | AVERAGE PERFORMANCE |
+  FOLLOW RATE. Stated intent measured against actual behaviour, in market, with the rules editor
+  grouping them **PREPARE / TRADE / REFLECT** — Run's before/during/after, shipped.
+
+**What is still genuinely unclaimed is narrower and better:** not a history of *documents* but a
+history of **claims** — the same named pattern, with its dollar cost then and its dollar cost now.
+TradeZella keeps the recaps. Nobody keeps the claim.
+
+**This strengthens the pattern model rather than weakening it.** A library of past prose is a thing
+the leader already ships. A tracked claim is not. If Run shipped option 2 ("reading wins"), History
+would be *the leader's feature, later* — and the differentiator would be gone in the way that
+matters.
+
+**And the same source sets the quality bar.** Their flagship AI artefact, on Luke's own 187 trades,
+rendered **`MAX DRAWDOWN / WATCH OUT / 1644.2%`** and a Key Takeaway true of every losing trader
+alive, opening with a textbook definition of profit factor. `competitor-failures.md` §4:
+
+> **"Every insight Run surfaces must be something the trader could not have read off the chart - his
+> own pattern, priced, over time. If it fails that test, it doesn't ship."**
+
+---
+
+---
+
+---
+
+## 9. Still open — the money questions
+
+The questions about what a claim IS, and how one is re-identified across days, moved to
+[#2](https://github.com/modryn-studio/run-rebuild/issues/2) on 2026-08-31. These are the ones about
+what it costs.
+
+| # | Question | Why it matters |
+|---|---|---|
+| **O1** | **Discovery cadence** — weekly, every N new sessions, or on demand? | The difference between a $4 and a $12 trader. |
+| **O7** | Does a higher tier exist for something OTHER than AI — more accounts, longer history, a faster discovery cadence? | Packaging rather than architecture. |
+| **O8** | Are the daily read and the pre-market brief **one artefact** (pattern + context, delivered pre-open) or two? | Two generated documents a day is double the bill. §5. |
+| **O10** | How is the ambient drawer bounded **without a visible meter**? | It is the only artefact one trader can drive without limit, and §3 rules out rationing it. |
+| **O11** | Is `/prop-eval` a Run surface at all, and is it the thing that is packaged separately? | It is the only artefact with an obvious willingness to pay attached. |
+
+**Answered, kept for the reasoning:**
+
+| # | Question | Answer |
+|---|---|---|
+| ~~**O2**~~ | ~~Is the read in the base price, or gated to a top tier?~~ | **Base price, no meter** (provisional, 2026-08-31). §3: every companion product includes it, every metered one is a tool, and a meter is what `psychology.md` §7 forbids. |
+| ~~**O5**~~ | ~~How do analogous products price a recurring AI artefact?~~ | §3. |
+| ~~**O6**~~ | ~~What other AI uses are on the table?~~ | §5. Four artefacts, four cost shapes. |
 
 ---
 
