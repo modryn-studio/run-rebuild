@@ -47,8 +47,9 @@ flowchart TD
     Today["/today (S8)"]
     Accounts["/accounts"]
     Trades["/trades"]
-    Read["/read (S7, blocked)"]
   end
+
+  Today -.-> Recap(["Your Daily Recap (S8)"])
 
   Accounts --> Detail["/accounts/details/[id]"]
   Detail --> AcctTape["/accounts/details/[id]/trades<br/>phone only"]
@@ -69,7 +70,7 @@ flowchart TD
   Shell -.-> Notifs(["Notifications (S9c)"])
 
   style Today stroke-dasharray: 5 5
-  style Read stroke-dasharray: 5 5
+  style Recap stroke-dasharray: 5 5
   style Settings stroke-dasharray: 5 5
   style WhatsNew stroke-dasharray: 5 5
   style Notifs stroke-dasharray: 5 5
@@ -81,9 +82,15 @@ flowchart TD
   style Menu stroke-dasharray: 2 3
 ```
 
-**`/today` and `/read` are live rows that 404 today, on purpose** — `S8` and `S7` are coming for
-them. `/settings` and `/whats-new` were *unplanned* rather than unbuilt until 2026-08-20; `S8b`
-claims them, and until it lands the sidebar's gear ships `disabled` rather than pointing at nothing.
+**`/today` is a live row that 404s today, on purpose** — `S8` is coming for it.
+
+**`Read` came out of the nav on 2026-08-31** (`spec.md` §4, amended). The daily read ships as a card
+on `Today` instead, the way Monarch's Weekly Recap is a dashboard widget rather than a room. The
+page is deferred, not cancelled. **The code still renders a fourth `Read` row pointing at a 404** -
+removing it is the first thing the recap slice does.
+
+`/settings` and `/whats-new` were *unplanned* rather than unbuilt until 2026-08-20; `S8b` claims
+them, and until it lands the sidebar's gear ships `disabled` rather than pointing at nothing.
 
 ---
 
@@ -108,8 +115,10 @@ flowchart TD
   style Exit stroke-dasharray: 2 3
 ```
 
-**The four roots are `/today`, `/accounts`, `/trades`, `/read`.** Back there minimises the browser,
-which is what a native app does and what a trader expects. Anywhere else, Back is an in-app step.
+**The roots are `/today`, `/accounts` and `/trades`** (three since 2026-08-31, when `Read` left the
+nav). Back there minimises the browser, which is what a native app does and what a trader expects.
+Anywhere else, Back is an in-app step — including the recap, which is an overlay on `Today` and
+answers Back by closing.
 
 **How it is implemented:** `useOverlayBack` (`src/lib/overlay-back.ts`). One history entry per
 overlay LEVEL, pushed by the tap that opened that level, ordered by a module-level token array —
@@ -383,7 +392,22 @@ research it came from and what deliberately is not copied: `build-plan.md` §S10
 
 ---
 
-## 6. Read — `S7`, and blocked on a decision rather than on engineering
+## 6. The daily recap — a card on `Today`, and `S7` behind it
+
+**Amended 2026-08-31: this was `/read`, a nav row.** It is now `Your Daily Recap`, a widget on
+`Today` that opens in place — Monarch's own arrangement for the surface this is ported from. What
+the read SAYS is unchanged; where it lives is not. `spec.md` §4 carries the reasoning.
+
+**What ships with `S8`:** the card and what it opens — one day's read, the trades it cites, the
+trust note, and an empty state that says what would let it find something.
+
+**What is still blocked on [#2](https://github.com/modryn-studio/run-rebuild/issues/2):** History,
+and everything that needs a tracked claim behind it. Decided 2026-08-31 that the READING wins for
+v1 — prose per day, no pattern object — but the tracking is deferred rather than dropped, and the
+one irreversible piece is capture: the engine's rejected candidates cannot be reconstructed later,
+so the nightly job stores them from day one whether or not anything ever reads them.
+
+### The page that was specced, kept for when it earns a room
 
 ```mermaid
 flowchart TD
@@ -488,7 +512,7 @@ goes public.
 | `/accounts/details/[id]/trades` | S6 | ships — phone only, redirects above `md` |
 | `/trades` | S5 · S5d | ships |
 | `/trades/[id]` | S5d | ships — route and overlay |
-| `/read` | **S7** | **blocked** — see §6 |
+| `/read` | — | **removed from the nav 2026-08-31.** The read is a card on `/today`; the page is deferred. See §6 |
 | `/products/[root]` | **S10** | **not built** — held behind S7, see §5c |
 | `/sessions/[date]` | **S10** | **not built** — held behind S7, see §5c |
 | `/settings` | **S8b** | **not built** |

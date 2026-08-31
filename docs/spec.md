@@ -83,7 +83,7 @@ instead of guessing (S3/S4/P12), one pattern daily with a dollar cost (S5).
 |---|---|---|
 | 1. Connect | the `Add account` button on the Accounts page | the same button on Run's **Accounts** page |
 | 2. The record | the Transactions page | Run's **Trades** page |
-| 3. The read | **the Weekly Recap** — see §4.2 | Run's **Read** page |
+| 3. The read | **the Weekly Recap** — a dashboard widget — see §4.2 | Run's **daily recap**, a card on **Today** |
 
 This matters: the critical path is *the first trip through the product*, not a separate
 onboarding wing. Every step happens on a page that exists for its own sake afterward.
@@ -118,7 +118,7 @@ moat protects the prop segment; personal accounts are added reach, not moated.**
 
 ## 4. Information architecture
 
-### The nav — four rows, one level
+### The nav — three rows, one level
 
 Derived by applying P1 + P2 to a trader's questions, ordered by time horizon:
 
@@ -126,13 +126,38 @@ Derived by applying P1 + P2 to a trader's questions, ordered by time horizon:
 Today      → where do I stand right now
 Accounts   → what I have, across every firm
 Trades     → what happened
-Read       → what it means about me
 ```
 
 Below the divider, not nav rows: **Settings · Luke**.
 
-**Why four and not more.** Applying P3 up front rather than at the first cleanup: every row
-is a promise v1 can keep. `Sessions` is deliberately *not* a fifth row — see below.
+> ### AMENDED 2026-08-31 (Luke) — `Read` comes out of the nav, and the read becomes a card on Today
+>
+> **It was four rows, and the fourth was `Read → what it means about me`.** The read itself is not
+> cut and nothing about its content changes; what changes is where it lives, and the reason is that
+> the reference does it the other way and this build has been porting the reference closely.
+>
+> **Monarch has no `Recap` row.** Its Weekly Recap is a dashboard widget that opens in place. Walked
+> end to end on 2026-08-31: the widget carries a period and one line of promise, and opens four steps
+> at `/dashboard/weekly-recap`. `/accounts` and `/trades` were both built by following the reference
+> closely and both came out right; this is the same move on the third surface.
+>
+> **So the read ships as `Your Daily Recap`, a card on `Today`**, and `Today` becomes the only front
+> door. §4.2 keeps every word about what the read SAYS and now describes a card rather than a page.
+>
+> **The page is DEFERRED, not cancelled** — the distinction matters, because §4.2's own argument for
+> a destination still stands: *"a modal is right for something you glance at once and dismiss, and
+> wrong for the thing that IS the product."* If the read turns out to be the product, it earns a
+> room, and it earns it on evidence rather than on anticipation. Until then a card is the honest
+> size of a thing that has never been in front of a trader. **A row we add on evidence** is the same
+> rule `Sessions` is held to, one paragraph down.
+>
+> **Consequence, and it is the one to watch:** `Today` now carries the product's whole claim rather
+> than summarising it. A front door whose most important tile is the least proven one is a real
+> risk, and the mitigation is `S8`'s own rule - every widget links somewhere, and this one opens the
+> read in place rather than promising a page that is not there.
+
+**Why three and not more.** Applying P3 up front rather than at the first cleanup: every row
+is a promise v1 can keep. `Sessions` is deliberately *not* a fourth row — see below.
 `Live` is the product's real-time capability and is explicitly out of v1 (§6), so it does
 not get a promise it can't keep.
 
@@ -152,13 +177,15 @@ row we add on evidence, not on anticipation.
 > filtered set, where they describe rather than judge. `run-trading@v2` reached the same shape
 > independently: it groups by day as `{ day, netCents, trades }` and prints only the net.
 
-**Depth lives in page headers (P1).** `Trades` carries `All · By session`. `Read` carries
-`Patterns · History`. Nothing new appears in the sidebar.
+**Depth lives in page headers (P1).** `Trades` carries `All · By session`. Nothing new appears in
+the sidebar. *(`Read`'s own `Patterns · History` header went with the row - amended 2026-08-31. The
+recap card has no tabs; History was always the second one, and it is the half `S7`'s open decision
+governs.)*
 
 ### 4.1 What sits below the divider, and why
 
 Monarch's sidebar is eleven rows, a divider, then `AI Assistant · Help & Support ·
-Get 45% discount · Luke`. Run's is four rows, a divider, then **Settings · Luke**.
+Get 45% discount · Luke`. Run's is three rows, a divider, then **Settings · Luke**.
 
 > **`Ask Run` is NOT IN V1 (Luke, 2026-08-11).** The slot below the divider is where it would
 > go *if* it ships — the point of the divider rule is that adding it later never costs a nav
@@ -188,7 +215,12 @@ you visit to do your trading. This is why `Read`'s analogue is not Monarch's cat
 box. The app opens on a question instead of your answer, and nothing on that screen is yours.
 An AI that is a destination is a chatbot you visit; an AI that is everywhere is a presence.
 
-### 4.2 The Read page, in depth
+### 4.2 The daily recap, in depth
+
+> **AMENDED 2026-08-31 (Luke): this section described a PAGE and now describes a CARD on `Today`.**
+> Everything below about what the read says, where it comes from and what it must never do is
+> unchanged and still governs. What changed is the container - see the nav amendment above. Read
+> `Tab 1` as *the card and what it opens*, and `Tab 2` as *deferred with the page*.
 
 **Where this comes from.** Monarch's analogue is **not** categories (that's taxonomy → Run's
 setups, symbols and tags, in Settings) and **not** notes. It is the **Weekly Recap**:
@@ -677,8 +709,12 @@ accessibility markup of Monarch's Accounts and Transactions pages (chrome-devtoo
   database accepted (amended 2026-08-15 with §S1's criteria; it read *"nothing commits until the
   count/range/rejects are confirmed"*, which described a confirm gate that `S4e` does not build)
 - `Trades` ✅ — session headers carrying the session net, filtered-set digest, read-only rows
-- `Read` ✅ — daily, a page not a modal, one pattern, plus the History tab
-- `Today` ✅ — Monarch's widget contract applied unchanged
+- ~~`Read` ✅ — daily, a page not a modal, one pattern, plus the History tab~~ **AMENDED
+  2026-08-31.** Daily, and one subject rather than a fresh revelation each morning, both stand. **A
+  card on `Today` rather than a page**, and **History is deferred with the page** - it is the half
+  `S7`'s pattern-versus-reading decision governs, and it has no source until that lands
+- `Today` ✅ — Monarch's widget contract applied unchanged, and **since 2026-08-31 it carries the
+  recap**, which makes it the product's only front door rather than a summary of three others
 
 ---
 

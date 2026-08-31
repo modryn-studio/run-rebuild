@@ -1039,10 +1039,35 @@ downstream of it should be built on the assumption that either shape won.
 >   present-tense bridge — *"…9 lost. You're at three losses now"* — which is the most likely
 >   accidental crossing in the product ([§3](psychology.md#3-the-fence-is-retrospective-not-descriptive)).
 
-### S8 — Today
+### S8 — Today — ⬅ **next, and it now carries the read** *(amended 2026-08-31)*
 
 Monarch's widget contract applied unchanged. Last because every widget links to a page that
 must already exist.
+
+**IT GAINED THE PRODUCT'S WHOLE CLAIM ON 2026-08-31.** `spec.md` §4 was amended to take `Read` out
+of the nav: Monarch has no `Recap` row either, its Weekly Recap is a dashboard widget, and this
+build has been porting the reference closely on `/accounts` and `/trades` with good results. So the
+read ships here as **`Your Daily Recap`**, a card that opens in place, and `Today` becomes the only
+front door rather than a summary of three others.
+
+**Four widgets, and three of them are already answerable from the read layer:**
+
+| Widget | Reads | State |
+|---|---|---|
+| `Your Daily Recap` | the nightly job's stored read | **new — the slice's real work** |
+| `Net P&L` | `getDailySeries()` | ready |
+| `Accounts` | `getRoster()` + `getFreshness()` | ready |
+| `Last session` | `getTape()` + `getDigest()` on the newest session date | ready |
+
+**The first thing this slice does is delete a nav row.** `app-shell.tsx` still renders
+`Read → /read`, which the spec no longer describes and which 404s.
+
+**What it does NOT build:** History, and anything needing a pattern object. `S7` still owns that
+question ([#2](https://github.com/modryn-studio/run-rebuild/issues/2)), and the decision recorded
+2026-08-31 is that the READING wins for v1. The one irreversible piece ships here regardless: the
+nightly job stores the engine's REJECTED candidates from day one. They cannot be reconstructed
+later, and they are the corpus a tracked claim would eventually be built on - which `spin.md`
+argues is the moat, rather than the model that reads it.
 
 > 📖 **The re-entry rule lands here, and it is now a `CLAUDE.md` doctrine line: no state may
 > represent absence.** Today is the surface most likely to break it, because a landing page is where
