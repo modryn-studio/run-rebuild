@@ -32,7 +32,15 @@
  * lands while the result is thrown away, which is the one outcome worth a locked door.
  */
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { cardSurface } from '@/components/ui/card';
 import { cn } from '@/lib/cn';
 
@@ -60,6 +68,10 @@ export const MODAL_TITLE_ID = 'modal-title';
    `aria-labelledby` resolves to the FIRST in document order, which is the editor's. A screen reader
    announced the alertdialog as "Edit account" rather than "Delete this account?". */
 export const CONFIRM_TITLE_ID = 'confirm-title';
+
+/** Declared here as it is in `header-slot.tsx`, `use-popover.ts` and `surface.tsx` - a fourth local
+ *  copy rather than a shared util invented mid-fix. `useLayoutEffect` warns on the server. */
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 export const MODAL_EXIT_MS = 160;
 
@@ -221,7 +233,33 @@ export function ModalShell({
   const pressedOutside = useRef(false);
   const outsideCard = (target: EventTarget | null) => !cardRef.current?.contains(target as Node);
 
-  return (
+  /* ─── A MODAL IS A CHILD OF `<body>`, NEVER OF THE THING IT COVERS (#35, fixed 2026-08-31) ─────
+   *
+   * `label-account-form.tsx` returns `<>{screen}{confirmations}</>` and `label-account-modal.tsx`
+   * wraps that whole thing in this shell's card - so `Close this account?` was rendering INSIDE the
+   * editor it sits on top of. Its own comment claimed "`z-[70]` OVER THE EDIT MODAL'S `z-[60]`",
+   * and that was never what was happening: nested inside that stacking context, it won by DOM order
+   * instead.
+   *
+   * IT WORKED, AND THAT IS THE DANGEROUS PART. `position: fixed` escapes an `overflow: hidden`
+   * ancestor, so the confirmation drew correctly - right up until the day something puts a
+   * `transform`, `filter` or `contain` on `cardSurface`. Any one of those makes the card a
+   * containing block for fixed descendants, and the confirmation would be clipped to a card it is
+   * supposed to cover. `recent-trades.tsx` and `trades-controls.tsx` were both moved to avoid
+   * exactly this, which is how it got filed.
+   *
+   * A PORTAL SETTLES IT rather than a rule nobody can see: every modal is a direct child of `body`,
+   * so `z-index` means what the comments have always said it means, and nesting one shell inside
+   * another is no longer a thing a call site can accidentally do.
+   *
+   * THE HOST IS STATE, not `document.body` read during render - this component server-renders, and
+   * `createPortal` needs a real node. Resolved in a layout effect, so the portal exists before the
+   * browser paints and the entrance is not a frame late. */
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useIsomorphicLayoutEffect(() => setHost(document.body), []);
+  if (!host) return null;
+
+  return createPortal(
     <div
       /* Exit fades the whole overlay; entry leaves the card alone (only the scrim animates in).
          `pointer-events-none` while closing so a second click during the fade cannot land.
@@ -281,6 +319,7 @@ export function ModalShell({
       >
         {children}
       </div>
-    </div>
+    </div>,
+    host
   );
 }

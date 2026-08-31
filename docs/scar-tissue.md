@@ -346,6 +346,42 @@ Verified over 16 open/close cycles mixing in-app controls and the device button:
 returns to no-overlay every time, the URL returns to `/trades`, and four consecutive drill-in round
 trips produce byte-identical state.
 
+### A modal nested inside the card it covers, and an exit animation nobody switched on
+
+**#35, filed by the 2026-08-28 postcheck, fixed 2026-08-31.** Two facts about one shell, and both
+had shipped working.
+
+**THE NESTING.** `label-account-form.tsx` returns `<>{screen}{confirmations}</>`, and
+`label-account-modal.tsx` wraps that whole thing in `ModalShell`'s card - so `Close this account?`
+rendered INSIDE the editor it sits on top of. Its own comment claimed *"`z-[70]` OVER THE EDIT
+MODAL'S `z-[60]`"*, which was never what was happening: nested inside that stacking context, it won
+by DOM order instead.
+
+**It worked, and that is the dangerous part.** `position: fixed` escapes an `overflow: hidden`
+ancestor, so the confirmation drew correctly - right up until the day something puts a `transform`,
+`filter` or `contain` on `cardSurface`. Any one of those makes the card a containing block for fixed
+descendants and clips the confirmation to the card it is supposed to cover. Two other files had
+already been moved to avoid exactly this, which is how it got noticed at all.
+
+**A portal settles it rather than a rule nobody can see.** `ModalShell` renders into `document.body`,
+so every modal is a direct child of it, `z-index` means what the comments always said, and nesting
+one shell inside another stops being something a call site can do by accident. Verified on the
+running app: `confirmDirectChildOfBody: true`, `nestedInEditor: false`.
+
+**THE EXIT NOBODY SWITCHED ON.** `closing` was declared on `AddAccountModal`, threaded through to
+`ModalShell`, and left `undefined` by every caller - `account-modals.tsx` renders
+`{adding && <AddAccountModal onClose={...} />}` and `import-trades-modal.tsx` forwards without it.
+So the mechanism was built, wired, documented at length, and dead: `Add account` vanished in one
+frame while the editor beside it faded.
+
+The fix was to stop expecting a call site to remember. `AddAccountModal` owns `useModalClose` itself,
+the way `LabelAccountModal` already did. Sampled frame by frame afterwards: opacity 1 at 8ms, 0.79 at
+39, 0.48 at 89, 0.17 at 139, unmounted by 190.
+
+**The rule: a prop that every call site must remember to pass is a prop that will be forgotten.** If
+a behaviour belongs to a component, the component owns the state for it - a flag threaded in from
+outside only documents an intention.
+
 ### Three overlays, three copies of the same shell, and only one of them animated
 
 **2026-08-31, Luke: "i need consistency! ... the scrim animation is not the same as the /account

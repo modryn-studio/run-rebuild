@@ -37,7 +37,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ModalShell, ModalBody, ModalFooter } from '@/components/ui/modal-shell';
+import { ModalShell, ModalBody, ModalFooter, useModalClose } from '@/components/ui/modal-shell';
 import { AccountSheet, useSheet } from './account-sheet';
 import { Button } from '@/components/ui/button';
 import { ModalHeader, type Source } from './shared';
@@ -67,7 +67,6 @@ type View = 'doors' | 'upload' | 'manual';
 
 export function AddAccountModal({
   onClose,
-  closing,
   connected,
   dryRun = false,
   manual = true,
@@ -75,7 +74,6 @@ export function AddAccountModal({
   title = 'Add account',
 }: {
   onClose: () => void;
-  closing?: boolean;
   /** How many broker logins are already connected. Counts LOGINS rather than accounts, because a
    *  firm issues one Tradovate login and a copy-trader runs many accounts under it. */
   connected: number;
@@ -105,11 +103,20 @@ export function AddAccountModal({
      request, so the corpus write still lands while the result is thrown away. */
   const [busy, setBusy] = useState(false);
 
-  /* THE SHEET HAS TO TRAVEL BEFORE IT UNMOUNTS, and the owner above is what unmounts it — so the
-     exit is held here. The modal path already has the same arrangement one level up, in
-     `useModalClose`; `closing` is that hook's flag arriving as a prop. */
+  /* TWO CONTAINERS, TWO CLOCKS, and both held HERE (#35, fixed 2026-08-31). A modal fades out in
+     160ms and a sheet travels the height of the screen in 200, and each hook owns the delay before
+     the owner above unmounts anything.
+     THE MODAL CLOCK USED TO ARRIVE AS A PROP and nobody ever passed it. `closing` was declared,
+     threaded to `ModalShell` and left `undefined` by every call site - `account-modals.tsx` renders
+     `{adding && <AddAccountModal onClose={...} />}` and `import-trades-modal.tsx` forwards without
+     it - so `Add account` and `Import trades` vanished in one frame while the editor beside them
+     faded. The mechanism was built, wired and never switched on.
+     Owning it here is what `label-account-modal.tsx` already does, and it makes the exit a property
+     of the modal rather than something every call site has to remember. Both hooks are called
+     unconditionally because hooks must be; only one is ever driven. */
   const sheet = useSheet(onClose);
-  const leave = phone ? sheet.requestClose : onClose;
+  const modal = useModalClose(onClose);
+  const leave = phone ? sheet.requestClose : modal.requestClose;
 
   const close = useCallback(() => {
     if (!busy) leave();
@@ -235,7 +242,7 @@ export function AddAccountModal({
   const dismiss = () => (view === 'doors' ? onClose() : setView('doors'));
 
   return (
-    <ModalShell onDismiss={dismiss} busy={busy} closing={closing}>
+    <ModalShell onDismiss={dismiss} busy={busy} closing={modal.closing}>
       {view === 'upload'
         ? uploadScreen
         : view === 'manual'
