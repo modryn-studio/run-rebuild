@@ -37,7 +37,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ModalShell, ModalBody, ModalFooter } from './modal-shell';
+import { ModalShell, ModalBody, ModalFooter } from '@/components/ui/modal-shell';
 import { AccountSheet, useSheet } from './account-sheet';
 import { Button } from '@/components/ui/button';
 import { ModalHeader, type Source } from './shared';

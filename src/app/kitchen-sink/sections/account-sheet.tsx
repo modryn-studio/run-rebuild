@@ -20,7 +20,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { AccountSheet } from '@/components/views/accounts/account-sheet';
 import { ModalHeader } from '@/components/views/accounts/shared';
-import { ModalBody, ModalFooter } from '@/components/views/accounts/modal-shell';
+import { ModalBody, ModalFooter } from '@/components/ui/modal-shell';
 import { Note, Row, Section } from '../_components/section';
 
 /** A stand-in screen: the chrome a real one renders, with a line of body under it. */

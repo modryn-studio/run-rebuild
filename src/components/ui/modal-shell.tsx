@@ -1,6 +1,13 @@
 'use client';
 
-/* The floating-modal chrome for /accounts: scrim, card, fade, Escape, backdrop click.
+/* THE FLOATING-MODAL CHROME: scrim, card, fade, Escape, backdrop click, body-scroll lock.
+ *
+ * MOVED OUT OF `views/accounts/` ON 2026-08-31, and the trigger was the codebase's own rule rather
+ * than tidiness: "Shared, not per-page. Two copies of one control is how two headers drift." It had
+ * three consumers outside that folder - the rack, the demo scenes, and `/today`'s recap through
+ * `ConfirmShell` - and one of those, `ConfirmShell`, had already drifted into a SECOND COPY of this
+ * shell that was missing the scrim fade, the exit fade, Escape and the scroll lock. See
+ * `scar-tissue.md`, "Three overlays, three copies of the same shell".
  * Ported from `run-trading@v2` (2026-08-15, S4e). The interesting part is not the markup but the
  * rules baked into it, every one of which was argued once and should not be re-argued per modal.
  *
@@ -28,10 +35,32 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { cardSurface } from '@/components/ui/card';
 import { cn } from '@/lib/cn';
-import { MODAL_TITLE_ID } from './shared';
 
 /** Out, and in. Must agree with the `duration-[160ms]` / `duration-300` classes below; exported so
  *  every other overlay fades on the same clock rather than each picking its own number. */
+/* THE TWO LABELLING IDS LIVE WITH THE SHELL THAT READS THEM (moved here 2026-08-31 with the file).
+ *
+ * They were declared in `views/accounts/shared.tsx`, which made this file import from that one - and
+ * that single edge is why `shared.tsx` cannot import `ModalActions` back and inlines its four
+ * classes by hand instead, with a comment saying so. Owning them here points the dependency the way
+ * it always should have gone: the thing that writes `aria-labelledby` owns the id, and everything
+ * that writes the matching `id=` reads it from here.
+ *
+ * THE VALUES LOST THEIR `accounts-` PREFIX in the same move. They were named when /accounts was the
+ * only surface with a modal; `/today`'s recap uses the same shell now, and a DOM id that names the
+ * wrong feature is a small lie that the next reader has to disprove. Nothing selects on either
+ * string except `aria-labelledby`. */
+
+/** `ModalShell` labels its dialog by this id, so exactly one element per screen carries it - the
+ *  header's title, or the completion screen's headline, which IS that screen's title. */
+export const MODAL_TITLE_ID = 'modal-title';
+
+/* A CONFIRMATION NEEDS ITS OWN (2026-08-28, postcheck). `ConfirmShell` renders OVER a form that is
+   still mounted, so while Delete is up there were two live elements carrying `MODAL_TITLE_ID` - and
+   `aria-labelledby` resolves to the FIRST in document order, which is the editor's. A screen reader
+   announced the alertdialog as "Edit account" rather than "Delete this account?". */
+export const CONFIRM_TITLE_ID = 'confirm-title';
+
 export const MODAL_EXIT_MS = 160;
 
 /* Hold a modal mounted long enough for its exit fade, then unmount it.

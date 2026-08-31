@@ -28,7 +28,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfirmHeader, EndingChoice } from './shared';
-import { ModalActions } from './modal-shell';
+import { ModalActions } from '@/components/ui/modal-shell';
 import { ConfirmShell, ConfirmFooter } from './confirm-shell';
 import { ACCOUNT_ENDINGS } from '@/lib/prop-firms';
 import type { AccountStatus } from '@/lib/db/schema';

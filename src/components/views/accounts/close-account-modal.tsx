@@ -43,7 +43,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ConfirmHeader, EndingChoice } from './shared';
-import { ModalActions } from './modal-shell';
+import { ModalActions } from '@/components/ui/modal-shell';
 import { ConfirmShell, ConfirmFooter } from './confirm-shell';
 import { ACCOUNT_ENDINGS, ACCOUNT_TYPE_LABELS } from '@/lib/prop-firms';
 import type { AccountStatus, AccountType } from '@/lib/db/schema';

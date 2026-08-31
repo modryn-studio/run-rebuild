@@ -21,7 +21,7 @@
  */
 
 import { useState } from 'react';
-import { ModalShell, useModalClose } from './modal-shell';
+import { ModalShell, useModalClose } from '@/components/ui/modal-shell';
 import { useSheet } from './account-sheet';
 import { LabelAccountForm } from './label-account-form';
 import { usePhone } from '@/lib/use-phone';

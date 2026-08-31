@@ -43,7 +43,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { slotSurface } from '@/components/ui/card';
 import { ModalHeader } from './shared';
-import { ModalBody, ModalFooter, ModalActions } from './modal-shell';
+import { ModalBody, ModalFooter, ModalActions } from '@/components/ui/modal-shell';
 import { AccountSheet } from './account-sheet';
 import { FirmPicker } from './firm-picker';
 import { CloseAccountModal } from './close-account-modal';

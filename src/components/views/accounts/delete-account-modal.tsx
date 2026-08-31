@@ -36,7 +36,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfirmHeader } from './shared';
 import { ConfirmShell, ConfirmFooter } from './confirm-shell';
-import { ModalActions } from './modal-shell';
+import { ModalActions } from '@/components/ui/modal-shell';
 
 export function DeleteAccountModal({
   accountId,

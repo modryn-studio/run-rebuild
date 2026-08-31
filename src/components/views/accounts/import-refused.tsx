@@ -32,7 +32,7 @@
  */
 
 import { Button } from '@/components/ui/button';
-import { ModalBody, ModalFooter, ModalActions } from './modal-shell';
+import { ModalBody, ModalFooter, ModalActions } from '@/components/ui/modal-shell';
 import { ModalHeader } from './shared';
 import { FindingList } from './finding-notice';
 import type { PreflightFinding } from '@/lib/intake/preflight';

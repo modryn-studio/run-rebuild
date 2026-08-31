@@ -50,7 +50,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { ModalHeader } from './shared';
-import { ModalBody, ModalFooter } from './modal-shell';
+import { ModalBody, ModalFooter } from '@/components/ui/modal-shell';
 import { FirmPicker } from './firm-picker';
 import { TypeRows, SizeField } from './account-fields';
 import { AccountLogo } from './account-logo';

@@ -25,7 +25,7 @@ import { IconButton } from '@/components/ui/icon-button';
 import { Icon } from '@/components/ui/icon';
 import { detectTradovateFileType, type TradovateFileType } from '@/lib/csv/shared';
 import { ModalHeader, RunMark, ImportComplete, SourceMark, type Source } from './shared';
-import { ModalBody, ModalFooter } from './modal-shell';
+import { ModalBody, ModalFooter } from '@/components/ui/modal-shell';
 import { ProgressPanel } from './progress-panel';
 import { ImportRefused } from './import-refused';
 import { useImportRun, type ImportOutcome } from './use-import-run';

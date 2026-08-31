@@ -29,7 +29,7 @@
 import { useState } from 'react';
 import { AddAccountModal } from '@/components/views/accounts/add-account-modal';
 import { FileUploadStep, type Picked } from '@/components/views/accounts/file-upload-step';
-import { ModalShell } from '@/components/views/accounts/modal-shell';
+import { ModalShell } from '@/components/ui/modal-shell';
 import { AccountSheet } from '@/components/views/accounts/account-sheet';
 import { ForcePhone } from '@/lib/use-phone';
 import { ImportComplete, type Source } from '@/components/views/accounts/shared';

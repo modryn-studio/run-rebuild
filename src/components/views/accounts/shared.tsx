@@ -11,17 +11,17 @@ import { IconButton } from '@/components/ui/icon-button';
 import { Icon } from '@/components/ui/icon';
 import { SheetHeader, SHEET_CONTROL_ICON } from '@/components/ui/sheet-header';
 import { SurfaceHeader, useSurface } from './surface';
+/* RE-EXPORTED, not re-declared. Every file in this folder already imports the ids from here, and the
+   shell that owns them now lives in `ui/`. One line keeps those call sites honest without giving the
+   ids two homes. */
+import {
+  ModalActions,
+  MODAL_TITLE_ID,
+  CONFIRM_TITLE_ID,
+} from '@/components/ui/modal-shell';
+
+export { MODAL_TITLE_ID, CONFIRM_TITLE_ID };
 import { cn } from '@/lib/cn';
-
-/** `ModalShell` labels its dialog by this id, so exactly one element per screen carries it — the
- *  header's title, or the completion screen's headline, which IS that screen's title. */
-export const MODAL_TITLE_ID = 'accounts-modal-title';
-
-/* A CONFIRMATION NEEDS ITS OWN (2026-08-28, postcheck). `ConfirmShell` renders OVER a form that is
-   still mounted, so while Delete is up there were two live elements carrying `MODAL_TITLE_ID` -
-   and `aria-labelledby` resolves to the FIRST in document order, which is the editor's. A screen
-   reader announced the alertdialog as "Edit account" rather than "Delete this account?". */
-export const CONFIRM_TITLE_ID = 'accounts-confirm-title';
 
 /* CENTRED, ONE ROW — back left, title middle, close right.
  *
@@ -190,13 +190,15 @@ export function ImportComplete({ onDone, imported }: { onDone: () => void; impor
         {nothingNew && <p className="text-body text-muted mt-2">Nothing new in these files.</p>}
       </div>
       <div className="mt-6 px-6 py-4">
-        {/* `ModalActions`' classes inlined rather than imported: `modal-shell.tsx` imports
-            `MODAL_TITLE_ID` from this file, so importing back the other way is a cycle. */}
-        <div className="flex justify-end gap-2 max-sm:gap-3 [&>*]:max-sm:min-h-11 [&>*]:max-sm:flex-1">
+        {/* `ModalActions` PROPERLY, not its four classes copied (2026-08-31). This read them by
+            hand because `modal-shell.tsx` imported `MODAL_TITLE_ID` from this file and importing
+            back the other way was a cycle. The shell owns the ids now, so the edge points one way
+            and the real component can be used. */}
+        <ModalActions>
           <Button size="sm" onClick={onDone}>
             Done
           </Button>
-        </div>
+        </ModalActions>
       </div>
     </>
   );

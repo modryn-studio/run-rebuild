@@ -34,7 +34,7 @@
 
 import { useCallback, useState, type ReactNode } from 'react';
 import { AccountSheet, useSheet } from './account-sheet';
-import { ModalShell, useModalClose } from './modal-shell';
+import { ModalShell, useModalClose } from '@/components/ui/modal-shell';
 import { CONFIRM_TITLE_ID } from './shared';
 import { usePhone } from '@/lib/use-phone';
 
