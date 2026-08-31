@@ -53,8 +53,12 @@ export function Widget({
   title,
   /** Sits UNDER the title, muted. What the widget covers: a period, a count, a date. */
   period,
-  /** A 16px mark before the title. The reference uses it to separate a generated card from a
-   *  figure card, which is a real distinction and worth keeping. */
+  /* A 16px mark before the title, AND the title takes the accent with it. The two travel together
+     because they are one signal rather than two decorations: a mark and a coloured title together
+     mean A MACHINE WROTE THIS, which is the distinction the reference draws and the only one on a
+     dashboard of figure cards that is worth a colour.
+     ONE PROP, NOT TWO, so a widget cannot end up with a mark and an ink title or the reverse. The
+     day one genuinely needs a mark without the accent is the day to split them. */
   mark,
   href,
   /** The whole body becomes the target, with a chevron at its end. See `Body` below. */
@@ -77,7 +81,19 @@ export function Widget({
     <>
       <span className="flex items-center gap-1.5">
         {mark && <Icon name={mark} size={16} className="text-accent shrink-0" />}
-        <span className="text-title text-text font-medium">{title}</span>
+        {/* THE TITLE INHERITS THE MARK'S COLOUR (2026-08-31, Luke: *"the title of that card should
+            inherit the color of the icon... That's what monarch does. And just for this card, not
+            the others"*), and the measurement says he read it exactly right. The reference fills
+            that title with `linear-gradient(178deg, rgb(229,72,77) 20%, rgb(255,105,45) 80%)`
+            clipped to the glyphs - and `rgb(255,105,45)` is its icon's colour, the gradient's own
+            end stop. So "inherit the icon's colour" IS their effect with the decoration taken off,
+            which is the version this design system allows: `design-system.md` bans gradient text,
+            and a flat token says the same thing without it. */}
+        <span
+          className={cn('text-title font-medium', mark ? 'text-accent' : 'text-text')}
+        >
+          {title}
+        </span>
       </span>
       {period && <span className="text-body-lg text-muted mt-0.5 font-medium">{period}</span>}
     </>

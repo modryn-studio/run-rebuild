@@ -136,6 +136,15 @@ export function DailyRecapSection() {
           block cannot drift apart. The measured reference is 78px; this is 83, because 14 is not a
           step on this scale and 16 is.
         </Note>
+        <Note>
+          <strong>Only the recap&rsquo;s title takes the accent</strong>, and the mark is what
+          carries it: the two travel as one prop because they are one signal, not two decorations.
+          A mark and a coloured title together mean <em>a machine wrote this</em>, which is the only
+          distinction on a dashboard of figure cards worth a colour. The reference does the same
+          thing with a red-to-orange gradient clipped to the glyphs whose end stop IS its icon&rsquo;s
+          colour, so a flat token says it without the gradient this system bans. Measured 6.37:1 on
+          light and 6.55:1 on dark.
+        </Note>
       </Row>
     </Section>
   );

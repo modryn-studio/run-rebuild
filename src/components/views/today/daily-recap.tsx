@@ -165,7 +165,20 @@ function ReadOverlay({ recap, onClose }: { recap: Recap; onClose: () => void }) 
               and it is a claim rather than a label, so it needs the room. */}
           <div className="flex items-start justify-between gap-3 px-6 pt-5">
             <div className="min-w-0">
-              <p className="eyebrow text-muted">{recapPeriod(recap.sessionDate)}</p>
+              {/* THE SAME TREATMENT AS THE CARD, and the reference applies it the same way: the
+                  ACCENT LINE IS THE LABEL and the ink is the content. Its modal runs a coloured
+                  `✦ Overview │ August 23rd-29th` eyebrow over an ink headline; ours runs a coloured
+                  mark and session date over the claim. Measured on the live page: eyebrow
+                  `rgba(0,0,0,0)` with the gradient clipped to it, headline `rgb(34,32,29)`.
+                  IT STAYS `.eyebrow` AT 11px rather than borrowing their 18. Theirs is the same
+                  size as their card title because their headline is 30px and has the room; ours is
+                  a 20px claim, and a second 18px line above it would be arguing with it.
+                  NO MARK HERE, unlike the card. On the dashboard the mark says "this one is not a
+                  figure card" - it is doing work against the widgets beside it. Inside the modal
+                  there is nothing to be distinguished from, so the colour carries the signal alone
+                  and the alternative was inventing a 13px icon step to sit beside 11px caps. #29
+                  already has 13 and 22 on its list of sizes that are off every scale. */}
+              <p className="eyebrow text-accent">{recapPeriod(recap.sessionDate)}</p>
               <h2 id={CONFIRM_TITLE_ID} className="text-h3 text-text mt-1 font-medium">
                 {recap.lede}
               </h2>
