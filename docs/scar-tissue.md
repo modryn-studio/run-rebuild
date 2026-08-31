@@ -346,6 +346,35 @@ Verified over 16 open/close cycles mixing in-app controls and the device button:
 returns to no-overlay every time, the URL returns to `/trades`, and four consecutive drill-in round
 trips produce byte-identical state.
 
+### An overlay that mounts with `open` already true pushes twice and backs once
+
+**2026-08-31, Luke: "when i close the daily recap modal, it routes me to /accounts."** Reproduced,
+then instrumented rather than reasoned about - `history.pushState` and `history.back` monkey-patched
+on the running page, counting calls.
+
+**Opening the overlay, before a single close: `pushes: 2, backs: 1`.**
+
+React StrictMode double-invokes effects on MOUNT in development, and Next 16 turns it on by default.
+The sequence is setup, cleanup, setup - so an overlay whose flag is ALREADY `true` at mount runs
+`useOverlayBack`'s body three times over: push, `history.back()`, push. And `history.back()` is
+async, so the spurious pop lands after the second push and leaves the stack one entry out of step.
+The close's own `back()` then pops one too far: off `/today`, onto whatever the trader was on before
+it.
+
+**Every other overlay in the product was already safe, by accident of shape rather than by rule.**
+The sheets and the summary rail all pass a flag that starts `false` - `open`, `!collapsed && phone`,
+`open && depth >= 1` - so the double-invoke happens while the effect is early-returning and pushes
+nothing. `useOverlayBack(true, ...)` was the only literal in the codebase, and it was written that
+way because the overlay is conditionally MOUNTED, which felt like the same thing. It is not.
+
+**The fix is one frame.** The overlay arms itself in a `requestAnimationFrame` and passes that flag
+instead, so StrictMode's cancelled frame never fires and the real one arms once. Measured after:
+`pushes: 1, backs: 0` on open, and the close lands on `/today`.
+
+**The rule: an overlay is armed by a state change, never by its own mount.** A production build does
+not double-invoke, so this class of bug is invisible until someone runs the app the way it is
+actually developed - which is every day.
+
 ### Chrome throws away a history entry pushed inside a `popstate` handler
 
 **2026-08-29, Luke, on a real phone:** *"while deep in the filters screen on mobile, i click the back

@@ -40,7 +40,7 @@
  * The card is only truly empty on day one, and that state has its own copy and its own button.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { buttonClasses } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -138,7 +138,33 @@ function CardBody({ recap }: { recap: Recap }) {
  */
 function ReadOverlay({ recap, onClose }: { recap: Recap; onClose: () => void }) {
   const phone = usePhone();
-  useOverlayBack(true, () => {
+
+  /* ARMED ONE FRAME AFTER MOUNT, NEVER `useOverlayBack(true)` — and this is a real bug, measured
+   * rather than reasoned (2026-08-31, Luke: *"when i close the daily recap modal, it routes me to
+   * /accounts"*).
+   *
+   * React StrictMode double-invokes effects on MOUNT in development, and Next 16 turns it on by
+   * default. An overlay that mounts with its flag already `true` therefore runs the hook's effect
+   * body three times over: **push, cleanup, push**. Instrumented on the running page, opening the
+   * overlay alone produced `pushes: 2, backs: 1` before a single close. `history.back()` is async,
+   * so that spurious back landed after the second push and left the stack one entry out of step -
+   * and the close's own back() then popped one too far, off `/today` and onto whatever came before
+   * it.
+   *
+   * EVERY OTHER OVERLAY IN THIS PRODUCT WAS ALREADY SAFE, by accident of shape rather than by rule:
+   * the sheets and the rail all pass a flag that starts `false`, so the double-invoke happens while
+   * the effect is early-returning. This was the only call site passing a literal.
+   *
+   * A frame is enough because StrictMode's second setup follows the first CLEANUP, not a paint - so
+   * the cancelled frame never fires, and the real one arms once. The user gesture that opened this
+   * is still the activation Chrome's history intervention looks for. */
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setArmed(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  useOverlayBack(armed, () => {
     onClose();
     return false;
   });

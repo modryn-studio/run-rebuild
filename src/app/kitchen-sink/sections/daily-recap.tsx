@@ -31,8 +31,8 @@ export function DailyRecapSection() {
   return (
     <Section
       id="daily-recap"
-      title="Dashboard widgets"
-      intro="Monarch's widget contract, ported: the title links to the page that owns the concept, the period sits beside it, and the body is a chart, a list, or an empty state with a specific CTA. No widget paginates, on either product."
+      title="Today widgets"
+      intro="The standard every card on /today follows, ported from the reference and measured off it. Two halves with a rule between them: the header is title over period, the body is the content with a chevron. Both halves are targets and both do the same thing; only the body takes a hover ground, because the body is the half carrying the chevron. No widget paginates."
     >
       <Row label="Your Daily Recap" note="a read exists, and the card carries its own first line">
         <div className="max-w-md">
@@ -96,29 +96,45 @@ export function DailyRecapSection() {
         </Note>
       </Row>
 
-      <Row label="The widget shell" note="header links out, or opens in place, or does neither">
-        <div className="flex max-w-2xl flex-col gap-4">
+      <Row label="The standard" note="three header shapes, one geometry, and the hover rule">
+        <div className="grid max-w-4xl gap-4 lg:grid-cols-2">
           <Widget title="Accounts" period="6 accounts" href="/accounts">
             <p className="text-body text-muted">
-              A title that links is an anchor, so it gets middle-click and copy-link-address.
+              A header that links out is an anchor, so it gets middle-click and copy-link-address.
             </p>
           </Widget>
-          <Widget title="Your Daily Recap" period="Friday, Aug 28" onOpen={() => {}}>
+          <Widget title="Your Daily Recap" period="Friday, Aug 28" mark="read" onOpen={() => {}}>
             <p className="text-body text-muted">
-              A title with nowhere to go is a button. Same box, same target, different element.
+              A header with nowhere to go is a button. Same box, same target, different element.
             </p>
           </Widget>
-          <Widget title="Net P&L">
+          <Widget title="Net P&L" period="Last 30 days">
             <p className="text-body text-muted">
               A widget whose subject has no page is not interactive at all, rather than a link to
               nothing.
             </p>
           </Widget>
+          <Widget title="Last session" period="Friday, Aug 28" href="/trades">
+            <p className="text-body-lg text-text">&minus;$563.50 &middot; 12 trades</p>
+          </Widget>
         </div>
         <Note>
-          Read out of the reference&rsquo;s markup: the whole header block is the target
-          (<code>DashboardWidget__HeaderClickable</code>), not a chevron beside it. On a phone that
-          difference is the entire affordance.
+          Read out of the reference&rsquo;s markup rather than off a screenshot: the whole header
+          block is the target (<code>DashboardWidget__HeaderClickable</code>), not a chevron beside
+          it, and the body is a second target pointing at the same place. On a phone that difference
+          is the entire affordance.
+        </Note>
+        <Note>
+          <strong>Hover the two halves.</strong> Only the body takes a ground, and that is
+          deliberate: the body carries the chevron, so it is the half that already claims the
+          gesture. A title that lit up as well would make one card read as two controls.{' '}
+          <code>focus-visible</code> is untouched on both, because what is suppressed is a pointer
+          affordance rather than the target.
+        </Note>
+        <Note>
+          One geometry constant serves all three header shapes, so a link, a button and a plain
+          block cannot drift apart. The measured reference is 78px; this is 83, because 14 is not a
+          step on this scale and 16 is.
         </Note>
       </Row>
     </Section>

@@ -102,7 +102,15 @@ export function Widget({
            pointing at `/dashboard/weekly-recap`. A divider between them, and still one gesture.
            A widget whose title looks like a heading and is not clickable is a card that has to be
            aimed at, and the whole point of the divided shape is that it cannot be missed. */
-        <button type="button" onClick={onOpen} className={cn(HEAD, 'hover:bg-hover text-left transition-colors')}>
+        /* NO HOVER GROUND ON THE HEADER, and that is the reference's own behaviour rather than an
+           omission (2026-08-31, Luke: *"the upper half of the card doesn't actually have a
+           highlight on hover. just the lower half"*). Both halves are targets; only the body lights
+           up. The reason it reads correctly is that the body is the one carrying the CHEVRON - the
+           mark that says "this opens" - so the ground change belongs to the half that already
+           claims the gesture. A title that lights up as well would make one card look like two
+           controls. `focus-visible` is untouched: a keyboard user still gets a ring, because the
+           thing being suppressed is a POINTER affordance, not the target itself. */
+        <button type="button" onClick={onOpen} className={cn(HEAD, 'text-left')}>
           {head}
         </button>
       ) : (
