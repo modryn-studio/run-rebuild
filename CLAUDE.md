@@ -18,7 +18,6 @@ change. Point agents at the file, never at your memory of it.
 | `docs/scar-tissue.md` | The evidence behind every rule below. **Read before arguing with one** |
 | `docs/wireframes.md` · `docs/problem-brief.md` | Structure · the problem and the kill signal |
 | `docs/user-guide.md` | Every screen, what it leads to, and what Back does. Unbuilt ones dashed |
-| `docs/read-blueprint.md` | How a generative feature gets built here. Eight phases, eight gates |
 | `docs/s7-decision.md` | **OPEN.** Pattern vs reading, and what a read may cost. Preliminary |
 | `docs/psychology.md` | Why the product changes behaviour, what it must never build, the advice line |
 | `docs/blueprint-instrumentation.md` | Open questions, friction log, retro. **Append friction in the moment** |
