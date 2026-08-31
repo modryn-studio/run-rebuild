@@ -224,11 +224,127 @@ Written in the register of `CLAUDE.md`'s other doctrine, because that is where t
 | # | Question | Why it blocks |
 |---|---|---|
 | **O1** | **Discovery cadence** — weekly, every N new sessions, or on demand? | The difference between a $4 and a $12 trader. |
-| **O2** | **Is the read in the base price, or gated to a top tier?** | The category gates it (TraderSync Elite, $79.95). Changes the budget by 2-3×. |
+| ~~**O2**~~ | ~~Is the read in the base price, or gated to a top tier?~~ | **ANSWERED PROVISIONALLY 2026-08-31 — base price, no meter.** §10. Every companion product includes it; every metered one is a tool; and the meter is what `psychology.md` §7 forbids. |
 | **O3** | **Claim identity** — how does a claim from Monday match one from Thursday? | The one unproven mechanism in §7. |
 | **O4** | **What stops "structural" being a loophole** for every thin claim? | §3's proposed identity-not-correlation test is untested. |
-| **O5** | **Analogous-product pricing** — how do non-journal products that generate a recurring per-user artefact price it? | Luke, 2026-08-31: still to research. |
-| **O6** | Other AI uses Luke has in mind, not yet stated | May change the budget entirely. |
+| ~~**O5**~~ | ~~Analogous-product pricing~~ | **DONE 2026-08-31 — §10.** |
+| **O7** | Does a higher tier exist for something OTHER than AI — more accounts, longer history, a faster discovery cadence? | Packaging, not architecture. Does not block `S7`. |
+| **O6** | **Other AI uses Luke has in mind, not yet stated** | May change the budget entirely, and may change whether one price still covers it. Luke, 2026-08-31: *"i have other ideas for the ai usage as well."* |
+
+---
+
+## 10. How analogous products price AI — added 2026-08-31 at Luke's direction
+
+`analogous-products.md` already priced the analogs. It did not price their **AI**, which is the
+question. There are exactly three models in market, and the split between them is not random.
+
+### The companion products include it
+
+| Product | Price | AI | Metered? |
+|---|---|---|---|
+| Whoop | **$30/mo** | Whoop Coach | **No — "included at no extra cost with every membership"** |
+| Oura | $5.99/mo (+ hardware) | Oura Advisor | No |
+| Strava | premium | Athlete Intelligence | No |
+| Monarch | $14.99/mo | AI assistant, on every surface | No |
+| Copilot Money | $10.99/mo | ML insights and forecasts | No |
+
+**Every product whose AI *is the product's voice* includes it in one price.** None of them meter a
+daily companion artefact. That is the category Run's read belongs to.
+
+### The tool products meter it, and 2026 is the year that blew up
+
+**TradeZella already meters, first-hand** (`recon.md` Round 10): *"Agent runs count toward your
+monthly AI credit limit"* — Market Sentiment Briefing **~10.88 credits/run**, Session Review ~7.78,
+Trade Auto-Tagger ~2.26.
+
+And in the adjacent market the meter arrived and was rejected:
+
+- **GitHub Copilot moved to AI Credits on 2026-06-01** (1 credit = 1 US cent), replacing flat
+  Premium Request Units.
+- **Bill shock, immediately:** projected bills from $50 to $3,000; power users reporting 10-50×
+  inflation; one editor watched 82% of a monthly allowance go on the first day; the community thread
+  ran **958 downvotes to 24 upvotes**.
+- **78% of IT leaders reported unexpected charges** tied to consumption-based AI pricing.
+- **Windsurf retired credits for simple quotas** in March 2026. Amazon Q Developer and Gemini Code
+  Assist held flat.
+- The diagnosis is not the headline price: *"the anxiety is less about the price and more about
+  predictability... a new kind of cognitive overhead: watching the meter while the machine writes."*
+
+**Run's own doctrine already reached this conclusion without the evidence**, in `recon.md` Round 10:
+
+> **"A presence you ration is not a presence."**
+
+That line was an argument. It is now an argument with a market event behind it. **And for Run
+specifically the meter is worse than for Copilot**, because `psychology.md` §7 already bans anything
+loss-aversion-shaped: a trader watching a credit balance drain, inside a product observing the money
+they are already anxious about, is a second scarcity meter next to a live one.
+
+### The middle model: a higher AI tier
+
+**Duolingo Max — $29.99/mo, or $168/yr** — is the cleanest consumer precedent for gating AI behind a
+higher tier, and the category does it too (**TraderSync Elite $79.95** gates AI coaching).
+
+It works, at a rate worth knowing: **Max reached ~9% of the paying base by late 2025, up from 5% at
+the end of 2024.** So an AI tier converts roughly one payer in eleven.
+
+**Two warnings that come with it:**
+
+1. **AI features migrate DOWN the tiers as inference gets cheaper.** Duolingo's *Explain My Answer*
+   was Max-only and became **free for every user in January 2026**. A tier whose value rests on
+   today's inference cost is a tier that erodes.
+2. **Max's remaining exclusives are described as thin at $168/yr.** Gating AI means the gated thing
+   has to keep being worth the gate, permanently.
+
+### What this says for Run
+
+**The read is a companion artefact, not a tool invocation.** It arrives; it is not summoned. That
+puts it in the Whoop/Monarch column: **one price, no meter** — which is also what the doctrine
+already says, what `psychology.md` §7 requires, and what the 2026 evidence supports.
+
+**The consequence is that the cost work in §7 is not optional.** Metering would let Run skip it by
+passing the bill to the trader. Including the read means the read has to fit the budget, which is
+exactly what the two-speed split is for.
+
+**O2 is therefore answered, provisionally: the read is in the base price.** What is still open is
+whether a *higher tier* exists for something else — more accounts, longer history, a faster
+discovery cadence — which is a packaging question rather than an AI question.
+
+---
+
+## 11. A correction the reference docs force on `spec.md` §4.2
+
+**`spec.md` calls History "the tab neither competitor has." That is no longer exactly true**, and the
+evidence is in this repo (`recon.md` Round 10, read first-hand on 2026-08-10):
+
+> `Reports → Recaps & Insights` is a document library filtered `First Import Analysis · Monthly
+> Recap · Weekly Recap`, with columns TYPE / CREATED / ACCOUNT / DATE RANGE / TRADES / STATUS.
+
+**A periodic generated recap is already a first-class object at the leader.** Two more that were
+assumed unclaimed and are not:
+
+- **`PropFirm Sync → Breach insights`** — *"Understand why your accounts get breached and spot
+  patterns."* ⇒ *"Stop treating 'study your failures' as unclaimed language."*
+- **`Progress Tracker → Current rules`** — RULE | CONDITION | RULE STREAK | AVERAGE PERFORMANCE |
+  FOLLOW RATE. Stated intent measured against actual behaviour, in market, with the rules editor
+  grouping them **PREPARE / TRADE / REFLECT** — Run's before/during/after, shipped.
+
+**What is still genuinely unclaimed is narrower and better:** not a history of *documents* but a
+history of **claims** — the same named pattern, with its dollar cost then and its dollar cost now.
+TradeZella keeps the recaps. Nobody keeps the claim.
+
+**This strengthens the pattern model rather than weakening it.** A library of past prose is a thing
+the leader already ships. A tracked claim is not. If Run shipped option 2 ("reading wins"), History
+would be *the leader's feature, later* — and the differentiator would be gone in the way that
+matters.
+
+**And the same source sets the quality bar.** Their flagship AI artefact, on Luke's own 187 trades,
+rendered **`MAX DRAWDOWN / WATCH OUT / 1644.2%`** and a Key Takeaway true of every losing trader
+alive, opening with a textbook definition of profit factor. `competitor-failures.md` §4:
+
+> **"Every insight Run surfaces must be something the trader could not have read off the chart - his
+> own pattern, priced, over time. If it fails that test, it doesn't ship."**
+
+---
 
 ---
 
@@ -249,6 +365,20 @@ Written in the register of `CLAUDE.md`'s other doctrine, because that is where t
 
 **Cost levers** — [Caching, batching and routing](https://www.gmicloud.ai/en/blog/llm-inference-cost-optimization-caching-batching-routing) ·
 [LLM cost reduction strategies](https://neuraltrust.ai/blog/llm-cost-reduction-guide)
+
+**Analogous-product AI pricing** — [Whoop Coach included at no extra cost](https://aisotools.com/blog/whoop-review-2026) ·
+[Whoop / Oura / Garmin 2026](https://aitoolsbakery.com/blog/whoop-vs-oura-vs-garmin/) ·
+[Duolingo Max, $168/yr](https://beginnersinai.org/duolingo-max-explained/) ·
+[Duolingo Max at ~9% of the paying base](https://news.alphastreet.com/duolingo-duol-has-a-subscription-and-ai-monetization-engine-bigger-than-a-free-language-app/amp/) ·
+[Included or metered: the 2026 AI pricing divide](https://www.digitalapplied.com/blog/ai-subscriptions-vs-usage-credits-openai-anthropic-2026) ·
+[Copilot AI Credits and the backlash](https://windowsforum.com/threads/github-copilot-ai-credits-usage-billing-hits-june-1-2026-and-sparks-backlash.421370/) ·
+[The meter is running](https://medium.com/@Modi_Rohan/the-meter-is-running-ai-coding-just-got-its-cloud-bill-moment-5953825a338a)
+
+**In-repo, from `docs from run-trading/`** — `analogous-products.md` (the analog field and their
+prices) · `recon.md` Round 10 (TradeZella's credit meter, Recaps & Insights, Breach insights,
+Progress Tracker, and the 1644.2% drawdown) · `competitor-failures.md` §1 §4 §5 §7 (the four to nail,
+and pricing deliberately deferred) · `ia-teardown.md` §2.4 · `spin.md` (the corpus is the moat, not
+the AI)
 
 **In-repo** — `spec.md` §4.2 · §5-S5 · §8 · §6 (billing deferred) · `psychology.md` §6 §7 §8 §9 ·
 `problem-brief.md` · `architecture.md` §6 · `build-plan.md` §S7 · `src/lib/desk/*`
