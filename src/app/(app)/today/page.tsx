@@ -3,6 +3,7 @@ import { requireTrader, getSessionUser } from '@/lib/trader';
 import { PAGE_COLUMN } from '@/lib/shell';
 import { cn } from '@/lib/cn';
 import { DailyRecap } from '@/components/views/today/daily-recap';
+import { Greeting } from '@/components/views/today/greeting';
 import { RECAP_STRONG } from '@/components/views/today/fixtures';
 
 export const metadata: Metadata = { title: 'Today' };
@@ -42,12 +43,13 @@ export default async function TodayPage() {
 
   return (
     <div className={cn(PAGE_COLUMN, 'pb-8')}>
-      <Greeting name={user?.name ?? null} zone={trader.displayTimezone} />
+      {/* INTO THE HEADER BAND, where the route title would be. See `greeting.tsx`. */}
+      <Greeting text={greetingFor(user?.name ?? null, trader.displayTimezone)} />
 
       {/* TWO COLUMNS ABOVE `lg`, ONE BELOW - the reference's own breakpoint. `items-start` so a
           short widget does not stretch to match a tall one beside it, which is what makes a
           dashboard read as a set of cards rather than a table. */}
-      <div className="mt-6 grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 pt-4 lg:grid-cols-2">
         <DailyRecap recap={RECAP_STRONG} />
       </div>
     </div>
@@ -66,8 +68,13 @@ export default async function TodayPage() {
  * not (`schema.ts`), so half the traders who sign up have no name to greet. "Good afternoon" alone
  * is a complete sentence; "Good afternoon, null" is the bug that ships when a nullable column is
  * treated as a string.
+ *
+ * A STRING, NOT A COMPONENT. It is rendered by a portal into the shell's band, and the portal has
+ * to be a client component; the hour has to come from a database column the shell does not carry.
+ * So the server computes the sentence and hands it over finished, which is also what stops the HTML
+ * and the hydrated tree disagreeing about what time it is.
  */
-function Greeting({ name, zone }: { name: string | null; zone: string }) {
+function greetingFor(name: string | null, zone: string): string {
   const hour = Number(
     new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: zone }).format(
       new Date()
@@ -77,17 +84,5 @@ function Greeting({ name, zone }: { name: string | null; zone: string }) {
   /* FIRST NAME ONLY. The provider hands over whatever the trader typed into Google, which is a full
      name more often than not, and "Good afternoon, Luke Hanner" is a form letter. */
   const first = name?.trim().split(/\s+/)[0];
-
-  /* A `<p>`, NOT AN `<h1>` (measured on the running page, 2026-08-31). The shell's header band
-     already renders `<h1>Today</h1>` on every route, so a greeting marked up as a heading put TWO
-     `h1`s in one document - and the second one is not the page's subject, it is a salutation.
-     Monarch gets to make the greeting its heading because its dashboard has no title band; this
-     shell has one on every page and consistency with the other three beats copying that detail.
-     `text-h1` because it is still the largest thing on the page: the role is the size, not the tag. */
-  return (
-    <p className="text-h1 text-text pt-2">
-      Good {part}
-      {first ? `, ${first}` : ''}
-    </p>
-  );
+  return `Good ${part}${first ? `, ${first}` : ''}`;
 }

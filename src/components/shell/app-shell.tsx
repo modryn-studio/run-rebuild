@@ -99,7 +99,17 @@ const NAV = [
  *
  * THE CONTRACT THIS CREATES: any route below a NAV href owes the title slot a trail, or its band
  * renders nameless. There is exactly one such route today and it does. */
+/* A ROUTE THAT NAMES ITSELF (2026-08-31). The shell titles every screen after its nav row, which is
+   right for three of them and wrong for the front door: the reference names that screen after the
+   PERSON rather than after the screen - its dashboard has no heading at all, just
+   `Good afternoon, Luke!` at 18px/500 where a title would be. Run does the same, and the page owns
+   the string because the shell holds neither the trader's clock nor a reason to compute a greeting.
+   So this returns null and `/today` portals its own into `HEADER_TITLE_SLOT_ID` beside it - the
+   same slot a drill-down route uses for its trail. Without the null the band prints both. */
+const SELF_TITLED = new Set<string>(['/today']);
+
 function routeTitle(pathname: string): string | null {
+  if (SELF_TITLED.has(pathname)) return null;
   return NAV.find((n) => n.href === pathname)?.label ?? null;
 }
 

@@ -1,54 +1,68 @@
-/* THE DASHBOARD WIDGET CONTRACT, and it is a port rather than a design.
+'use client';
+
+/* THE DASHBOARD WIDGET, MEASURED OFF THE REFERENCE RATHER THAN REMEMBERED.
  *
- * `wireframes.md` §5 copies it wholesale from the Monarch teardown, and re-reading the live markup
- * on 2026-08-31 confirmed every line of it:
+ * `wireframes.md` §5 ported the contract from the teardown - title links out, one headline value, a
+ * scope control inside the widget, a body that is a chart or a list or a specific empty state. That
+ * is still the contract. What follows is the SHAPE, read with `getComputedStyle` on 2026-08-31
+ * because the first pass built it from the four lines and got two things wrong.
  *
- *   | Title          | links to the full page for that concept |
- *   | Headline value | one number, with its delta               |
- *   | Scope control  | a small combobox INSIDE the widget       |
- *   | Body           | a chart, a list, or an empty state with a SPECIFIC CTA |
+ * ─── WHAT THE MEASUREMENT SAID ─────────────────────────────────────────────────────────────────
  *
- * WHAT THE MARKUP ADDED to the teardown's four lines:
+ *   card          radius 12px · no border · shadow 0 2px 4px rgba(34,32,29,.1) · padding 0
+ *   header        78px tall, and it HAS a bottom rule: 0.667px solid rgb(246,245,243)
+ *   title         18px / 500 / lh 27, with a 16px mark before it
+ *   period        16px / 500 / muted, BELOW the title, not beside it
+ *   body          padding 20px · gap 16px · 16px / 400 · a chevron at the far right
  *
- * THE TITLE IS THE LINK, not a chevron beside it. Monarch wraps title + period in one `<a>`
- * (`DashboardWidget__HeaderClickable`), so the whole header block is the target rather than a 20px
- * mark at the end of it. On a phone that difference is the whole affordance.
+ * TWO CORRECTIONS TO THE FIRST PASS, both from that table. **The period stacks under the title**,
+ * where it reads as the label's second line rather than as a value on the same row. And **there IS
+ * a rule under the header** - the first pass argued there was not, from the reference's own §3
+ * reasoning about grounds, which is a good rule applied to a card that does not follow it.
  *
- * THE PERIOD SITS WITH THE TITLE, not in the body. `Your Weekly Recap` and `August 23rd-29th` are
- * siblings inside the header. It reads as one label naming one thing, which is why the widget can
- * say what it covers without spending a line of body copy on it.
+ * ─── WHAT MAPS ONTO RUN'S RAMP EXACTLY, AND IT IS MOST OF IT ───────────────────────────────────
  *
- * NO PAGINATION, ANYWHERE. Checked every widget on the dashboard: zero previous/next controls. A
- * widget shows ONE state and links out; moving through time is the page's job. That is not a
- * Monarch quirk - `dashboardderesignpatterns.github.io` states it as the pattern, because a
- * dashboard's whole claim is "at a glance" and pagination turns a glance into a task.
+ * Monarch's base is 16px and Run's is 14, so their sizes shift one step down the ramp:
+ * their 18/500 title is Run's `text-title` (18/24/500) to the pixel, and their 16px period and body
+ * are Run's `text-body-lg`. Nothing here is a hand-picked size.
  *
- * A WIDGET THAT OPENS IN PLACE STILL GETS A HEADER LINK'S SHAPE. `Your Daily Recap` has no page to
- * point at (`spec.md` §4, amended 2026-08-31), so its header is a button rather than an anchor -
- * same box, same target size, different element. `href` is optional here for exactly that reason,
- * and a widget with neither `href` nor `onOpen` renders a header that is not interactive at all,
- * which is the honest shape for a widget whose subject has nowhere to go.
+ * ─── WHAT IS DELIBERATELY NOT PORTED ───────────────────────────────────────────────────────────
+ *
+ * **THE GRADIENT TITLE.** Monarch fills `Your Weekly Recap` with `AssistantGradientText` - the span
+ * computes to `color: rgba(0,0,0,0)` with a gradient clipped to the glyphs, which is how it gets
+ * that orange. `design-system.md`'s banned tells include gradient text, and it is banned for the
+ * reason this is a good example of: it marks a surface as special by decoration rather than by
+ * hierarchy. Run's version says the same thing with the accent MARK and leaves the title in ink.
+ *
+ * **THE DRAG HANDLE.** Their widgets carry drag dots that appear on hover
+ * (`data-rbd-drag-handle-draggable-id="recap"`). Reordering is real and `useListDrag` already does
+ * it for the roster - but it is a feature of a dashboard with enough widgets to reorder.
  */
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
-import { Icon } from '@/components/ui/icon';
+import { Icon, type IconName } from '@/components/ui/icon';
 import { cn } from '@/lib/cn';
 
 export function Widget({
   title,
-  /** What the widget covers, beside the title. A period, a count, a date. Never a sentence. */
+  /** Sits UNDER the title, muted. What the widget covers: a period, a count, a date. */
   period,
+  /** A 16px mark before the title. The reference uses it to separate a generated card from a
+   *  figure card, which is a real distinction and worth keeping. */
+  mark,
   href,
+  /** The whole body becomes the target, with a chevron at its end. See `Body` below. */
   onOpen,
-  /** The small control that scopes this widget only. A `Menu`, never a filter bar. */
+  /** The small control that scopes this widget only, at the header's far right. */
   scope,
   children,
   className,
 }: {
   title: string;
   period?: string;
+  mark?: IconName;
   href?: string;
   onOpen?: () => void;
   scope?: ReactNode;
@@ -57,41 +71,54 @@ export function Widget({
 }) {
   const head = (
     <>
-      <span className="text-body-lg text-text font-medium">{title}</span>
-      {period && <span className="text-body text-muted shrink-0">{period}</span>}
+      <span className="flex items-center gap-1.5">
+        {mark && <Icon name={mark} size={16} className="text-accent shrink-0" />}
+        <span className="text-title text-text font-medium">{title}</span>
+      </span>
+      {period && <span className="text-body-lg text-muted mt-0.5 font-medium">{period}</span>}
     </>
   );
 
-  /* `min-h-13` MATCHES EVERY OTHER HEADER ROW IN THIS PRODUCT - the rail cards, the tape's caption,
-     `RecentTrades`. A dashboard of cards that each pick their own header height is the drift
-     `design-system.md` §2a exists to stop. */
-  const headClass =
-    'flex min-h-13 w-full items-center gap-2 px-5 text-left max-md:px-4';
-
   return (
     <Card className={cn('flex flex-col overflow-hidden', className)}>
+      {/* THE HEADER IS THE LINK when the widget has a page, which is the contract's first line and
+          the thing the first pass got right for the wrong reason: the reference wraps title AND
+          period in one `<a>` (`DashboardWidget__HeaderClickable`), so the whole block is the target
+          rather than a mark at the end of it. On a phone that difference is the affordance.
+          `py-4` rather than the reference's 13.5px, because 14 is not a step on this scale and 16
+          is. It reads 83px against their 78. */}
       {href ? (
-        <Link href={href} className={cn(headClass, 'hover:bg-hover transition-colors')}>
+        <Link
+          href={href}
+          className="border-rule hover:bg-hover flex flex-col border-b px-5 py-4 transition-colors max-md:px-4"
+        >
           {head}
-          <Icon name="chevron" size={16} className="text-muted ml-auto shrink-0 -rotate-90" />
         </Link>
-      ) : onOpen ? (
-        <button type="button" onClick={onOpen} className={cn(headClass, 'hover:bg-hover transition-colors')}>
-          {head}
-          <Icon name="chevron" size={16} className="text-muted ml-auto shrink-0 -rotate-90" />
-        </button>
       ) : (
-        <div className={headClass}>
+        <div className="border-rule flex flex-col border-b px-5 py-4 max-md:px-4">
           {head}
-          {scope && <span className="ml-auto shrink-0">{scope}</span>}
+          {scope && <span className="mt-2">{scope}</span>}
         </div>
       )}
 
-      {/* NO RULE UNDER THE HEADER. `design-system.md` §3: a ground change or a gap separates a label
-          from its content, and a card that draws a line inside itself is stating one boundary
-          twice. The rail cards use a rule because their body is a TABLE of rows; a widget body is
-          one object. */}
-      <div className="min-w-0 flex-1 px-5 pt-1 pb-5 max-md:px-4">{children}</div>
+      {onOpen ? (
+        /* THE BODY IS THE BUTTON, and this is the reference's own arrangement rather than a
+           simplification of it: its recap card has NO call-to-action button. The body is one large
+           target with a chevron at the far end, which is why the card can be 166px tall and still
+           read as one gesture. The first pass drew a `Read it` button instead, which is a second
+           thing to aim at inside a card that is already aimed at.
+           `text-left` because a button centres its text and this is a paragraph. */
+        <button
+          type="button"
+          onClick={onOpen}
+          className="hover:bg-hover flex flex-1 items-center gap-4 px-5 py-5 text-left transition-colors max-md:px-4"
+        >
+          <span className="min-w-0 flex-1">{children}</span>
+          <Icon name="chevron" size={18} className="text-muted shrink-0 -rotate-90" />
+        </button>
+      ) : (
+        <div className="min-w-0 flex-1 px-5 py-5 max-md:px-4">{children}</div>
+      )}
     </Card>
   );
 }

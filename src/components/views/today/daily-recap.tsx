@@ -42,7 +42,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button, buttonClasses } from '@/components/ui/button';
+import { buttonClasses } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { IconButton } from '@/components/ui/icon-button';
@@ -69,9 +69,13 @@ export function DailyRecap({ recap }: { recap: Recap }) {
       <Widget
         title="Your Daily Recap"
         period={recap.state === 'empty' ? undefined : recapPeriod(recap.sessionDate)}
+        /* THE MARK IS THE NAV'S OWN `read` ICON, which is the row this card replaced. It does the
+           job the reference's sparkle does - separating a generated card from a figure card - out
+           of the icon set that already exists, rather than inlining an SVG for one surface. */
+        mark="read"
         onOpen={ready ? () => setOpen(true) : undefined}
       >
-        <CardBody recap={recap} onOpen={() => setOpen(true)} />
+        <CardBody recap={recap} />
       </Widget>
 
       {ready && open && <ReadOverlay recap={recap} onClose={() => setOpen(false)} />}
@@ -82,21 +86,15 @@ export function DailyRecap({ recap }: { recap: Recap }) {
 /* FOUR STATES, AND EACH SAYS THE SPECIFIC THING (`wireframes.md` §5, P9): "never a generic 'no
    data' plate". Every one of these ends on what would change it, and the two that a trader can act
    on carry the button that acts. */
-function CardBody({ recap, onOpen }: { recap: Recap; onOpen: () => void }) {
+function CardBody({ recap }: { recap: Recap }) {
   if (recap.state === 'ready') {
-    return (
-      <>
-        {/* `text-body-lg`, NOT `text-body`. This sentence is the most consequential prose in the
-            product and it is competing with three widgets of figures. §2a's "a lead paragraph" is
-            exactly this role. */}
-        <p className="text-body-lg text-text leading-relaxed">{recap.lede}</p>
-        <div className="mt-4">
-          <Button variant="secondary" size="md" onClick={onOpen} className="max-sm:min-h-11">
-            Read it
-          </Button>
-        </div>
-      </>
-    );
+    /* NO BUTTON, because the BODY is the button - `Widget` wraps this in one when `onOpen` is
+       passed, with the chevron at its far end. That is the reference's own shape and the first
+       pass missed it: its recap card has no call to action, because a second thing to aim at
+       inside a card that is already aimed at is a second decision for no extra reach.
+       `text-body-lg` at 16px matches the reference's body exactly, and it is the right role
+       regardless: this sentence is the most consequential prose in the product. */
+    return <p className="text-body-lg text-text leading-relaxed">{recap.lede}</p>;
   }
 
   if (recap.state === 'thin') {
