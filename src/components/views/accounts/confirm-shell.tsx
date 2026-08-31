@@ -33,8 +33,8 @@
  */
 
 import { useCallback, useState, type ReactNode } from 'react';
-import { Card } from '@/components/ui/card';
 import { AccountSheet, useSheet } from './account-sheet';
+import { ModalShell, useModalClose } from './modal-shell';
 import { CONFIRM_TITLE_ID } from './shared';
 import { usePhone } from '@/lib/use-phone';
 
@@ -42,6 +42,8 @@ export function ConfirmShell({
   onCancel,
   busy,
   label,
+  role = 'alertdialog',
+  width = 'max-w-md',
   children,
 }: {
   onCancel: () => void;
@@ -49,6 +51,11 @@ export function ConfirmShell({
   busy?: boolean;
   /** Names the dialog for a screen reader on the sheet path, where the title is portalled away. */
   label: string;
+  /* CONTENT RATHER THAN A QUESTION gets `dialog` and a wider card. `Your Daily Recap` opens through
+     this shell so that every overlay in the product arrives and leaves the same way; what it is not
+     is an alert, and a screen reader should not be told it is one. */
+  role?: 'dialog' | 'alertdialog';
+  width?: string;
   /* THE SECOND ARGUMENT IS FOR A CONFIRMATION THAT NAVIGATES (2026-08-28, postcheck). Delete is the
      one: it answers by leaving for `/accounts`, and on a phone this shell owns a history entry whose
      cleanup would otherwise `history.back()` into the URL of the account just deleted - the exact
@@ -59,7 +66,11 @@ export function ConfirmShell({
 }) {
   const phone = usePhone();
   const sheet = useSheet(onCancel);
-  const dismiss = phone ? sheet.requestClose : onCancel;
+  /* THE DESKTOP PATH ANIMATES OUT NOW, and it did not before. `useModalClose` holds the card
+     mounted for `MODAL_EXIT_MS` while the whole overlay fades, which is what `ModalShell` has
+     always done for `Add account` - the confirmations simply never asked for it. */
+  const modal = useModalClose(onCancel);
+  const dismiss = phone ? sheet.requestClose : modal.requestClose;
   /* HELD AS STATE, not a ref: the sheet hands its marker up once, and a ref crossing that boundary
      is what the React Compiler refuses. `setMark(() => fn)` because a bare function argument to a
      setter is read as an updater. */
@@ -83,21 +94,25 @@ export function ConfirmShell({
     );
   }
 
+  /* IT IS `ModalShell` NOW, not a second copy of it (2026-08-31). The copy this replaced drew its
+     own scrim with no `.backdrop-fade`, its own card with `pop-in-center` and NO exit at all, and
+     carried neither the Escape handler nor the body-scroll lock. So a confirmation appeared in one
+     frame and vanished in one, three feet from an `Add account` modal that faded both ways.
+     `z-[70]` OVER THE EDIT MODAL'S `z-[60]` still holds and is `ModalShell`'s own base plus the
+     class below: the shell underneath is put in `busy` while this is up, so one Escape closes
+     exactly one thing and the form cannot be dismissed out from under its own confirmation. */
   return (
-    /* `z-[70]` OVER THE EDIT MODAL'S `z-[60]`. The shell underneath is put in `busy` while this is
-       up, which already blocks its Escape handler and its backdrop click - so one Escape closes
-       exactly one thing, and the form cannot be dismissed out from under its own confirmation. */
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-      <div aria-hidden className="absolute inset-0" style={{ background: 'var(--scrim)' }} />
-      <Card
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={CONFIRM_TITLE_ID}
-        className="pop-in-center relative z-10 flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden"
-      >
-        {children(dismiss, markReplacing)}
-      </Card>
-    </div>
+    <ModalShell
+      onDismiss={dismiss}
+      busy={busy}
+      closing={modal.closing}
+      role={role}
+      labelledBy={CONFIRM_TITLE_ID}
+      width={width}
+      className="z-[70]"
+    >
+      {children(dismiss, markReplacing)}
+    </ModalShell>
   );
 }
 

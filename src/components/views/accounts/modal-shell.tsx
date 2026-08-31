@@ -123,6 +123,10 @@ export function ModalShell({
   onDismiss,
   busy,
   closing,
+  role = 'dialog',
+  labelledBy = MODAL_TITLE_ID,
+  width = 'max-w-lg',
+  className,
   children,
 }: {
   /** Called by Escape and by a backdrop click. A modal with internal steps passes a handler that
@@ -131,6 +135,17 @@ export function ModalShell({
   busy?: boolean;
   /** True once the owner has started closing (see `useModalClose`). Drives the exit fade. */
   closing?: boolean;
+  /* THE THREE THINGS A SECOND CALLER NEEDED (2026-08-31). `ConfirmShell` had reimplemented this
+     whole shell rather than take it, and the copy was missing the scrim fade, the exit fade, the
+     Escape handler and the scroll lock - so `Add account` faded and `Close this account?` appeared
+     and vanished in a frame. Luke noticed it from the outside: *"the scrim animation is not the
+     same as the /account page"*. Three optional props were the entire distance between the two
+     files, and every default here is what the eleven existing callers already got. */
+  role?: 'dialog' | 'alertdialog';
+  labelledBy?: string;
+  width?: string;
+  /** Stacking only. `ConfirmShell` raises this over the edit modal it opens on top of. */
+  className?: string;
   children: ReactNode;
 }) {
   // `open` starts false and flips true one frame after mount, so arriving is a transition.
@@ -191,9 +206,11 @@ export function ModalShell({
          `ui-ux-sources.md` sanctions exactly this shape of departure - Sonner ships `ease` where
          `ease-out` is technically correct, "a real reminder that the role table is a default, not a
          law". A departure with a measurement behind it stands; one without does not. */
-      className={`fixed inset-0 z-[60] flex items-center justify-center p-4 transition-opacity duration-[160ms] ease-linear ${
-        closing ? 'pointer-events-none opacity-0' : 'opacity-100'
-      }`}
+      className={cn(
+        'fixed inset-0 z-[60] flex items-center justify-center p-4 transition-opacity duration-[160ms] ease-linear',
+        closing ? 'pointer-events-none opacity-0' : 'opacity-100',
+        className
+      )}
       onMouseDown={(e) => {
         pressedOutside.current = outsideCard(e.target);
       }}
@@ -224,12 +241,13 @@ export function ModalShell({
           at browser zoom you met both. */}
       <div
         ref={cardRef}
-        role="dialog"
+        role={role}
         aria-modal="true"
-        aria-labelledby={MODAL_TITLE_ID}
+        aria-labelledby={labelledBy}
         className={cn(
           cardSurface,
-          'relative z-10 flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden'
+          'relative z-10 flex max-h-[85dvh] w-full flex-col overflow-hidden',
+          width
         )}
       >
         {children}

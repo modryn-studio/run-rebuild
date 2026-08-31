@@ -346,6 +346,32 @@ Verified over 16 open/close cycles mixing in-app controls and the device button:
 returns to no-overlay every time, the URL returns to `/trades`, and four consecutive drill-in round
 trips produce byte-identical state.
 
+### Three overlays, three copies of the same shell, and only one of them animated
+
+**2026-08-31, Luke: "i need consistency! ... the scrim animation is not the same as the /account
+page. for example the 'add account' modal scrim animation in and out."**
+
+He noticed it on `/today`, and the cause was two files back. `ModalShell` had the whole treatment -
+scrim fading in over 300ms, the WHOLE overlay fading out over 160ms, Escape, a body-scroll lock, and
+a backdrop click that has to have STARTED outside the card. `ConfirmShell` had reimplemented the
+same idea and carried none of it: a bare scrim with no transition, `pop-in-center` on entry, **no
+exit at all**, no Escape, no lock. `daily-recap.tsx` then hand-rolled a THIRD one, worse again -
+nothing on either path, and no slide on a phone.
+
+So `Add account` faded both ways, `Close this account?` appeared and vanished in a frame three feet
+away, and the newest surface in the product matched neither.
+
+**The distance between the two files was three optional props.** `role`, `labelledBy` and `width` -
+every default being what the eleven existing callers already got. `ConfirmShell` now renders
+`ModalShell` instead of a copy of it, and the recap renders `ConfirmShell`. Measured after: the
+ending confirmation reports `alertdialog`, 448px, `z-70`, scrim 0.3s, exit 0.16s - the last two of
+which it had never had.
+
+**The rule: a second copy of a shell is not a component, it is a fork.** It will always be the copy
+that is missing the Escape handler, because the copy was made for the layout and the layout is the
+part you can see. Three props are cheaper than three shells, and the test is not "does it look the
+same" but "does it arrive and leave the same way".
+
 ### An overlay that mounts with `open` already true pushes twice and backs once
 
 **2026-08-31, Luke: "when i close the daily recap modal, it routes me to /accounts."** Reproduced,
