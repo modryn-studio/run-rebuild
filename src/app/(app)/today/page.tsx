@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { requireTrader, getSessionUser } from '@/lib/trader';
 import { PAGE_COLUMN } from '@/lib/shell';
+import { SESSION_BOUNDARY_ZONE } from '@/lib/time/session';
 import { cn } from '@/lib/cn';
 import { DailyRecap } from '@/components/views/today/daily-recap';
 import { Greeting } from '@/components/views/today/greeting';
@@ -75,14 +76,73 @@ export default async function TodayPage() {
  * and the hydrated tree disagreeing about what time it is.
  */
 function greetingFor(name: string | null, zone: string): string {
-  const hour = Number(
-    new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: zone }).format(
-      new Date()
-    )
-  );
+  const hour = hourIn(zone);
   const part = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
   /* FIRST NAME ONLY. The provider hands over whatever the trader typed into Google, which is a full
      name more often than not, and "Good afternoon, Luke Hanner" is a form letter. */
   const first = name?.trim().split(/\s+/)[0];
   return `Good ${part}${first ? `, ${first}` : ''}`;
+}
+
+/* THE HOUR, 0-23, AND THREE WAYS THE OBVIOUS SPELLING BREAKS.
+ *
+ * The first version was `Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false,
+ * timeZone: zone }).format(new Date()))`. Each of the three changes below has a reason, and one of
+ * them is smaller than it first looked - recorded that way rather than tidied, because the next
+ * reader deserves to know which of these is a live bug and which is defence.
+ *
+ * ─── 1. `hourCycle: 'h23'` — DEFENCE, NOT A FIX (checked, 2026-08-31) ──────────────────────────
+ *
+ * `hour12: false` does not name a cycle; it lets the implementation resolve one, and the two have
+ * historically disagreed - SpiderMonkey resolving `h23` while V8 resolved `h24`, under which
+ * MIDNIGHT FORMATS AS "24". That would have made `24 < 12` false, `24 < 17` false, and told a
+ * trader "good evening" at 00:30.
+ *
+ * **It does not reproduce here.** Run on this runtime (Node 22.19, ICU 77) across eight locales,
+ * `hour12: false` resolves to `h23` in every one and midnight formats "00". So this was not a
+ * shipped bug and the comment does not get to claim it was. `hourCycle: 'h23'` stays because it
+ * STATES the cycle rather than relying on a resolution that is implementation-defined and has
+ * already changed once. https://github.com/tc39/ecma402/issues/402
+ *
+ * ─── 2. `formatToParts`, NOT `format` — THIS ONE IS REAL ──────────────────────────────────────
+ *
+ * `format()` returns a string for human eyes and decorates it per locale. Measured on this runtime,
+ * same options, one field requested:
+ *
+ *     de-DE  "00 Uhr"      fr-FR  "00 h"      ja-JP  "0時"      ko-KR  "0시"
+ *
+ * `Number("00 Uhr")` is `NaN`, and `NaN < 12` and `NaN < 17` are both false - so the greeting would
+ * read **evening, permanently**. The old code was safe only because it pinned `'en-US'`, which is a
+ * locale hardcoded to protect a numeric parse rather than to serve a reader. `formatToParts` hands
+ * the hour back as DATA, so the parse cannot be broken by a decoration.
+ *
+ * ─── 3. AN UNKNOWN ZONE THROWS, ON A RENDER PATH ──────────────────────────────────────────────
+ *
+ * `Intl.DateTimeFormat` throws `RangeError` on a zone it cannot resolve (confirmed). `trader.ts`
+ * validates on WRITE - `isKnownTimezone` asks `Intl` rather than matching a pattern - so a bad zone
+ * cannot be stored today. But the IANA database renames and merges zones, so a row written this
+ * year can stop resolving after a runtime update, and the failure would be a 500 on the front door
+ * months later, for a greeting.
+ *
+ * IT FALLS BACK TO THE MARKET ZONE, which is the answer `trader.ts` already gives for a zone that
+ * was never detected: "the least-wrong clock to show a futures trader is the one their sessions are
+ * cut in, never a clock nobody trades on." */
+function hourIn(zone: string): number {
+  for (const z of [zone, SESSION_BOUNDARY_ZONE]) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        hourCycle: 'h23',
+        timeZone: z,
+      }).formatToParts(new Date());
+      const h = Number(parts.find((p) => p.type === 'hour')?.value);
+      if (Number.isInteger(h) && h >= 0 && h <= 23) return h;
+    } catch {
+      // Falls through to the market zone, then to noon.
+    }
+  }
+  /* UNREACHABLE unless `America/Chicago` stops resolving, which would mean the runtime has no time
+     zone data at all. Noon rather than 0: if the clock is unknowable, the least-wrong greeting is
+     the one that is right for the longest stretch of a trading day. */
+  return 12;
 }

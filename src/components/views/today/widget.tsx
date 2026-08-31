@@ -45,6 +45,10 @@ import { Card } from '@/components/ui/card';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { cn } from '@/lib/cn';
 
+/** One geometry for all three header shapes, so a link, a button and a plain block cannot drift
+ *  apart. `py-4` rather than the reference's 13.5px: 14 is not a step on this scale and 16 is. */
+const HEAD = 'border-rule flex w-full flex-col border-b px-5 py-4 max-md:px-4';
+
 export function Widget({
   title,
   /** Sits UNDER the title, muted. What the widget covers: a period, a count, a date. */
@@ -88,14 +92,21 @@ export function Widget({
           `py-4` rather than the reference's 13.5px, because 14 is not a step on this scale and 16
           is. It reads 83px against their 78. */}
       {href ? (
-        <Link
-          href={href}
-          className="border-rule hover:bg-hover flex flex-col border-b px-5 py-4 transition-colors max-md:px-4"
-        >
+        <Link href={href} className={cn(HEAD, 'hover:bg-hover transition-colors')}>
           {head}
         </Link>
+      ) : onOpen ? (
+        /* BOTH HALVES ARE TARGETS AND BOTH DO THE SAME THING, which is the reference's own shape
+           and the thing this component got wrong until it was measured (2026-08-31). Its card
+           carries an `<a>` over the header (553x53) AND a `<button>` over the body (585x88), each
+           pointing at `/dashboard/weekly-recap`. A divider between them, and still one gesture.
+           A widget whose title looks like a heading and is not clickable is a card that has to be
+           aimed at, and the whole point of the divided shape is that it cannot be missed. */
+        <button type="button" onClick={onOpen} className={cn(HEAD, 'hover:bg-hover text-left transition-colors')}>
+          {head}
+        </button>
       ) : (
-        <div className="border-rule flex flex-col border-b px-5 py-4 max-md:px-4">
+        <div className={HEAD}>
           {head}
           {scope && <span className="mt-2">{scope}</span>}
         </div>
