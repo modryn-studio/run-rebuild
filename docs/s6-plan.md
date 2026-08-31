@@ -7,7 +7,8 @@ worse than no plan - it sends the next session to re-decide questions the code a
 | | |
 |---|---|
 | **Shipped** | `S6a` read layer · `S6b` roster · `S6c` hero chart · `S6f` filters + reorder · `S6g` mobile pass |
-| **Not built** | *(none — `S6d` and `S6e` shipped 2026-08-28/29; see §3)* |
+| **Not built** | *(none)* |
+| **Status** | ✅ **`S6` CLOSED 2026-08-31**, and `S4` with it — see `build-plan.md` |
 | **Decisions** | `D1`-`D5` settled in code, recorded in §1 below. §7 is now empty by design |
 
 ⚠ **`S6d` IS NOT MERELY PENDING - IT IS A HOLE IN THE SHIPPED PAGE.** Every roster row is a

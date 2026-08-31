@@ -466,7 +466,19 @@ a dev-server restart and a cache-busted fetch. The fix both times was `rm -rf .n
 restart. If a token edit appears to do nothing, that is the first thing to try — and verify against
 the served stylesheet, not the rendered page.
 
-### S4 — Add account + the three-file ingest ⭐ *the biggest slice*
+### S4 — Add account + the three-file ingest ⭐ *the biggest slice* — ✅ **CLOSED 2026-08-31**
+
+**Closed by Luke against the seven-point bar.** Every sub-slice was already done; what held this
+open for six days was one word in `S4e` below - the flow was merged and gated and **unreachable**,
+because the only control that opened it had been cleared off `/accounts`. `S6b` put the door back on
+2026-08-26 and `S6` finished the third one ("Add manually"), so the last thing this slice owed is
+built. An import is now reachable three ways: the roster's `Add account`, an account's own page, and
+the manual path that creates a `pending:` row for an import to adopt later.
+
+**One thing this slice never exercised and should be, before it matters:** a real CSV import
+adopting an account created by "Add manually". Both halves are built and gated separately; the
+seam between them has only been read, not run. Tracked in the phase 5 gate's last line rather than
+holding the slice open, because it is a test rather than a gap.
 
 > 📖 **Read [`psychology.md` §5](psychology.md#5-accuracy-is-the-retention-argument) before the
 > intake UX.** Perceived measurement inaccuracy was the #4 reason people abandoned a tracker (36%),
@@ -578,8 +590,10 @@ untouched, and that is exactly the seam:**
   flagging one already written to an append-only log, where it cannot be corrected. The tape keeps
   its copy on purpose; a read should not trust its input either
 - **S4d** — ✅ **CLOSED 2026-08-14.** `lib/intake/accounts.ts` (`#59`/`#80`)
-- **S4e** — ✅ **BUILT AND MERGED** (`fcae90c` carries its own postcheck), ⚠️ **but not yet
-  REACHABLE**, and the two are worth stating separately. Ported v2's actual flow rather than the
+- **S4e** — ✅ **BUILT, MERGED, AND REACHABLE SINCE 2026-08-26.** The warning that stood here for
+  eleven days - *built but not reachable* - was resolved by `S6b`'s roster putting `Add account` back
+  in the shell band. The two were worth stating separately, and they still are: this records that a
+  slice can be complete and undelivered at the same time. Ported v2's actual flow rather than the
   plan drafted before it (Luke, 2026-08-15: "if i approved a confirm step, that was my mistake... i
   do not want to change the flow the v2 has") — two doors (Brokers, disabled; Import trades), a
   drop zone with header-detected file typing, determinate progress with a minimum-visible floor,
@@ -588,12 +602,13 @@ untouched, and that is exactly the seam:**
   (measured: 34px → 234px at the same viewport). **"Add manually" is explicitly NOT part of this
   slice** — see the S6 note below.
 
-  **What remains is a DOOR, and it is `S6`'s to build, not this slice's** (recorded 2026-08-25).
+  ~~**What remains is a DOOR, and it is `S6`'s to build, not this slice's**~~ **BUILT** (recorded
+  2026-08-25, closed 2026-08-31).
   `AddAccountModal` was mounted on `/accounts` and only there, so clearing that page to an empty
   shell on 2026-08-20 took the product's one route into the three-file ingest with it. The flow
   itself is intact and gated; `/kitchen-sink/demo` still mounts the real modal under `dryRun`, which
   is why this reads as merged rather than unfinished. But an import nobody can reach is not
-  delivered, so `S4` does not close until `S6` puts the control back.
+  delivered, so `S4` did not close until `S6` put the control back - which it did.
   That is not a deferral of convenience: `/accounts` is where the launcher belongs, because
   launching an import from a specific account's own page is the context v2's adoption path depends
   on — the same reason "Add manually" was pushed to `S6` in the first place.
@@ -894,7 +909,35 @@ arrival and the pane carried a phone's clearance at 1280px — measured, not gue
 active one, drawer nav hidden, account row still anchored, desktop untouched (bar hidden, four rows
 in the drawer, 48px pane padding).
 
-### S6 — Accounts ⭐ — ⚠️ **now blocks `S4` from closing**
+### S6 — Accounts ⭐ — ✅ **CLOSED 2026-08-31**
+
+**Closed by Luke against the seven-point bar**, and it is the slice that unblocked `S4`.
+
+| The bar | How it was met |
+|---|---|
+| It works | Roster, hero chart with Breakdown, filters, reorder, the detail route, its trades child, and the whole editor |
+| Its error case | The 409 on a delete that would orphan a record; the 409 on a type/status pair the CHECK refuses; a refused import replacing the progress panel outright |
+| Its empty case | *"No accounts yet"* for a trader with none, and *"No accounts match"* for a filter that emptied the list - two different sentences, because they are two different facts |
+| Mobile | No modals below 768px: add, import, edit and both confirmations are full-screen sheets, and the device Back button answers every one of them |
+| Design system | Racked in `/kitchen-sink` - roster row, account sheet, account fields, the ending question, scope tabs, the sheet header in five states |
+| Merged | Yes |
+| Deployed | Yes, and used on a real phone across four rounds of iteration |
+
+**Sub-slices:** `S6a` read layer · `S6b` roster · `S6c` hero chart · `S6d` detail route ·
+`S6e` editing · `S6f` filters + reorder · `S6g` mobile pass. All shipped; `s6-plan.md` §3 carries
+each one's own note.
+
+**Eight follow-ups were filed rather than fixed**
+([#30](https://github.com/modryn-studio/run-rebuild/issues/30)–[#37](https://github.com/modryn-studio/run-rebuild/issues/37)),
+and the distinction is the one the bar cares about: each is an improvement to a surface that works,
+not a gap in one that does not. The largest - keyboard operability of the /accounts dialogs (#30)
+and the payload the detail pages ship (#31) - are real and neither stops a trader using the page.
+
+**What this slice taught, beyond the feature:** the phone architecture the whole product now follows.
+No modals below `PHONE_QUERY`; the header decides whether a screen slides; one history entry per
+overlay level, pushed by the tap that opened it; a `loading.tsx` occupies its page's own boxes,
+gutter included. All of it is in `CLAUDE.md` and `design-system.md` §6, and the bugs that produced
+each rule are in `scar-tissue.md`.
 
 Hero metric selector, groups by state with own totals, **freshness stamp on every row**,
 `CLOSED` as a permanent group, summary rail.
@@ -1218,9 +1261,9 @@ they don't share a surface.
 |---|---|
 | 1 | `S0` skeleton · `S1` data layer + read engine · `S2` primitives (mostly folded into `S1`) |
 | 2 | ✅ `S3a` auth · ✅ `S3b` shell · ✅ `S3c` kitchen sink + ported primitives |
-| 3 | `S4` alone — everything downstream depends on its shape. **Backend closed 2026-08-14; `S4e` built and merged. What remains is its DOOR, which `S6` builds on `/accounts`** |
-| 4 | `S5` · `S6` (different pages, same projections) |
-| 5 | `S8` · `S7` **only once the pattern-vs-reading decision is made** |
+| 3 | ✅ `S4` alone — everything downstream depends on its shape. Backend closed 2026-08-14, `S4e` merged, and the door it owed arrived with `S6`. **CLOSED 2026-08-31** |
+| 4 | ✅ `S5` · ✅ `S6` (different pages, same projections). Both closed — `S5` 2026-08-25, `S6` 2026-08-31 |
+| 5 | `S8` · `S7` **only once the pattern-vs-reading decision is made** — ⬅ **the plan is here now** |
 | 6 | `S8b` settings + what's new · `S9` polish |
 | 7 | `S9c` notifications — last, and only if the doctrine leaves anything to notify about |
 | — | `S10` subject pages — **not in a wave.** Phases B and C are held behind `S7`'s decision; phase A can slot anywhere once its own product question is answered |
@@ -1253,22 +1296,17 @@ drawer cannot give up its nav rows until the bottom bar carries them.
 *Status as of **2026-08-27**. `S0`–`S3c` merged; waves 1 and 2 complete. `S3d`, `S5` and `S5d` are
 closed — the record and the phone both.*
 
-***`S4` IS UNBLOCKED AND ITS DOOR IS BACK.*** *The line that used to sit here said `S4e`'s modal had
-no door in the product. `S6b` shipped the roster on 2026-08-26 with `Add account` portalled into the
-shell band, so the flow is reachable again. What `S4` still owes before it CLOSES is its own third
-door — "Add manually" — which `D5` keeps in `S6` and which is blocked on `S6d`, below.*
+***`S4` AND `S6` ARE BOTH CLOSED (2026-08-31, Luke).*** *`S6` shipped the roster, the hero chart,
+the detail route, the editor, filters, reorder and the phone; `S4`'s last debt was a door, and `S6`
+built all three of them. The critical path from a signed-in trader to a reconciled tape is now
+whole and reachable in the product rather than only in a gate script.*
 
-***`S6` IS BUILT. `S6d` AND `S6e` SHIPPED 2026-08-28/29 and this block said otherwise for three
-days*** *(corrected 2026-08-31).* `S6a` read layer, `S6b` roster, `S6c` hero chart with Breakdown,
-`S6f` filters and reorder and `S6g`'s mobile pass had already merged. Since then **`S6d` shipped the
-detail route** — `/accounts/details/[id]`, its `/trades` child, the phone's sliding panel and both
-loading boundaries — and **`S6e` shipped editing**: label, type, firm, size, hide, exclude, close,
-reopen, delete, and the ending question a type change forces. Deployed and exercised on a real phone.
-
-**So `S6`'s `D5` is unblocked and "Add manually" is built too**, which was the last thing `S4` owed.
-`S6` and `S4` are both ready to close against the seven-point bar; the open follow-ups filed on
-2026-08-28 ([#30](https://github.com/modryn-studio/run-rebuild/issues/30)–[#37](https://github.com/modryn-studio/run-rebuild/issues/37))
-are improvements to shipped surfaces rather than gaps in them. **The stamp is Luke's to put on.**
+***THE PLAN SAID `S6d` AND `S6e` WERE NOT BUILT FOR THREE DAYS AFTER THEY SHIPPED***, and that is
+worth keeping rather than quietly correcting. A build plan that lags the build is the one artefact
+whose whole job is telling you what is left; this one was describing a 404 that had been fixed. The
+lesson is the same one `CLAUDE.md` states about itself - **the doc changes in the commit that makes
+it false** - and it was broken here because the slices closed across several sessions of iteration
+that each felt like polish rather than delivery.
 
 *`S7`–`S9` untouched. `S7` is blocked on a product decision rather than on engineering
 ([#2](https://github.com/modryn-studio/run-rebuild/issues/2)), and it is the next thing in the plan
@@ -1290,4 +1328,10 @@ that needs a person rather than a keyboard. `S10` was added 2026-08-31 and is he
       compositions are deferred to the slices that own their data shapes, so **this line closes
       with `S8`, not with `S3c`** — which is the honest reading of a rack that grows as the
       product does.
-- [ ] The critical path works end to end for a switcher with no prior data — needs `S4`
+- [~] **The critical path works end to end for a switcher with no prior data** — *the path is built
+      and reachable as of `S4`/`S6` closing (2026-08-31); what has not been RUN is a genuinely cold
+      one.* Every step exists and is gated - sign in, add an account, drop three files, reconcile to
+      the cent, read the tape - and Luke's own corpus has been through all of it. **Two seams have
+      only been read, not exercised:** a real CSV import adopting an account created by "Add
+      manually", and a first-run trader whose roster is empty at every screen rather than populated.
+      Closes when somebody does it once, deliberately, on a fresh account.
