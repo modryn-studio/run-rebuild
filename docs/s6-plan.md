@@ -7,7 +7,7 @@ worse than no plan - it sends the next session to re-decide questions the code a
 | | |
 |---|---|
 | **Shipped** | `S6a` read layer · `S6b` roster · `S6c` hero chart · `S6f` filters + reorder · `S6g` mobile pass |
-| **Not built** | `S6d` the detail route · `S6e` editing |
+| **Not built** | *(none — `S6d` and `S6e` shipped 2026-08-28/29; see §3)* |
 | **Decisions** | `D1`-`D5` settled in code, recorded in §1 below. §7 is now empty by design |
 
 ⚠ **`S6d` IS NOT MERELY PENDING - IT IS A HOLE IN THE SHIPPED PAGE.** Every roster row is a
@@ -218,7 +218,7 @@ The curve, the two figures (all-time headline + windowed change), the period men
 divs, hover snapping to real points. Per-row sparklines.
 *Deferred unless D4 says otherwise: Breakdown, its grain menu, paging, the stacking axis.*
 
-### S6d — The detail route ⛔ NOT BUILT, and the roster already links to it
+### S6d — The detail route ✅ SHIPPED 2026-08-28
 `/accounts/details/<id>` — breadcrumb header, the account rail's two cards, the account's own tape.
 Makes live the two links `/trades` already renders as plain strings.
 *Includes the P8 provenance card, which needs a fourth fact v2 does not have — see §4.*
@@ -235,7 +235,7 @@ this slice gets built:
   reachable failures are an id belonging to ANOTHER trader (must 404, not leak) and an account with
   zero trades (must render, not divide by nothing).
 
-### S6e — Editing ⛔ NOT BUILT
+### S6e — Editing ✅ SHIPPED 2026-08-29
 `LabelAccountForm` (confirm-not-interrogate, firm pre-filled from prefix, apply-to-siblings),
 `FirmPicker`, Close, Delete-or-refuse. All wired through `useOverlayBack`.
 *The most stateful slice, and the one carrying the most of v2's shipped bugs to avoid.*
@@ -249,7 +249,9 @@ Per Luke: *"mobile view of accounts will be done at the end."* **First pass ship
 the band drops Filters and takes Refresh and Add as icons at the shell's own 22px scale; the chart
 drops its gridlines, its axis labels and its two axis dates below `sm` and gains a press-and-drag
 crosshair; `ScopeTabs` landed above the chart and scopes the chart, the roster AND the summary rail.
-Still open: `/accounts/details` on a phone (`S6d`), and editing (`S6e`).
+**Nothing still open in this slice.** `/accounts/details` on a phone shipped with `S6d` rather
+than after it - the sliding panel, the `Recent trades` hand-off and the account's own tape - and
+editing shipped with `S6e`, confirmations included.
 
 ---
 

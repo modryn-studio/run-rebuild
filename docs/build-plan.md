@@ -1081,6 +1081,132 @@ worth taking. The red is not obviously right here: `--color-neg` means *a result
 and overloading it for "you have mail" is exactly the kind of second job that broke the border
 tokens. `--color-accent` is the product's existing dot language. Decide it with the slice.
 
+### S10 — Subject pages: the chart selects, and a subject pins *(added 2026-08-31)*
+
+**Held behind `S7`, except phase A. Nothing here is v1 scope until the pattern-versus-reading
+decision lands**, because if Read ships patterns then a product page is where a named pattern's
+evidence lives, and that changes what the rail on it has to say.
+
+Written up now rather than later because the research below cost a session and is not re-derivable
+from the reference by reading it: the finding is a class name in Monarch's markup, and it inverts
+the obvious plan.
+
+#### The finding: it is not a merchant page
+
+`app.monarch.com/merchants/<id>` renders a period heading whose class is
+**`FilteredCashFlowPage__DateLabel`**. It is `/cash-flow` with a merchant pinned, not a page of its
+own. Confirmed by clicking the breadcrumb (2026-08-31):
+
+```
+/merchants/2494…?date=2026-06-01&timeframe=month&sankey=category&view=breakdown
+        │  "Cash Flow" ▼          every parameter survives, including the period
+/cash-flow?date=2026-06-01&timeframe=month&sankey=category&view=breakdown
+```
+
+**Going up does not go back. It removes the pin and keeps where you were.**
+
+| | `/cash-flow` — unpinned | `/merchants/[id]` — pinned |
+|---|---|---|
+| Chart | bars over time | same |
+| Heading | "June 2026" | same |
+| Body | 4 hero figures + Income/Expenses breakdown, grouped by **Category · Group · Merchant** | Transactions card + Summary rail |
+| Grain | Monthly · Quarterly · Yearly | Daily · Weekly · Monthly · Quarterly · Yearly |
+| Filters | Accounts · Tags · Hidden | **the same axes** — every one except the pinned subject |
+
+**Run already owns this pair.** `/accounts` is chart + breakdown + rail; `/accounts/details/[id]` is
+that page with one account pinned, and its filter sheet already shows the pinned account as a locked
+chip. What is missing is not a page. It is that the breakdown groups exactly one way.
+
+#### The mechanism, measured by driving it
+
+The chart bars are `<path role="button">`. Clicking one rewrote `date=2026-08-01` to
+`date=2026-06-01`; the heading became "June 2026" and **both cards below rescoped to June**.
+Switching the grain to Yearly rewrote *both* `timeframe=year` **and** `date=2026-01-01`.
+
+So: **the chart is the navigation.** Two pieces of state in the URL — a grain, and which bucket is
+selected — and everything under the chart is scoped to the selection.
+
+#### The decision, and it is the reason phase A exists
+
+Run's chart carries `1D · 1W · 1M · 3M · YTD · 1Y · ALL`. That is a **window**: how far back to
+look, one answer, the whole page shows that span. Monarch has a window *and a selection*.
+
+The consequence is small and it is not: **`PeriodHeading` has been unbuildable because it has
+nothing to name.** A window has no "August"; a selection does. And the per-period summary is what
+makes two periods comparable, which is the question a trading journal exists to answer — the finding
+that cleared the kill signal is a CHANGE BETWEEN PERIODS (MNQ to NQ, stops unchanged), not a fact
+about a span.
+
+**SETTLED 2026-08-31: do not adopt Monarch's two controls. Add one idea to the control that already
+works.** The range chip already picks the window and implies the grain (`1Y` gives monthly bars,
+`1M` gives daily). What is missing is only that a bar can be clicked:
+
+> **The range chip says which bars exist. Clicking a bar says which one you are reading.**
+
+One new concept, no second control, and it is strictly less than Monarch, which needs the grain
+because its window is fixed.
+
+#### The three phases
+
+**A — the chart selects.** Bars become buttons, the selected bucket goes in the URL, `PeriodHeading`
+ships and names it. Touches `/accounts` and `/accounts/details/[id]` only. **Independently
+shippable, and the only phase not held behind `S7`** — but see the product question below before
+starting it.
+
+**B — the breakdown groups more than one way.** `By account · By product · By session` on
+`/accounts`. The rows are the same shape and the projection already carries `symbol_root` and
+`session_date` as promoted, indexed columns, so it is a second `GROUP BY`. No migration.
+
+**C — pinning.** `/products/[root]` and `/sessions/[date]` are the existing page with a subject
+pinned: same `SubjectPage`, same `PnlChart`, same `TradesTape`, same `TradesRail`, subject shown as a
+locked chip in Filters. "Up" removes the pin and keeps the period.
+
+Keyed on the **root**, never the contract month — `MNQ`, not `MNQU6`. A trader asks how they trade
+the Nasdaq, not how they traded the September Nasdaq; the month is an expiry, not a strategy.
+
+#### The product question phase A raises, which is why it is not free
+
+Scoping the tape to a clicked bar changes what `/accounts/details/[id]` IS: today it is the
+account's whole record, and after A it is a record you read one period at a time. That is a product
+decision rather than a mechanism, and it belongs with B and C rather than being smuggled in ahead of
+them. **If A ships alone, it ships with the tape unscoped and only the heading and the rail
+following the selection** — or it waits.
+
+#### The doors in
+
+Three, and the third is the one that is easy to miss:
+
+1. **The breakdown row** — click a product in the grouped breakdown, land on its page pinned.
+2. **The trade detail's instrument name** — the same gesture as Monarch's merchant link in its
+   transaction drawer.
+3. **The account detail's own trade drawer** (Luke, 2026-08-31, with a screenshot). Monarch puts a
+   distinct link under the merchant name: **"View 16 transactions"**. Not the name made clickable —
+   its own line, **carrying the count**. That is the affordance worth copying exactly: it states how
+   much is on the other side before the tap, which is the difference between a link and an
+   invitation. Run's version reads "View 47 MNQ trades".
+
+**No new nav row.** These are drill-downs, the same standing as `/accounts/details/[id]`;
+`spec.md`'s divider rule already settles it.
+
+#### Two flags, and two things not to copy
+
+**A subject page is cross-account by construction** — the one structural advantage this corpus has
+over any prop firm's own dashboard, since a firm's dashboard sees one firm and this is keyed on the
+TRADER. It is also the read most likely to break *"scope every read by account and window from the
+first query"*, so that scoping has to be decided rather than inherited. And
+[#31](https://github.com/modryn-studio/run-rebuild/issues/31) already measures the account pages
+shipping more payload than they draw; a third surface on the same reads compounds it.
+
+**Not to copy:** the chart bars carry no `aria-label`, so Monarch's entire period selector is
+invisible to a screen reader — and the breadcrumbs are `<div role="link">` with no `href`, so no
+middle-click and no copy-link-address. Run's bars are buttons with names, and its breadcrumbs are
+anchors.
+
+**Supersedes** [#15](https://github.com/modryn-studio/run-rebuild/issues/15), which framed this as a
+bespoke `/products/[symbol]` page and asked "page or filter?". The answer is neither: it is the page
+Run already has, with a subject pinned.
+
+
 ---
 
 ## What runs in parallel
@@ -1097,6 +1223,7 @@ they don't share a surface.
 | 5 | `S8` · `S7` **only once the pattern-vs-reading decision is made** |
 | 6 | `S8b` settings + what's new · `S9` polish |
 | 7 | `S9c` notifications — last, and only if the doctrine leaves anything to notify about |
+| — | `S10` subject pages — **not in a wave.** Phases B and C are held behind `S7`'s decision; phase A can slot anywhere once its own product question is answered |
 
 **`S3d` then `S5d` (the phone) slot wherever the mobile pass is scheduled** — `S3d` first, since the
 drawer cannot give up its nav rows until the bottom bar carries them.
@@ -1131,13 +1258,21 @@ no door in the product. `S6b` shipped the roster on 2026-08-26 with `Add account
 shell band, so the flow is reachable again. What `S4` still owes before it CLOSES is its own third
 door — "Add manually" — which `D5` keeps in `S6` and which is blocked on `S6d`, below.*
 
-***`S6` IS MOSTLY BUILT, NOT UNTOUCHED.*** *`S6a` read layer, `S6b` roster, `S6c` hero chart (with
-Breakdown), `S6f` filters and reorder, and `S6g`'s first mobile pass have all merged.* **What remains
-is `S6d` (the detail route) and `S6e` (editing) — and `S6d` is not a gap but a live defect: every
-roster row links to `/accounts/details/<id>`, which returns 404.** *See `s6-plan.md` §3.*
+***`S6` IS BUILT. `S6d` AND `S6e` SHIPPED 2026-08-28/29 and this block said otherwise for three
+days*** *(corrected 2026-08-31).* `S6a` read layer, `S6b` roster, `S6c` hero chart with Breakdown,
+`S6f` filters and reorder and `S6g`'s mobile pass had already merged. Since then **`S6d` shipped the
+detail route** — `/accounts/details/[id]`, its `/trades` child, the phone's sliding panel and both
+loading boundaries — and **`S6e` shipped editing**: label, type, firm, size, hide, exclude, close,
+reopen, delete, and the ending question a type change forces. Deployed and exercised on a real phone.
+
+**So `S6`'s `D5` is unblocked and "Add manually" is built too**, which was the last thing `S4` owed.
+`S6` and `S4` are both ready to close against the seven-point bar; the open follow-ups filed on
+2026-08-28 ([#30](https://github.com/modryn-studio/run-rebuild/issues/30)–[#37](https://github.com/modryn-studio/run-rebuild/issues/37))
+are improvements to shipped surfaces rather than gaps in them. **The stamp is Luke's to put on.**
 
 *`S7`–`S9` untouched. `S7` is blocked on a product decision rather than on engineering
-([#2](https://github.com/modryn-studio/run-rebuild/issues/2)).*
+([#2](https://github.com/modryn-studio/run-rebuild/issues/2)), and it is the next thing in the plan
+that needs a person rather than a keyboard. `S10` was added 2026-08-31 and is held behind it.*
 
 - [x] **`S1` fired or cleared the kill signal, and the result is recorded** — CLEARED. The MNQ→NQ
       multiplier finding, confirmed by Luke as something he did not already know

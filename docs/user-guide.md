@@ -59,6 +59,10 @@ flowchart TD
   Trades --> Filters(["Filters"])
   AcctTape --> Filters
 
+  Trades -.-> Product["/products/[root] (S10)"]
+  Detail -.-> Product
+  Trades -.-> Session["/sessions/[date] (S10)"]
+
   Shell --> Menu(["Account menu"])
   Menu -.-> Settings["/settings (S8b)"]
   Menu -.-> WhatsNew["/whats-new (S8b)"]
@@ -69,6 +73,8 @@ flowchart TD
   style Settings stroke-dasharray: 5 5
   style WhatsNew stroke-dasharray: 5 5
   style Notifs stroke-dasharray: 5 5
+  style Product stroke-dasharray: 5 5
+  style Session stroke-dasharray: 5 5
   style AddAcct stroke-dasharray: 2 3
   style EditAcct stroke-dasharray: 2 3
   style Filters stroke-dasharray: 2 3
@@ -334,6 +340,49 @@ nothing while claiming a `2` on the badge. Every other axis is multi-select.
 
 ---
 
+## 5c. Subject pages — `S10`, held behind `S7`
+
+**Not a new kind of page. The page Run already has, with a subject pinned.** `/accounts` is chart +
+breakdown + rail; `/accounts/details/[id]` is that page with one account pinned. `S10` adds two more
+things that can be pinned, and one idea that makes pinning worth having.
+
+```mermaid
+flowchart TD
+  Accounts["/accounts<br/>chart · breakdown · rail"]
+  Accounts -->|"pin an account"| Detail["/accounts/details/[id]"]
+  Accounts -.->|"pin a product (S10)"| Product["/products/[root]"]
+  Accounts -.->|"pin a session (S10)"| Session["/sessions/[date]"]
+
+  Detail -->|"up: removes the pin,<br/>keeps the period"| Accounts
+  Product -.-> Accounts
+  Session -.-> Accounts
+
+  style Product stroke-dasharray: 5 5
+  style Session stroke-dasharray: 5 5
+```
+
+**The chart is the navigation.** `S10`'s phase A makes each bar a button: the range chip says which
+bars exist, and clicking one says which you are reading. The selected bucket goes in the URL, and
+everything under the chart is scoped to it. That is what `PeriodHeading` has been waiting for - a
+window has no "August" to name, and a selection does.
+
+**Going up removes the pin rather than going back**, and it keeps the period you had selected. So
+Back from a pinned page is an in-app step like any other (§2), and the address it lands on is the
+same screen minus one filter.
+
+**Three doors in**, and the third is the one to get right:
+
+1. the breakdown row, once it can group by product;
+2. the instrument name in the trade detail;
+3. **the trade drawer's own link**, which states its count: **"View 47 MNQ trades"** rather than the
+   name made clickable. Monarch's version reads "View 16 transactions" and sits on its own line under
+   the merchant - it says how much is on the other side before the tap.
+
+Keyed on the product ROOT, never the contract month: `MNQ`, not `MNQU6`. Full reasoning, the
+research it came from and what deliberately is not copied: `build-plan.md` §S10.
+
+---
+
 ## 6. Read — `S7`, and blocked on a decision rather than on engineering
 
 ```mermaid
@@ -440,6 +489,8 @@ goes public.
 | `/trades` | S5 · S5d | ships |
 | `/trades/[id]` | S5d | ships — route and overlay |
 | `/read` | **S7** | **blocked** — see §6 |
+| `/products/[root]` | **S10** | **not built** — held behind S7, see §5c |
+| `/sessions/[date]` | **S10** | **not built** — held behind S7, see §5c |
 | `/settings` | **S8b** | **not built** |
 | `/whats-new` | **S8b** | **not built** |
 | `/status` · `/admin` · `/kitchen-sink` | S0 · S3c | ship — internal |
