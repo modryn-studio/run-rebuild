@@ -49,7 +49,7 @@ flowchart TD
     Trades["/trades"]
   end
 
-  Today -.-> Recap(["Your Daily Recap (S8)"])
+  Today --> Recap(["Your Daily Recap"])
 
   Accounts --> Detail["/accounts/details/[id]"]
   Detail --> AcctTape["/accounts/details/[id]/trades<br/>phone only"]
@@ -70,7 +70,7 @@ flowchart TD
   Shell -.-> Notifs(["Notifications (S9c)"])
 
   style Today stroke-dasharray: 5 5
-  style Recap stroke-dasharray: 5 5
+  style Recap stroke-dasharray: 2 3
   style Settings stroke-dasharray: 5 5
   style WhatsNew stroke-dasharray: 5 5
   style Notifs stroke-dasharray: 5 5
@@ -82,7 +82,10 @@ flowchart TD
   style Menu stroke-dasharray: 2 3
 ```
 
-**`/today` is a live row that 404s today, on purpose** — `S8` is coming for it.
+**`/today` exists but is not linked yet.** The shell's `Today` row still points at a 404: the page
+is reachable by address only while its read is a fixture, which is the containment rather than a
+"sample" banner on the page itself (`today/page.tsx` argues it). `S8` links it when the nightly job
+lands.
 
 **`Read` came out of the nav on 2026-08-31** (`spec.md` §4, amended). The daily read ships as a card
 on `Today` instead, the way Monarch's Weekly Recap is a dashboard widget rather than a room. The
@@ -389,6 +392,42 @@ same screen minus one filter.
 
 Keyed on the product ROOT, never the contract month: `MNQ`, not `MNQU6`. Full reasoning, the
 research it came from and what deliberately is not copied: `build-plan.md` §S10.
+
+---
+
+## 5d. Today — the front door
+
+```mermaid
+flowchart TD
+  Today["/today<br/>greeting · widget grid"]
+  Today --> Recap(["Your Daily Recap"])
+  Recap --> Read(["The read, opened in place"])
+  Read --> Trade["a cited trade → /trades/[id]"]
+  Today -.-> NetPnl(["Net P&L (S8)"])
+  Today -.-> Accts(["Accounts (S8)"])
+  Today -.-> Last(["Last session (S8)"])
+
+  style Recap stroke-dasharray: 2 3
+  style Read stroke-dasharray: 2 3
+  style NetPnl stroke-dasharray: 5 5
+  style Accts stroke-dasharray: 5 5
+  style Last stroke-dasharray: 5 5
+```
+
+**The widget contract**, ported from the reference and confirmed in its markup: the **title is the
+link** (the whole header block, not a chevron beside it), the **period sits with the title**, the
+scope control is a small combobox *inside* the widget, and the body is a chart, a list, or an empty
+state with a **specific** CTA.
+
+**No widget paginates.** Zero previous/next controls exist on the reference's whole dashboard, and
+the reason is structural: a dashboard's claim is *at a glance*. Browsing through time is a page's
+job. `build-plan.md` §S8 records what that would take.
+
+**The greeting reads `trader.display_timezone`**, which is the one place that column is
+unambiguously right: "good afternoon" is a fact about the person, not the market, and nothing
+downstream of it is a number. The name is nullable, so the greeting works without one.
+
+**Back on `/today` exits the app** — it is a root. The recap's overlay is an in-app step and closes.
 
 ---
 

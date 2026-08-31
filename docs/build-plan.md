@@ -1062,6 +1062,60 @@ front door rather than a summary of three others.
 **The first thing this slice does is delete a nav row.** `app-shell.tsx` still renders
 `Read → /read`, which the spec no longer describes and which 404s.
 
+#### WHEN THE READ RUNS — settled 2026-08-31, and `market-hours.md` decides it
+
+Luke: *"i would think most users would want it as soon as they are done trading for the day. but
+when does that happen, really? i guess, technically we could run it on that 1 hour the market uses
+for maintenance."* That is the answer, and the doc backs it. §1 gives three different hours and only
+one gap:
+
+| | |
+|---|---|
+| the trade date | 17:00 CT → 17:00 CT — the boundary a fill is DATED to |
+| the tradeable session | 17:00 CT → 16:00 CT — when the book is open |
+| **the maintenance break** | **16:00 CT → 17:00 CT — Globex is DOWN, Mon–Thu** |
+
+The session's fills are complete at 16:00, the book is shut until 17:00, and the date does not roll
+until 17:00. **It is the only hour in which a session is finished and the next one has not started**,
+which makes it the only honest time to read a day. A job at ~16:15 CT reads a complete session and
+publishes before the trader could take another trade.
+
+**ONE READ PER SESSION DATE**, and it is two rules at once. `ai-economics.md` §1 measures a full
+desk read at **$1.58 billed** — ≈$47 per trader per month nightly, before the tape grows, and
+`renderTape()` has no window cap. And a read a trader can re-roll is a read they will re-roll until
+they like it, which is the opposite of a record. So a manual *"read it now"* **spends** that day's
+allowance rather than adding to it.
+
+> ⚠️ **`ai-economics.md` §6's cost architecture assumes the PATTERN, and 2026-08-31 chose the
+> reading.** Its two-speed proposal — weekly discovery at Opus, nightly at Haiku against *open
+> claims* — gets to ≈$4/trader/month by making the daily call SQL plus one sentence. There are no
+> claims in the reading shape, so the daily call is the full desk read every night. **The cost
+> question is reopened, not solved**, and it belongs to the slice that builds the job.
+
+#### DEFERRED, AND WHAT WOULD EARN THE `/read` PAGE BACK
+
+Both of these came up while designing the card (Luke, 2026-08-31) and both were refused for the
+same reason. Written down because they are good ideas that are simply not widget-shaped.
+
+**1. Browsing back through reads** — *"what if we had left and right arrows to view yesterday's
+recap and the recap from two days ago? or is this becoming more of a page than a widget now?"* It
+is, and that instinct is the finding. There are **zero** previous/next controls on Monarch's entire
+dashboard (checked in the markup, every widget), and the pattern literature states why: a
+dashboard's claim is *at a glance*, and pagination turns a glance into a task. The sanctioned
+alternatives are detail-on-demand (open it) and navigate out (go to the page that owns it). **This
+is the page.** A trader who wants the arrows badly enough is a trader who has told you the page is
+earned — which is the same bar `Sessions` is held to.
+
+**2. A `Daily / Weekly` scope picker on the card.** Allowed by the widget contract — Monarch's
+net-worth widget carries `1 month` — but there is no weekly read to switch to, and a picker with
+one real option is a control that cannot be answered. A weekly roll-up is also a genuinely
+different artefact rather than seven dailies concatenated: it is the shape Monarch actually ships,
+and `spec.md` §4.2's *"weekly roll-ups can exist later as a view over dailies; the atom is the day"*
+already reserves the room for it.
+
+**What the deferred page would hold:** a list of past reads by session, the arrows, and the weekly
+roll-up as a second cadence. `user-guide.md` §6 keeps the original page spec for that day.
+
 **What it does NOT build:** History, and anything needing a pattern object. `S7` still owns that
 question ([#2](https://github.com/modryn-studio/run-rebuild/issues/2)), and the decision recorded
 2026-08-31 is that the READING wins for v1. The one irreversible piece ships here regardless: the
