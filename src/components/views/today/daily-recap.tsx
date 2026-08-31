@@ -45,7 +45,9 @@ import Link from 'next/link';
 import { buttonClasses } from '@/components/ui/button';
 import { InstrumentMark } from '@/components/views/trades/instrument-mark';
 import { ConfirmShell } from '@/components/views/accounts/confirm-shell';
-import { ConfirmHeader } from '@/components/views/accounts/shared';
+import { Icon } from '@/components/ui/icon';
+import { IconButton } from '@/components/ui/icon-button';
+import { CONFIRM_TITLE_ID } from '@/components/ui/modal-shell';
 import { Widget } from './widget';
 import { recapPeriod, type Recap, type RecapTrade } from '@/lib/desk/recap';
 import { fmtMoney } from '@/lib/format';
@@ -149,34 +151,51 @@ function CardBody({ recap }: { recap: Recap }) {
  * runs long.
  */
 function ReadOverlay({ recap, onClose }: { recap: Recap; onClose: () => void }) {
-  const title = recapPeriod(recap.sessionDate);
-
   return (
     <ConfirmShell onCancel={onClose} label="Your daily recap" role="dialog" width="max-w-xl">
       {(dismiss) => (
         <>
-          <ConfirmHeader title={title} onCancel={dismiss} />
+          {/* THE CLAIM IS THE TITLE, and that is the whole answer to the wall (2026-08-31, Luke:
+              *"we need low low low cognitive load"*, having proposed a three-step walkthrough).
+              It used to be the first PARAGRAPH, which meant tapping a card that says X opened a
+              modal that said X again and then piled four more paragraphs under it. The repetition
+              was the wall, not the length - and a three-step version would have made that repeat
+              step one of three.
+              A SENTENCE AS A TITLE takes `text-h3` rather than `text-title`: it wraps to two lines
+              and it is a claim rather than a label, so it needs the room. */}
+          <div className="flex items-start justify-between gap-3 px-6 pt-5">
+            <div className="min-w-0">
+              <p className="eyebrow text-muted">{recapPeriod(recap.sessionDate)}</p>
+              <h2 id={CONFIRM_TITLE_ID} className="text-h3 text-text mt-1 font-medium">
+                {recap.lede}
+              </h2>
+            </div>
+            <IconButton onClick={dismiss} aria-label="Close">
+              <Icon name="close" size={14} />
+            </IconButton>
+          </div>
 
-          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-6">
-            {/* CLAIM, THEN EVIDENCE, THEN THE WORKING - the shape every step of the reference's own
-                recap uses, and the shape `architecture.md` already names as `read.body` +
-                `read.working`. */}
+          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-6 pt-5 pb-6">
+            {/* EVIDENCE BEFORE THE WORKING, which is the second half of the same fix. "Which
+                trades" is the question a trader has the moment they read the claim; "how did it
+                happen" is the one they may never ask. Three rows answer the first in one glance,
+                and they sit above the prose so the prose is something you descend into rather than
+                something you have to get past. */}
+            {recap.trades && recap.trades.length > 0 && (
+              <div className="mb-8">
+                {recap.trades.map((t) => (
+                  <CitedTrade key={t.id} trade={t} />
+                ))}
+              </div>
+            )}
+
+            {/* THE WORKING. `architecture.md` calls it that, and it is the only prose left on the
+                screen now that the claim has moved into the header. */}
             <div className="text-body-lg text-text flex flex-col gap-4 leading-relaxed">
               {(recap.body ?? '').split(PARA).map((para, i) => (
                 <p key={i}>{para}</p>
               ))}
             </div>
-
-            {recap.trades && recap.trades.length > 0 && (
-              <div className="mt-8">
-                <p className="eyebrow text-muted">The trades this is about</p>
-                <div className="mt-2">
-                  {recap.trades.map((t) => (
-                    <CitedTrade key={t.id} trade={t} />
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* THE TRUST NOTE, ALWAYS, NOT ONLY WHEN SOMETHING LOOKS WRONG. `spec.md` §4.2 requires
                 it, and the reference repeats it on EVERY step of its own recap rather than once at

@@ -28,7 +28,6 @@ export const RECAP_STRONG: Recap = {
   sessionDate: '2026-08-28',
   lede: 'You moved your stop three times today, all three further away, all three on MNQ.',
   body: [
-    'You moved your stop three times today, all three further away, all three on MNQ.',
     'The first was 22 minutes in. Price had gone eight points against the position and the stop was four away; you cancelled it and replaced it eleven points out. That trade closed at the new stop, for a loss of $112.50 rather than the $47.20 the original would have taken.',
     'The second and third followed the same shape within the hour, and both closed at the widened stop. Across the three, the distance you added cost $198.30 more than the stops you set when you entered.',
     'Every other trade today closed at the stop you set. The three that did not are the three you were watching when they went against you.',
@@ -49,7 +48,6 @@ export const RECAP_PLAIN: Recap = {
   sessionDate: '2026-08-27',
   lede: 'A quiet session: eight trades, all on MES, and none of them held longer than four minutes.',
   body: [
-    'A quiet session: eight trades, all on MES, and none of them held longer than four minutes.',
     'Six closed at a target and two at a stop, which is the same shape as the previous four sessions. Net was +$63.40 after $41.60 in fees, so fees took 40% of the gross.',
     'Nothing in the executions separates today from the sessions around it.',
   ].join('\n\n'),

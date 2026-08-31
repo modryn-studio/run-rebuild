@@ -49,9 +49,16 @@ export interface Recap {
   state: RecapState;
   /** The session this covers, `YYYY-MM-DD`. NEVER a relative word - see below. */
   sessionDate: string;
-  /** The read's own first sentence, shown on the card. Absent unless `ready`. */
+  /* THE CLAIM. One sentence, and it is the ONLY place it appears (2026-08-31, Luke: *"not a lot of
+     people like to get a modal with a face full of writing... we need low low low cognitive
+     load"*). It is the card's line, and when the card opens it becomes the overlay's TITLE - so
+     tapping a card that says X no longer produces a modal that opens by saying X again. That
+     repetition was the actual wall, not the length. */
   lede?: string;
-  /** The whole read, shown when it opens. Absent unless `ready`. */
+  /* THE WORKING, AND NOT THE CLAIM AGAIN. Everything after the first sentence: how it happened, what
+     it cost, what separates it from the sessions around it. The engine writes one piece of prose;
+     the first paragraph is `lede` and the rest is this, split when the read is stored rather than
+     at the render. Absent unless `ready`. */
   body?: string;
   /** The trades it cites, in the order it cites them. */
   trades?: RecapTrade[];
