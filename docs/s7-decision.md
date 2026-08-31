@@ -7,6 +7,10 @@
 > **Opened 2026-08-31**, to hold the research from one session rather than lose it. Two of the four
 > inputs are settled (§1); two are still open (§8).
 
+> **This document is the working material for phases 1-4 of `read-blueprint.md`**, which was written
+> after it and gives it a place to sit. Read the blueprint first if you want the structure; read this
+> for the research that fills it.
+
 **The blocking question**, in one line: *does a claim earn its place by recurring, or by being true
 once and verifiable?* — and, added this session, *what may it cost to find out?*
 
