@@ -442,7 +442,15 @@ function Comparison({ evidence }: { evidence: Extract<RecapEvidence, { kind: 'co
  * which under `spec.md` P12 is the most serious thing this product can be told. UNHELPFUL is a
  * claim about the JUDGEMENT - every figure checks out and the read still was not worth opening.
  * The first is a bug report and the second is a preference, and one thumb cannot tell them apart.
- * BOTH CAN BE TRUE AT ONCE, so they are independent toggles rather than a radio pair. */
+ *
+ * ONE AT A TIME, AND NOT UN-CHOOSABLE (2026-09-01, Luke: *"user should not be able to chose both
+ * inaccurate and unhelpful"*, *"user should not be able to unselect a choice... but not able to
+ * unselect by tapping the same option twice"*). They were independent toggles for a day on the
+ * argument that a read can be both, and that is true of the read and false of the REPORT: a person
+ * pressing this has one thing they mean, and offering four states where there are three makes the
+ * control ask a question nobody has. So the whole row - both thumbs and both reasons - is one
+ * value that can only be CHANGED, never cleared by pressing what is already chosen. The way out of
+ * a mis-tap is the other option, which is one press either way. */
 const REASONS = [
   { id: 'inaccurate', label: 'Inaccurate' },
   { id: 'unhelpful', label: 'Unhelpful' },
@@ -452,7 +460,7 @@ type Reason = (typeof REASONS)[number]['id'];
 
 function Feedback() {
   const [vote, setVote] = useState<'up' | 'down' | null>(null);
-  const [reasons, setReasons] = useState<Reason[]>([]);
+  const [reason, setReason] = useState<Reason | null>(null);
 
   /* NO PROMPT LINE, AND THAT IS THE REFERENCE'S OWN SHAPE (2026-09-01, read out of its markup).
      Its `FeedbackActions__Root` is two bare 36px pill buttons and nothing else - no *"Was this
@@ -467,15 +475,14 @@ function Feedback() {
           key={v}
           aria-label={v === 'up' ? 'Give positive feedback' : 'Give negative feedback'}
           aria-pressed={vote === v}
-          onClick={() =>
-            setVote((prev) => {
-              const next = prev === v ? null : v;
-              /* THE REASONS BELONG TO THE THUMBS-DOWN, so anything else clears them. A stale
-                 `Inaccurate` left behind a thumbs-up would post a contradiction. */
-              if (next !== 'down') setReasons([]);
-              return next;
-            })
-          }
+          /* PRESSING THE CHOSEN THUMB AGAIN DOES NOTHING. Switching is what clears a vote, which
+             is why thumbs-up is the documented way out of a thumbs-down. */
+          onClick={() => {
+            setVote(v);
+            /* THE REASON BELONGS TO THE THUMBS-DOWN, so anything else drops it. A stale
+               `Inaccurate` left standing behind a thumbs-up would post a contradiction. */
+            if (v !== 'down') setReason(null);
+          }}
         >
           {/* THE ACCENT GOES ON THE MARK, NOT ON THE BUTTON, and that is measured rather than
               stylistic. `text-accent` passed to `IconButton` merges cleanly, renders in the class
@@ -520,18 +527,21 @@ function Feedback() {
           belongs: the thumb is a record, these are a DIRECTED report - the thing a maintainer would
           act on. `bg-accent text-accent-fg` rather than a tint, because this system has no
           accent-wash token and inventing one for two chips would be a one-off. */}
-      {vote === 'down' &&
-        REASONS.map((r) => {
-          const on = reasons.includes(r.id);
-          return (
+      {vote === 'down' && (
+        /* `gap-2` ON A WRAPPER, NOT A MARGIN ON EACH CHIP (2026-09-01, Luke: *"the pills are
+           touching on desktop and mobile"*). They were, and it was a regression rather than an
+           oversight: the chips carried `ml-1` until the pass that gave them their outline replaced
+           the whole `className` and took the margin with it. A gap on the container cannot be lost
+           that way, and it keeps the THUMBS adjacent - which is the reference's own shape, and the
+           reason a single gap on the outer row would have been wrong. */
+        <span className="ml-2 flex items-center gap-2">
+          {REASONS.map((r) => (
             <SegmentedItem
               key={r.id}
-              selected={on}
-              onClick={() =>
-                setReasons((prev) =>
-                  prev.includes(r.id) ? prev.filter((x) => x !== r.id) : [...prev, r.id]
-                )
-              }
+              selected={reason === r.id}
+              /* NO TOGGLE-OFF. Pressing the chosen reason again is a no-op; the other chip is the
+                 only way to change it, and a thumbs-up drops it entirely. */
+              onClick={() => setReason(r.id)}
               /* `text-body`, NOT `SegmentedItem`'s OWN `text-caption`. That component sizes for
                  the scope tabs, a dense row of five; measured here it rendered 11px beside a 14px
                  note, and §2a's second rule is that chrome is never smaller than the content it
@@ -542,15 +552,28 @@ function Feedback() {
                  SELECTED swaps the outline and the ink to accent instead of filling with it. A
                  solid pine pill would be the loudest object on a screen whose subject is a trader's
                  own mistake, which is the same argument that keeps `Ask a follow-up` secondary. */
+              /* NO SIZE OVERRIDE ANY MORE. These carried `text-body` because `SegmentedItem`
+                 rendered at 11px, which was indefensible beside a 14px note; the component sits at
+                 the 12px its own comment always claimed, so every pill in the product is now one
+                 size and this call site states only its OUTLINE.
+                 A BORDER IN BOTH STATES, because `SegmentedItem` unselected is bare muted text -
+                 which reads as prose rather than as a control once it sits on the recap's paper
+                 card. Selected swaps the outline and the ink to accent rather than filling with
+                 it: a solid pine pill would be the loudest object on a screen whose subject is a
+                 trader's own mistake, which is the same argument that keeps `Ask a follow-up`
+                 secondary. */
               className={cn(
-                'text-body border',
-                on ? 'border-accent text-accent bg-surface' : 'border-border text-muted bg-surface'
+                'border',
+                reason === r.id
+                  ? 'border-accent text-accent bg-surface'
+                  : 'border-border text-muted bg-surface'
               )}
             >
               {r.label}
             </SegmentedItem>
-          );
-        })}
+          ))}
+        </span>
+      )}
     </div>
   );
 }

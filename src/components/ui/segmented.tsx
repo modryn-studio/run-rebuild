@@ -38,6 +38,34 @@
  * is narrow and it is about what KIND of control this is: a segment SELECTS a view, it does not
  * perform an action, and the row it belongs to is read once and then ignored. An action - a button,
  * a menu item, anything that changes the record - still floors at 14px at every width.
+ *
+ * **THE CLASS SAID `text-caption` (11px) UNTIL 2026-09-01**, so the paragraph above described a
+ * carve-out the code was not taking - it was taking a bigger one, a full step further down, on the
+ * tier `design-system.md` reserves for disclosure. Nobody chose 11; it drifted. The code now says
+ * what the comment always claimed, which is also what makes every pill in the product one size:
+ * the recap's reason chips had been pushed to 14 at their call site precisely because 11 was
+ * indefensible beside a 14px note, and at 12 they need no override at all.
+ *
+ * ─── 32px, NOT 36 (2026-09-01, Luke: "i feel like the pills are too big or at least too much
+ * padding inside... i want all pills to be consistent") ────────────────────────────────────────
+ *
+ * `h-8` and `px-3`, down from `h-9` and `px-3.5`. `.hit-44` is computed from the control's own box,
+ * so the target is still 44px and nothing about the press changed - only what you can see. This is
+ * the second time this row has come down (`min-h-11` -> 36 on 2026-08-27) and for the same reason
+ * both times: the tap floor is a fact about fingers, not about ink.
+ *
+ * ─── THE PRESS IS A SCALE HERE, AND IT IS THE ONE PLACE THAT IS TRUE ───────────────────────────
+ *
+ * `globals.css` is explicit that Run's press is an INSET SHADOW and that `active:scale-[0.98]` was
+ * removed from buttons for being "a SHRINK, not a push - the object gets smaller and stays flat".
+ * That argument depends on the object HAVING a ground to be pushed into. An unselected segment has
+ * no ground, no border and no shadow - the component's own note above says it has no shape at all -
+ * so there is nothing to inset, and a press that does nothing is the dead-control failure
+ * `ui-ux-standards.md` bans outright ("every control does what its label says").
+ *
+ * So: `active:scale-95`, on the house duration and the house curve, and it applies to the LABEL's
+ * box rather than to a surface. `transition-transform` joins `transition-colors` rather than
+ * replacing it, or the selected pill's ground would stop animating.
  */
 
 import { cn } from '@/lib/cn';
@@ -56,7 +84,7 @@ export function SegmentedItem({
       aria-pressed={selected}
       {...props}
       className={cn(
-        'hit-44 text-caption inline-flex h-9 items-center justify-center rounded-full px-3.5 font-medium whitespace-nowrap transition-colors',
+        'hit-44 text-small inline-flex h-8 items-center justify-center rounded-full px-3 font-medium whitespace-nowrap transition-[color,background-color,transform] active:scale-95',
         /* `select-pop` IS THE APP'S OWN PICKED-THING TREATMENT, so a segment reads as chosen in the
            same language as every menu row and filter chip rather than in a private one. */
         selected ? 'bg-surface-2 text-text select-pop' : 'text-muted',

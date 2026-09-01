@@ -215,16 +215,31 @@ export function DailyRecapSection() {
           <em>Inaccurate</em> is a claim about the NUMBERS, which under P12 is the most serious thing
           this product can be told; <em>Unhelpful</em> is a claim about the JUDGEMENT, where every
           figure checks out and the read still was not worth opening. One is a bug report and the
-          other a preference, and a single thumb cannot tell them apart. Both can be true, so they
-          are independent toggles, and anything other than a thumbs-down clears them.
+          other a preference, and a single thumb cannot tell them apart.
         </Note>
         <Note>
-          The chips are <code>SegmentedItem</code>, the app&rsquo;s own picked-thing toggle, at{' '}
-          <code>text-body</code> rather than its <code>text-caption</code>: that component sizes for
-          the scope tabs, a dense row of five, and measured 11px here beside a 14px note. §2a&rsquo;s
-          second rule is that chrome is never smaller than the content it controls. Selected swaps
-          the outline and the ink to accent rather than filling with it, because a solid pine pill
-          would be the loudest object on a screen whose subject is a trader&rsquo;s own mistake.
+          <strong>The whole row is one value that can be CHANGED but never cleared.</strong> One
+          reason at a time, and pressing what is already chosen is a no-op, on both thumbs and
+          both chips. They were independent toggles for a day on the argument that a read can be both
+          inaccurate and unhelpful, which is true of the READ and false of the REPORT: a person
+          pressing this has one thing they mean, and offering four states where there are three makes
+          the control ask a question nobody has. The way out of a mis-tap is the other option, which
+          is one press either way, and a thumbs-up drops the reason entirely.
+        </Note>
+        <Note>
+          The chips are <code>SegmentedItem</code>, the app&rsquo;s own picked-thing toggle, with{' '}
+          <strong>no size override at all</strong>. They briefly carried <code>text-body</code>
+          because that component rendered at 11px, which is indefensible beside a 14px note; the
+          component sits at the 12px its own comment always claimed, so{' '}
+          <strong>every pill in the product is one size</strong>: these, the scope tabs and
+          the chart&rsquo;s range row. Measured: 32px tall, 12px side padding, 12px type, 8px
+          between. This call site states only its outline.
+        </Note>
+        <Note>
+          Selected swaps the outline and the ink to accent rather than filling with it, because a
+          solid pine pill would be the loudest object on a screen whose subject is a trader&rsquo;s
+          own mistake. The border is in both states: <code>SegmentedItem</code> unselected is bare
+          muted text, which reads as prose rather than as a control on the recap&rsquo;s paper card.
         </Note>
         <Note>
           <strong>This modal is the only one on the page&rsquo;s own ground.</strong> The card is{' '}
