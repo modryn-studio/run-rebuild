@@ -113,7 +113,21 @@ export function Widget({
        zoom, at a large system font size, and at a long period string - three causes, one cure. */
     <span className="flex flex-wrap items-center gap-x-2 max-md:flex-col max-md:items-start max-md:gap-y-0.5">
       <span className="flex items-center gap-1.5 max-md:flex-row-reverse">
-        {mark && <Icon name={mark} size={16} className="text-accent shrink-0" />}
+        {/* 14px ON A PHONE, AND IT IS CSS RATHER THAN A SECOND `size` (2026-09-01, Luke: *"i want
+            the recap title and icon to be 14px as well"*). `Icon`'s `size` prop writes the svg's
+            `width`/`height` ATTRIBUTES, which are presentation attributes and therefore lose to any
+            CSS rule - so a `size-*` utility on the same element overrides them cleanly and the mark
+            can carry a breakpoint the prop cannot express. The alternative was `usePhone()`, which
+            would put a hydration-sensitive hook in a component that has no other reason to be
+            stateful. `size-4` restates the 16 so the two steps sit side by side and neither can be
+            changed without seeing the other. */}
+        {mark && (
+          <Icon
+            name={mark}
+            size={16}
+            className="text-accent size-4 max-sm:size-3.5 shrink-0"
+          />
+        )}
         {/* THE TITLE INHERITS THE MARK'S COLOUR (2026-08-31, Luke: *"the title of that card should
             inherit the color of the icon... That's what monarch does. And just for this card, not
             the others"*), and the measurement says he read it exactly right. The reference fills
@@ -122,8 +136,20 @@ export function Widget({
             end stop. So "inherit the icon's colour" IS their effect with the decoration taken off,
             which is the version this design system allows: `design-system.md` bans gradient text,
             and a flat token says the same thing without it. */}
+        {/* ONE STEP DOWN ON A PHONE, same call as the body and the period below it (2026-09-01).
+            The whole card header lands on `text-body` at 412px, so the title, the date and the
+            read's own sentence are one size and hierarchy is carried by INK and WEIGHT alone -
+            accent 500, muted 500, ink 400. That is `design-system.md` §2a's own rule rather than a
+            compromise: *"hierarchy comes from weight and ink, never from another size step"*, which
+            is exactly how the reference runs its whole transactions page on three sizes.
+            `font-medium` IS DECLARED SEPARATELY and survives the swap - `text-title` carries a 500
+            of its own and `text-body` does not, so dropping the utility here would have quietly
+            taken the weight with the size. */}
         <span
-          className={cn('text-title font-medium', mark ? 'text-accent' : 'text-text')}
+          className={cn(
+            'text-title max-sm:text-body font-medium',
+            mark ? 'text-accent' : 'text-text'
+          )}
         >
           {title}
         </span>
