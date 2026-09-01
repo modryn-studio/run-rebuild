@@ -1509,6 +1509,45 @@ input[type='search']::-webkit-search-decoration {
   }
 }
 
+/* A MODAL ON THE PAGE'S OWN GROUND RATHER THAN ON `surface`, so that CONTENT BLOCKS inside it can
+   be white and read as objects. Ported from the reference's `ModalCard__Root`, measured 2026-09-01:
+   `background rgb(246,245,243)`, which is `--color-bg` here to the byte, with its content sitting
+   on white `MessageCard`s. That is the same figure-on-ground relation `/trades` already uses - the
+   tape's rows are `surface` over a `bg` page - moved inside a card.
+
+   ONE CLASS SETS BOTH FACTS, and that is the point of it existing at all: the ground, and the
+   colour `.modal-fade` has to end on. Setting only the first leaves the fade resolving to its
+   `surface` default and drawing a visible band across the foot of the card.
+
+   SCOPED TO THE DAILY RECAP ON PURPOSE (2026-09-01, Luke chose it over porting the ground to every
+   modal). It is the only modal in the product whose body is CONTENT rather than a form or a
+   question, so it is the only one with blocks that need a ground to sit on. A form on paper would
+   be the reference's look with none of the reason for it. */
+.modal-paper {
+  background-color: var(--color-bg);
+  --modal-ground: var(--color-bg);
+}
+
+/* THE FADE AT THE FOOT OF A SCROLLING MODAL, ported from the reference on 2026-09-01 and measured
+   off it rather than eyeballed. Theirs is `RecapFlow__FadeOverlay`: a 48px block, absolutely
+   positioned over the bottom of the scroll region, `linear-gradient(rgba(0,0,0,0), rgb(246,245,243))`
+   - transparent to THE CARD'S OWN GROUND. It is what makes the last line read as "there is more"
+   rather than as a sentence that has been cut off, and it sits under the scroll arrow, which floats
+   on top of it.
+
+   `--modal-ground` IS THE HOOK AND IT DEFAULTS TO `surface`, because the gradient has to end on
+   whatever the card is actually painted with or it draws a visible band. Every modal today is
+   `--color-surface`; a card on a different ground sets the variable on itself and this follows.
+   Note `rgb(246,245,243)` IS Run's `--color-bg` to the byte - the two systems were derived from the
+   same source and agree without translation.
+
+   HAND-WRITTEN RATHER THAN A UTILITY because it reads a variable with a fallback, which no Tailwind
+   arbitrary value expresses, and because `verify-css.mjs` can only protect a rule it can see as a
+   class. */
+.modal-fade {
+  background-image: linear-gradient(to bottom, transparent, var(--modal-ground, var(--color-surface)));
+}
+
 /* A quiet settle when a selectable card becomes active - just enough weight to confirm the choice,
    never a bounce. Pair with the accent border/tint, which transition on their own. */
 @keyframes selectpop { 0% { transform: scale(0.985); } 55% { transform: scale(1.008); } 100% { transform: scale(1); } }

@@ -180,6 +180,22 @@ export function ModalScroller({
         {children}
       </div>
 
+      {/* THE FADE UNDER THE ARROW, and the two are one signal rather than two decorations
+          (2026-09-01, Luke: *"the words of the main content of the modal fade out towards the
+          footer"*). Measured on the reference: 48px, absolute over the foot of the scroll region,
+          transparent to the card's own ground. `.modal-fade` in globals.css carries the gradient
+          and the reason.
+          IT SHARES THE ARROW'S `more`, so it is gone the moment the content ends. A permanent fade
+          would dim the last line of every modal that happens to fit, which says "cut off" about
+          content that is complete - the opposite of what it is for. */}
+      <div
+        aria-hidden
+        className={cn(
+          'modal-fade pointer-events-none absolute inset-x-0 bottom-0 h-12 transition-opacity duration-200 ease-out',
+          more ? 'opacity-100' : 'opacity-0'
+        )}
+      />
+
       {/* AN `IconButton`, NOT A SHADOWED CIRCLE. Theirs is white with
           `0 2px 8px rgba(34,32,29,.1)`, and `design-system.md` is explicit that a control gets a
           border OR a shadow and only `Card` gets the shadow. `IconButton` is already "36px, a
@@ -246,6 +262,7 @@ export function ModalShell({
   labelledBy = MODAL_TITLE_ID,
   width = 'max-w-lg',
   className,
+  cardClassName,
   children,
 }: {
   /** Called by Escape and by a backdrop click. A modal with internal steps passes a handler that
@@ -265,6 +282,10 @@ export function ModalShell({
   width?: string;
   /** Stacking only. `ConfirmShell` raises this over the edit modal it opens on top of. */
   className?: string;
+  /* THE CARD'S OWN GROUND, for the one modal whose body is content rather than a form. `/today`'s
+     recap passes `modal-paper`; see that class in globals.css for why, and `.modal-fade` for the
+     variable the two share. Everything else takes `cardSurface` unchanged. */
+  cardClassName?: string;
   children: ReactNode;
 }) {
   // `open` starts false and flips true one frame after mount, so arriving is a transition.
@@ -391,6 +412,7 @@ export function ModalShell({
         aria-labelledby={labelledBy}
         className={cn(
           cardSurface,
+          cardClassName,
           'relative z-10 flex max-h-[85dvh] w-full flex-col overflow-hidden',
           width
         )}

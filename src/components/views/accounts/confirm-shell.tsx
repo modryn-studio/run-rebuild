@@ -44,6 +44,8 @@ export function ConfirmShell({
   label,
   role = 'alertdialog',
   width = 'max-w-md',
+  labelledBy = CONFIRM_TITLE_ID,
+  ground,
   children,
 }: {
   onCancel: () => void;
@@ -56,6 +58,16 @@ export function ConfirmShell({
      is an alert, and a screen reader should not be told it is one. */
   role?: 'dialog' | 'alertdialog';
   width?: string;
+  /* WHICH ELEMENT NAMES THE DIALOG, because this shell no longer only frames confirmations. A
+     confirmation draws `ConfirmHeader`, whose `<h2>` carries `CONFIRM_TITLE_ID`; `/today`'s recap
+     draws `ModalHeader`, the same header Add account and Edit account use, whose `<h2>` carries
+     `MODAL_TITLE_ID`. Pointing at the wrong one is not a cosmetic miss - `aria-labelledby` that
+     resolves to nothing leaves the dialog unnamed, which is the whole reason the two ids exist
+     separately (2026-08-28: Delete announced itself as "Edit account"). */
+  labelledBy?: string;
+  /* THE CARD'S GROUND, forwarded to whichever container this resolves to so the two cannot drift.
+     One name, two mechanisms: the desktop card's class and the sheet layer's. */
+  ground?: string;
   /* THE SECOND ARGUMENT IS FOR A CONFIRMATION THAT NAVIGATES (2026-08-28, postcheck). Delete is the
      one: it answers by leaving for `/accounts`, and on a phone this shell owns a history entry whose
      cleanup would otherwise `history.back()` into the URL of the account just deleted - the exact
@@ -89,6 +101,7 @@ export function ConfirmShell({
         busy={busy}
         label={label}
         onMark={receiveMark}
+        layerClassName={ground}
         layers={[children(dismiss, markReplacing)]}
       />
     );
@@ -107,9 +120,10 @@ export function ConfirmShell({
       busy={busy}
       closing={modal.closing}
       role={role}
-      labelledBy={CONFIRM_TITLE_ID}
+      labelledBy={labelledBy}
       width={width}
       className="z-[70]"
+      cardClassName={ground}
     >
       {children(dismiss, markReplacing)}
     </ModalShell>

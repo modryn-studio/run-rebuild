@@ -12,13 +12,19 @@
  *   card          radius 12px · no border · shadow 0 2px 4px rgba(34,32,29,.1) · padding 0
  *   header        78px tall, and it HAS a bottom rule: 0.667px solid rgb(246,245,243)
  *   title         18px / 500 / lh 27, with a 16px mark before it
- *   period        16px / 500 / muted, BELOW the title, not beside it
+ *   period        16px / 500 / muted, BESIDE the title (see the correction below)
  *   body          padding 20px · gap 16px · 16px / 400 · a chevron at the far right
  *
- * TWO CORRECTIONS TO THE FIRST PASS, both from that table. **The period stacks under the title**,
- * where it reads as the label's second line rather than as a value on the same row. And **there IS
- * a rule under the header** - the first pass argued there was not, from the reference's own §3
- * reasoning about grounds, which is a good rule applied to a card that does not follow it.
+ * ONE CORRECTION TO THE FIRST PASS, and one correction TO THAT CORRECTION.
+ *
+ * **There IS a rule under the header** - the first pass argued there was not, from the reference's
+ * own §3 reasoning about grounds, which is a good rule applied to a card that does not follow it.
+ * That one still stands.
+ *
+ * **The period does NOT stack under the title** (corrected 2026-09-01). This note used to say it
+ * did, measured off the recap card alone. Every other widget in the reference puts them inline -
+ * `Budget September 2026`, `Your Weekly Recap August 23rd-29th` - so one card was read as the
+ * contract. They share a line here and wrap to two only when the text outgrows the box.
  *
  * ─── WHAT MAPS ONTO RUN'S RAMP EXACTLY, AND IT IS MOST OF IT ───────────────────────────────────
  *
@@ -78,8 +84,35 @@ export function Widget({
   className?: string;
 }) {
   const head = (
-    <>
-      <span className="flex items-center gap-1.5">
+    /* TITLE AND PERIOD SHARE ONE LINE, AND WRAP TO TWO ONLY WHEN THEY HAVE TO (2026-09-01, Luke:
+       *"i was wrong to tell you to create two lines in the header. the title and the date can and
+       should be on the same line. unless the browser zoom is high, then it can wrap into two
+       lines"*). He is right and this file was wrong: its own note above claimed the reference
+       stacks the period under the title, read off the recap card alone. Every other widget in the
+       screenshot he sent puts them inline - `Budget September 2026`, `Your Weekly Recap August
+       23rd-29th` - so the stack was a misreading of one card, not the contract.
+       `flex-wrap` IS THE WHOLE MECHANISM, and it is why this is not a media query. The thing that
+       forces the second line is the text outgrowing the box, which happens at high browser zoom,
+       at a large system font size, and at a long period string - three causes with one cure. A
+       breakpoint would answer only the narrow-viewport case and would still overflow at 200% zoom
+       on a wide one.
+       READ OUT OF THE REFERENCE'S MARKUP ON 2026-09-01, not inferred, and it corrected one thing
+       this file had guessed. Its header is one `<a class="…HeaderClickable…">`:
+
+         a       display:flex · align-items:CENTER · gap:8px · flex-wrap:nowrap
+           div   flex items-center gap:4px  ->  [svg 16px, text-content-brand] [span 18/500]
+           div   Description             ->  16px / 500 / rgb(119,117,115), its own block
+
+       So the gap is 8px (`gap-x-2`) and the alignment is `items-center`, NOT the `items-baseline`
+       written here first. Measured on their live page: title box 281-308, date box 283-307 - two
+       boxes centred on 294.5 and 295, which is centre alignment and not a baseline match.
+       THEIR ROW IS `nowrap` AND OURS IS NOT, and that is the one deliberate divergence. A row that
+       cannot wrap can only overflow, and Luke's rule is that high zoom gets two lines rather than a
+       clipped date. `flex-wrap` is the whole mechanism and it is why this is not a media query: the
+       thing that forces the second line is text outgrowing the box, which happens at high browser
+       zoom, at a large system font size, and at a long period string - three causes, one cure. */
+    <span className="flex flex-wrap items-center gap-x-2 max-md:flex-col max-md:items-start max-md:gap-y-0.5">
+      <span className="flex items-center gap-1.5 max-md:flex-row-reverse">
         {mark && <Icon name={mark} size={16} className="text-accent shrink-0" />}
         {/* THE TITLE INHERITS THE MARK'S COLOUR (2026-08-31, Luke: *"the title of that card should
             inherit the color of the icon... That's what monarch does. And just for this card, not
@@ -95,8 +128,16 @@ export function Widget({
           {title}
         </span>
       </span>
-      {period && <span className="text-body-lg text-muted mt-0.5 font-medium">{period}</span>}
-    </>
+      {/* ONE STEP DOWN ON A PHONE, and it is this codebase's own compression rather than a new
+          idea: `roster-card.tsx` writes `text-body-lg max-sm:text-body` on its figures, and
+          `globals.css` steps `--text-meta` from 14 to 11 under the same `40rem`. Stacked under an
+          18px title at 375px, a 16px date is barely a step and the pair reads as two headings.
+          DESKTOP IS UNTOUCHED at 16, which is the reference's measured value and the one Luke
+          signed off on 2026-09-01 (*"i think we are done iterating on the desktop version"*). */}
+      {period && (
+        <span className="text-body-lg max-sm:text-body text-muted font-medium">{period}</span>
+      )}
+    </span>
   );
 
   return (

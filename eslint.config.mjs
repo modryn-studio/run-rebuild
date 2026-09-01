@@ -66,6 +66,13 @@ export default [
             // to grow out of - it arrives in the middle of the screen - so it grows from its own
             // centre. Same 140ms and the same easing; one property differs. globals.css.
             'pop-in-center',
+            // THE RECAP MODAL'S TWO (2026-09-01), and both are hand-written for the same reason:
+            // each reads a CSS custom property, which no Tailwind utility can express.
+            // `modal-fade` is the 48px gradient at the foot of a scrolling modal, ending on
+            // `var(--modal-ground, var(--color-surface))` - the card's own ground, whatever it is.
+            // `modal-paper` sets that ground AND the variable together, so the two cannot disagree.
+            'modal-fade',
+            'modal-paper',
             'wait-reveal',
             'hit-44',
             'eyebrow',

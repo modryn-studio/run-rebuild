@@ -58,6 +58,36 @@ export const RECAP_PLAIN: Recap = {
   provenance: { roundTrips: 8, accounts: 1, fees: true },
 };
 
+/* THE COMPARISON KIND, and the fixture exists because the shape is the point rather than the prose.
+   Same card, same one screen - the evidence tier is a baseline instead of a list, because the claim
+   is about a HABIT and a habit has no three trades to point at.
+   THE BASELINE IS COUNTED IN TRADES (`recap.ts`, `RecapEvidence`), and 240 rather than "60 days"
+   because a prop account can be deleted by the broker within hours of being failed. It is also the
+   fixture that will find the copy-trade problem the day this is wired: a trader running five
+   accounts off one decision has five round trips per decision, so 240 round trips can be 48
+   decisions. `build-plan.md` §S8 holds that as an open question against the engine, not the card. */
+export const RECAP_COMPARISON: Recap = {
+  state: 'ready',
+  sessionDate: '2026-08-25',
+  lede: 'You held today’s losers for 47 seconds on average, and your winners for six minutes.',
+  body: [
+    'Nine trades, six of them losses. Every one of the six was closed inside two minutes of entry, and four of those were closed while price was still inside the range it had traded in the previous ten minutes.',
+    'The three winners ran an average of six minutes and two of them closed at a target. Nothing about the entries separates the six from the three: same product, same size, same hour.',
+  ].join('\n\n'),
+  trades: [
+    { id: 'f6', symbolRoot: 'MNQ', product: 'Micro Nasdaq-100', at: '9:16 AM', netCents: -3140 },
+    { id: 'f7', symbolRoot: 'MNQ', product: 'Micro Nasdaq-100', at: '9:22 AM', netCents: -2980 },
+  ],
+  evidence: {
+    kind: 'comparison',
+    label: 'Average hold on a losing trade',
+    session: '47 seconds',
+    baseline: '4m 10s',
+    over: 240,
+  },
+  provenance: { roundTrips: 9, accounts: 1, fees: true },
+};
+
 /** The engine ran and declined. Four trades on one account is not a session to read. */
 export const RECAP_THIN: Recap = { state: 'thin', sessionDate: '2026-08-26' };
 

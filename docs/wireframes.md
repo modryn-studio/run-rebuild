@@ -452,6 +452,11 @@ Structural source: Monarch's dashboard widget contract, applied unchanged.
 | Body | a chart, a list, or an empty state with a specific CTA |
 
 **Time-of-day greeting** — both Monarch and TradeZella do it; it's a convention, adopt it.
+**~~Adopted 2026-08-31, cut 2026-09-01.~~** It shipped, it was measured against the reference to the
+pixel, and it was still wrong for Run: it made the front door the only screen in the product whose
+header did not name the screen. The convention is real and the reason to decline it is specific -
+this app has three pages and a person who opens it needs to know which one they are on more than
+they need to be greeted. `user-guide.md` §5d carries the decision.
 
 **The front door is your state, not a chat box** (P4). This is the single clearest thing
 TradeZella got wrong.

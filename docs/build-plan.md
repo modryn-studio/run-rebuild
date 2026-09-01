@@ -1059,8 +1059,11 @@ front door rather than a summary of three others.
 | `Accounts` | `getRoster()` + `getFreshness()` | ready |
 | `Last session` | `getTape()` + `getDigest()` on the newest session date | ready |
 
-**The first thing this slice does is delete a nav row.** `app-shell.tsx` still renders
-`Read → /read`, which the spec no longer describes and which 404s.
+**THE NAV ROW STAYS, AND IT STAYS A 404** *(reversed 2026-08-31, Luke: "dont delete /read from
+the left sidebar. just keep it as a 404 for now")*. This section used to open by saying the slice
+deletes it. It does not: the read moving onto a card is what makes the `/read` PAGE deferred rather
+than cancelled, and the row is the placeholder for the page §"DEFERRED" below describes. The recap
+modal's `Ask a follow-up` now points at the same route, so one page ships and both doors open.
 
 #### WHEN THE READ RUNS — settled 2026-08-31, and `market-hours.md` decides it
 
@@ -1128,6 +1131,209 @@ argues is the moat, rather than the model that reads it.
 > "you haven't imported in 9 days" wants to live. It reopens where the trader left it — no backlog,
 > no catch-up, no gap counted. The trader who has been away is the one this page is worth most to.
 > [`psychology.md` §6](psychology.md#6-what-to-steal).
+
+#### THE MODAL'S FLOOR, AND THE EVIDENCE VOCABULARY *(built 2026-09-01 — expect to iterate)*
+
+Three questions, asked together after reading Monarch's own recap flow end to end and TradeZella's
+Data Reveal (Luke, 2026-09-01: *"should we have an introduction step... should we have an outro
+step... what about using generative ui on that step"*). Two were refused, one was built, and the
+reasoning matters more than the outcome because **this will be iterated** (*"im sure we will have to
+go back and iterate this implementation later to make it work correctly and look the way i want
+it"*).
+
+##### Refused: an intro step
+
+Monarch's step 1 of 5 is not a splash. It is **a table of contents made of real numbers** — net
+worth −$1,288, spending +74.5%, no upcoming recurring — and those three lines are the three slides
+that follow. They need it because **their card cannot say anything**: its line is the same generic
+sentence every week, since a recap covering four subjects has no single first line.
+
+**Run's card already is that slide.** `lede` is the claim, on the card, before the tap. An intro
+would re-add the exact repetition removed on 2026-08-31 — tap a card that says X, get a modal that
+opens by saying X again. That repetition was the wall, not the length.
+
+##### Refused: an outro step, and the confetti with it
+
+Two separate objections, and the second is the one that generalises.
+
+**The register.** Monarch can celebrate because checking your finances is neutral-to-good news. A
+read names what a habit cost. Confetti over *"you were up $290 at 10:40 and closed −$653"* is the
+product laughing, and `psychology.md` has the measurement: investors check **9.5% less the day after
+a loss**, so the red day is exactly when this surface cannot be tone-deaf.
+
+**The mechanic.** *"Another week reviewed — nice work!"* rewards **the act of checking**, not the
+trading. That is a streak in a costume, and `CLAUDE.md`'s re-entry doctrine bans it: no state may
+represent absence, no backlog, no catch-up, no streak. The same reasoning is why the thumbs below
+do **not** change their copy when pressed.
+
+*(Confetti is not dead — it is written up against `S11`, where the moment is genuinely neutral.)*
+
+##### Built: two thumbs and one action
+
+| | |
+|---|---|
+| **Thumbs** | In the FOOTER, above the action, not at the foot of the scroller: `ModalScroller`'s hint is `absolute bottom-3` and centred, so it draws over whatever the scroller's last row is (measured on a 375px sheet at (180,694) against the thumb at (169,672)). **Ephemeral** — no read id to key a vote to and no route to post it to, so it dies with the overlay. Pressing the same thumb twice clears it. |
+| **`Ask a follow-up`** | The footer's single full-width action, `secondary`. Points at `/read`. |
+
+**Why the thumbs are worth a control at all:** the read is a generated claim about somebody's money,
+and nothing else in the product can tell whether one landed. `spin.md` argues the corpus of what the
+engine got right and wrong is the asset rather than the model reading it, and a thumb is the
+cheapest row that corpus can be built out of.
+
+**Why `secondary` rather than the reference's gradient CTA:** the gradient is banned outright, and
+an accent fill would make the invitation to keep talking the loudest object on a screen about a
+trader's own mistake.
+
+##### Fixed: the recap was the only modal hand-rolling its own header *(2026-09-01)*
+
+Luke: *"modals in run-rebuild should have a token or prop or whatever it's called in dev. something
+that we would use that makes all modals consistent. i believe all the modals are consistent
+throughout the app already."* Audited, and he was right on both halves.
+
+Every modal goes through `ModalShell`/`ConfirmShell` and wears one of two shared headers from
+`views/accounts/shared.tsx` - `ModalHeader` (centred title, back/close: Add account, Label account,
+Import refused) or `ConfirmHeader` (left title, close: Close, Delete, the ending question). Both
+branch on `useSurface()` and hand a phone a real `SheetHeader` bar. **Nothing is wrong with any of
+them.**
+
+**The recap was the exception, and it cost the phone.** Four ways off: no phone branch at all, so
+below 768px it drew a bare 14px X floating in the content where every other sheet has an h-16 bar
+with a 22px `SHEET_CONTROL_ICON`; `text-h2` where every other modal is `text-title`; an 18px accent
+eyebrow no other modal has; and it wrote `CONFIRM_TITLE_ID` by hand.
+
+**The fix, second time round, is no prop at all.** The first attempt added `showTitle` to
+`ConfirmHeader` so the desktop row could stay title-less like the reference's. Luke rejected it on
+sight: *"why does the recap modal look so different from the other modals... i need consistency.
+update the recap modal to be exactly the same format, padding, etc. as the other modals. how is this
+difficult? shouldn't we have a standard?"*
+
+He is right, and the lesson generalises past this screen: **a surface that wants a third header
+shape is arguing with the standard, not exposing a case the standard missed.** `showTitle` came back
+out; `ConfirmHeader` is byte-identical to what it was.
+
+The recap now renders `ModalHeader` unchanged - the same component as Add account, Edit account and
+Import refused. Measured on the running modal:
+
+| | |
+|---|---|
+| header | `grid h-14 shrink-0 grid-cols-[36px_1fr_36px] items-center px-3`, 56px tall |
+| title | `modal-title`, `text-title` 18px, centred |
+| close | 36px control, 12px from the right, vertically centred in the bar |
+| body | `px-6 pt-4 pb-4`, `no-scrollbar`, the standard gutter |
+| footer | `shrink-0 px-6 py-4` |
+
+**Which is why the claim is not the title.** It is a sentence and a bar centres one truncated line,
+so the bar names the SURFACE ("Your Daily Recap", the card's own words) and the claim opens the body
+underneath at `text-h2` under the accent eyebrow. That is the reference's own split too: chrome row,
+eyebrow, headline.
+
+**`ConfirmShell` gained `labelledBy`** (default `CONFIRM_TITLE_ID`), because it no longer only
+frames confirmations: a confirmation's `<h2>` carries `CONFIRM_TITLE_ID` and `ModalHeader`'s carries
+`MODAL_TITLE_ID`, and pointing at the wrong one leaves the dialog unnamed. The recap passes
+`MODAL_TITLE_ID`, which is the better name anyway - a dialog should be announced as what it is, not
+as the sentence it opens with.
+
+**Not moved to `ui/`.** The obvious tidy is to lift both headers out of `views/accounts/`, but they
+depend on `useSurface`/`SurfaceHeader` from `views/accounts/surface.tsx`, so the move would drag
+that with it and point `ui/` at a feature folder. `views/today` already imports `ConfirmShell` from
+`views/accounts/`, so this adds no new class of edge. Worth doing when a third feature needs the
+surface machinery, and not before.
+
+##### The note, the thumbs and the ground *(2026-09-01, read out of the reference's markup)*
+
+**The note stays computed, and `spec.md` P8 is the reason** (Luke asked: *"i would assume we would
+need some sort of hard coded note there right? or what is the purpose of this note?"*). P8 is LOCKED
+and was amended for exactly this on 2026-08-11:
+
+> **The product states what its own output depends on, every time.** For Run this is **provenance,
+> not adjustability**. Monarch's note ends *"you can review and adjust"*; Run has nothing to adjust,
+> so Run's note names the source instead. Stronger, because *"this came from your Tradovate export
+> of Aug 5"* is checkable, while *"you can adjust it"* is an invitation to doubt.
+
+Theirs has to be generic because their figures depend on choices the user makes (categorisation,
+recurring items) and can only be described in the abstract. Ours depends on a **count**, and a count
+is checkable against `/trades` in ten seconds. A hardcoded note would be the wrong artefact, not a
+cheaper one.
+
+**What was cut:** the second sentence, *"If a trade here is wrong, re-sync the account and the next
+read uses the correction."* That is the adjustability half P8 rules out, doing the exact damage P8
+names - inviting doubt about a figure the first clause had just certified. Re-sync lives on
+`/trades`, next to the trade.
+
+**Measured off `app.monarch.com/dashboard/weekly-recap`, and every value ported:**
+
+| | reference | Run |
+|---|---|---|
+| note | `RecapFlow__NoteText` 14/400/21, `rgb(119,117,115)` | `text-body` 14/20, `--color-muted` |
+| thumbs | `FeedbackActions` 20px under the note, two bare 36px pills, 16px marks, muted, **no prompt line** | same, `mt-5` |
+| modal card | `ModalCard__Root` `rgb(246,245,243)` | `.modal-paper` = `--color-bg`, **the same value to the byte** |
+| content blocks | white `MessageCard`, radius 12 | `Card` (surface + radius + shadow; §3 allows border OR shadow, not both) |
+| fade | `RecapFlow__FadeOverlay` 48px, `linear-gradient(transparent, rgb(246,245,243))` | `.modal-fade`, ending on `var(--modal-ground, var(--color-surface))` |
+| arrow | `FloatingScrollArrow` 36px white pill on the fade | the existing `IconButton` hint, now on paper |
+
+**`.modal-paper` sets the ground AND `--modal-ground` together**, because setting only the first
+leaves the fade resolving to its `surface` default and drawing a visible band across the card's
+floor. Verified per-mode: dark measures card `#191918`, blocks `#222221`, fade ending `#191918`.
+
+**Scoped to this modal only** (Luke chose it over porting the ground to every modal). The recap is
+the only modal in the product whose body is CONTENT rather than a form or a question, so it is the
+only one with blocks that need a ground to sit on. A form on paper would be the reference's look
+with none of the reason for it. `ModalShell` gained `cardClassName`, `AccountSheet` gained
+`layerClassName`, and `ConfirmShell` forwards one `ground` prop to whichever of the two it resolves
+to - so the desktop card and the phone sheet cannot end up different colours.
+
+**The thumbs came back out of the footer.** They were moved there when the scroll hint drew on top
+of them; that is fixed at the cause instead, since the hint and its fade now share one `more` state
+and are gone the moment the content ends.
+
+##### Built: `RecapEvidence`, a closed vocabulary the engine SELECTS from
+
+*"what about using generative ui on that step depending on what the ai call brings back"* — yes,
+with one word changed. The engine picks a `kind`; **SQL fills the payload**; `lib/desk/recap.ts`
+names every shape that exists. The model never emits markup or a number. The generative-UI
+literature arrives at the same rule from the other side: data inside a rendered card comes from a
+real backend call, or the interface is a more convincing way to present a hallucination.
+
+| `kind` | When | Status |
+|---|---|---|
+| `trades` | discrete decisions to point at | **shipped** — the citations, and the `default` arm |
+| `comparison` | a habit, against the trader's own baseline | **shipped** — two figures, no chart |
+| `intraday` | **shape over time** (*up $290 at 10:40, closed −$653*) | **planned, deliberately not typed yet** |
+
+**`intraday` is left out on purpose.** A `kind` that is typed and never rendered is a hole with a
+name on it. It is the one chart that earns a place in a daily read — a sentence cannot carry a
+curve — and `getIntradaySeriesFor` already computes the series, so the work is the chart primitive
+and the tokens, not the data.
+
+**The field ships before the second kind is worth much**, because `CLAUDE.md`'s scoping rule
+applies: free now, unretrofittable once the job, the card, the overlay and the `/read` archive all
+read it.
+
+##### The baseline is counted in TRADES, never in days
+
+Luke, 2026-09-01: *"60 days? no. 60 trades maybe. users a day traders here. who's accounts last
+maybe a couple days before they are blown."* `prop-firm-identity.md` is the evidence rather than the
+anecdote: **Tradovate deletes a failed account within minutes-to-hours** (§6), most accounts renew
+monthly *including failed ones* (§1), and a trader holds several at once across several firms (§1).
+A window in days assumes an account that lives for weeks. The width is also **printed** — a baseline
+whose span is not stated is a number taken on faith.
+
+##### Open, and each one belongs to the slice that builds the job
+
+1. **Copy-trading inflates the window.** §1 of `prop-firm-identity.md`: a trader runs the same
+   decision across several accounts, at several firms. So 240 round trips can be 48 decisions, and a
+   baseline counted over raw round trips is up to five times narrower than it prints. **Decide
+   whether the unit is a round trip or a de-duplicated decision before the first comparison ships.**
+2. **The thumbs have nowhere to go.** They need a read id, a route, and a table. That table is the
+   feedback corpus, so it is worth designing once rather than bolting on.
+3. **`Ask a follow-up` points at a 404**, which is the standing accepted state for `/read` and not a
+   bug — but it is the second door to it now, so shipping that page closes two things at once.
+4. **What the read is allowed to say.** Luke, 2026-09-01: *"yes it is allowed to say what went
+   right. but we dont govern that. we let the llm do what it wants... we have to trust it."* So the
+   prompt does not carry a corrective/positive quota. Recorded because the coaching literature
+   argues for one, and this is a deliberate decision against it rather than an omission — and
+   because every fixture on the rack today is corrective, which is a property of hand-written
+   fixtures rather than of the engine.
 
 ### S8b — The two rows the account menu already opens *(added 2026-08-20)*
 
@@ -1328,6 +1534,98 @@ anchors.
 bespoke `/products/[symbol]` page and asked "page or filter?". The answer is neither: it is the page
 Run already has, with a subject pinned.
 
+
+---
+
+### S11 — The first-import reveal *(added 2026-09-01 — **DEFERRED, not scoped, review before planning**)*
+
+**Not v1 and not next. Written down because the finding cost a session and the idea does not survive
+as a memory.** Luke, 2026-09-01: *"we will not focus on first-import right now. but it's an
+interesting idea. document your idea for later review."*
+
+#### The finding: TradeZella's "Data Reveal" is activation, not a recap
+
+Nine slides in `docs/screenshots/Tradezella Data Reveal/`, read 2026-09-01. Slide 9 is the tell:
+
+> **First import complete ✓** — "This is your initial performance snapshot — find all your recaps
+> in Reports > Recaps & Insights", two email opt-in checkboxes, and a **Go to Dashboard** button.
+
+So it fires **once, after the first CSV import**, over *187 trades across 9 days*. Their *ongoing*
+recap is an email and an archive page. It is therefore **not** the analogue of Run's daily recap
+card, and comparing the two was the wrong axis. The right comparison is: nine slides earn their
+length because a first import has nine subjects in it. A daily read has one.
+
+#### Why Run should eventually have one
+
+`/today`'s card reads a **session**. It cannot say the thing a first import can say, and that thing
+is the strongest sentence Run will ever get to write:
+
+> *We reconciled 1,847 round trips across three firms to the cent. Here is what nobody had told you.*
+
+The moment after the fourth CSV lands is the highest-intent moment in the product, and today Run
+spends it on a progress bar and a roster. It is also **the only place a chart belongs** without
+arguing with `psychology.md` §P3: a one-time reveal over a whole corpus has plenty to show, whereas
+a nightly read about one mistake does not.
+
+#### What Run's version would be, and where it wins
+
+Same shape — a stepped, once-only sheet after the first successful commit — with three differences
+that are not decoration:
+
+1. **Every figure reconciles.** Their slides 2 and 4 both display `MAX DRAWDOWN 1644.2%`, graded
+   "WATCH OUT", inside the feature meant to prove they understand your trading. That number is
+   `CLAUDE.md`'s own cautionary tale, shipped with confidence. Run's reveal ends on the trust note
+   the recap already carries — round trips, accounts, fees resolved — and the figures survive it.
+2. **No grades and no composite score.** Theirs grades the *same* win rate `GOOD` on slide 2 and
+   `GREAT` on slide 4, one slide apart. `psychology.md` §"The Zella Score is self-refuting" already
+   has the argument; the screenshots are the evidence.
+3. **Cross-firm.** The one thing a single-broker sync cannot show, and Run's corpus already is.
+
+#### What not to copy
+
+- **"Key Takeaway: No learning available for this trade."** The shape promises a lesson and then
+  admits it has none. That is the P9 empty-state failure with a heading on it.
+- **"Held onto loser"** on a trade that lasted 1m28s. A label taxonomy that contradicts its own
+  body copy.
+- **"Key Takeaway: No learning available for this trade."** — see above.
+
+#### The confetti belongs HERE, and nowhere else *(added 2026-09-01)*
+
+Monarch fires confetti on its recap's last step and TradeZella lands its ninth slide on
+`First import complete ✓`. **`S8` refused the confetti for the daily read** and the reasoning is
+there: a read names what a habit cost, investors check 9.5% less the day after a loss, and
+celebrating the act of checking is a streak in a costume.
+
+**None of that applies to this moment**, and the difference is not a matter of degree:
+
+- The news is **genuinely good and genuinely neutral** — the trader just acquired a reconciled
+  record of their own trading across every firm they have used. Nobody is being congratulated for
+  a loss, and nobody is being congratulated for showing up.
+- It fires **once**, so it cannot become a habit loop. The re-entry doctrine bans states that
+  represent absence and rewards that accrue for returning; a one-time completion is neither.
+- It marks **a thing the trader did** (four files, correctly matched) rather than a thing the
+  product did to them.
+
+So: if confetti ships anywhere in Run, it ships on this screen's last step and on no other. Recorded
+here so the next person who asks "why not confetti?" finds the answer in one place, with the one
+exception attached to it.
+
+#### Worth stealing
+
+- **Comparative insight.** *"This trade lasted 1 minute, while half your losing trades for the past
+  60 days lasted under 1 minute."* A baseline the trader did not know they had. Closer to Run's
+  ambition than the grades are, and the read engine can already assert it.
+- **Per-trade Running P&L with MAE/MFE.** `getIntradaySeriesFor` computes the series already.
+- **Screenshot-to-share**, built into every slide. Traders post these.
+
+#### Open before this can be planned
+
+- Does it run once ever, or once per *account* first import? A trader adding a fourth firm in month
+  six has a new corpus and no reveal.
+- One read's cost is `$1.58` billed (`ai-economics.md` §1). A corpus-wide reveal is not one read.
+  **Price it before scoping it.**
+- It collides with `S10`: several slides are a subject page with a period pinned, which is a page
+  that would already exist.
 
 ---
 

@@ -100,6 +100,7 @@ export function AccountSheet({
   label,
   layers,
   onMark,
+  layerClassName,
 }: {
   open: boolean;
   onClose: () => void;
@@ -123,6 +124,10 @@ export function AccountSheet({
   layers: (ReactNode | null)[];
   /** Handed `useOverlayBack`'s marker once, for a caller that commits a navigation. See below. */
   onMark?: (mark: () => void) => void;
+  /* THE LAYER'S GROUND. A sheet is the phone's modal, so whatever the desktop card is painted with
+     this has to match, or one recap is paper on a laptop and white on a phone. `/today` passes
+     `modal-paper`; see globals.css. */
+  layerClassName?: string;
 }) {
   const host = useId();
   const depth = layers.reduce<number>((d, node, i) => (node == null ? d : i), 0);
@@ -270,6 +275,7 @@ export function AccountSheet({
            panel over the whole app. */
         className={cn(
           'sheet-transition bg-surface absolute inset-0 flex flex-col',
+          layerClassName,
           !open && 'translate-y-full'
         )}
       >
@@ -290,6 +296,7 @@ export function AccountSheet({
             className={cn(
               'absolute inset-0 flex flex-col pt-16 pb-[env(safe-area-inset-bottom)]',
               i > 0 && 'sheet-transition bg-surface',
+              i > 0 && layerClassName,
               i > depth && 'translate-y-full'
             )}
             inert={i !== depth}

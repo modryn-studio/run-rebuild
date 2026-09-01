@@ -116,6 +116,13 @@ export function ModalHeader({
  * arrived at, a left-aligned one reads as a sentence addressed to you. The X stays, because Escape
  * needs a visible twin.
  */
+/* NO `showTitle` PROP, AND THE ATTEMPT IS WORTH ONE LINE OF HISTORY. On 2026-09-01 this gained one
+ * so `/today`'s recap could render a title-less chrome row, and Luke rejected the result on sight:
+ * *"why does the recap modal look so different from the other modals... i need consistency. update
+ * the recap modal to be exactly the same format, padding, etc. as the other modals. how is this
+ * difficult? shouldn't we have a standard?"* He is right, and the lesson generalises: the standard
+ * is the two headers below, and a screen that wants a THIRD shape is a screen arguing with the
+ * standard rather than a case the standard missed. The recap uses `ModalHeader` unchanged now. */
 export function ConfirmHeader({ title, onCancel }: { title: string; onCancel: () => void }) {
   const { mode } = useSurface();
 

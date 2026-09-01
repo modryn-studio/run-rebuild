@@ -55,7 +55,15 @@
  * THE EXCEPTION IS "A THIRD PARTY'S BRAND MARK", NOT "A COLOURED ICON". Any mark that is Run's own,
  * or that could be drawn in one colour, goes in `MARKS` like everything else.
  */
-import { FileText, ChevronsRight, TriangleAlert, Bell, type LucideIcon } from 'lucide-react';
+import {
+  FileText,
+  ChevronsRight,
+  TriangleAlert,
+  Bell,
+  ThumbsUp,
+  ThumbsDown,
+  type LucideIcon,
+} from 'lucide-react';
 import type { SVGProps } from 'react';
 
 /** The system's stroke. Read the note above before changing it. */
@@ -482,6 +490,19 @@ const MARKS = {
      still renders at 16px / stroke 1.5 like everything else — lucide's own default is 24 at
      stroke 2, which is why an unwrapped one looks almost right and is not. */
   bell: Bell,
+
+  /* ── the daily recap's feedback row (S8, 2026-09-01) ──────────────────────────────────────
+     TWO MORE LUCIDE FALLBACKS, and they are the documented case rather than a shortcut. A hand
+     is REAL GEOMETRY - a fist, four knuckles and a thumb - which is exactly the line this file
+     draws: `Drawn` is for marks that are two or three strokes and invent nothing (a pencil, a
+     filter, a bolt), and lucide carries the ones nobody wants to redraw (a warning triangle, a
+     chevron pair, a bell). `run-trading@v2` drew 34 marks and has no thumb among them; checked
+     by grep, not assumed, the same way `bell` was.
+     THEY ARE A PAIR AND THEY STAY A PAIR. lucide's `ThumbsDown` is not `ThumbsUp` rotated - the
+     wrist and the cuff are redrawn - so mirroring one with a transform would give the two
+     different optical weights on the one row where they sit side by side and get compared. */
+  'thumbs-up': ThumbsUp,
+  'thumbs-down': ThumbsDown,
 } satisfies Record<string, Glyph | LucideIcon>;
 
 export type IconName = keyof typeof MARKS;

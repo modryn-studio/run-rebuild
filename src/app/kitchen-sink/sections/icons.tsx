@@ -39,12 +39,22 @@ const GROUPS: { label: string; names: IconName[] }[] = [
   { label: 'Theme', names: ['moon', 'sun'] },
   { label: 'The intake flow', names: ['upload', 'file', 'files', 'unmet', 'back', 'add', 'warn'] },
   { label: 'The account menu', names: ['bolt', 'sign-out'] },
+  /* The recap's feedback row. A PAIR, and they are racked as a pair for the reason
+     `icon.tsx` gives: lucide's thumb-down is a redrawing rather than a mirrored thumb-up,
+     so the only way to catch the two carrying different optical weight is to see them
+     beside each other at the size they ship at. */
+  { label: 'The daily recap', names: ['thumbs-up', 'thumbs-down'] },
 ];
 
-/* THE THREE THAT ARE NOT HAND-DRAWN, named rather than hidden. CLAUDE.md states the rule and these
-   exact three as its whole exception list, so showing them keeps the page honest about a set that
-   is not uniformly one thing. */
-const LUCIDE_FALLBACKS: IconName[] = ['read', 'expand', 'warn'];
+/* THE ONES THAT ARE NOT HAND-DRAWN, named rather than hidden, so the page stays honest about a set
+   that is not uniformly one thing. `icon.tsx`'s own header is the source of truth for why each is
+   here, and the test in every case is the same: `Drawn` takes marks that are two or three strokes
+   and invent nothing, and lucide carries the ones with real geometry nobody wants to redraw.
+   CORRECTED 2026-09-01. This list said "the three" and named three, while the registry had carried
+   FOUR since `bell` landed on 2026-08-20 - so the one mark the list existed to disclose was the one
+   it was hiding. Five now, with the recap's thumbs. Anything added to `MARKS` from lucide is added
+   here in the same change. */
+const LUCIDE_FALLBACKS: IconName[] = ['read', 'expand', 'warn', 'bell', 'thumbs-up', 'thumbs-down'];
 
 const placed = new Set(GROUPS.flatMap((g) => g.names));
 const unplaced = ICON_NAMES.filter((n) => !placed.has(n));

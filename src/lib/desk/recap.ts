@@ -60,11 +60,65 @@ export interface Recap {
      the first paragraph is `lede` and the rest is this, split when the read is stored rather than
      at the render. Absent unless `ready`. */
   body?: string;
-  /** The trades it cites, in the order it cites them. */
+  /** The trades it cites, in the order it cites them. Independent of `evidence` below: a read
+   *  that draws a comparison still points at the trades the comparison was drawn from. */
   trades?: RecapTrade[];
+  /** WHAT SHAPE THE EVIDENCE TAKES. See `RecapEvidence`. Absent means the citations alone. */
+  evidence?: RecapEvidence;
   /** What it was built from, for the trust note. */
   provenance?: { roundTrips: number; accounts: number; fees: boolean };
 }
+
+/* THE EVIDENCE VOCABULARY — a CLOSED SET THE ENGINE SELECTS FROM, never a UI it generates.
+ *
+ * 2026-09-01, Luke: *"what about using generative ui on that step depending on what the ai call
+ * brings back for a recap?"* Yes, with one word changed, and the word is load-bearing. The engine
+ * picks a `kind`; SQL fills the payload; this file names every shape that exists. What it never
+ * does is let the model emit markup or numbers - `CLAUDE.md` already has the rule (*the LLM never
+ * computes a number*), and the generative-UI literature converged on the same one from the other
+ * side: data inside a rendered card comes from a real backend call, or the interface is a more
+ * convincing way to present a hallucination.
+ *
+ * WHY THE FIELD EXISTS BEFORE THE SECOND KIND IS WORTH RENDERING. `CLAUDE.md`: scope every read
+ * from the first query, *free now, unretrofittable once four surfaces depend on it*. The job, the
+ * card, the overlay and the eventual `/read` archive will all read this. Adding it after they
+ * exist is four migrations; adding it now is one field.
+ *
+ * IT DEGRADES BY CONSTRUCTION. The overlay's switch ends on a `default` that renders the cited
+ * rows, so a `kind` this build has never heard of - a newer job writing into an older client -
+ * renders the evidence every read has rather than an empty box.
+ *
+ * `intraday` IS THE PLANNED THIRD AND IS DELIBERATELY NOT HERE YET. When the claim is about SHAPE
+ * OVER TIME (*up $290 at 10:40, closed -$653*) a sentence cannot carry it and a running-P&L line
+ * can; `getIntradaySeries` in `lib/accounts/read.ts` already computes the series, and
+ * `views/accounts/pnl-chart.tsx` already draws one. It is left out because a `kind` that is
+ * typed and not rendered is a hole with a name on it. `build-plan.md` §S8 holds the plan.
+ */
+export type RecapEvidence =
+  /** The default, and everything shipped before 2026-09-01: the cited rows and nothing else. */
+  | { kind: 'trades' }
+  /* THIS SESSION AGAINST THE TRADER'S OWN BASELINE, which is the one thing the competitor does
+     genuinely well and the coaching literature is unanimous about: feedback lands when it is
+     comparative and specific, and a figure with no baseline beside it is not information.
+     COUNTED IN TRADES, NEVER IN DAYS (2026-09-01, Luke: *"60 days? no. 60 trades maybe. users a
+     day traders here. who's accounts last maybe a couple days before they are blown"*), and
+     `prop-firm-identity.md` is the evidence rather than the anecdote: a prop account is deleted
+     BY TRADOVATE within minutes-to-hours of being failed (§6), most accounts renew monthly
+     including failed ones (§1), and a trader holds several at once across several firms. A
+     window in days assumes an account that lives for weeks. A window in trades does not.
+     `over` IS THE COUNT, AND IT IS PRINTED. A baseline whose width is not stated is a number the
+     trader has to take on faith, which is the one thing this product does not ask for. */
+  | {
+      kind: 'comparison';
+      /** What is being compared, in the read's own words. "Average hold on a loser". */
+      label: string;
+      /** This session's figure, already formatted. The engine never computes it; SQL does. */
+      session: string;
+      /** The same figure over the baseline window. */
+      baseline: string;
+      /** How many of the trader's own trades the baseline spans. Printed, never implied. */
+      over: number;
+    };
 
 export interface RecapTrade {
   id: string;

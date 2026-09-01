@@ -399,7 +399,7 @@ research it came from and what deliberately is not copied: `build-plan.md` §S10
 
 ```mermaid
 flowchart TD
-  Today["/today<br/>greeting · widget grid"]
+  Today["/today<br/>widget grid"]
   Today --> Recap(["Your Daily Recap"])
   Recap --> Read(["The read, opened in place"])
   Read --> Trade["a cited trade → /trades/[id]"]
@@ -423,9 +423,17 @@ state with a **specific** CTA.
 the reason is structural: a dashboard's claim is *at a glance*. Browsing through time is a page's
 job. `build-plan.md` §S8 records what that would take.
 
-**The greeting reads `trader.display_timezone`**, which is the one place that column is
-unambiguously right: "good afternoon" is a fact about the person, not the market, and nothing
-downstream of it is a number. The name is nullable, so the greeting works without one.
+**There is no greeting, and the band says `Today`** *(2026-09-01, reversing 2026-08-31)*. It ran
+for one day: a `Good afternoon, Luke` computed in `trader.display_timezone` and portalled into the
+header slot, with the shell suppressing its own route title for this one route. Luke cut it -
+*"no greeting. replace the greeting with 'Today'. the name of the page. and center it. make sure it
+is exactly consistent with the /accounts and /trades pages"* - and the whole apparatus went with it:
+the component, the shell's `SELF_TITLED` set, and the two `Intl` helpers behind the clock.
+
+**What that buys is the consistency it was asked for.** The shell's own `<h1>` titles this page now,
+so `/today` renders `text-h3` centred on a phone and `sm:text-title` static from `sm` - the same
+element, classes and position as `/accounts` and `/trades`, rather than a portalled span that only
+resembled them.
 
 **Back on `/today` exits the app** — it is a root. The recap's overlay is an in-app step and closes.
 
