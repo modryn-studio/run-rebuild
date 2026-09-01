@@ -96,6 +96,30 @@ export function DailyRecapSection() {
         </Note>
       </Row>
 
+      <Row label="The modal, and the scroll hint" note="open any card above; no modal in this app has a scrollbar">
+        <Note>
+          Measured on the reference&rsquo;s own recap: its scroller is <code>overflow-y: auto</code>
+          with <code>scrollbar-width: none</code>, and a <strong>36px circular button</strong> sits
+          centred <strong>12px above the floor</strong>, fading to <code>opacity: 0</code> at the end
+          rather than unmounting. <code>ModalScroller</code> is all three of those, and every modal in
+          the app uses it &mdash; the recap, Close, Delete, the ending question, and everything
+          through <code>ModalBody</code>.
+        </Note>
+        <Note>
+          The hint is an <code>IconButton</code> rather than the reference&rsquo;s shadowed white
+          circle: §3 says a control gets a border OR a shadow and only <code>Card</code> gets the
+          shadow, and that primitive is already &ldquo;36px, a hairline, a hair of lift&rdquo; at
+          exactly the size measured. It is <code>aria-hidden</code> and out of the tab order, because
+          it duplicates a gesture the scroll region already has &mdash; a keyboard user would meet an
+          extra stop for nothing.
+        </Note>
+        <Note>
+          The overlay&rsquo;s own header follows the reference&rsquo;s split: an
+          <strong> accent 18px eyebrow with the mark</strong> over an <strong>ink 24px claim</strong>.
+          Theirs runs 18 over 30; ours is one step down because Run&rsquo;s ramp is one step down.
+        </Note>
+      </Row>
+
       <Row label="The standard" note="three header shapes, one geometry, and the hover rule">
         <div className="grid max-w-4xl gap-4 lg:grid-cols-2">
           <Widget title="Accounts" period="6 accounts" href="/accounts">

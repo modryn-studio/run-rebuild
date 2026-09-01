@@ -47,7 +47,7 @@ import { InstrumentMark } from '@/components/views/trades/instrument-mark';
 import { ConfirmShell } from '@/components/views/accounts/confirm-shell';
 import { Icon } from '@/components/ui/icon';
 import { IconButton } from '@/components/ui/icon-button';
-import { CONFIRM_TITLE_ID } from '@/components/ui/modal-shell';
+import { CONFIRM_TITLE_ID, ModalScroller } from '@/components/ui/modal-shell';
 import { Widget } from './widget';
 import { recapPeriod, type Recap, type RecapTrade } from '@/lib/desk/recap';
 import { fmtMoney } from '@/lib/format';
@@ -152,7 +152,7 @@ function CardBody({ recap }: { recap: Recap }) {
  */
 function ReadOverlay({ recap, onClose }: { recap: Recap; onClose: () => void }) {
   return (
-    <ConfirmShell onCancel={onClose} label="Your daily recap" role="dialog" width="max-w-xl">
+    <ConfirmShell onCancel={onClose} label="Your daily recap" role="dialog" width="max-w-2xl">
       {(dismiss) => (
         <>
           {/* THE CLAIM IS THE TITLE, and that is the whole answer to the wall (2026-08-31, Luke:
@@ -178,8 +178,11 @@ function ReadOverlay({ recap, onClose }: { recap: Recap; onClose: () => void }) 
                   there is nothing to be distinguished from, so the colour carries the signal alone
                   and the alternative was inventing a 13px icon step to sit beside 11px caps. #29
                   already has 13 and 22 on its list of sizes that are off every scale. */}
-              <p className="eyebrow text-accent">{recapPeriod(recap.sessionDate)}</p>
-              <h2 id={CONFIRM_TITLE_ID} className="text-h3 text-text mt-1 font-medium">
+              <p className="text-title text-accent flex items-center gap-1.5 font-medium">
+                <Icon name="read" size={16} className="shrink-0" />
+                {recapPeriod(recap.sessionDate)}
+              </p>
+              <h2 id={CONFIRM_TITLE_ID} className="text-h2 text-text mt-2 font-medium">
                 {recap.lede}
               </h2>
             </div>
@@ -188,7 +191,7 @@ function ReadOverlay({ recap, onClose }: { recap: Recap; onClose: () => void }) 
             </IconButton>
           </div>
 
-          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-6 pt-5 pb-6">
+          <ModalScroller className="px-6 pt-5 pb-6">
             {/* EVIDENCE BEFORE THE WORKING, which is the second half of the same fix. "Which
                 trades" is the question a trader has the moment they read the claim; "how did it
                 happen" is the one they may never ask. Three rows answer the first in one glance,
@@ -224,7 +227,7 @@ function ReadOverlay({ recap, onClose }: { recap: Recap; onClose: () => void }) 
                 wrong, re-sync the account and the next read uses the correction.
               </p>
             )}
-          </div>
+          </ModalScroller>
         </>
       )}
     </ConfirmShell>

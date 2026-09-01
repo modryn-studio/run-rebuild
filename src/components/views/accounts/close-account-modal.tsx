@@ -43,7 +43,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ConfirmHeader, EndingChoice } from './shared';
-import { ModalActions } from '@/components/ui/modal-shell';
+import { ModalActions, ModalScroller } from '@/components/ui/modal-shell';
 import { ConfirmShell, ConfirmFooter } from './confirm-shell';
 import { ACCOUNT_ENDINGS, ACCOUNT_TYPE_LABELS } from '@/lib/prop-firms';
 import type { AccountStatus, AccountType } from '@/lib/db/schema';
@@ -123,7 +123,7 @@ export function CloseAccountModal({
         <>
           <ConfirmHeader title="Close this account?" onCancel={dismiss} />
 
-          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-5">
+          <ModalScroller className="px-6 pt-4 pb-5">
             {asks && (
               <div className="mb-5">
                 <p className="text-body text-muted mb-2 font-medium">How did it end?</p>
@@ -188,7 +188,7 @@ export function CloseAccountModal({
                 ))}
               </ul>
             </div>
-          </div>
+          </ModalScroller>
 
           <ConfirmFooter error={error}>
             <ModalActions>

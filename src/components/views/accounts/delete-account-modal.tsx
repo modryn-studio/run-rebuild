@@ -36,7 +36,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfirmHeader } from './shared';
 import { ConfirmShell, ConfirmFooter } from './confirm-shell';
-import { ModalActions } from '@/components/ui/modal-shell';
+import { ModalActions, ModalScroller } from '@/components/ui/modal-shell';
 
 export function DeleteAccountModal({
   accountId,
@@ -108,7 +108,7 @@ export function DeleteAccountModal({
             onCancel={dismiss}
           />
 
-          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-5">
+          <ModalScroller className="px-6 pt-4 pb-5">
             {refused ? (
               <>
                 <p className="text-body-lg text-text">{refused}</p>
@@ -131,7 +131,7 @@ export function DeleteAccountModal({
                 </p>
               </>
             )}
-          </div>
+          </ModalScroller>
 
           <ConfirmFooter error={error}>
             <ModalActions>

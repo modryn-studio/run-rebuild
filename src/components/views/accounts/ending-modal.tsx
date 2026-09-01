@@ -28,7 +28,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ConfirmHeader, EndingChoice } from './shared';
-import { ModalActions } from '@/components/ui/modal-shell';
+import { ModalActions, ModalScroller } from '@/components/ui/modal-shell';
 import { ConfirmShell, ConfirmFooter } from './confirm-shell';
 import { ACCOUNT_ENDINGS } from '@/lib/prop-firms';
 import type { AccountStatus } from '@/lib/db/schema';
@@ -55,7 +55,7 @@ export function EndingModal({
         <>
           <ConfirmHeader title="How did it end?" onCancel={dismiss} />
 
-          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-5">
+          <ModalScroller className="px-6 pt-4 pb-5">
             <div className="flex flex-col gap-2">
               {endings.map((o) => (
                 <EndingChoice
@@ -66,7 +66,7 @@ export function EndingModal({
                 />
               ))}
             </div>
-          </div>
+          </ModalScroller>
 
           <ConfirmFooter error={null}>
             <ModalActions>

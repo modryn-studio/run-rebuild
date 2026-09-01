@@ -42,6 +42,8 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { cardSurface } from '@/components/ui/card';
+import { Icon } from '@/components/ui/icon';
+import { IconButton } from '@/components/ui/icon-button';
 import { cn } from '@/lib/cn';
 
 /** Out, and in. Must agree with the `duration-[160ms]` / `duration-300` classes below; exported so
@@ -123,9 +125,85 @@ export function useModalClose(onClosed: () => void) {
  * inherit the same bug silently. Callers passing their own `pb-*` still win (cn is tailwind-merge).
  */
 export function ModalBody({ children, className }: { children: ReactNode; className?: string }) {
+  return <ModalScroller className={cn('pb-4', className)}>{children}</ModalScroller>;
+}
+
+/* THE ONE SCROLL REGION EVERY MODAL USES, AND IT HAS NO SCROLLBAR.
+ *
+ * 2026-08-31, Luke: *"they dont use scroll bars in modals... i dont want to either. remove
+ * scrollbars from modals app wide. they use an arrow to hint scroll."* Measured on the reference's
+ * own recap flow, and every number below is theirs: the scroller is `overflow-y: auto` with
+ * **`scrollbar-width: none`**, and a **36px circular** button sits **centred, 12px above its
+ * floor**, fading to `opacity: 0` at the end rather than unmounting.
+ *
+ * A COMPONENT RATHER THAN A CSS RULE ON `[role=dialog]`, and that is the choice worth defending. A
+ * descendant selector would cover every modal at once and need no call site to change - but
+ * `verify-css.mjs` can only protect a rule it can see as a CLASS, and `globals.css` already carries
+ * one scrollbar rule the checker structurally cannot reach (the phone media query). Two invisible
+ * rules is one too many. This is greppable, typed, and it carries the hint, which a CSS rule could
+ * never do.
+ *
+ * `no-scrollbar`, NOT `scroll-thin`. The two exist for different jobs and `globals.css` states it:
+ * a long content pane has to advertise that it scrolls; this one does not, because the hint
+ * advertises it better than a 6px bar does.
+ */
+export function ModalScroller({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+
+  /* MEASURED, NOT ASSUMED, and re-measured on every event that can change the answer: the trader
+     scrolling, and the content or the viewport resizing under a `max-h-[85dvh]` card. */
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setMore(el.scrollTop + el.clientHeight < el.scrollHeight - 2);
+    check();
+    el.addEventListener('scroll', check, { passive: true });
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    for (const child of Array.from(el.children)) ro.observe(child);
+    return () => {
+      el.removeEventListener('scroll', check);
+      ro.disconnect();
+    };
+  }, []);
+
   return (
-    <div className={cn('scroll-thin min-h-0 flex-1 overflow-y-auto pb-4', className)}>
-      {children}
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div ref={ref} className={cn('no-scrollbar min-h-0 flex-1 overflow-y-auto', className)}>
+        {children}
+      </div>
+
+      {/* AN `IconButton`, NOT A SHADOWED CIRCLE. Theirs is white with
+          `0 2px 8px rgba(34,32,29,.1)`, and `design-system.md` is explicit that a control gets a
+          border OR a shadow and only `Card` gets the shadow. `IconButton` is already "36px, a
+          hairline, a hair of lift" - the same object, at the same size, measured off the same
+          reference when that primitive was built. `bg-surface` so content does not read through it.
+          `aria-hidden` and `tabIndex={-1}`: it duplicates a gesture the scroller already has, so a
+          keyboard user would meet an extra stop for nothing. This is a POINTER hint. */}
+      <div
+        aria-hidden
+        className={cn(
+          'pointer-events-none absolute inset-x-0 bottom-3 flex justify-center transition-opacity duration-200 ease-out',
+          more ? 'opacity-100' : 'opacity-0'
+        )}
+      >
+        <IconButton
+          tabIndex={-1}
+          className={cn('bg-surface rounded-full', more && 'pointer-events-auto')}
+          onClick={() =>
+            ref.current?.scrollBy({ top: ref.current.clientHeight * 0.8, behavior: 'smooth' })
+          }
+        >
+          <Icon name="chevron" size={16} />
+        </IconButton>
+      </div>
     </div>
   );
 }
