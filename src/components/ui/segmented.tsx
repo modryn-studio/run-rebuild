@@ -54,18 +54,23 @@
  * the second time this row has come down (`min-h-11` -> 36 on 2026-08-27) and for the same reason
  * both times: the tap floor is a fact about fingers, not about ink.
  *
- * ─── THE PRESS IS A SCALE HERE, AND IT IS THE ONE PLACE THAT IS TRUE ───────────────────────────
+ * ─── THE PRESS IS THE HOUSE PRESS, AND THE SCALE LASTED ONE COMMIT ────────────────────────────
  *
- * `globals.css` is explicit that Run's press is an INSET SHADOW and that `active:scale-[0.98]` was
- * removed from buttons for being "a SHRINK, not a push - the object gets smaller and stays flat".
- * That argument depends on the object HAVING a ground to be pushed into. An unselected segment has
- * no ground, no border and no shadow - the component's own note above says it has no shape at all -
- * so there is nothing to inset, and a press that does nothing is the dead-control failure
- * `ui-ux-standards.md` bans outright ("every control does what its label says").
+ * This shipped as `active:scale-95` on 2026-09-01 with an argument for why a segment was the one
+ * control a shrink was honest on: `globals.css` removed `active:scale-[0.98]` from buttons for
+ * being "a SHRINK, not a push - the object gets smaller and stays flat", and that reasoning leans
+ * on the object HAVING a ground to be pushed into, which an unselected segment does not.
  *
- * So: `active:scale-95`, on the house duration and the house curve, and it applies to the LABEL's
- * box rather than to a surface. `transition-transform` joins `transition-colors` rather than
- * replacing it, or the selected pill's ground would stop animating.
+ * Luke reversed it the same day - *"instead of doing the scale on the pills, we use the pressed in
+ * shadow look like all the other buttons use. do that for consistency"* - and the reversal is the
+ * better call for a reason the original argument stepped around: the press does not have to find a
+ * ground, it can BRING one. `active:bg-[var(--pressed-bg)] active:shadow-[var(--shadow-press)]` is
+ * exactly what `Button`'s secondary and ghost variants carry, so a pill now pushes in with the same
+ * gesture as every other control in the product, and the unselected state gains its ground only
+ * while it is held. One press language, no carve-out to remember.
+ *
+ * `transition-[color,background-color,box-shadow]` rather than `transition-colors`, or the ground
+ * arrives instantly while the colour eases and the two halves of one gesture disagree.
  */
 
 import { cn } from '@/lib/cn';
@@ -84,7 +89,7 @@ export function SegmentedItem({
       aria-pressed={selected}
       {...props}
       className={cn(
-        'hit-44 text-small inline-flex h-8 items-center justify-center rounded-full px-3 font-medium whitespace-nowrap transition-[color,background-color,transform] active:scale-95',
+        'hit-44 text-small inline-flex h-8 items-center justify-center rounded-full px-3 font-medium whitespace-nowrap transition-[color,background-color,box-shadow] active:bg-[var(--pressed-bg)] active:shadow-[var(--shadow-press)]',
         /* `select-pop` IS THE APP'S OWN PICKED-THING TREATMENT, so a segment reads as chosen in the
            same language as every menu row and filter chip rather than in a private one. */
         selected ? 'bg-surface-2 text-text select-pop' : 'text-muted',
