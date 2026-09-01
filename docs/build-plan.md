@@ -1095,6 +1095,97 @@ allowance rather than adding to it.
 > claims in the reading shape, so the daily call is the full desk read every night. **The cost
 > question is reopened, not solved**, and it belongs to the slice that builds the job.
 
+#### CADENCE, DECIDED 2026-09-01 (before the backend starts)
+
+**NO BACKFILL. One read, for the latest session, and nothing before it** (Luke: *"im thinking the
+daily recap does not past sessions. only one read (the latest session)"*).
+
+A trader arrives with a year of tape and gets ONE read: the session that just closed. The engine
+never writes reads for sessions that finished before it existed. Three reasons, and the first is the
+product one:
+
+1. **A read written months late cannot say what it exists to say.** `spec.md` §5-S5: *"here's your
+   pattern, and here's what yesterday did to it."* A read generated in September about a session in
+   March has seen every session since; it cannot honestly say what that day did to anything, and it
+   is contaminated by outcomes the trader already knows.
+2. **It would be a fabrication with a date on it.** Every read prints a trust note naming what it
+   was drawn from. Backfilled reads would carry March's date over September's window.
+3. **It is the expensive half of the bill for the least valuable artefact** - one import could
+   invoice a year of reads before the trader has read one.
+
+**The first-import moment is served by `S11` instead**, which is the right shape for it: one reveal
+over the whole corpus, once, rather than 250 retrospective dailies.
+
+**Generation is never lazy.** Not on open, not on demand - see §"WHY THE READ IS NOT GENERATED ON
+CLICK" below.
+
+#### A PUBLISHED READ IS FROZEN, DECIDED 2026-09-01
+
+**Once a read is published it never changes.** Not when a later discovery pass sharpens the claim
+behind it, not when the tape grows, not ever.
+
+Luke's reasoning, and it is the better one: *"the /read page is like a journal the user doesn't have
+to write themselves... you dont erase your journal notes from tuesday on friday and revise them."*
+
+The engine's claims DO improve - that is what the weekly pass is for. The question was what happens
+to reads already written when they do:
+
+| | |
+|---|---|
+| **Frozen** (chosen) | Tuesday's read says forever what it said on Tuesday. A sharper claim shows up in the NEXT read and the ones after. |
+| Live | Tuesday's read is regenerated with the better claim, and next month it says something it never said on Tuesday. |
+
+**Three things frozen protects:**
+
+1. **A record you can quote.** Run's one claim is that the record is the broker's, reconciled. A card
+   that says one thing in March and another in June has lied once and cannot tell you which time.
+2. **The trust note stays true.** Every read prints what it was drawn from - *"19 round trips across
+   2 accounts"*. Rewritten later from a bigger window, that sentence is false, or it changes too and
+   the same card has now said two different things about its own provenance.
+3. **It is not re-billed.** A live read means every discovery pass re-invoices every past session.
+
+**The objection, and the answer.** *"If the engine was wrong on Tuesday, is leaving the wrong read up
+not worse?"* It was not wrong; it was true given what was known, the same way last week's forecast
+stays true whether or not it rained. What the live option was reaching for is better served
+explicitly: **a later read may say the claim has changed and why.** A stated correction teaches
+something; a silent rewrite teaches the trader not to trust the archive.
+
+> 📌 **FOR THE `/read` PAGE, WHEN IT IS PLANNED** (Luke, 2026-09-01, recorded so it is not lost):
+> *"the /read page is like a journal the user doesn't have to write themselves. that is kind of nice.
+> maybe we offer both options."* Two things sit on it - the weekly discovery read, and the archive of
+> every daily. **"Both options" is the open one**: whether the trader can also write their own entry
+> beside the generated one. Not planned now, and deliberately not decided here - `S7` still owns the
+> page, and `spec.md` §4.2's Tab 2 is the existing sketch.
+
+#### WHY THE READ IS NOT GENERATED ON CLICK
+
+Considered and rejected 2026-09-01. It is the obvious way to save money and it costs three things
+the product cannot spend:
+
+- **`spec.md` §4.2 keeps exactly one thing from Monarch and calls it "the important half": *the read
+  arrives generated*.** A read that generates on click does not arrive generated; it arrives as a
+  spinner.
+- **The survivorship hole sits where the value is.** Investors check **9.5% less the day after a
+  loss** (`psychology.md`), so the trader least likely to open the card is the one the read is worth
+  most to. Generate-on-click means systematically having no read for the worst sessions.
+- **The control group is a one-way door.** S7 above: unnamed candidates *"cannot be reconstructed
+  retroactively: if the first read does not capture them, that evidence never exists."*
+
+It also forfeits the batch discount, because somebody is waiting.
+
+**The cost is fixed at the engine instead** - `ai-economics.md` §6's two speeds, a windowed tape,
+batch on the discovery leg only (the nightly leg is live, because the 16:15 CT publish is a
+promise), and cached lens prompts.
+
+> ⚠️ **CORRECTION TO `recap.ts` AND TO `ai-economics.md` §6's status.** Both currently say the
+> two-speed architecture "assumes the PATTERN, and 2026-08-31 chose the reading", leaving the cost
+> question reopened. That is wrong, and it was this repo's own note. Choosing the reading was a
+> decision about what the TRADER SEES; two speeds is a decision about what the ENGINE STORES.
+> Discovery can run weekly at Opus over a windowed tape and emit claims that are never rendered,
+> while the nightly leg is Haiku writing prose around finished SQL figures and the open claims. The
+> trader still meets one sentence about one thing and never meets a "pattern object". §6's ≈$4
+> budget survives the product decision intact.
+
 #### DEFERRED, AND WHAT WOULD EARN THE `/read` PAGE BACK
 
 Both of these came up while designing the card (Luke, 2026-08-31) and both were refused for the

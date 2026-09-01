@@ -19,6 +19,7 @@ change. Point agents at the file, never at your memory of it.
 | `docs/wireframes.md` · `docs/problem-brief.md` | Structure · the problem and the kill signal |
 | `docs/user-guide.md` | Every screen, what it leads to, and what Back does. Unbuilt ones dashed |
 | `docs/ai-economics.md` | What AI costs, what the market charges, what has to fit in the budget |
+| `docs/recap-job.md` | The daily read's TRIGGER, every edge case, and what changes when the API lands |
 | `docs/psychology.md` | Why the product changes behaviour, what it must never build, the advice line |
 | `docs/blueprint-instrumentation.md` | Open questions, friction log, retro. **Append friction in the moment** |
 
