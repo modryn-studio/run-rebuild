@@ -1509,6 +1509,27 @@ input[type='search']::-webkit-search-decoration {
   }
 }
 
+/* A MODAL'S PHONE BAR, PAINTED WITH WHATEVER ITS OWN CARD IS PAINTED WITH (2026-09-01, Luke: *"why
+   is the header the whiteish color? match the paper color of the bg of the pop up screen"*).
+
+   `ModalHeader` used to hand `SheetHeader` a hardcoded `bg-surface`, and its note explains why:
+   `SheetHeader` defaults to `bg-bg` for the trade screens it was built for, and that default painted
+   a visible band across the top of every /accounts panel, which are `surface`. Correct then, and
+   wrong the moment a modal arrived on a different ground - the recap's sheet is `--color-bg` and its
+   bar was still white, which is the same band bug with the colours swapped.
+
+   SO THE BAR READS THE VARIABLE RATHER THAN NAMING A COLOUR. `--modal-ground` is set by
+   `.modal-paper` on the layer, and `SurfaceHeader` portals this bar INSIDE that layer, so it
+   inherits. Every modal that does not set it falls back to `--color-surface`, which is exactly the
+   `bg-surface` this replaces - so nothing else moves.
+
+   IT HAS TO BE OPAQUE, and that is why this is a colour rather than `transparent`: a sheet's body
+   travels UNDERNEATH its bar during a drill-in, and a see-through bar would show the old screen
+   sliding behind the new title. */
+.modal-ground {
+  background-color: var(--modal-ground, var(--color-surface));
+}
+
 /* ROOM UNDER THE CONTENT FOR THE ON-SCREEN KEYBOARD, so a page a keyboard covers has somewhere to
    scroll (2026-09-01). `use-keyboard-inset.ts` writes `--keyboard-inset` and carries the whole
    argument; this is the only consumer.

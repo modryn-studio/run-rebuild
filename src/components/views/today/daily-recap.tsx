@@ -44,6 +44,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { buttonClasses } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { SegmentedItem } from '@/components/ui/segmented';
 import { InstrumentMark } from '@/components/views/trades/instrument-mark';
 import { ConfirmShell } from '@/components/views/accounts/confirm-shell';
 import { ModalHeader } from '@/components/views/accounts/shared';
@@ -226,11 +227,24 @@ function ReadOverlay({ recap, onClose }: { recap: Recap; onClose: () => void }) 
                   THE MARK IS HERE AND NOT IN THE BAR. On a phone the bar says where you are and
                   this says what it covers; on a desktop the bar is chrome and this is the first
                   thing drawn, which is where the reference puts its own sparkle too. */}
-              <p className="text-title text-accent flex items-center gap-1.5 font-medium">
-                <Icon name="read" size={16} className="shrink-0" />
+              {/* ONE STEP DOWN ON A PHONE (2026-09-01, Luke: *"i feel like the text is too big
+                  on this pop up recap screen"*). Measured at 412px before this: bar 20, eyebrow
+                  18, claim 24, and everything under them 14 - so the top of the sheet ran three
+                  sizes above the body and then dropped two steps in one go. An eyebrow is a
+                  LABEL, and a label that outranks the prose it introduces is the thing making
+                  the screen shout. The mark goes with it, the same pairing the card header
+                  takes. */}
+              <p className="text-title max-sm:text-body text-accent flex items-center gap-1.5 font-medium">
+                <Icon name="read" size={16} className="size-4 max-sm:size-3.5 shrink-0" />
                 {recapPeriod(recap.sessionDate)}
               </p>
-              <h2 className="text-h2 text-text mt-2 font-medium">
+              {/* 24 ON A DESKTOP, 20 ON A PHONE. `trade-detail.tsx` keeps `text-h2` at both
+                  widths and that is right for what it holds - a short product name. This is a
+                  SENTENCE, and at 412px it ran to three lines of 24px before the eye reached a
+                  single fact. `text-h3` (20/26) is the size `SheetHeader` gives the screen its
+                  own name at, which is the reference's proportion too: its bar title and its
+                  headline sit within a step of each other. */}
+              <h2 className="text-h2 max-sm:text-h3 text-text mt-2 font-medium">
                 {recap.lede}
               </h2>
             </div>
@@ -422,8 +436,23 @@ function Comparison({ evidence }: { evidence: Extract<RecapEvidence, { kind: 'co
  *
  * PRESSING THE SAME THUMB TWICE CLEARS IT, because there is no other way back from a mis-tap on a
  * pair of controls with no Cancel. */
+/* THE TWO REASONS A THUMBS-DOWN CAN MEAN, and they are not the same complaint (2026-09-01, Luke:
+ * *"when user clicks thumbs down, you need to add those 'inaccurate' and 'unhelpful' chips"*).
+ * INACCURATE is a claim about the NUMBERS - the read said something the tape does not support,
+ * which under `spec.md` P12 is the most serious thing this product can be told. UNHELPFUL is a
+ * claim about the JUDGEMENT - every figure checks out and the read still was not worth opening.
+ * The first is a bug report and the second is a preference, and one thumb cannot tell them apart.
+ * BOTH CAN BE TRUE AT ONCE, so they are independent toggles rather than a radio pair. */
+const REASONS = [
+  { id: 'inaccurate', label: 'Inaccurate' },
+  { id: 'unhelpful', label: 'Unhelpful' },
+] as const;
+
+type Reason = (typeof REASONS)[number]['id'];
+
 function Feedback() {
   const [vote, setVote] = useState<'up' | 'down' | null>(null);
+  const [reasons, setReasons] = useState<Reason[]>([]);
 
   /* NO PROMPT LINE, AND THAT IS THE REFERENCE'S OWN SHAPE (2026-09-01, read out of its markup).
      Its `FeedbackActions__Root` is two bare 36px pill buttons and nothing else - no *"Was this
@@ -438,7 +467,15 @@ function Feedback() {
           key={v}
           aria-label={v === 'up' ? 'Give positive feedback' : 'Give negative feedback'}
           aria-pressed={vote === v}
-          onClick={() => setVote((prev) => (prev === v ? null : v))}
+          onClick={() =>
+            setVote((prev) => {
+              const next = prev === v ? null : v;
+              /* THE REASONS BELONG TO THE THUMBS-DOWN, so anything else clears them. A stale
+                 `Inaccurate` left behind a thumbs-up would post a contradiction. */
+              if (next !== 'down') setReasons([]);
+              return next;
+            })
+          }
         >
           {/* THE ACCENT GOES ON THE MARK, NOT ON THE BUTTON, and that is measured rather than
               stylistic. `text-accent` passed to `IconButton` merges cleanly, renders in the class
@@ -452,24 +489,68 @@ function Feedback() {
               THE MARK HAS NO SUCH RULE OVER IT. `Drawn` sets `stroke="currentColor"`, so a colour
               on the svg itself is what the stroke resolves to - measured `rgb(31,107,87)`, the
               accent exactly, in both the desktop and the phone case. */}
-          {/* MUTED AT REST, ACCENT WHEN CHOSEN. The reference's pair sit at
-              `rgb(119,117,115)` - its `content.secondary`, which is Run's `--color-muted` - rather
-              than at full ink, because an unanswered opinion control is metadata beside the note it
-              follows, not a call to action. `IconButton` is full ink by default (Luke, 2026-08-20),
-              which is right for a control that DOES something and wrong for this one.
-              THE COLOUR GOES ON THE MARK, NOT THE BUTTON, and that is measured rather than
-              stylistic: `.icon-btn` and its phone block in globals.css are hand-written and
-              UNLAYERED, so they beat a layered Tailwind text utility whatever its specificity.
-              Measured with `text-accent` on the button: class present, computed colour unchanged at
-              1280px and at 375px alike. `Drawn` sets `stroke="currentColor"`, so a colour on the
-              svg itself is what the stroke resolves to. */}
+          {/* CHOSEN IS A FILLED THUMB, NOT A PINE ONE (2026-09-01, Luke: *"you need to fill in
+              the thumb. maybe use that muted color instead of the primary pine"*), and the colour
+              call is worth writing down: the accent is this product's ONE accent and it means "act
+              on this". An answered opinion is not an action, it is a record - so the state changes
+              by WEIGHT, filled against outline, and stays in the metadata tier where the note above
+              it lives. Both thumbs sit at `--color-muted` at rest, which is where the reference
+              puts its own pair.
+              `fill-current` OVERRIDES lucide's OWN `fill="none"` ATTRIBUTE. Presentation attributes
+              lose to any CSS rule - the same mechanism the mark's `size-*` uses - which is why this
+              needs no second icon and no second name in `MARKS`.
+              THE COLOUR GOES ON THE MARK, NOT THE BUTTON: `.icon-btn` and its phone block in
+              globals.css are hand-written and UNLAYERED, so they beat a layered text utility
+              whatever its specificity. Measured once with `text-accent` on the button - class
+              present, computed colour unchanged at 1280px and 375px alike. */}
           <Icon
             name={v === 'up' ? 'thumbs-up' : 'thumbs-down'}
             size={16}
-            className={vote === v ? 'text-accent' : 'text-muted'}
+            className={cn('text-muted', vote === v && 'fill-current')}
           />
         </IconButton>
       ))}
+
+      {/* THE REASONS APPEAR BESIDE THE THUMBS, not under them, which is the reference's own row and
+          the right one here: they qualify the thumb that was just pressed, and a second row would
+          read as a new question. `SegmentedItem` is the app's own picked-thing toggle -
+          `aria-pressed`, `rounded-full`, `select-pop` - so a chosen reason reads in the same
+          language as a scope tab rather than in a private one.
+          PINE WHEN SELECTED (Luke's call), and this is the one place on the row where the accent
+          belongs: the thumb is a record, these are a DIRECTED report - the thing a maintainer would
+          act on. `bg-accent text-accent-fg` rather than a tint, because this system has no
+          accent-wash token and inventing one for two chips would be a one-off. */}
+      {vote === 'down' &&
+        REASONS.map((r) => {
+          const on = reasons.includes(r.id);
+          return (
+            <SegmentedItem
+              key={r.id}
+              selected={on}
+              onClick={() =>
+                setReasons((prev) =>
+                  prev.includes(r.id) ? prev.filter((x) => x !== r.id) : [...prev, r.id]
+                )
+              }
+              /* `text-body`, NOT `SegmentedItem`'s OWN `text-caption`. That component sizes for
+                 the scope tabs, a dense row of five; measured here it rendered 11px beside a 14px
+                 note, and §2a's second rule is that chrome is never smaller than the content it
+                 controls. One size across the whole row.
+                 A BORDER RATHER THAN A GROUND, in both states. `SegmentedItem` unselected is bare
+                 muted text, which reads as prose rather than as a control once it sits on the
+                 recap's paper card - so both chips get the outline the reference draws, and
+                 SELECTED swaps the outline and the ink to accent instead of filling with it. A
+                 solid pine pill would be the loudest object on a screen whose subject is a trader's
+                 own mistake, which is the same argument that keeps `Ask a follow-up` secondary. */
+              className={cn(
+                'text-body border',
+                on ? 'border-accent text-accent bg-surface' : 'border-border text-muted bg-surface'
+              )}
+            >
+              {r.label}
+            </SegmentedItem>
+          );
+        })}
     </div>
   );
 }

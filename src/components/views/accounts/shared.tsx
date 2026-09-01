@@ -52,13 +52,18 @@ export function ModalHeader({
     return (
       <SurfaceHeader>
         <SheetHeader
-          /* THE BAR TAKES THE PANEL'S GROUND, NOT ITS OWN. `SheetHeader` defaults to `bg-bg`
-             because the trade screens it was built for are `bg-bg` all the way down; these panels
-             are `bg-surface`, and the default painted a visible band across the top of every one of
-             them. The bar is opaque either way - it has to be, since a travelling body passes
-             underneath it - so what varies is only WHICH opaque, and that is the container's fact
-             rather than the component's. */
-          className="bg-surface"
+          /* THE BAR TAKES THE PANEL'S GROUND, NOT ITS OWN, and since 2026-09-01 it READS that
+             ground rather than naming it. `SheetHeader` defaults to `bg-bg` because the trade
+             screens it was built for are `bg-bg` all the way down; the /accounts panels are
+             `bg-surface`, and the default painted a visible band across the top of every one of
+             them. This said `bg-surface` for that reason and it was right until a modal arrived
+             on a THIRD ground: `/today`'s recap sits on `--color-bg` and its bar stayed white,
+             which is the same band bug with the colours swapped.
+             `.modal-ground` resolves `--modal-ground` and falls back to `--color-surface`, so
+             every existing caller is unchanged and a card that declares its own ground is
+             followed. The bar is opaque either way - it has to be, since a travelling body
+             passes underneath it - so what varies is only WHICH opaque. */
+          className="modal-ground"
           title={title}
           lead={
             onBack && (
@@ -137,7 +142,7 @@ export function ConfirmHeader({ title, onCancel }: { title: string; onCancel: ()
     return (
       <SurfaceHeader>
         <SheetHeader
-          className="bg-surface"
+          className="modal-ground"
           title={title}
           lead={null}
           trail={

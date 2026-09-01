@@ -198,10 +198,33 @@ export function DailyRecapSection() {
         <Note>
           <strong>The thumbs sit 20px under the note</strong>, measured: their wrapper is{' '}
           <code>flex-direction: column</code> with <code>row-gap: 20px</code>. Two bare 36px pill
-          buttons with 16px marks, muted at rest and accent when chosen, and{' '}
-          <strong>no prompt line</strong>, which is their shape too. A{' '}
-          &ldquo;Was this useful?&rdquo; above them makes the product ask for something instead of
-          offering somewhere to put an opinion.
+          buttons with 16px marks, muted at rest, and <strong>no prompt line</strong>, which is
+          their shape too. A &ldquo;Was this useful?&rdquo; above them makes the product ask for
+          something instead of offering somewhere to put an opinion.
+        </Note>
+        <Note>
+          <strong>A chosen thumb FILLS rather than turning pine</strong>, and the colour call is the
+          point: the accent is this product&rsquo;s one accent and it means <em>act on this</em>. An
+          answered opinion is a record, not an action, so the state changes by weight and stays in
+          the metadata tier the note above it lives in. <code>fill-current</code> overrides
+          lucide&rsquo;s own <code>fill=&quot;none&quot;</code> attribute, which is the same
+          presentation-attribute-loses-to-CSS mechanism the mark&rsquo;s <code>size-*</code> uses.
+        </Note>
+        <Note>
+          <strong>A thumbs-down reveals two reasons, and they are different complaints.</strong>{' '}
+          <em>Inaccurate</em> is a claim about the NUMBERS, which under P12 is the most serious thing
+          this product can be told; <em>Unhelpful</em> is a claim about the JUDGEMENT, where every
+          figure checks out and the read still was not worth opening. One is a bug report and the
+          other a preference, and a single thumb cannot tell them apart. Both can be true, so they
+          are independent toggles, and anything other than a thumbs-down clears them.
+        </Note>
+        <Note>
+          The chips are <code>SegmentedItem</code>, the app&rsquo;s own picked-thing toggle, at{' '}
+          <code>text-body</code> rather than its <code>text-caption</code>: that component sizes for
+          the scope tabs, a dense row of five, and measured 11px here beside a 14px note. §2a&rsquo;s
+          second rule is that chrome is never smaller than the content it controls. Selected swaps
+          the outline and the ink to accent rather than filling with it, because a solid pine pill
+          would be the loudest object on a screen whose subject is a trader&rsquo;s own mistake.
         </Note>
         <Note>
           <strong>This modal is the only one on the page&rsquo;s own ground.</strong> The card is{' '}

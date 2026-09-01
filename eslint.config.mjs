@@ -77,6 +77,8 @@ export default [
             // `use-keyboard-inset.ts` writes; a variable with a fallback is not expressible as a
             // Tailwind arbitrary value, and `verify-css.mjs` can only protect a real class.
             'keyboard-inset',
+            // A modal's phone bar, painted with its own card's ground via `--modal-ground`.
+            'modal-ground',
             'wait-reveal',
             'hit-44',
             'eyebrow',
