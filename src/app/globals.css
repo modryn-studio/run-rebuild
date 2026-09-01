@@ -1509,6 +1509,37 @@ input[type='search']::-webkit-search-decoration {
   }
 }
 
+/* ROOM UNDER THE CONTENT FOR THE ON-SCREEN KEYBOARD, so a page a keyboard covers has somewhere to
+   scroll (2026-09-01). `use-keyboard-inset.ts` writes `--keyboard-inset` and carries the whole
+   argument; this is the only consumer.
+
+   IT IS PADDING, NOT A HEIGHT OR A TRANSFORM. Padding grows the document, which is precisely what
+   was missing: a browser scrolls a focused field into view by scrolling the DOCUMENT, and on a
+   centred `min-h-dvh` column with the keyboard drawn over the page there is no overflow to scroll.
+   A transform would move the card without giving the page anywhere to go, and a height would fight
+   the flex column it sits in.
+
+   `0px` NOT `0` IN THE FALLBACK. `padding-bottom: 0` is valid, but the variable is also read while
+   unset on desktop and in tests, and a unitless fallback in a `calc()` further down the line is the
+   kind of thing that fails silently later. The unit costs nothing and cannot be wrong. */
+/* DECLARED HERE WITH A REAL DEFAULT, and the build is what insisted on it. The first version left
+   this property to JavaScript alone and read it with an inline fallback; `verify-css.mjs` refused
+   the build outright - *"1 custom propert(ies) read by a hand-written rule but never defined:
+   --keyboard-inset"* - which is exactly the failure that checker exists to catch. A property with
+   no declaration in the stylesheet is one nobody can find by reading it, and on a browser where the
+   hook never runs the rule would have been reading a name that does not exist anywhere.
+   NOT IN `@theme`. This is a RUNTIME MEASUREMENT, not a scale value: it changes many times a second
+   while a keyboard animates, and it has no place on a design ramp beside a radius or a type step.
+   `--modal-ground` sits outside `@theme` for the same reason and is defined by the class that
+   means something rather than by the scale. */
+:root {
+  --keyboard-inset: 0px;
+}
+
+.keyboard-inset {
+  padding-bottom: var(--keyboard-inset);
+}
+
 /* A MODAL ON THE PAGE'S OWN GROUND RATHER THAN ON `surface`, so that CONTENT BLOCKS inside it can
    be white and read as objects. Ported from the reference's `ModalCard__Root`, measured 2026-09-01:
    `background rgb(246,245,243)`, which is `--color-bg` here to the byte, with its content sitting

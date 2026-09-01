@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { safeNext } from '@/lib/next-path';
+import { useKeyboardInset } from '@/lib/use-keyboard-inset';
 import { site } from '@/config/site';
 import { analytics } from '@/lib/analytics';
 import { authClient } from '@/lib/auth-client';
@@ -85,6 +86,7 @@ function clearPending() {
 }
 
 export function Login() {
+  useKeyboardInset();
   /* WHERE THIS SIGN-IN IS HEADED. `?next=` is set by the app's auth gate when it turns a signed-out
      visitor away from a real URL, so signing in returns them to the page they asked for rather than
      dropping them on the dashboard.
@@ -241,7 +243,16 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    /* `.keyboard-inset` GROWS THE DOCUMENT BY WHATEVER THE KEYBOARD COVERS, which is what gives the
+       browser somewhere to scroll the focused field to. On a browser honouring this route's
+       `resizes-content` it resolves to 0 and changes nothing; on iOS it is the entire fix. See
+       `use-keyboard-inset.ts`.
+       IT GOES ON THE COLUMN, NOT ON `<main>`, and that distinction was measured rather than
+       reasoned: `<main>` is `flex-1`, so its height is handed to it by this container and padding
+       lands INSIDE that height - it squeezes the card and the document does not grow by a pixel.
+       Measured with `--keyboard-inset: 300px` set by hand: `scrollHeight` 812, `clientHeight` 812,
+       still not scrollable. On the column, whose height is a `min-h`, the padding adds. */
+    <div className="keyboard-inset flex flex-col">
       {/* THE COMMENT HERE USED TO SAY "rendered once, globally, in src/app/layout.tsx" AND IT WAS
           FALSE. Layout stopped rendering a floating toggle when S3b grew a real header, and its own
           note records the arrangement that replaced it: the shell renders one in its band, and
@@ -254,7 +265,13 @@ export function Login() {
       <div className="fixed top-4 right-4 z-50">
         <ThemeToggle />
       </div>
-      <main className="flex flex-1 items-center justify-center px-6 py-16">
+      {/* `min-h-dvh` MOVED HERE FROM THE COLUMN, and the difference is the whole scroll range.
+          Both are `border-box`, so a `min-h-dvh` column with `padding-bottom: 300px` is still only
+          as tall as `max(viewport, content + padding)` - measured 891 against an 812 viewport, which
+          is 79px of scroll for a keyboard covering 300. On `<main>` the guaranteed viewport height
+          and the inset ADD: 812 + 300 = 1112, so the card can clear the keyboard completely rather
+          than nearly. */}
+      <main className="flex min-h-dvh flex-1 items-center justify-center px-6 py-16">
         <div className="w-full max-w-sm">
           <h1 className="text-display text-center text-balance">{site.name}</h1>
           {/* THE PRODUCT'S OWN SENTENCE, and it was `muted` — the highest-stakes instance of prose set in

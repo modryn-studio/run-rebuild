@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Login } from '@/components/views/auth/login';
 import { LoadingMark } from '@/components/ui/loading-mark';
 
@@ -10,6 +10,35 @@ import { LoadingMark } from '@/components/ui/loading-mark';
  * tab is sitting open beside its siblings. "Sign in" rather than "Log in": the product's own copy
  * already says "sign-in" throughout this file and the component it renders. */
 export const metadata: Metadata = { title: 'Sign in' };
+
+/* THIS ONE ROUTE LETS THE KEYBOARD RESIZE THE PAGE (2026-09-01, Luke: *"on the login page, im not
+ * able to scroll when my phone's keyboard is open"*).
+ *
+ * The root sets `overlays-content`, and for the right reason: `/trades` has a bottom bar, and a
+ * layout viewport that shrinks with the keyboard makes four nav tabs ride up and sit on top of the
+ * keyboard the trader is typing into (2026-08-24). That export's own note flagged the cost it was
+ * accepting - *"the one thing to watch is a field low on the screen being covered"* - and `/login`
+ * is exactly that surface: a card centred in a `min-h-dvh` column, with the field and its button in
+ * the lower half and no bottom bar anywhere near it.
+ *
+ * So the reason for `overlays-content` does not apply here, and `resizes-content` shrinks the
+ * layout viewport with the keyboard. `min-h-dvh` shrinks with it, the content becomes taller than
+ * the viewport, the page scrolls, and the browser's own "scroll the focused field into view" has
+ * somewhere to put it. No JavaScript, on the browsers that implement it.
+ *
+ * **WebKit DOES NOT IMPLEMENT `interactive-widget`** (Chrome 108+, Firefox 132+ only), so on an
+ * iPhone this line does nothing at all and `useKeyboardInset` is what carries the fix. The two are
+ * built not to double up: that hook measures the gap between the layout and visual viewports, which
+ * is ~0 precisely when this key is honoured.
+ *
+ * `viewportFit` IS RESTATED, NOT INHERITED BY LUCK. A segment's `viewport` export is the one that
+ * resolves for its route, and dropping `cover` here would take every `env(safe-area-inset-*)` in
+ * the codebase to zero on this page - the exact silent failure the root export's second half was
+ * written to stop. Cheap to restate; expensive to discover. */
+export const viewport: Viewport = {
+  interactiveWidget: 'resizes-content',
+  viewportFit: 'cover',
+};
 
 // Identity-first: the login screen is the front door (route /login for now; enforcing it as the
 // app entry for unauthenticated visitors is a follow-up, see GitHub issue #17).

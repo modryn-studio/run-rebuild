@@ -103,7 +103,11 @@ function CardBody({ recap }: { recap: Recap }) {
        inside a card that is already aimed at is a second decision for no extra reach.
        `text-body-lg` at 16px matches the reference's body exactly, and it is the right role
        regardless: this sentence is the most consequential prose in the product. */
-    return <p className="text-body-lg text-text leading-relaxed">{recap.lede}</p>;
+    /* ONE STEP DOWN ON A PHONE. See `CitedTrade` below for the measurement and the argument;
+       this is the same call, and it is what makes the card itself smaller. */
+    return (
+      <p className="text-body-lg max-sm:text-body text-text leading-relaxed">{recap.lede}</p>
+    );
   }
 
   if (recap.state === 'thin') {
@@ -240,7 +244,7 @@ function ReadOverlay({ recap, onClose }: { recap: Recap; onClose: () => void }) 
 
             {/* THE WORKING. `architecture.md` calls it that, and it is the only prose left on the
                 screen now that the claim has moved into the header. */}
-            <div className="text-body-lg text-text flex flex-col gap-4 leading-relaxed">
+            <div className="text-body-lg max-sm:text-body text-text flex flex-col gap-4 leading-relaxed">
               {(recap.body ?? '').split(PARA).map((para, i) => (
                 <p key={i}>{para}</p>
               ))}
@@ -477,6 +481,20 @@ function Feedback() {
  * product, the clock and the net, and nothing else. Importing `TapeRow` here would mean building a
  * full tape row for every sentence the read wants to point at.
  *
+ *
+ *       ONE STEP DOWN ON A PHONE, and the reason is a RELATIONSHIP rather than a number (2026-09-01,
+ * Luke: *"why do i have the feeling that the font size is not consistent with the accounts and
+ * trades pages... im thinking we need to go smaller to match monarch and match our accounts and
+ * trades pages"*). He is right, and the port is what got it wrong: the reference's recap body is
+ * 16px, so this was built at 16px - but THEIR base is 16 and their transaction rows are 16 too,
+ * so over there the recap body is exactly a row. Run's base is 14, and `trades-tape.tsx` and
+ * `roster-card.tsx` both write `text-body-lg max-sm:text-body`. Copying their absolute number
+ * reproduced the size and broke the relation it came from: measured at 412px, a tape row is 14
+ * and this was 16, one step above every row in the product.
+ * A ROW IS ONE TYPE SIZE (`design-system.md` §2a) and the reference's own recap keeps its rows and
+ * its prose on one step too, so all four of this file's `text-body-lg` call sites move together.
+ * `text-h2` DOES NOT MOVE: `trade-detail.tsx` keeps 24 on a phone, so the claim does too.
+ *
  * NOT A LINK YET. `/trades/[id]` exists and this SHOULD open it, which is a wiring job for the
  * slice that connects the real read - a fixture has no real trade ids to point at, and a link to a
  * fabricated one is worse than a row that is honestly inert. */
@@ -484,11 +502,13 @@ function CitedTrade({ trade }: { trade: RecapTrade }) {
   return (
     <div className="border-rule flex min-h-13 items-center gap-3 border-b last:border-b-0">
       <InstrumentMark symbol={trade.symbolRoot} />
-      <span className="text-body-lg text-text min-w-0 flex-1 truncate">{trade.product}</span>
+      <span className="text-body-lg max-sm:text-body text-text min-w-0 flex-1 truncate">
+        {trade.product}
+      </span>
       <span className="text-body text-muted shrink-0 tabular-nums">{trade.at}</span>
       <span
         className={cn(
-          'text-body-lg shrink-0 font-medium tabular-nums',
+          'text-body-lg max-sm:text-body shrink-0 font-medium tabular-nums',
           trade.netCents >= 0 ? 'text-pos' : 'text-neg'
         )}
       >

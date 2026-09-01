@@ -73,6 +73,10 @@ export default [
             // `modal-paper` sets that ground AND the variable together, so the two cannot disagree.
             'modal-fade',
             'modal-paper',
+            // `/login`'s room for the on-screen keyboard. Reads `--keyboard-inset`, which
+            // `use-keyboard-inset.ts` writes; a variable with a fallback is not expressible as a
+            // Tailwind arbitrary value, and `verify-css.mjs` can only protect a real class.
+            'keyboard-inset',
             'wait-reveal',
             'hit-44',
             'eyebrow',
