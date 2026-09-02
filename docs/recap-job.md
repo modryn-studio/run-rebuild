@@ -146,13 +146,38 @@ RecapCard {
 
 ### Seven things worth taking
 
-1. **IT IS A STORED ROW, FETCHED BY DATE RANGE.** One query, `recap(startDate, endDate)`. Nothing is
-   generated when the modal opens. This is the same answer `build-plan.md` §S8 reached independently.
-2. **IT IS FROZEN, AND THEY PROVE IT.** `createdAt` and `updatedAt` differ by **17 microseconds** -
-   written once by the job, never touched again. Luke's frozen decision has the reference behind it.
-3. **IT IS NOT WRITTEN AT THE BOUNDARY.** The week ended Saturday 2026-08-29; the row was created
-   **Monday 2026-08-31 at 17:48 UTC** (12:48 CT). Two days late, mid-morning, on a business day.
-   **Even the reference does not publish at the close** - it batches when it suits them.
+1. **IT IS GENERATED LAZILY, ON FIRST OPEN - CORRECTED 2026-09-01.** The first version of this
+   section said "nothing is generated when the modal opens", inferred from a `createdAt` two days
+   after the period closed. **That inference was wrong and Luke falsified it from direct
+   observation:** *"i dont think monarch batched the call at 12:48pm CT randomly. that is when i
+   first clicked on their 'Your Weekly Recap' card."* The proof is a screen he captured on the click:
+
+   > ✦ **This might take a moment**
+   > *Feel free to close this page and we'll let you know when your recap is ready*
+
+   So `createdAt` is not a job's clock. **It is the timestamp of his first click.** The row is stored
+   and served by `recap(startDate, endDate)` on every visit after that, which is why it looked
+   precomputed from the cache alone. A cache cannot tell you who wrote the row.
+
+   > 📌 **AND IT EXPLAINS THEIR CARD.** Monarch's dashboard card says the same generic sentence every
+   > week - *"See how your net worth and spending changed last week"* - and `daily-recap.tsx` has
+   > always called that a weakness Run beats. **It is not a weakness, it is a CONSEQUENCE:** their
+   > card cannot say anything specific because at the moment it renders, nothing has been generated.
+   > **Run's card carries the read's own first line, which is only possible because the read already
+   > exists.** The two designs are causally linked, and that is the whole argument against going
+   > lazy: the card would have to become generic to do it.
+
+2. **IT IS FROZEN ONCE WRITTEN, AND THEY PROVE IT.** `createdAt` and `updatedAt` differ by **17
+   microseconds** - written once, never touched again, even though it was generated on demand.
+   Luke's frozen decision has the reference behind it. **Lazy generation and freezing are separate
+   choices**, and Monarch takes one of each.
+3. **THE ASYNC WAIT IS THE MOST USEFUL THING ON THIS PAGE, AND IT IS NOT ABOUT THE TRIGGER.**
+   *"This might take a moment. Feel free to close this page and we'll let you know when your recap
+   is ready."* That is a generated artefact that takes longer than a request, handled honestly:
+   **start the work, release the user, notify on completion.** Run needs exactly this shape whatever
+   fires the job, because a 60-90 second desk read does not fit in a serverless request either
+   (§5.2). It also gives the card's existing `pending` state a real job rather than a placeholder
+   one. **This is the steal.**
 4. **`richBlocks` IS THE GENERATIVE-UI VOCABULARY, AS A FENCED STRING.** ` ```chart:line ` with
    `Label;Value` CSV inside it. That is exactly what `RecapEvidence` in `lib/desk/recap.ts` does with
    a discriminated union. Theirs is LLM-native - the model emits it inline in markdown; ours is
@@ -170,6 +195,41 @@ RecapCard {
 **And INTRO and OUTRO are modules in the same array**, not chrome. Their five "steps" are five data
 rows; the walkthrough is a renderer over a list. Ours is one card because a read has one subject -
 that difference is the product decision, not an implementation one.
+
+---
+
+## 3b. "Are traders done trading when they upload?" - and why it does not matter *(2026-09-01)*
+
+Luke: *"do you think traders are done trading for the day when they upload their csv files?"*
+
+**Usually yes.** The trading-education literature is consistent about the archetype: the canonical
+daily routine is a review **~10 minutes after the close**, roughly 15 minutes total, and the whole
+category treats end-of-day journaling as the habit to build. A trader who exports four Tradovate
+files has already decided the day is over.
+
+**But adherence is the documented failure mode, not the exception.** The same sources are blunt:
+at five-plus trades a day manual entry runs 30-45 minutes and *"most traders start cutting corners
+within two weeks"*. So the honest answer is that the archetype uploads after the close, and a real
+trader uploads whenever they get round to it - which is the friction Run exists to remove.
+
+**Which is why the design does not ask the question.** The guard is the session clock, never the
+trader's intent:
+
+> **Generate on upload, for the newest session date that is OVER (past 17:00 CT) and has no read.**
+
+Every case resolves without knowing anything about the trader:
+
+| | | |
+|---|---|---|
+| Uploads 18:00, after the close | Monday is over | **Monday's read, immediately.** The archetype. |
+| Uploads 11:00, mid-session | Monday is not over | **Nothing.** No half-day read is written. |
+| ...then uploads again at 18:00 | Monday is over | **Monday's read.** |
+| ...or never uploads again that day | - | **Nothing today.** On Tuesday's upload Monday is the newest complete unread session, so **it self-heals one day late** - and it is still yesterday. |
+| Uploads Saturday, whole week | Friday is newest | **Friday's read.** §3. |
+
+**The mid-session upload is the case worth naming.** It produces no read rather than a partial one,
+and that is the correct outcome: a read about half a session would say what half a day did, which is
+not a thing. It costs nothing and it self-corrects.
 
 ---
 
@@ -237,6 +297,11 @@ Checked 2026-09-01 against Vercel's published limits. **Run is on Hobby.**
 function. **This is the next thing to solve and it is deliberately not solved here** (Luke: *"maybe
 we can find a way to make the api call happen faster. we havent gotten to that part of the plan yet.
 remember, step by step"*).
+
+**The reference already answers the SHAPE of it, even if not the plumbing** (§3a, finding 3): start
+the work, release the user, notify on completion. *"Feel free to close this page and we'll let you
+know when your recap is ready."* Whatever runs the call, the request that triggers it must not be
+the request that waits for it - which also means the answer is not only "make it faster".
 
 ### 5.3 Why a night can be missed
 
@@ -346,7 +411,8 @@ instead of the upload.
 
 | | |
 |---|---|
-| Where a 60-90s read runs, on Hobby | §5.2 - the immediate blocker |
+| Where a 60-90s read runs, on Hobby, ASYNC | §5.2 + §3a finding 3 - the immediate blocker |
+| How the trader is told a read is ready. `S9c` (notifications) is deliberately near-last | §3a finding 3 |
 | Does the card say anything when a re-import touches a frozen read's session | §5.7 |
 | Quarantined trades: count-only, confirmed? | §5.7 |
 | Copy-trade de-duplication in the tape builder | §5.7 |
