@@ -238,19 +238,34 @@ flowchart TD
   Recent --> AcctTape["/accounts/details/[id]/trades"]
   Detail --> Tape["The whole tape — desktop, in place"]
   Detail --> Rail["Summary · Data"]
-  Detail --> Edit(["Edit account"])
-  Detail --> Import(["Import trades — in the tape's header"])
+  Detail --> Edit(["Edit account — desktop band"])
+  Detail --> Import(["Import trades — the tape's header, desktop"])
+  Detail --> Actions(["⋯ Account actions — phone"])
+  Actions --> Edit
+  Actions --> ActImport(["Import trades — a LAYER of the same sheet"])
   AcctTape --> Filters(["Filters — account pinned"])
 
   style Edit stroke-dasharray: 2 3
   style Import stroke-dasharray: 2 3
+  style Actions stroke-dasharray: 2 3
+  style ActImport stroke-dasharray: 2 3
   style Filters stroke-dasharray: 2 3
 ```
 
 **The import sits in the tape card's own header on a desktop**, which is the row of controls
 belonging to the table it fills. Below `md` there is no such row — `Recent Trades` carries a
-caption, not a toolbar — so the phone reaches it from the Data card, and from the empty state when
-the account has nothing in it yet. Either way it is scoped to this account.
+caption, not a toolbar — so **the phone's bar carries a `⋯` instead**, opening a sheet with Edit
+account and Import trades. Either way it is scoped to this account.
+
+**Import is a LAYER of that sheet, not a second one.** Tapping it slides the upload step up over the
+action list and renames the bar, which is §6a's rule for a screen you arrived at. The naive build —
+a menu whose rows call the existing openers — slides this sheet down while another slides up, two
+full-screen surfaces crossing for one tap. **Edit does hand off**, because its form owns three
+screens and its own confirmations; that is the one row that costs a crossing, and it is the rare one.
+
+**The Data card's link is first-run only now, at both widths.** It survives where it earns its place
+— directly under a "Last import: Never" it answers — and the recurring "Add more" variant is gone,
+since the bar reaches the same action in one tap from the top rather than 1301px down the scroll.
 
 **`/accounts/details/[id]/trades` is phone-only and redirects to the parent above `md`** — nobody
 navigates there on a desktop, since the button that leads to it is `md:hidden`, so what the redirect

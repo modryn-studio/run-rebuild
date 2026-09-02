@@ -307,7 +307,13 @@ function BrokerRow({ connected }: { connected: number }) {
   );
 }
 
-function Door({
+/* EXPORTED SINCE 2026-09-02, for `account-actions-sheet.tsx`. A second REAL consumer in app code
+ * is the reason this file's own rule allows - the same one that exported `TradeRow` for
+ * `RecentTrades`. A lookalike row would agree with this one the day it was written and drift by
+ * the next change, and the whole point of the actions sheet is that its rows are the row the
+ * trader already knows from the import flow. Not exported for the rack: `/kitchen-sink` reaches it
+ * through the components that use it. */
+export function Door({
   icon,
   title,
   desc,

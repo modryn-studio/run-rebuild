@@ -28,6 +28,8 @@
 
 import { useState } from 'react';
 import { AddAccountModal } from '@/components/views/accounts/add-account-modal';
+import { AccountActionsSheet } from '@/components/views/accounts/account-actions-sheet';
+import type { RosterAccount } from '@/lib/accounts/read';
 import { FileUploadStep, type Picked } from '@/components/views/accounts/file-upload-step';
 import { ModalShell } from '@/components/ui/modal-shell';
 import { AccountSheet } from '@/components/views/accounts/account-sheet';
@@ -65,9 +67,37 @@ const DEMO_FINDINGS: PreflightFinding[] = [
 ];
 
 
-type Scene = 'doors' | 'upload' | 'failed' | 'complete' | 'already-saved';
+/* THE ACCOUNT THE ACTIONS SHEET IS ABOUT. A `pending:` row on purpose - that is the state where
+ * both of its choices matter at once, since an unlabelled placeholder is exactly what Edit names
+ * and what an import adopts. NO FIXTURE LOOKS REAL: `DEMOACCT` and a round 50K, matching the rule
+ * `_fixtures/trades.ts` states for the tape's rows. */
+const DEMO_ACCOUNT: RosterAccount = {
+  id: 'demo-account-1',
+  externalAccountId: 'pending:demo-account-1',
+  platform: 'tradovate',
+  propFirm: 'tradeify',
+  firmSource: 'manual',
+  sizeDollars: 50_000,
+  accountType: 'evaluation',
+  productName: null,
+  displayName: null,
+  status: 'active',
+  closedOn: null,
+  hidden: false,
+  excludedFromTotals: false,
+  trades: 0,
+  netCents: 0,
+  lastSessionDate: null,
+};
+
+type Scene = 'actions' | 'doors' | 'upload' | 'failed' | 'complete' | 'already-saved';
 
 const SCENES: { id: Scene; label: string; note: string }[] = [
+  {
+    id: 'actions',
+    label: 'Account actions',
+    note: 'THE PHONE ONLY - turn Phone on, or this renders nothing. The bar’s ⋯ opens this, and Import trades is a LAYER of it rather than a second sheet: tapping it slides the upload step up over this list instead of sliding this one down while another comes up. Edit hands off, because its form owns three screens and its own confirmations. Dry run throughout.',
+  },
   {
     id: 'doors',
     label: 'Add account',
@@ -192,6 +222,12 @@ export function AddAccountDemo() {
       </p>
 
       <ForcePhone value={phone}>
+        {/* THE SHEET IS PHONE-ONLY BY CONSTRUCTION - it is rendered from `detail-panel-header.tsx`,
+            which is `md:hidden`. `ForcePhone` above is what makes it reachable on a desktop rack at
+            all, and this scene is the reason that override was worth keeping. */}
+        {scene === 'actions' && (
+          <AccountActionsSheet key={nonce} account={DEMO_ACCOUNT} onClose={close} dryRun />
+        )}
         {scene === 'doors' && <AddAccountModal key={nonce} onClose={close} connected={0} dryRun />}
 
         {/* THE RAW SCREENS NEED A CONTAINER, and which one is the whole point of the lane. `Shell`

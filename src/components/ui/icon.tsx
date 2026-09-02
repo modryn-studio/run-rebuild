@@ -430,6 +430,33 @@ function DrawnGrip(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/* `more`. THE PHONE'S ACCOUNT BAR, adopted from v2 verbatim (2026-09-02).
+ *
+ * A DIRECT SWAP, WHICH IS THIS FILE'S OWN PRECEDENT rather than a new call: seventeen marks came
+ * across that way when Luke asked to "find ones that exist in the Marks list now and replace them
+ * with v2's icon, direct swap". `more` is the eighteenth - v2 drew it, and this build had no use
+ * for it until the phone's account bar gained a second real action.
+ *
+ * NOT LUCIDE, AND IT DID NOT HAVE TO BE. Three dots is exactly the case `Drawn` exists for: it
+ * invents nothing, it is the mark everybody draws the same way, and lucide's `Ellipsis` would
+ * arrive at 24px / stroke 2 and need this wrapper anyway.
+ *
+ * FILLED, WITH `stroke="none"`. The house 1.5 stroke on a 1.4 radius closes the hole and leaves
+ * three blobs heavier than `grip`'s 1.3 dots, which sit in the same sidebar.
+ *
+ * SPACING IS v2's - 5.5 / 12 / 18.5 on a 24 box, so 6.5 between centres against `grip`'s 6. They
+ * are different marks doing different jobs: a drag handle is a texture, this is three targets, and
+ * the wider gap is what keeps this one reading as a menu rather than as something to grab. */
+function DrawnMore(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Drawn {...props}>
+      {[5.5, 12, 18.5].map((cx) => (
+        <circle key={cx} cx={cx} cy={12} r="1.4" fill="currentColor" stroke="none" />
+      ))}
+    </Drawn>
+  );
+}
+
 const MARKS = {
   grip: DrawnGrip,
   refresh: DrawnRefresh,
@@ -466,6 +493,9 @@ const MARKS = {
      fallback is for marks with real geometry nobody wants to redraw (a warning triangle, a chevron
      pair), not for a diagonal. */
   edit: DrawnPencil,
+  /* The phone account bar's menu affordance. See `DrawnMore`, and `account-actions-sheet.tsx` for
+     why that bar needed one at all. */
+  more: DrawnMore,
   filter: DrawnFilter,
   // Which COLUMNS are drawn, never which trades are kept. See DrawnEye for why it is not `filter`.
   eye: DrawnEye,

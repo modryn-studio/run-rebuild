@@ -36,7 +36,8 @@ import Link from 'next/link';
 import { SheetHeader, SHEET_CONTROL_ICON } from '@/components/ui/sheet-header';
 import { Icon } from '@/components/ui/icon';
 import { IconButton, ICON_BUTTON } from '@/components/ui/icon-button';
-import { useLabelAccount } from './account-modals';
+import { useState } from 'react';
+import { AccountActionsSheet } from './account-actions-sheet';
 import type { RosterAccount } from '@/lib/accounts/read';
 
 /** Where `WithSummaryRail` portals its toggle, and where `TradesSearchPill` portals its row. Ids
@@ -79,20 +80,41 @@ export function DetailPanelHeader({
              defined locally would be the same job twice, and they would drift on the first change. */
           <div id={ACCOUNT_TRADES_BAR_HOST} className="flex items-center" />
         ) : (
-          <EditAccountControl account={account} />
+          <AccountActionsControl account={account} />
         )
       }
     />
   );
 }
 
-/** Edit, for the details bar. Its own component because it needs the modal opener, which is context
- *  the layout establishes and the bar above is otherwise free of. */
-function EditAccountControl({ account }: { account: RosterAccount }) {
-  const label = useLabelAccount();
+/* THE BAR'S ONE TRAIL CONTROL, AND IT IS NOW A MENU (2026-09-02).
+ *
+ * IT WAS A PENCIL STRAIGHT TO THE EDITOR, and the note above records why that was right: Edit was
+ * the only real action this page had, and "a chevron promises a menu; one real action gets a button
+ * that says what it does. IT BECOMES A MENU THE DAY A SECOND ITEM IS REAL." That day is this one -
+ * the account-scoped import needed a home on a phone, and the bar has exactly one slot on this side.
+ *
+ * WHY IT COULD NOT BE A SECOND DISC INSTEAD. `SheetHeader`'s `px-12` title clearance is measured for
+ * ONE 44px control per side; this file's own header records a long account name running into a
+ * wider control the last time that was tested. Two discs on the right is that bug again, and the
+ * names it breaks on ("My Funded Futures 100K (...4470)") are real rows in the corpus.
+ *
+ * WHY NOT LEAVE IT IN THE PAGE BODY. Measured on the phone, 2026-09-02: the Data card's import link
+ * sits 1301px down - 1.5 screens, past the chart and the Recent Trades table. `/trades` puts the
+ * same action one tap from the top. Two taps and no scrolling beats one tap and a scroll hunt.
+ *
+ * `more` IS v2's MARK, adopted for this (see `icon.tsx`). At `SHEET_CONTROL_ICON` like the back
+ * arrow opposite it, so the centred title still clears two controls of the same size. */
+function AccountActionsControl({ account }: { account: RosterAccount }) {
+  const [open, setOpen] = useState(false);
   return (
-    <IconButton onClick={() => label(account)} aria-label="Edit account">
-      <Icon name="edit" size={SHEET_CONTROL_ICON} />
-    </IconButton>
+    <>
+      <IconButton onClick={() => setOpen(true)} aria-label="Account actions">
+        <Icon name="more" size={SHEET_CONTROL_ICON} />
+      </IconButton>
+      {/* MOUNTED ONLY WHILE OPEN, so `useSheet`'s entrance runs on the frame it appears. The sheet
+          owns its own exit clock and calls this back once the travel has played. */}
+      {open && <AccountActionsSheet account={account} onClose={() => setOpen(false)} />}
+    </>
   );
 }

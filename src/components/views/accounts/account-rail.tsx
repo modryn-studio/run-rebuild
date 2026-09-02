@@ -238,23 +238,22 @@ export function AccountRail({
               account's page is the trader asserting the file belongs to this row, which is the one
               signal that can rename a `pending:` placeholder. See `import-trades-modal.tsx`.
 
-              `md:hidden` ON THE RECURRING VARIANT ONLY (2026-09-02), and the asymmetry is the
-              point. The tape card's header now carries this same action as the page's CTA
-              (`import-into-account.tsx`), so on a desktop keeping this row too is two controls
-              firing one action on one page. The PHONE has no such header - `max-md:hidden` takes
-              the whole tape toolbar and `RecentTrades` carries a caption rather than a toolbar
-              (Luke, 2026-08-28) - so this row is the only steady-state way in at that width and
-              stays. The FIRST-RUN variant stays at both widths: "Never" one row up is a statement
-              this page makes on both, and the sentence that closes it belongs beside it. */}
-          <Line
-            label={provenance.lastImportAt ? 'Add more' : 'Get started'}
-            className={provenance.lastImportAt ? 'md:hidden' : undefined}
-          >
-            <ImportIntoAccount
-              accountId={account.id}
-              label={provenance.lastImportAt ? 'Import trades' : 'Import your first file'}
-            />
-          </Line>
+              FIRST RUN ONLY, AT BOTH WIDTHS (2026-09-02). The recurring "Add more · Import
+              trades" variant lived here too, and for one afternoon it was `md:hidden` - kept on the
+              phone because the tape's header carries the action on a desktop and `max-md:hidden`
+              takes that whole toolbar away. The phone's bar now carries it instead
+              (`account-actions-sheet.tsx`), one tap from the top rather than the 1301px scroll this
+              row measured at, so the exception has nothing left to cover and the row goes back to
+              saying one thing.
+              WHAT SURVIVES IS THE ARGUMENT IT WAS WRITTEN FOR: an account with no import is usually
+              one the trader added by hand this morning, "Never" one row up is the statement of the
+              gap, and the sentence that closes it belongs directly under it. Once there IS an
+              import that row is a fact rather than a gap, and the bar is where you act. */}
+          {!provenance.lastImportAt && (
+            <Line label="Get started">
+              <ImportIntoAccount accountId={account.id} label="Import your first file" />
+            </Line>
+          )}
           {/* HOW MANY FILES THIS ACCOUNT IS BUILT FROM. One line of provenance v2 leaves implicit,
               and cheap here because the count rides on the same row the stamp does. Absent at zero,
               where "Last import: Never" one row up has already said it. */}
