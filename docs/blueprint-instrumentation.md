@@ -109,14 +109,15 @@ and collected later are still in-the-moment data. Notes written from memory at t
      the app or the worktree. Verification fell back to a background dev server plus a plain
      browser tab, which works but loses `preview_logs`. -->
 
-<!-- FRICTION 2026-09-02: the shared chrome-devtools daemon took my tab mid-task for the second
-     time this session - index 5 went from my Monarch page to another session's Autodesk Build
-     page between a `select_page` and the `evaluate_script` that followed it. The URL assertion
-     in the script caught it and no stranger's tab was driven, which is exactly what
-     `read-live-competitor.md` prescribes, so the guard works. What does not exist is any way to
-     hold a tab: the playbook's "re-resolve before every action" still leaves a race between the
-     resolve and the action, and the only fix is the per-call URL guard catching it after the
-     fact. Worth raising upstream - a `--pageId` on page-scoped commands would end it. -->
+<!-- FRICTION 2026-09-02: the shared chrome-devtools daemon took my tab mid-task twice in one
+     session - index 5 went from my page to another session's between a `select_page` and the
+     `evaluate_script` on the very next line. The URL assertion inside the script caught it both
+     times and no stranger's tab was driven. RESOLVED THE SAME DAY by chrome-devtools-mcp 1.8.0,
+     which requires a `pageId` on every page-scoped command and routes by it, so there is no
+     implicit target left to race for. Verified against the live app immediately after: the whole
+     `/trades` and `/accounts/details` check ran through `--pageId 5` with no guard and no
+     collision. The rules now live in `modryn-hq:playbooks/driving-chrome.md` and nowhere else -
+     do not copy them back here. -->
 
 ### Phase timing (amended 2026-08-11 — replaces manual date-logging)
 
