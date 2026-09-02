@@ -147,6 +147,10 @@ export function FileUploadStep({
       return (
         <ImportComplete
           imported={readyOutcome.imported}
+          /* WHERE THE ROWS ACTUALLY WENT, which is not always where the trader was standing - see
+             `ImportComplete`. Carried on the outcome since the stream was written; this screen was
+             the one place it stopped. */
+          accounts={readyOutcome.accounts}
           onDone={() => {
             onBusyChange(false);
             onDone();

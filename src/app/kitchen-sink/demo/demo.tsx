@@ -221,13 +221,22 @@ export function AddAccountDemo() {
 
         {scene === 'complete' && (
           <Shell key={nonce} phone={phone} onDismiss={close} label="Your record is in">
-            <ImportComplete imported={777} onDone={close} />
+            {/* ONE ACCOUNT, NAMED. The line is the answer to "did that land where I meant?" and
+                it is the only place the flow ever says so - see `ImportComplete`. */}
+            <ImportComplete imported={777} accounts={['DEMOACCT0000001']} onDone={close} />
           </Shell>
         )}
 
         {scene === 'already-saved' && (
           <Shell key={nonce} phone={phone} onDismiss={close} label="Already saved">
-            <ImportComplete imported={0} onDone={close} />
+            {/* BOTH LINES AT ONCE, which is the re-upload of the wrong account's files: nothing
+                changed AND it was not this account. They answer different questions and the case
+                that needs both is the one worth racking. */}
+            <ImportComplete
+              imported={0}
+              accounts={['DEMOACCT0000001', 'DEMOACCT0000002']}
+              onDone={close}
+            />
           </Shell>
         )}
       </ForcePhone>

@@ -19,6 +19,8 @@ import { Note, Row, Section } from '../_components/section';
 import { RecentTrades } from '@/components/views/accounts/recent-trades';
 import { ImportTradesButton } from '@/components/views/trades/import-trades-button';
 import { ImportIntoAccountButton } from '@/components/views/accounts/import-into-account';
+import { HeaderControl, HeaderDivider } from '@/components/shell/header-slot';
+import { Icon } from '@/components/ui/icon';
 import {
   DIGEST_FIXTURE,
   DIGEST_FIXTURE_IDS,
@@ -163,6 +165,56 @@ export function TradesSection() {
           the button - it is that the header shape clears the `min-h-15` toolbar it sits in and the
           CTA shape matches `RecentTrades`' own pill two rows up. Those are relationships, and a
           rack row is where a relationship either holds or visibly does not. */}
+      {/* THE `/trades` BAND, ASSEMBLED (2026-09-02). It is here because it is the one arrangement
+          in this change that cannot be checked in the running app without signing in, and because
+          what it proves is a RELATIONSHIP: four controls at one height, three of them marked, a
+          rule marking where narrowing stops and adding begins.
+          THE THREE CHIPS ARE INERT `HeaderControl`s, not the real popovers. `SearchPopover` and
+          friends carry URL state and a `useParamWriter`, and dragging that into the rack would put
+          controls on this page that rewrite the address. What is being checked is the ROW, and the
+          row is heights, marks and the rule. */}
+      <Row label="The Trades band" note="what narrows, the rule, then the one thing that adds">
+        {/* NO BORDER AND NO RADIUS ON THE MOCK. The rack's own `Row` already frames this, and the
+            real band has neither - it is a strip of the page ground with controls on it. Drawing a
+            card around it here would put an edge in the check that does not exist in the app, and
+            the rack forbids arbitrary values besides. */}
+        <div className="bg-bg flex items-center gap-3 p-3">
+          <HeaderControl>
+            <Icon name="search" />
+            Search
+          </HeaderControl>
+          <HeaderControl>
+            <Icon name="today" />
+            Date
+          </HeaderControl>
+          <HeaderControl>
+            <Icon name="filter" />
+            Filters
+          </HeaderControl>
+          <HeaderDivider />
+          <ImportTradesButton dryRun />
+        </div>
+        <Note>
+          The button says &ldquo;Import&rdquo;, not &ldquo;Import trades&rdquo;: the shell&apos;s
+          band prints Trades from the route on this same row, and the tape already dropped its own
+          card title here for exactly that reason. It is not &ldquo;Add&rdquo; either. Monarch&apos;s
+          is, honestly, because theirs opens a form for typing one transaction in by hand; ours would
+          be promising the one capability this product refuses.
+        </Note>
+        <Note>
+          It keeps its mark because every chip beside it has one. The account page&apos;s button
+          drops its mark for the mirror-image reason: it sits in a card header beside an `h2`, with
+          no marked peers to match.
+        </Note>
+        <Note>
+          The rule is `bg-border`, not `bg-rule`, which is the opposite of what the names suggest.
+          `--color-rule` is the same value as `--color-band` and is sized for a hairline inside a
+          card; on the header&apos;s own ground it is invisible. `--color-border` is what the chips
+          on either side already wear, so the separator lands at their weight. It is `h-5` against
+          36px controls, because a full-height rule reads as a column boundary rather than a comma.
+        </Note>
+      </Row>
+
       <Row label="Import" note="the header shape, the CTA shape, scoped and unscoped">
         <div className="flex flex-col gap-4">
           {/* THE REAL TAPE IN THE ACCOUNT PAGE'S OWN CONFIGURATION - `title`, `fixedColumns`, and

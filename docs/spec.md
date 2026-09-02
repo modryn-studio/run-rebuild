@@ -389,6 +389,9 @@ Edge cases:
 - Empty: no file yet — *"Upload your Tradovate export to get started."* with the export steps inline, not in a help article
 - Error: unrecognised or partial file — named, rejected whole, re-uploadable
 - Loading: determinate, count-based
+- **Wrong account, added 2026-09-02** — the trader uploads, from account A's page, files that belong to account B. Two outcomes, and both are correct:
+  - **A is a real account.** Adoption cannot fire (`like 'pending:%'` fails), so the rows resolve to B by `external_account_id` and land on B. Nothing about A changes. `THE SYSTEM SHALL name every account an import resolved to, on completion` — without that the trader watches a success animation for an import that put nothing where they were looking, and finds out only by going hunting.
+  - **A is a hand-added placeholder.** Adoption fires and A becomes B, holding B's trades under whatever the trader labelled A. The data is right and the LABEL is wrong, which `Edit` fixes; refusing instead would trade a fixable label for a permanent duplicate, and that trade was already made and argued (`lib/intake/accounts.ts`, 2026-08-03). Naming the account on completion is what makes it discoverable in the moment rather than a week later.
 
 #### AMENDED 2026-09-02 — the import RECURS, and its openers belong where the record is
 

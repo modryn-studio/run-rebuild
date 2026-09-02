@@ -97,6 +97,32 @@ export function HeaderSlot({
   return host ? createPortal(children, host) : null;
 }
 
+/* THE BAND'S GROUP SEPARATOR (2026-09-02, Luke, off Monarch's `/transactions` header: "a small
+ * divider like monarch has ... a center divide between their filters and '+ add' button").
+ *
+ * WHAT IT IS FOR, and it is not decoration. A header band that mixes controls which NARROW what is
+ * on screen with one that ADDS to it reads as a single undifferentiated row of six things. The rule
+ * says the row has two halves. Monarch draws exactly this between its filter cluster and its `Add`,
+ * measured live: `w-px`, self-centred, at their faintest divider weight.
+ *
+ * `bg-border` RATHER THAN `bg-rule`, WHICH IS THE OPPOSITE OF WHAT THE TOKEN NAMES SUGGEST.
+ * `--color-rule` is #f6f5f3 in light, the same value as `--color-band`, and against the header's
+ * own ground it is invisible - it is sized for a hairline INSIDE a card, on a card's ground.
+ * `--color-border` (#e4e1de) is what every chip in this band already wears as its edge, so the
+ * separator lands at the same weight as the borders on either side of it, which is the only weight
+ * that reads as deliberate here. `progress-panel.tsx` draws the same object the same way.
+ *
+ * `h-5` AGAINST 36px CONTROLS. A full-height rule reads as a column boundary and turns the band
+ * into two panes; a short centred one reads as a comma. Monarch's is likewise well short of its
+ * control height.
+ *
+ * `aria-hidden` AND NO `role="separator"`. Monarch ships the role, and it is the wrong call for a
+ * decorative line: a screen reader announcing "separator" between Filters and Import adds nothing a
+ * sighted user gets, since the grouping is already carried by the labels. This is paint. */
+export function HeaderDivider({ className }: { className?: string }) {
+  return <span aria-hidden className={cn('bg-border h-5 w-px shrink-0', className)} />;
+}
+
 /* THE SECONDARY CONTROL THAT GOES IN THE BAND: 36px tall, a hairline, a hair of lift. This is
  * `lift-press`'s geometry with a label instead of a mark, which is the same control class
  * `IconButton` already is — that primitive was measured off the same reference.

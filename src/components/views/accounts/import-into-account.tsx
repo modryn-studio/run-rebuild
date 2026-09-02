@@ -64,6 +64,18 @@ export function ImportIntoAccount({
  * `size="lg"` (48px) FOR THE CTA, which is `RecentTrades`' own "View all trades" height and the
  * modals' footer height - the same object the trader has already pressed, not a new one invented
  * for one table.
+ *
+ * NO MARK ON EITHER LABELLED SHAPE (2026-09-02, Luke: "remove the icon from the 'import trades'
+ * button"), AND THE DIVERGENCE FROM `/trades` IS THE ARGUMENT FOR IT. That button sits in the
+ * shell's band among `HeaderControl` chips - Search, Date, Filters - every one of which carries an
+ * `Icon` before its label, so a bare label there would be the one mark-less control in a row of
+ * marked ones. THIS one sits in a card's own header beside an `h2`, where the only other content
+ * is type. A mark there is decoration: it is not distinguishing this control from peers, because
+ * it has none. Two bands, two answers, and the rule is the row you are in rather than the action.
+ *
+ * The disc keeps its mark for the obvious reason - it IS the mark - and keeps `aria-label` with it.
+ * The labelled shapes drop `aria-label` along with the icon: their text is the accessible name
+ * now, and a redundant `aria-label` repeating it is one more string to leave stale.
  */
 export function ImportIntoAccountButton({
   accountId,
@@ -78,7 +90,6 @@ export function ImportIntoAccountButton({
   if (cta) {
     return (
       <Button size="lg" className="w-full" onClick={() => open(accountId)}>
-        <Icon name="upload" size={18} />
         Import trades
       </Button>
     );
@@ -95,13 +106,7 @@ export function ImportIntoAccountButton({
       <IconButton className="md:hidden" aria-label="Import trades" onClick={() => open(accountId)}>
         <Icon name="upload" size={22} />
       </IconButton>
-      <Button
-        size="md"
-        className="max-md:hidden"
-        aria-label="Import trades"
-        onClick={() => open(accountId)}
-      >
-        <Icon name="upload" size={16} />
+      <Button size="md" className="max-md:hidden" onClick={() => open(accountId)}>
         Import trades
       </Button>
     </>

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getTrader } from '@/lib/trader';
-import { HeaderSlot } from '@/components/shell/header-slot';
+import { HeaderSlot, HeaderDivider } from '@/components/shell/header-slot';
 import { WithSummaryRail } from '@/components/shell/summary-rail';
 import { TradesTape } from '@/components/views/trades/trades-tape';
 import { TradesRail } from '@/components/views/trades/trades-rail';
@@ -119,6 +119,14 @@ export default async function TradesPage({
           accounts={facets.accounts}
           facetRows={facetRows}
         />
+        {/* THE RULE SAYS THIS BAND HAS TWO HALVES: everything to its left narrows what is on the
+            page, and the one thing to its right adds to it. Monarch draws the same line in the
+            same place on `/transactions` (Luke, 2026-09-02).
+            `max-md:hidden` BECAUSE ITS LEFT-HAND SIDE IS. `TradesControls` is `contents
+            max-md:hidden` - the phone narrows from `TradesSearchPill` in the page body instead -
+            so below `md` the band holds one disc and nothing else, and a separator with nothing on
+            one side of it is a stray mark rather than a division. */}
+        <HeaderDivider className="max-md:hidden" />
         {/* LAST IN THE BAND, AFTER THE CONTROLS THAT NARROW - the order every header in this app
             uses: the undo, then chrome, then the one thing wearing the accent
             (`accounts-header.tsx`). OUTSIDE `TradesControls` deliberately: that component is

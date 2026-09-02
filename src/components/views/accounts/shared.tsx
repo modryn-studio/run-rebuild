@@ -182,10 +182,38 @@ export function ConfirmHeader({ title, onCancel }: { title: string; onCancel: ()
  * already had this" is a fact about the upload, not about any one file.
  *
  * The headline carries `MODAL_TITLE_ID` because it IS this screen's title.
+ *
+ * ─── IT NAMES THE ACCOUNT (2026-09-02), AND THAT IS AN EDGE-CASE FIX, NOT A FLOURISH ────────────
+ *
+ * `ImportOutcome` has carried `accounts` since the stream was written and this screen threw it
+ * away, which left one failure completely silent. A trader standing on Account A's page uploads
+ * files that actually belong to Account B. Adoption cannot fire - `lib/intake/accounts.ts` gates it
+ * on `like 'pending:%'`, and a real row is not a placeholder - so the rows resolve to B by
+ * `external_account_id`, land correctly on B, and this screen said "Your record is in." over a
+ * drawn check. `router.refresh()` then re-read A's page, which is unchanged. Every part of that is
+ * correct except what the trader was told: they watched a success animation for an import that put
+ * nothing where they were looking, and had no way to find out until they went hunting.
+ *
+ * The same sentence does a second job on `/trades`, where the import is unscoped by construction
+ * and the account is never stated anywhere else in the flow.
+ *
+ * IT IS THE RAW `external_account_id`, not a composed roster title. That is what an unlabelled
+ * account shows on the roster too, and this file is `'use client'` - reaching for `accountRowTitle`
+ * would pull a db-backed module's VALUES across the boundary for a cosmetic gain.
  */
-export function ImportComplete({ onDone, imported }: { onDone: () => void; imported?: number }) {
+export function ImportComplete({
+  onDone,
+  imported,
+  accounts,
+}: {
+  onDone: () => void;
+  imported?: number;
+  /** Every account the rows resolved to. Usually one; a copy-trader's export carries many. */
+  accounts?: string[];
+}) {
   /** Rows the database actually accepted, never rows attempted. Zero is a different screen. */
   const nothingNew = imported === 0;
+  const landed = accounts?.filter(Boolean) ?? [];
   return (
     <>
       {/* The X is the only chrome, and it is not a duplicate control here: this screen has no
@@ -200,6 +228,14 @@ export function ImportComplete({ onDone, imported }: { onDone: () => void; impor
           {nothingNew ? 'Already saved.' : 'Your record is in.'}
         </h2>
         {nothingNew && <p className="text-body text-muted mt-2">Nothing new in these files.</p>}
+        {/* AFTER the "already saved" line rather than instead of it: the two answer different
+            questions ("did anything change" and "where did it go") and a re-upload of the wrong
+            account's files needs both. */}
+        {landed.length > 0 && (
+          <p className="text-body text-muted mt-2">
+            Filed under <span className="text-text">{formatList(landed)}</span>.
+          </p>
+        )}
       </div>
       <div className="mt-6 px-6 py-4">
         {/* `ModalActions` PROPERLY, not its four classes copied (2026-08-31). This read them by
@@ -214,6 +250,14 @@ export function ImportComplete({ onDone, imported }: { onDone: () => void; impor
       </div>
     </>
   );
+}
+
+/* "A", "A and B", "A, B and C" - the serial comma left off, matching the app's own copy elsewhere.
+ * Not `Intl.ListFormat`: it is locale-aware and this app's copy is not, so it would produce a
+ * sentence in one language around account names in another. */
+function formatList(items: string[]): string {
+  if (items.length === 1) return items[0];
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 }
 
 /* THE COMPLETION SCREEN'S ONLY CHROME. A bare X in a modal, because the headline below carries the

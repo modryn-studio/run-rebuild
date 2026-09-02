@@ -60,8 +60,10 @@ export function ImportTradesButton({
   return (
     <>
       {cta ? (
+        /* THE CTA SAYS THE WHOLE THING. It sits in the middle of an empty page under "No trades
+           yet", with no header above it doing half the naming, so the band's shortening below does
+           not apply and "Import" alone would be a verb with no object. */
         <Button size="lg" onClick={() => setOpen(true)}>
-          <Icon name="upload" size={18} />
           Import trades
         </Button>
       ) : (
@@ -72,20 +74,40 @@ export function ImportTradesButton({
               screen. The label goes with it and the mark carries it.
               `aria-label` IS UNCONDITIONAL. A control whose name disappears at one width is
               nameless to a screen reader at that width. */}
+          {/* THE DISC KEEPS THE FULL NAME. `aria-label` is the only name it has, and "Import" with
+              no visible label beside it is a verb with no object to a screen reader arriving cold. */}
           <IconButton className="md:hidden" aria-label="Import trades" onClick={() => setOpen(true)}>
             <Icon name="upload" size={22} />
           </IconButton>
           {/* `size="md"` (h-9), MATCHING EVERY OTHER CONTROL IN THIS BAND - `HeaderControl` for
               Search, Date and Filters, and `IconButton` beside them. One band, one control
-              height; `accounts-header.tsx` records what `sm` looked like here. */}
-          <Button
-            size="md"
-            className="max-md:hidden"
-            aria-label="Import trades"
-            onClick={() => setOpen(true)}
-          >
+              height; `accounts-header.tsx` records what `sm` looked like here.
+
+              ─── "Import", NOT "Import trades", AND NOT "Add" ──────────────────────────────────
+
+              THE SHORTENING IS MONARCH'S AND THE REASON IS ALREADY OURS. Their `/transactions`
+              button says "+ Add" rather than "Add transaction" because the header two inches away
+              already says Transactions (Luke, 2026-09-02: "i think they do it because the header
+              is already labeled transactions"). Run's band prints "Trades" from `NAV` on the same
+              row, and this codebase has made that exact cut once before: `trades-tape.tsx` dropped
+              its card title on this page because "the shell's band already prints Trades from the
+              route, so a card header repeating it said one word twice, 64px apart". "Import
+              trades" in the Trades band is the same sentence.
+
+              "ADD" IS THE ONE WORD THIS BUTTON MAY NOT USE, and that is doctrine rather than copy
+              taste. Monarch's `Add` is honest: it opens a form for typing one transaction in by
+              hand. Run refuses manual entry outright - trades are the broker's rows or they are
+              nothing - so `Add` on the tape would promise the single capability this product will
+              never have, to the trader most likely to go looking for it. Taking their placement
+              was the point; taking their verb would import the promise underneath it.
+
+              "+ IMPORT" WAS THE THIRD OPTION AND IS INCOHERENT. A plus means "one more of these",
+              which is what `Add` means and what Monarch's mark is doing there. Importing is not
+              adding one row, it is handing over four files, and `upload` is the mark that says so.
+              It also keeps this control marked like every chip beside it. */}
+          <Button size="md" className="max-md:hidden" onClick={() => setOpen(true)}>
             <Icon name="upload" size={16} />
-            Import trades
+            Import
           </Button>
         </>
       )}
