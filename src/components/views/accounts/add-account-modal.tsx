@@ -95,7 +95,31 @@ export function AddAccountModal({
 }) {
   const router = useRouter();
   const phone = usePhone();
-  const [view, setView] = useState<View>('doors');
+  /* ─── WHETHER THE SOURCE SCREEN HAS ANYTHING TO ASK (2026-09-02) ────────────────────────────────
+   *
+   * THE DOORS ASK "WHERE ARE THESE TRADES COMING FROM", and today there is one live answer, because
+   * `TRADOVATE_CONNECT_LIVE` is false until the vendor credentials land. A chooser with one option
+   * is not a chooser, it is a speed bump on the action a trader does every evening.
+   *
+   * `!manual` IS WHAT SEPARATES THE TWO JOBS THIS MODAL DOES. With it, this is the roster's "Add
+   * account" and the doors are the point: you are choosing HOW TO ADD one, and the dark Brokers row
+   * is a destination signal worth showing even while it cannot be pressed — the ranking should not
+   * be rearranged the week OAuth turns on. Without it, this is an IMPORT into an account that
+   * already exists, launched from a control that said "Import trades", and the Brokers row has
+   * nothing to offer that trader yet.
+   *
+   * ONE SWITCH, AND IT IS THE ONE BUILT FOR THIS. `TRADOVATE_CONNECT_LIVE`'s own note: "ONE constant
+   * rather than a scatter of `disabled` props, so turning the rail on is a single edit and cannot
+   * half-land." Flipping it brings the doors back on every import opener at once, which is the whole
+   * reason this is gated rather than deleted.
+   *
+   * IT ANSWERS `import-trades-modal.tsx`'s RECORDED OBJECTION rather than ignoring it. That file
+   * says a bare upload step "assumed CSV, which threw away the Brokers row and would have needed
+   * re-adding the day the vendor connection lands". Nothing is thrown away here: the doors are
+   * wired to the switch that decides whether they have a question. */
+  const skipDoors = !manual && !TRADOVATE_CONNECT_LIVE;
+
+  const [view, setView] = useState<View>(skipDoors ? 'upload' : 'doors');
   /* Held here, not in FileUploadStep: stepping back to the doors and returning keeps a staged
      selection. Closing the modal still discards it, which is the intended discard. */
   const [files, setFiles] = useState<Picked[]>([]);
@@ -161,7 +185,9 @@ export function AddAccountModal({
       dryRun={dryRun}
       source={TRADOVATE}
       adoptAccountId={adoptAccountId}
-      onBack={toDoors}
+      /* NO ARROW WHEN THERE ARE NO DOORS BEHIND IT. `ModalHeader` draws one only when handed a
+         handler, so this is the whole mechanism - the same one the phone's actions sheet uses. */
+      onBack={skipDoors ? undefined : toDoors}
       onClose={close}
       onDone={done}
       onBusyChange={setBusy}
@@ -212,7 +238,11 @@ export function AddAccountModal({
     /* BACK MEANS ONE STEP, AND WHICH STEP DEPENDS ON WHERE YOU ARE. Inside the manual form it
        unwinds one ANSWER (Size back to Firm, Firm back to Type); anywhere else it returns to the
        doors. The sheet asks; this decides — the same split `dismiss` makes on the modal path. */
-    const back = () => (view === 'manual' ? manualFlow.back() : toDoors());
+    /* WITH THE DOORS SKIPPED THERE IS NO LAYER BENEATH, so Back is the exit rather than a step to a
+       screen that is not in the stack. `design-system.md` §6a: a device Back may only go where the
+       screen shows a way to go, and with no doors the upload step draws no arrow either. */
+    const back = () =>
+      view === 'manual' ? manualFlow.back() : skipDoors ? close() : toDoors();
 
     return (
       <AccountSheet
@@ -229,8 +259,17 @@ export function AddAccountModal({
            Firm-to-Size change does NOT rename it, which is why it is not a layer at all — it is a
            keyed fade inside layer 2. */
         layers={[
-          doors,
-          view === 'upload' ? uploadScreen : view === 'manual' ? manualFlow.typeScreen : null,
+          /* THE UPLOAD STEP IS LAYER 0 WHEN THE DOORS ARE SKIPPED, not layer 1 over an empty base -
+             a layer that slides up over nothing reads as a panel arriving from off-screen for no
+             reason, and layer 0 is the one that deliberately does not travel. */
+          skipDoors ? uploadScreen : doors,
+          skipDoors
+            ? null
+            : view === 'upload'
+              ? uploadScreen
+              : view === 'manual'
+                ? manualFlow.typeScreen
+                : null,
           view === 'manual' && manualFlow.step !== 'type' ? manualFlow.detailScreen : null,
         ]}
       />
@@ -239,7 +278,7 @@ export function AddAccountModal({
 
   // Escape and the backdrop dismiss the TOP layer only: a sub-view steps back to the doors, the
   // doors close the modal. The shell asks; this decides.
-  const dismiss = () => (view === 'doors' ? onClose() : setView('doors'));
+  const dismiss = () => (view === 'doors' || skipDoors ? onClose() : setView('doors'));
 
   return (
     <ModalShell onDismiss={dismiss} busy={busy} closing={modal.closing}>

@@ -214,11 +214,17 @@ flowchart TD
   style Brokers stroke-dasharray: 5 5
 ```
 
-**The doors have three openers, and one of them behaves differently.** `Add account` on the roster
-and `Import trades` on the tape are UNSCOPED: the accounts are resolved from the files alone.
-`Import trades` on an account's own page is SCOPED to that account, which is the trader asserting
-the files belong to that row — the only assertion allowed to fill in a hand-added placeholder. The
-scoped opener drops the `Add manually` door, because you cannot add an account you are standing on.
+**The doors belong to `Add account`, and only while there is a choice to make.** Every import opener
+skips them today: `TRADOVATE_CONNECT_LIVE` is false, so CSV is the one live source and a chooser with
+one option is a speed bump rather than a question. Flip that constant and they return on every import
+opener at once. The roster's `Add account` keeps them at all times — that is a different job, and the
+dark Brokers row is a destination signal there rather than an option.
+
+**Three openers, and one of them behaves differently.** `Add account` on the roster and `Import` on
+the tape are UNSCOPED: the accounts are resolved from the files alone. `Import trades` on an
+account's own page is SCOPED to that account, which is the trader asserting the files belong to that
+row — the only assertion allowed to fill in a hand-added placeholder. The scoped opener drops the
+`Add manually` door, because you cannot add an account you are standing on.
 
 **Brokers leads even though it is dark**, because it is the answer most traders want and the row
 says "Soon" rather than pretending. **Cash History is required on import, not optional** — the Fills

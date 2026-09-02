@@ -13,6 +13,20 @@
  * app" — a screen from another flow dropped into the middle of this one. Consistency here means the
  * modal the trader already knows from the roster, which is this one, with one switch flipped.
  *
+ * AND IT IS A BARE UPLOAD STEP AGAIN AS OF 2026-09-02 — by a GATE rather than an assumption, which
+ * is the difference the paragraph above was actually objecting to. `AddAccountModal` skips the doors
+ * while `TRADOVATE_CONNECT_LIVE` is false, so nothing is thrown away: the Brokers row is wired to the
+ * switch that decides whether it has anything to offer, and flipping that one constant brings the
+ * doors back here and on every other import opener at once.
+ *
+ * WHAT FORCED IT was the phone. Its account bar's `⋯` opens the upload step directly - the row that
+ * opens it says "Import trades · Import from CSV", so a doors screen would re-ask a question the
+ * label just answered - and that left ONE PAGE with two depths for one action, depending on which
+ * of its two controls you pressed. Luke's question settled which way to close it: "when the broker
+ * sync is available, do we want the sync and upload csv option to both be available on the path A
+ * and path B options?" Yes - so the shape has to follow the number of live sources rather than be
+ * chosen once, or the menu would quietly hide sync from the trader on the surface they use daily.
+ *
  * WHY THE OPENER IS SEPARATE FROM `add()` AT ALL. `add()` asks WHICH ACCOUNT TO CREATE, which is "a
  * question with no meaning when the trader is standing on one". This flow has its answer already —
  * the account whose page it was launched from — and THAT is the signal: an import launched here is
