@@ -19,7 +19,7 @@
 
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
-import { Icon } from '@/components/ui/icon';
+import { Icon, ICON_TOUCH } from '@/components/ui/icon';
 import { useImportTrades } from './account-modals';
 
 export function ImportIntoAccount({
@@ -104,7 +104,7 @@ export function ImportIntoAccountButton({
           `aria-label` IS UNCONDITIONAL. A control whose name disappears at one width is nameless
           to a screen reader at that width. */}
       <IconButton className="md:hidden" aria-label="Import trades" onClick={() => open(accountId)}>
-        <Icon name="upload" size={22} />
+        <Icon name="upload" size={ICON_TOUCH} />
       </IconButton>
       <Button size="md" className="max-md:hidden" onClick={() => open(accountId)}>
         Import trades

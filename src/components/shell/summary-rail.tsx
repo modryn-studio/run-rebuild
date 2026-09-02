@@ -23,7 +23,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useOverlayBack } from '@/lib/overlay-back';
 import { cn } from '@/lib/cn';
-import { Icon } from '@/components/ui/icon';
+import { Icon, ICON_TOUCH } from '@/components/ui/icon';
 import { IconButton } from '@/components/ui/icon-button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { PAGE_COLUMN, RAIL_W } from '@/lib/shell';
@@ -213,7 +213,7 @@ export function WithSummaryRail({
                 flipping when it opens — a direction that is literally true there. Below `md` it
                 OPENS A DRAWER, where a direction describes nothing and a pair of left chevrons in
                 the top-right corner reads as "back". See `DrawnSummary` in icon.tsx. */}
-            <Icon name="summary" size={22} className="md:hidden" />
+            <Icon name="summary" size={ICON_TOUCH} className="md:hidden" />
             <Icon
               name="collapse"
               size={18}

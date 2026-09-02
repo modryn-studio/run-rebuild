@@ -69,8 +69,35 @@ import type { SVGProps } from 'react';
 /** The system's stroke. Read the note above before changing it. */
 export const ICON_STROKE = 1.5;
 
+/* ─── THE SCALE, AND IT IS FOUR STEPS RATHER THAN THREE (2026-09-02, closing #29) ────────────────
+ *
+ * `/kitchen-sink` documented 16 / 20 / 24 and a census found three more values in the tree that were
+ * on no scale at all: 13, 15 and 22. The interesting part was that they were not scattered — 13 and
+ * 22 each had a handful of call sites AGREEING, which is what a missing step looks like rather than
+ * what a mistake looks like. So both are named here and 15, which was one pixel off the default and
+ * nothing else, went to the default.
+ *
+ * NAMED FOR THE JOB, NEVER THE NUMBER. A call site asking for `ICON_TOUCH` is saying "this is aimed
+ * at with a thumb", which survives the value changing; one asking for `22` is saying nothing and is
+ * how seven files came to agree by accident.
+ *
+ * NOT IN `@theme`. A `size` prop takes a NUMBER and a Tailwind token can only be read by a class —
+ * the exact trap `globals.css` warns about for tokens only ever read from JavaScript. */
+
+/** 13px. A mark SUBORDINATE to the text it sits in: the tick beside a chosen menu row, the external
+ *  arrow after a domain, the × on a filter chip, the met/unmet dot in a checklist. It is smaller
+ *  than the body face on purpose — it annotates the line rather than labelling it. */
+export const ICON_INLINE = 13;
+
 /** 16px. The default everywhere: it sits with a 14px body face without shouting. */
 export const ICON_SIZE = 16;
+
+/** 22px. A mark AIMED AT with a thumb, inside a 44px target — every phone bar control, the roster's
+ *  discs, the sheet headers. `sheet-header.tsx` had already argued this exact value and reached the
+ *  same conclusion from the other end: "a phone bar's control is bigger than an inline mark on
+ *  purpose, because it is a 44px target." `SHEET_CONTROL_ICON` now reads from here so the two names
+ *  cannot drift apart. */
+export const ICON_TOUCH = 22;
 
 /** What `Icon()` actually passes to whichever component a name resolves to. Both lucide's real
  *  components and the hand-drawn ones below satisfy this — lucide's accept a strictly wider prop

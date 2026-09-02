@@ -22,7 +22,7 @@
 import { useRef, useState, type DragEvent, type Dispatch, type SetStateAction } from 'react';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
-import { Icon } from '@/components/ui/icon';
+import { Icon, ICON_INLINE } from '@/components/ui/icon';
 import { detectTradovateFileType, type TradovateFileType } from '@/lib/csv/shared';
 import { ModalHeader, RunMark, ImportComplete, SourceMark, type Source } from './shared';
 import { ModalBody, ModalFooter } from '@/components/ui/modal-shell';
@@ -306,7 +306,7 @@ export function FileUploadStep({
                     key={f.file.name + i}
                     className="border-border bg-surface flex items-center gap-2 rounded-[var(--radius-sm)] border px-3 py-2"
                   >
-                    <Icon name="file" size={15} className="text-muted shrink-0" />
+                    <Icon name="file" className="text-muted shrink-0" />
                     <span className="text-body text-text min-w-0 flex-1 truncate">
                       {f.file.name}
                     </span>
@@ -359,7 +359,7 @@ function Req({ label, met }: { label: string; met: boolean }) {
       className="flex items-center gap-1"
       style={{ color: met ? 'var(--color-accent)' : 'var(--color-muted)' }}
     >
-      <Icon name={met ? 'check' : 'unmet'} size={13} />
+      <Icon name={met ? 'check' : 'unmet'} size={ICON_INLINE} />
       {label}
     </span>
   );

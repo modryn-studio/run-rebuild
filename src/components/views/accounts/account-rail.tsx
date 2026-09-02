@@ -31,7 +31,7 @@
 
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/cn';
-import { Icon } from '@/components/ui/icon';
+import { Icon, ICON_INLINE } from '@/components/ui/icon';
 import { StatusChip } from './roster-card';
 import { ImportIntoAccount } from './import-into-account';
 import { fmtMoney } from '@/lib/format';
@@ -103,7 +103,7 @@ export function AccountRail({
                 className="text-link inline-flex items-center gap-1"
               >
                 {firm.domain}
-                <Icon name="external" size={13} className="shrink-0" />
+                <Icon name="external" size={ICON_INLINE} className="shrink-0" />
               </a>
             </Line>
           )}

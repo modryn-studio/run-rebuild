@@ -33,7 +33,7 @@
 import { SHEET_CONTROL_ICON } from '@/components/ui/sheet-header';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
-import { Icon } from '@/components/ui/icon';
+import { Icon, ICON_INLINE } from '@/components/ui/icon';
 import { IconButton } from '@/components/ui/icon-button';
 import { Button } from '@/components/ui/button';
 import { DateInput } from '@/components/ui/date-input';
@@ -164,7 +164,7 @@ function Chip({ value, onRemove }: { value: ChipValue; onRemove?: () => void }) 
              opens the axis - which is what makes a tap on a chip's LABEL still drill in. */
           className="pointer-events-auto hover:bg-surface-2 active:bg-bg flex size-7 shrink-0 items-center justify-center rounded-full transition-colors"
         >
-          <Icon name="close" size={13} className="text-muted" />
+          <Icon name="close" size={ICON_INLINE} className="text-muted" />
         </button>
       )}
     </span>

@@ -40,7 +40,7 @@ import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
-import { Icon } from '@/components/ui/icon';
+import { Icon, ICON_TOUCH } from '@/components/ui/icon';
 import { cn } from '@/lib/cn';
 
 export function RefreshRoster() {
@@ -50,7 +50,7 @@ export function RefreshRoster() {
 
   return (
     <>
-      {/* `size={22}`, WHICH IS THE MOBILE BAND'S OWN SCALE and not this control's preference: the
+      {/* `size={ICON_TOUCH}`, WHICH IS THE MOBILE BAND'S OWN SCALE and not this control's preference: the
           hamburger, the bell and `/trades`' summary toggle all carry 22 below `md` and 18 above it.
           A 16px mark here would read as a smaller control rather than as the same one. */}
       <IconButton
@@ -59,7 +59,7 @@ export function RefreshRoster() {
         aria-label="Refresh"
         onClick={refresh}
       >
-        <Icon name="refresh" size={22} className={cn(pending && 'animate-spin')} />
+        <Icon name="refresh" size={ICON_TOUCH} className={cn(pending && 'animate-spin')} />
       </IconButton>
 
       <Button

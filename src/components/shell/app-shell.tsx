@@ -39,7 +39,7 @@ import { useOverlayBack } from '@/lib/overlay-back';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
-import { Icon, type IconName } from '@/components/ui/icon';
+import { Icon, type IconName, ICON_TOUCH } from '@/components/ui/icon';
 import { site } from '@/config/site';
 import { IconButton } from '@/components/ui/icon-button';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -520,7 +520,7 @@ export function AppShell({
                     can see, so that mark points at it; opening is reaching for a panel that is not
                     on screen, which is what a menu glyph means everywhere. */}
                 <Icon name="menu" size={20} className="max-md:hidden" />
-                <Icon name="menu" size={22} className="md:hidden" />
+                <Icon name="menu" size={ICON_TOUCH} className="md:hidden" />
               </IconButton>
             </Tooltip>
           </div>
@@ -574,7 +574,7 @@ export function AppShell({
               Still disabled until `S9c`. */}
           <Tooltip label="Notifications">
             <IconButton disabled aria-label="Notifications" className="md:hidden">
-              <Icon name="bell" size={22} />
+              <Icon name="bell" size={ICON_TOUCH} />
             </IconButton>
           </Tooltip>
 

@@ -19,7 +19,15 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Icon, ICON_NAMES, ICON_SIZE, ICON_STROKE, type IconName } from '@/components/ui/icon';
+import {
+  Icon,
+  ICON_NAMES,
+  ICON_SIZE,
+  ICON_STROKE,
+  ICON_INLINE,
+  ICON_TOUCH,
+  type IconName,
+} from '@/components/ui/icon';
 import { Note, Row, Section } from '../_components/section';
 
 /* The registry grouped by the surface each mark serves, mirroring the comment blocks in
@@ -134,17 +142,35 @@ export function IconsSection() {
         </Note>
       </Row>
 
-      <Row label="Size is a context decision, stroke is not" note="deliberate overrides">
+      <Row label="Size is a context decision, stroke is not" note="the whole scale, named">
         <div className="flex flex-wrap items-end gap-6">
+          <Icon name="accounts" size={ICON_INLINE} />
           <Icon name="accounts" />
           <Icon name="accounts" size={20} />
+          <Icon name="accounts" size={ICON_TOUCH} />
           <Icon name="accounts" size={24} />
         </div>
         <Note>
-          The default pairs with body text. A nav row takes 20 because it is read at a glance rather
-          than aimed at, and an empty state or a hero mark may go further, but none of them touch the
-          weight: size is what a context legitimately changes, stroke is what has to hold across the
-          set. The wrapper enforces that split by taking a size prop and no stroke prop at all.
+          `ICON_INLINE` · default (`ICON_SIZE`) · 20 · `ICON_TOUCH` · 24. The default pairs with body
+          text. A nav row takes 20 because it is read at a glance rather than aimed at, and an empty
+          state or a hero mark may go further, but none of them touch the weight: size is what a
+          context legitimately changes, stroke is what has to hold across the set. The wrapper
+          enforces that split by taking a size prop and no stroke prop at all.
+        </Note>
+        <Note>
+          TWO OF THESE WERE UNNAMED UNTIL 2026-09-02 (#29), and that is why they are named now. A
+          census found 13, 15 and 22 in the tree against a documented 16 / 20 / 24. 13 and 22 each
+          had a handful of call sites AGREEING, which is what a missing step looks like rather than
+          what a mistake looks like: `ICON_INLINE` annotates a line of text, `ICON_TOUCH` is aimed at
+          with a thumb inside a 44px target. 15 was one pixel off the default and nothing else, so it
+          went to the default.
+        </Note>
+        <Note>
+          THE NAMES ARE THE POINT, not the numbers. A call site asking for `ICON_TOUCH` says &ldquo;a
+          thumb aims at this&rdquo; and survives the value changing; one asking for `22` says nothing,
+          which is how eight files came to agree by accident. `SHEET_CONTROL_ICON` still exists and
+          still says what a sheet header&apos;s control is, but it reads from `ICON_TOUCH` now, so the
+          two cannot drift apart.
         </Note>
       </Row>
     </Section>

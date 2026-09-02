@@ -28,6 +28,7 @@
  */
 
 import { cn } from '@/lib/cn';
+import { ICON_TOUCH } from './icon';
 
 /* THE SIZE OF A CONTROL'S MARK IN A PHONE HEADER BAR. 22px, and it is a constant rather than a
  * number retyped at each call site (2026-08-28, Luke: "i want to make sure we are using the same
@@ -35,12 +36,21 @@ import { cn } from '@/lib/cn';
  *
  * The five bars agreed already - the trade sheet, the trade route, the filter sheet, the /accounts
  * flows and the account panel all draw 22 - which is exactly the state a value is in right before it
- * stops agreeing. `ICON_SIZE` in `icon.tsx` is the app-wide default (18) and is a different fact: a
+ * stops agreeing. `ICON_SIZE` in `icon.tsx` is the app-wide default (16) and is a different fact: a
  * phone bar's control is bigger than an inline mark on purpose, because it is a 44px target.
+ *
+ * IT STOPPED AGREEING, EXACTLY AS PREDICTED, AND #29 IS WHERE THAT LANDED (2026-09-02). Eight more
+ * call sites had written the literal 22 instead of importing this - the hamburger, the bell, the
+ * summary toggle, the roster's refresh and add, and the two phone import controls. `ICON_TOUCH` in
+ * `icon.tsx` is now the step itself, named for the job, and this reads from it: the local name still
+ * says what a sheet header's control IS, and there is one value underneath both.
+ *
+ * (The "(18)" in the paragraph above was wrong from the day it was written - `ICON_SIZE` has always
+ * been 16. Corrected here rather than left, because a comment nobody can trust is worse than none.)
  *
  * NOT IN `@theme`. A `size` PROP takes a number, and a Tailwind token can only be read by a class -
  * the exact trap `globals.css` warns about for tokens that are only ever read from JavaScript. */
-export const SHEET_CONTROL_ICON = 22;
+export const SHEET_CONTROL_ICON = ICON_TOUCH;
 
 export function SheetHeader({
   title,

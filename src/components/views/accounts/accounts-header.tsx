@@ -27,7 +27,7 @@
 
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
-import { Icon } from '@/components/ui/icon';
+import { Icon, ICON_TOUCH } from '@/components/ui/icon';
 import { HeaderSlot } from '@/components/shell/header-slot';
 import { useAddAccount } from './account-modals';
 import { RosterFilters, RosterClear } from './roster-filters';
@@ -75,7 +75,7 @@ export function AccountsHeader({
           The label goes below `md` and the mark carries it, but `aria-label` is UNCONDITIONAL - a
           control whose name disappears at one width is nameless to a screen reader at that width. */}
       <IconButton className="md:hidden" aria-label="Add account" onClick={add}>
-        <Icon name="add" size={22} />
+        <Icon name="add" size={ICON_TOUCH} />
       </IconButton>
       {/* `size="md"` (h-9), NOT `sm` (h-8), and the header is what decides it. Every other control
           in this band is 36px tall - `HeaderControl` on `/trades` (Search, Date, Filters), every

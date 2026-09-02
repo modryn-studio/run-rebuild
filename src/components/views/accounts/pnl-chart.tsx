@@ -1061,7 +1061,7 @@ function PanButton({ dir, onClick }: { dir: -1 | 1; onClick: () => void }) {
           : { right: `calc(${PAN_RIGHT} - ${PAN_SIZE}px)` }),
       }}
     >
-      <Icon name="chevron" size={15} className={dir === -1 ? 'rotate-90' : '-rotate-90'} />
+      <Icon name="chevron" className={dir === -1 ? 'rotate-90' : '-rotate-90'} />
     </button>
   );
 }

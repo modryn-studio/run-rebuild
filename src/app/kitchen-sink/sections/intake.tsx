@@ -9,7 +9,7 @@
 
 import { cn } from '@/lib/cn';
 import { cardSurface } from '@/components/ui/card';
-import { Icon } from '@/components/ui/icon';
+import { Icon, ICON_INLINE } from '@/components/ui/icon';
 import { Wordmark } from '@/components/ui/wordmark';
 import { ProgressPanel, type Step } from '@/components/views/accounts/progress-panel';
 import { FindingNotice } from '@/components/views/accounts/finding-notice';
@@ -217,7 +217,7 @@ function RackReqs({ met }: { met: string[] }) {
             className="flex items-center gap-1"
             style={{ color: has ? 'var(--color-accent)' : 'var(--color-muted)' }}
           >
-            <Icon name={has ? 'check' : 'unmet'} size={13} />
+            <Icon name={has ? 'check' : 'unmet'} size={ICON_INLINE} />
             {label}
           </span>
         );
@@ -230,7 +230,7 @@ function RackReqs({ met }: { met: string[] }) {
 function RackFileRow({ name, type }: { name: string; type: string | null }) {
   return (
     <div className="border-border bg-surface flex items-center gap-2 rounded-[var(--radius-sm)] border px-3 py-2">
-      <Icon name="file" size={15} className="text-muted shrink-0" />
+      <Icon name="file" className="text-muted shrink-0" />
       <span className="text-body text-text min-w-0 flex-1 truncate">{name}</span>
       <span
         className="text-caption shrink-0"

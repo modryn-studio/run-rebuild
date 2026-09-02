@@ -38,7 +38,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { IconButton } from '@/components/ui/icon-button';
-import { Icon } from '@/components/ui/icon';
+import { Icon, ICON_TOUCH } from '@/components/ui/icon';
 import { AddAccountModal } from '@/components/views/accounts/add-account-modal';
 
 export function ImportTradesButton({
@@ -77,7 +77,7 @@ export function ImportTradesButton({
           {/* THE DISC KEEPS THE FULL NAME. `aria-label` is the only name it has, and "Import" with
               no visible label beside it is a verb with no object to a screen reader arriving cold. */}
           <IconButton className="md:hidden" aria-label="Import trades" onClick={() => setOpen(true)}>
-            <Icon name="upload" size={22} />
+            <Icon name="upload" size={ICON_TOUCH} />
           </IconButton>
           {/* `size="md"` (h-9), MATCHING EVERY OTHER CONTROL IN THIS BAND - `HeaderControl` for
               Search, Date and Filters, and `IconButton` beside them. One band, one control

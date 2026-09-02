@@ -20,7 +20,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/cn';
-import { Icon } from '@/components/ui/icon';
+import { Icon, ICON_INLINE } from '@/components/ui/icon';
 
 export type MenuOption<T extends string> = { value: T; label: string };
 
@@ -199,7 +199,7 @@ export function Menu<T extends string>({
               {/* The check occupies its slot whether or not it is drawn, so picking a different row
                   does not shift every label sideways. */}
               <span className="text-accent flex w-4 shrink-0 justify-center">
-                {o.value === value && <Icon name="check" size={13} />}
+                {o.value === value && <Icon name="check" size={ICON_INLINE} />}
               </span>
               {o.label}
             </button>
