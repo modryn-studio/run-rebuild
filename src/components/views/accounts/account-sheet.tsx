@@ -88,9 +88,18 @@ export function useSheet(onClosed: () => void) {
   return { open, requestClose };
 }
 
-/** Base plus two drill-ins. Add tops out at doors -> manual -> firm/size, Edit at edit -> type ->
- *  firm, and a flow needing a fourth is a flow that should be asking fewer questions. */
-const MAX_LAYERS = 3;
+/* Base plus THREE drill-ins (raised from 3 on 2026-09-02, Luke's call). Add tops out at doors ->
+ * manual -> firm/size, Edit at edit -> type -> firm.
+ *
+ * WHAT THE FOURTH IS FOR, AND WHY IT DOES NOT BREAK THE OLD RULE. That rule read "a flow needing a
+ * fourth is a flow that should be asking fewer questions", and it still holds — none of these flows
+ * gained a question. What gained a level is the phone's account bar, whose `⋯` opens an actions
+ * LIST as layer 0 with Edit's three screens above it (`account-actions-sheet.tsx`). A chooser in
+ * front of a flow is not the flow asking more; it is one place to stand before picking which flow.
+ * The worst case is exactly `actions -> edit -> type -> firm`, and it is reachable only on an
+ * unlabelled `pending:` account — the row that menu exists for. A FIFTH would still mean somebody
+ * added a question. */
+const MAX_LAYERS = 4;
 
 export function AccountSheet({
   open,

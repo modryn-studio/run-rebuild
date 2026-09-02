@@ -41,12 +41,19 @@ type Openers = {
      which account to create, which is a question with no meaning when the trader is standing on
      one. */
   importTrades: (accountId: string) => void;
+  /* HOW MANY OTHER ACCOUNTS SHARE THIS ONE'S LOGIN PREFIX. On the context because the phone's
+     actions sheet hosts the edit flow itself (`account-actions-sheet.tsx`) rather than going
+     through `label()`, so it needs the same integer this provider already computes for
+     `LabelAccountModal`. Zero when the caller supplied no counter, which the form reads as "I know
+     of no siblings" and correctly does not offer the switch. */
+  siblings: (account: RosterAccount) => number;
 };
 
 const AccountModals = createContext<Openers>({
   add: () => {},
   label: () => {},
   importTrades: () => {},
+  siblings: () => 0,
 });
 
 export function useAddAccount() {
@@ -61,6 +68,11 @@ export function useLabelAccount() {
 /** Opens the upload step already scoped to one account. See `ImportTradesModal`. */
 export function useImportTrades() {
   return useContext(AccountModals).importTrades;
+}
+
+/** The sibling count for one account, for a caller hosting the edit flow itself. */
+export function useAccountSiblings() {
+  return useContext(AccountModals).siblings;
 }
 
 export function AccountModalsProvider({
@@ -85,9 +97,13 @@ export function AccountModalsProvider({
 
   const label = useCallback((a: RosterAccount) => setLabelling(a), []);
   const importTrades = useCallback((id: string) => setImportingInto(id), []);
+  const siblings = useCallback(
+    (a: RosterAccount) => (siblingsFor ? siblingsFor(a) : 0),
+    [siblingsFor]
+  );
   const openers = useMemo<Openers>(
-    () => ({ add: () => setAdding(true), label, importTrades }),
-    [label, importTrades]
+    () => ({ add: () => setAdding(true), label, importTrades, siblings }),
+    [label, importTrades, siblings]
   );
 
   const siblingCount = labelling && siblingsFor ? siblingsFor(labelling) : 0;

@@ -552,8 +552,30 @@ touches the tab order.
 This supersedes `filter-sheet.tsx`'s "one drill-in level, and no more". That limit was defended on
 the grounds that "the way back would be ambiguous" past one — and the way back is ambiguous *exactly
 when two stacked screens are named the same thing*. A screen that renames the bar carries its own
-answer to what Back means. Depth is bounded by the flows instead, at three positions
-(`MAX_LAYERS`), and a flow that wants a fourth is a flow asking too many questions.
+answer to what Back means. Depth is bounded by the flows instead, at **four** positions
+(`MAX_LAYERS`), and a flow that wants a fifth is a flow asking too many questions.
+
+**Raised from three on 2026-09-02 (Luke's call), and the old rule is intact underneath it.** No flow
+gained a question. What gained a level is the phone's account bar: its `⋯` opens an actions LIST as
+layer 0, with the edit flow's own three screens above it — `actions → edit → type → firm`, reachable
+only on an unlabelled `pending:` account, which is the row that menu exists for. A chooser in front
+of a flow is not the flow asking more; it is one place to stand before picking which flow. A fifth
+would still mean somebody added a question.
+
+**A SECOND SHEET IS NEVER THE ANSWER TO "this screen needs to come from somewhere else".** The
+`role="dialog"` panel carries `.sheet-transition` and `translate-y-full` ITSELF, so a second sheet
+slides its own header up with it, and the one underneath has to slide away first. Luke, watching
+exactly that when Edit was opened from the actions list: *"the current screen slides down quickly as
+if being closed and a new edit account screen slides up from the bottom of the page with the header
+included. this is wrong."* Only layers of ONE sheet give the header-changes-in-place, body-slides
+result, because the header host is a sibling of the layers and only the layers travel. When a screen
+needs to be reachable from two owners, its flow gets a hook that hands its screens up
+(`useLabelAccountFlow`, `useManualAccount`) — never a second container.
+
+**A device Back may only go where the screen shows a way to go.** The upload step draws a back arrow,
+so Back returns one layer. The edit screen draws none at the bottom of its own stack, so Back closes
+the whole sheet, matching its Cancel and its X (Luke, 2026-09-02). Both flows' own `back()` already
+encode this, so a host passes it through rather than deciding.
 
 **The header never travels.** It is hosted above every layer and the active screen portals into it
 (`surface.tsx`), so it swaps on the frame of the tap while only the body moves. A bar rendered

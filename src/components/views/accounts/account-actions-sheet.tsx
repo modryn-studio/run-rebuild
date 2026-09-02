@@ -42,18 +42,25 @@
  * decision they just made. The day Brokers is live this becomes a doors layer, and the layer array
  * below is where that goes.
  *
- * ─── EDIT HANDS OFF, AND IT IS NOT AN OMISSION ──────────────────────────────────────────────────
+ * EDIT IS A LAYER TOO, AND IT SHIPPED AS A HANDOFF FOR EXACTLY ONE DAY. This file argued that its
+ * three-screen stack and its confirmations made hosting it a bigger job than it was worth, and that
+ * Edit being the rare action made the crossing acceptable. Luke used it and it was not: "the current
+ * screen slides down quickly as if being closed and a new edit account screen slides up from the
+ * bottom of the page with the header included. this is wrong." Right - the crossing is visible, and
+ * "rare" is not a defence for a transition that reads as a bug.
  *
- * `LabelAccountForm` owns its own three-screen stack AND its confirmations, which have to sit
- * OUTSIDE the panel holding them (its `sheet` prop's note says so). Hosting it as a layer here
- * means extracting a `useLabelAccountFlow` hook the way `useManualAccount` was extracted from this
- * same flow - the right eventual shape, and a 700-line refactor of the densest file in this
- * directory. It also buys less: Edit is a rare, deliberate act, where the import is the daily one
- * and the only one whose transition anybody will see twice a week.
+ * `useLabelAccountFlow` is the fix and it was smaller than the estimate, because `screenNode` was
+ * already a pure function of a screen name. Its layers are spread into the array below; its
+ * confirmations render after the sheet, which is where they have always gone.
  *
- * So Edit closes this sheet and opens its own, which is what EVERY row in Monarch's menu does too.
- * If the crossing transition reads badly there, the hook extraction is the fix and this comment is
- * the brief for it.
+ * ─── WHAT BACK MEANS, AND WHY THE TWO ROWS ANSWER DIFFERENTLY ───────────────────────────────────
+ *
+ * The upload step DRAWS a back arrow, so its Back returns to the actions list. The edit screen draws
+ * NONE at the bottom of its own stack, so its Back closes the whole sheet - Luke, 2026-09-02: "the
+ * back arrow on the phone should do the same thing as the cancel button on the edit screen, which is
+ * to close the whole sheet. same as the 'x' button in the header." The flow's own `back` already did
+ * that, so passing it through decides nothing new. The rule underneath: a device Back may only go
+ * where the screen shows a way to go.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -64,7 +71,8 @@ import { AccountSheet, useSheet } from './account-sheet';
 import { ModalHeader } from './shared';
 import { Door, TRADOVATE } from './add-account-modal';
 import { FileUploadStep, type Picked } from './file-upload-step';
-import { useLabelAccount } from './account-modals';
+import { useAccountSiblings } from './account-modals';
+import { useLabelAccountFlow } from './label-account-form';
 import type { RosterAccount } from '@/lib/accounts/read';
 
 export function AccountActionsSheet({
@@ -83,9 +91,9 @@ export function AccountActionsSheet({
   dryRun?: boolean;
 }) {
   const router = useRouter();
-  const label = useLabelAccount();
+  const siblings = useAccountSiblings();
   const sheet = useSheet(onClose);
-  const [view, setView] = useState<'actions' | 'upload'>('actions');
+  const [view, setView] = useState<'actions' | 'upload' | 'edit'>('actions');
   /* Lifted out of `FileUploadStep` for the same reason `AddAccountModal` lifts it: stepping back to
      the actions list and returning keeps a staged selection. Closing the sheet still discards it,
      which is the intended discard. */
@@ -97,6 +105,23 @@ export function AccountActionsSheet({
   }, [busy, sheet]);
 
   const toActions = useCallback(() => setView('actions'), []);
+
+  /* THE EDIT FLOW'S SCREENS, HANDED UP so they can be layers of THIS sheet rather than a second one
+     sliding up over it with its own header. See `useLabelAccountFlow` for why two sheets cannot do
+     what Luke asked for here.
+     CALLED UNCONDITIONALLY, which hooks require and this one permits - it holds no effects, so a
+     flow nobody has opened costs state and closures and touches nothing.
+     `onSaved` AND `onClose` BOTH CLOSE THE WHOLE SHEET. Saving already ran `router.refresh()`
+     inside the flow, so closing on top of that is what makes the change appear to happen in the
+     page rather than after it - the same call `LabelAccountModal` makes. */
+  const editFlow = useLabelAccountFlow({
+    account,
+    siblingCount: siblings(account),
+    onClose: () => sheet.requestClose(),
+    onSaved: () => sheet.requestClose(),
+    onBusyChange: setBusy,
+    asSheet: true,
+  });
 
   /* THE SHEET'S OWN DISMISS GUARD ONLY REACHES ESCAPE AND THE BACK BUTTON, both in-app. A refresh
      or closing the tab bypasses it entirely - the corpus commit does not depend on this tab staying
@@ -129,13 +154,7 @@ export function AccountActionsSheet({
           icon={<Icon name="edit" size={16} />}
           title="Edit account"
           desc="Name, type and firm"
-          onClick={() => {
-            /* CLOSE FIRST, THEN OPEN. The label editor owns its own sheet, so this one has to be
-               leaving before that one arrives or two are mounted at once and both answer Escape.
-               See this file's header for why Edit is not a layer. */
-            sheet.requestClose();
-            label(account);
-          }}
+          onClick={() => setView('edit')}
         />
         <Door
           icon={<Icon name="upload" size={16} />}
@@ -148,39 +167,58 @@ export function AccountActionsSheet({
   );
 
   return (
-    <AccountSheet
-      open={sheet.open}
-      onClose={close}
-      /* BACK MEANS ONE LAYER. From the upload step it returns to the actions list; from the list
-         the sheet itself closes, which `AccountSheet` handles at depth 0. */
-      onBack={toActions}
-      /* AN IMPORT IN FLIGHT LOCKS EVERY EXIT - Escape, the scrim and the device Back button. The
+    <>
+      <AccountSheet
+        open={sheet.open}
+        onClose={close}
+        /* BACK MEANS ONE LAYER, AND WHICH LAYER DEPENDS ON WHOSE SCREEN IS ON TOP. The sheet asks;
+         this decides, exactly as `AddAccountModal` splits the same question.
+         THE TWO ANSWERS DIFFER ON PURPOSE, and it is the headers that say so. The upload step DRAWS
+         a back arrow, so its Back returns to the list. The edit screen draws NONE at the bottom of
+         its own stack (Luke, 2026-09-02: "there is no back arrow on the edit screen header ... the
+         back arrow on the phone should do the same thing as the cancel button, which is to close
+         the whole sheet") - and `editFlow.back` already behaves that way, popping its own screens
+         while it has them and calling `onClose` when it does not. A device Back that walked to a
+         list the screen shows no way back to would be answering a gesture the UI never offered. */
+        onBack={view === 'edit' ? editFlow.back : toActions}
+        /* AN IMPORT IN FLIGHT LOCKS EVERY EXIT - Escape, the scrim and the device Back button. The
          request is not cancelled by leaving, so the corpus write lands either way and the only
          thing an exit achieves is throwing away the result. */
-      busy={busy}
-      label={`Account actions for ${account.displayName ?? account.externalAccountId}`}
-      /* INDEX IS DEPTH. Layer 1 RENAMES the bar (to the upload step's own header), which is the
+        busy={busy || editFlow.busy}
+        label={`Account actions for ${account.displayName ?? account.externalAccountId}`}
+        /* INDEX IS DEPTH. Layer 1 RENAMES the bar (to the upload step's own header), which is the
          rule that says it slides rather than fades. `design-system.md` §6a. */
-      layers={[
-        actions,
-        view === 'upload' ? (
-          <FileUploadStep
-            dryRun={dryRun}
-            source={TRADOVATE}
-            /* SCOPED, and this is the assertion that makes adoption trustworthy: the import began
+        layers={[
+          actions,
+          /* THE EDIT FLOW CONTRIBUTES A VARIABLE NUMBER, one per screen in its own stack, so it is
+           spread rather than slotted. `edit` alone on an account that has a type; `edit -> type ->
+           firm` at worst on an unlabelled one, which is the case `MAX_LAYERS` was raised to 4 for. */
+          ...(view === 'edit' ? editFlow.layers : []),
+          view === 'upload' ? (
+            <FileUploadStep
+              dryRun={dryRun}
+              source={TRADOVATE}
+              /* SCOPED, and this is the assertion that makes adoption trustworthy: the import began
                on THIS account's page, so the trader is saying the files belong to this row. The
                only signal permitted to fill in a `pending:` placeholder - `lib/intake/accounts.ts`
                re-checks it against the trader, the platform and `pending:%` regardless. */
-            adoptAccountId={account.id}
-            onBack={toActions}
-            onClose={close}
-            onDone={done}
-            onBusyChange={setBusy}
-            files={files}
-            setFiles={setFiles}
-          />
-        ) : null,
-      ]}
-    />
+              adoptAccountId={account.id}
+              onBack={toActions}
+              onClose={close}
+              onDone={done}
+              onBusyChange={setBusy}
+              files={files}
+              setFiles={setFiles}
+            />
+          ) : null,
+        ]}
+      />
+      {/* A CONFIRMATION IS NOT A SCREEN OF THIS FLOW, so it goes outside the sheet entirely - after
+          it in the DOM, which is what puts it on top without a second z-index to keep in step. The
+          edit flow owns all three (close, delete, how-did-it-end) and renders them wherever its
+          host puts them; `LabelAccountForm` places them the same way on its own path. They also put
+          this sheet in `busy` while they are up, so one Escape closes exactly one thing. */}
+      {view === 'edit' && editFlow.confirmations}
+    </>
   );
 }

@@ -70,13 +70,33 @@ import type { RosterAccount } from '@/lib/accounts/read';
 /** The three things this modal can be showing. See the navigation note inside the component. */
 type Screen = 'type' | 'firm' | 'edit';
 
-export function LabelAccountForm({
+/* THE FLOW, SEPARATED FROM ITS CONTAINER (2026-09-02) — and this is `useManualAccount`'s shape, for
+ * `useManualAccount`'s reason, which that hook states first: "on a phone its two pages go into two
+ * different LAYERS and a sheet's layers are siblings", so the thing that owns the sheet cannot be
+ * the thing inside it.
+ *
+ * WHAT FORCED IT. The phone's account bar now opens an actions sheet whose layer 0 is a list, and
+ * Edit has to be layer 1 OF THAT SHEET rather than a second sheet on top. Two sheets cannot do it:
+ * `account-sheet.tsx` puts `sheet-transition` and `translate-y-full` on the `role="dialog"` panel
+ * ITSELF, so a second one slides its own header up with it. Luke, watching exactly that: "the header
+ * needs to stay in place and change ... nothing needs to look like it's closing and re-opening."
+ * Only layers of ONE sheet do that, because the header host is a sibling of the layers and only the
+ * layers travel.
+ *
+ * SO THE SCREENS ARE HANDED UP and whoever owns the sheet arranges them. `screenNode` was already a
+ * pure function of a screen NAME — written that way because "a sheet renders ALL of them at once,
+ * one per layer" — so this is a container change rather than a rewrite. Nothing inside moved.
+ *
+ * SAFE TO CALL UNCONDITIONALLY, which the actions sheet has to do because hooks cannot be
+ * conditional: there is not one `useEffect` in here. Every `onBusyChange` sits inside a handler, so
+ * a flow nobody has opened yet costs some state and some closures and touches nothing. */
+export function useLabelAccountFlow({
   account,
   siblingCount,
   onClose,
   onSaved,
   onBusyChange,
-  sheet,
+  asSheet = false,
 }: {
   account: RosterAccount;
   /* HOW MANY OTHER ACCOUNTS SHARE THIS ONE'S PREFIX. Computed by the caller, which holds the whole
@@ -91,8 +111,10 @@ export function LabelAccountForm({
      entry becomes a layer, and because all three screens rename the bar ("Edit account" / "Which
      kind of account?" / "Which firm?") every one of them slides, which is the rule
      `account-sheet.tsx` states.
-     `open` is the owner's, because the panel has to travel before the owner unmounts it. */
-  sheet?: { open: boolean } | null;
+     `open` is the owner's, because the panel has to travel before the owner unmounts it.
+     AS A HOOK THIS IS A BOOLEAN: the layers go to whoever owns the sheet, so `open` is their
+     business rather than this flow's. `LabelAccountForm` below still takes the object. */
+  asSheet?: boolean;
 }) {
   const router = useRouter();
 
@@ -345,7 +367,7 @@ export function LabelAccountForm({
      sheet each screen is its own layer arriving from the bottom, so a fade on top of the slide would
      be two answers to one question - and the layer would be transparent for the first 140ms of its
      travel, which reads as a rendering fault rather than as motion. */
-  const fade = sheet ? '' : 'value-fade';
+  const fade = asSheet ? '' : 'value-fade';
 
   const TITLES: Record<Screen, string> = {
     type: 'Which kind of account?',
@@ -671,26 +693,68 @@ export function LabelAccountForm({
     </>
   );
 
+  return {
+    /* THE STACK IS THE LAYER LIST, unchanged. It was built to answer "what does Back mean", which
+       is the same question a sheet asks of its screens. */
+    layers: stack.map(screenNode),
+    /* THE CURRENT SCREEN ALONE, for the desktop card where the three replace each other in place. */
+    current: screenNode(screen),
+    /* ONE LAYER BACK, AND IT CLOSES AT THE BOTTOM OF ITS OWN STACK. That second half is what Luke
+       asked for on the phone (2026-09-02): "there is no back arrow on the edit screen header ... the
+       back arrow on the phone should do the same thing as the cancel button, which is to close the
+       whole sheet." It already did — `back()` calls `onClose()` at depth 1 — so a host that passes
+       this straight through gets the right behaviour without deciding anything. */
+    back,
+    /* A CONFIRMATION ON TOP PUTS THE SHEET IN `busy`, so one Escape closes exactly one thing — the
+       same lock `ModalShell` takes on the desktop path. `saving` is here for the other reason: a
+       PATCH is in flight and the roster is about to change underneath. */
+    busy: saving || confirmingClose || confirmingDelete || askingEnding,
+    confirmations,
+  };
+}
+
+/* THE CONTAINER FOR EVERY CALLER THAT OWNS ITS OWN SURFACE — the desktop modal, and the phone sheet
+ * reached from anywhere that is not the account bar's actions list. Thin on purpose: it picks a
+ * container and hands the flow's own screens to it, which is all it ever did. */
+export function LabelAccountForm({
+  account,
+  siblingCount,
+  onClose,
+  onSaved,
+  onBusyChange,
+  sheet,
+}: {
+  account: RosterAccount;
+  siblingCount: number;
+  onClose: () => void;
+  onSaved: () => void;
+  onBusyChange: (busy: boolean) => void;
+  sheet?: { open: boolean } | null;
+}) {
+  const flow = useLabelAccountFlow({
+    account,
+    siblingCount,
+    onClose,
+    onSaved,
+    onBusyChange,
+    asSheet: !!sheet,
+  });
+
   return (
     <>
       {sheet ? (
         <AccountSheet
           open={sheet.open}
           onClose={onClose}
-          onBack={back}
-          /* A CONFIRMATION ON TOP PUTS THIS ONE IN `busy`, so one Escape closes exactly one thing —
-             the same lock `ModalShell` takes on the desktop path. `saving` is here for the other
-             reason: a PATCH is in flight and the roster is about to change underneath. */
-          busy={saving || confirmingClose || confirmingDelete || askingEnding}
+          onBack={flow.back}
+          busy={flow.busy}
           label="Edit account"
-          /* THE STACK IS THE LAYER LIST, unchanged. It was built to answer "what does Back mean",
-             which is the same question a sheet asks of its screens. */
-          layers={stack.map(screenNode)}
+          layers={flow.layers}
         />
       ) : (
-        screenNode(screen)
+        flow.current
       )}
-      {confirmations}
+      {flow.confirmations}
     </>
   );
 }
