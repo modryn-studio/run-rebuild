@@ -112,7 +112,8 @@ Each is load-bearing on the product's one claim: **never show a number you canno
   moved, plus a skeleton for data already in memory. Deleting the fetch deleted the loading state.
 - **Any overlay with an `x` or a back arrow answers the device back button** — `useOverlayBack`, one
   tagged history entry per level, innermost consumed first. A phone modal that lets the OS gesture
-  leave the page instead of closing it is a bug.
+  leave the page instead of closing it is a bug. **And Back may only go where the screen SHOWS a way
+  to go**: a screen drawing a back arrow goes one layer, a screen drawing only an `x` closes.
 
 ---
 
@@ -159,7 +160,9 @@ does not exist. The ones that bite hardest:
 - **Render off `usePhone()`, ACT off `usePhoneState()`.** The first answers `false` before the media query is read (so hydration matches the server); the second answers `null` until it is known. Anything that navigates, writes or fetches on the breakpoint must wait for a real answer.
 - **An overlay owns ONE history entry at a time and RE-ARMS on the way out** (the handler returns `true` to mean "consumed a level, still open"), and `useOverlayBack` decides who answers a pop from a module array — never from `history.state`, which Next copies forward onto neighbouring entries. **A pop an overlay causes itself is declared**, or the overlay underneath answers it as a press. **An overlay is armed by a state change, never by its own mount** — `useOverlayBack(true)` pushes twice and backs once under StrictMode. Both rules exist because breaking either made the phone's filter apply "sometimes".
 - **An overlay that COMMITS a navigation calls `useOverlayBack`'s returned marker**, or its cleanup's `history.back()` reverts the write: inside one React commit every effect cleanup runs before anything else. **No scrollbars below 768px** (`globals.css`, at the end, on `*`). **A filter control writes to `usePathname()`**, never a hard-coded route.
-- **A `loading.tsx` occupies the page's own boxes, GUTTER INCLUDED.** A card's `-mx-4` cancels a gutter; a boundary without that gutter hangs it off the screen. `SHEET_CONTROL_ICON` (22px) is the mark size in every phone header bar.
+- **A `loading.tsx` occupies the page's own boxes, GUTTER INCLUDED.** A card's `-mx-4` cancels a gutter; a boundary without that gutter hangs it off the screen. `ICON_TOUCH` (22px) is the mark size for anything aimed at with a thumb — every phone bar control,
+  the roster's discs, the sheet headers. `SHEET_CONTROL_ICON` reads from it. `ICON_INLINE` (13px) is
+  a mark subordinate to the text it sits in. Both are named steps; the scale is 13 / 16 / 20 / 22 / 24.
 - **No modals on a phone, and the HEADER decides whether a screen slides.** Below `PHONE_QUERY` (768px) every dismissible surface is a full-screen sheet. A screen that RENAMES the bar slides up as its own layer; one that does not is a `key` + `.value-fade` inside the layer it is already in. `design-system.md` §6a.
 - **A control gets a border OR a drop shadow, never both**, and only `Card` gets the shadow.
 - **One icon set, one wrapper** (`src/components/ui/icon.tsx`). Never inline an `<svg>`.

@@ -73,6 +73,7 @@ import { Door, TRADOVATE } from './add-account-modal';
 import { FileUploadStep, type Picked } from './file-upload-step';
 import { useAccountSiblings } from './account-modals';
 import { useLabelAccountFlow } from './label-account-form';
+import { accountRowTitle } from '@/lib/prop-firms';
 import type { RosterAccount } from '@/lib/accounts/read';
 
 export function AccountActionsSheet({
@@ -100,18 +101,17 @@ export function AccountActionsSheet({
   const [files, setFiles] = useState<Picked[]>([]);
   const [busy, setBusy] = useState(false);
 
-  const close = useCallback(() => {
-    if (!busy) sheet.requestClose();
-  }, [busy, sheet]);
-
   /* THE EDIT FLOW'S SCREENS, HANDED UP so they can be layers of THIS sheet rather than a second one
      sliding up over it with its own header. See `useLabelAccountFlow` for why two sheets cannot do
      what Luke asked for here.
      CALLED UNCONDITIONALLY, which hooks require and this one permits - it holds no effects, so a
      flow nobody has opened costs state and closures and touches nothing.
-     `onSaved` AND `onClose` BOTH CLOSE THE WHOLE SHEET. Saving already ran `router.refresh()`
-     inside the flow, so closing on top of that is what makes the change appear to happen in the
-     page rather than after it - the same call `LabelAccountModal` makes. */
+     `onSaved` AND `onClose` BOTH CLOSE THE WHOLE SHEET, and both call `sheet.requestClose()` rather
+     than `close` below - deliberately, because `close` refuses while the flow is busy and these two
+     fire exactly when it is finishing. Saving already ran `router.refresh()` inside the flow, so
+     closing on top of that is what makes the change appear to happen in the page rather than after
+     it - the same call `LabelAccountModal` makes.
+     DECLARED BEFORE `close` because `close` reads its busy flag. */
   const editFlow = useLabelAccountFlow({
     account,
     siblingCount: siblings(account),
@@ -121,18 +121,34 @@ export function AccountActionsSheet({
     asSheet: true,
   });
 
+  /* EITHER FLOW BEING BUSY LOCKS THE EXITS. `busy` is the upload's, and the edit flow's `saving`
+     rides on it too through `onBusyChange`; `editFlow.busy` adds the confirmations stacked on top
+     of the editor, which `AccountSheet` needs so one Escape closes exactly one thing. */
+  const anyBusy = busy || editFlow.busy;
+
+  /* BOTH FLAGS, NOT JUST THE UPLOAD'S (postcheck, 2026-09-02). `AccountSheet` was already handed
+     both so its scrim and Escape were guarded, but this function was not — and it is what the
+     actions layer's close control and the upload step call. Not reachable today, since neither is
+     on top while the editor is; fixed anyway, because a guard that is correct only because of who
+     happens to call it is a trap for the next caller. */
+  const close = useCallback(() => {
+    if (!anyBusy) sheet.requestClose();
+  }, [anyBusy, sheet]);
+
   /* THE SHEET'S OWN DISMISS GUARD ONLY REACHES ESCAPE AND THE BACK BUTTON, both in-app. A refresh
      or closing the tab bypasses it entirely - the corpus commit does not depend on this tab staying
      open, so the write still lands, but the trader watching the progress panel gets no warning
      before it vanishes. Same guard `AddAccountModal` carries, for the same upload. */
   useEffect(() => {
-    if (!busy) return;
+    /* THE EDIT FLOW'S SAVE COUNTS TOO. A PATCH in flight is the same "leaving throws away a result
+       the server is still producing" as an upload, and this guard was written for the upload alone. */
+    if (!anyBusy) return;
     const warn = (e: BeforeUnloadEvent) => {
       e.preventDefault();
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [busy]);
+  }, [anyBusy]);
 
   /* The page is a Server Component reading the corpus, so `refresh()` is what makes the new trades
      appear - not local state. One source of truth for what the trader owns. */
@@ -184,8 +200,15 @@ export function AccountActionsSheet({
         /* AN IMPORT IN FLIGHT LOCKS EVERY EXIT - Escape, the scrim and the device Back button. The
          request is not cancelled by leaving, so the corpus write lands either way and the only
          thing an exit achieves is throwing away the result. */
-        busy={busy || editFlow.busy}
-        label={`Account actions for ${account.displayName ?? account.externalAccountId}`}
+        busy={anyBusy}
+        /* `accountRowTitle`, NOT THE RAW `external_account_id` (postcheck, 2026-09-02). This fell
+           back to the raw key, which for a hand-added row is `pending:<uuid>` - and this string is
+           the ONLY name a screen reader gets for the dialog, so it would have announced "Account
+           actions for pending:8f3a-...". `label-account-form.tsx` states the rule this broke:
+           "Never the raw key - `pending:` and `default-` are Run's own bookkeeping and may never
+           reach a person." The placeholder account is also exactly the row this menu is most useful
+           for, so the one case that read worst was the common one. */
+        label={`Account actions for ${accountRowTitle(account)}`}
         /* INDEX IS DEPTH. Layer 1 RENAMES the bar (to the upload step's own header), which is the
          rule that says it slides rather than fades. `design-system.md` §6a. */
         layers={[
