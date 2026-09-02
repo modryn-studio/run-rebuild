@@ -102,6 +102,22 @@ Friction is captured **where the work is**, not in a second document:
 The fragile part of instrumentation is *recall*, not *assembly*. Notes written in the moment
 and collected later are still in-the-moment data. Notes written from memory at the end are not.
 
+<!-- FRICTION 2026-09-02: `preview_start` reported "Server started successfully on port 3000"
+     three times in the `import-entry` worktree and nothing ever bound the port - `preview_list`
+     came back empty each time and curl got connection-refused. `npx next dev --port 3011` from
+     the same directory started in 6.8s with no error, so it is the preview harness rather than
+     the app or the worktree. Verification fell back to a background dev server plus a plain
+     browser tab, which works but loses `preview_logs`. -->
+
+<!-- FRICTION 2026-09-02: the shared chrome-devtools daemon took my tab mid-task for the second
+     time this session - index 5 went from my Monarch page to another session's Autodesk Build
+     page between a `select_page` and the `evaluate_script` that followed it. The URL assertion
+     in the script caught it and no stranger's tab was driven, which is exactly what
+     `read-live-competitor.md` prescribes, so the guard works. What does not exist is any way to
+     hold a tab: the playbook's "re-resolve before every action" still leaves a race between the
+     resolve and the action, and the only fix is the per-call URL guard catching it after the
+     fact. Worth raising upstream - a `--pageId` on page-scoped commands would end it. -->
+
 ### Phase timing (amended 2026-08-11 — replaces manual date-logging)
 
 **Tag the repo at every gate**: `git tag p1-gate`, `git tag p2-gate`, etc.

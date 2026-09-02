@@ -234,12 +234,22 @@ export function AccountRail({
           {/* THE ROW THAT STATES THE GAP IS THE ROW THAT OFFERS TO CLOSE IT. An account with no
               import is usually one the trader added by hand this morning, and its whole purpose is
               to fill — so the offer belongs here, directly under the "Never" that says it has not.
-              It stays available afterwards, worded differently, because a second export is the
-              normal way a tape grows.
               THIS IS ALSO WHAT MAKES THE ADOPTION PATH TRUSTWORTHY: an import launched from THIS
               account's page is the trader asserting the file belongs to this row, which is the one
-              signal that can rename a `pending:` placeholder. See `import-trades-modal.tsx`. */}
-          <Line label={provenance.lastImportAt ? 'Add more' : 'Get started'}>
+              signal that can rename a `pending:` placeholder. See `import-trades-modal.tsx`.
+
+              `md:hidden` ON THE RECURRING VARIANT ONLY (2026-09-02), and the asymmetry is the
+              point. The tape card's header now carries this same action as the page's CTA
+              (`import-into-account.tsx`), so on a desktop keeping this row too is two controls
+              firing one action on one page. The PHONE has no such header - `max-md:hidden` takes
+              the whole tape toolbar and `RecentTrades` carries a caption rather than a toolbar
+              (Luke, 2026-08-28) - so this row is the only steady-state way in at that width and
+              stays. The FIRST-RUN variant stays at both widths: "Never" one row up is a statement
+              this page makes on both, and the sentence that closes it belongs beside it. */}
+          <Line
+            label={provenance.lastImportAt ? 'Add more' : 'Get started'}
+            className={provenance.lastImportAt ? 'md:hidden' : undefined}
+          >
             <ImportIntoAccount
               accountId={account.id}
               label={provenance.lastImportAt ? 'Import trades' : 'Import your first file'}

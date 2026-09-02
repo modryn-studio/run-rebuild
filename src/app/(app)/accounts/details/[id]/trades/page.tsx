@@ -10,6 +10,7 @@ import { TradesTape } from '@/components/views/trades/trades-tape';
 import { TradesRail } from '@/components/views/trades/trades-rail';
 import { TradesSearchPill } from '@/components/views/trades/trades-controls';
 import { AccountTradesScreen } from '@/components/views/accounts/account-trades-screen';
+import { ImportIntoAccountButton } from '@/components/views/accounts/import-into-account';
 import { ACCOUNT_TRADES_BAND_HOST } from '@/components/views/accounts/detail-panel-header';
 
 /* ONE ACCOUNT'S WHOLE TAPE — the screen behind "View all trades" (2026-08-28, `S6d`).
@@ -160,6 +161,13 @@ export default async function AccountTradesPage({
         accounts={[]}
         selectedAccounts={[]}
         narrowed={narrowed}
+        /* NO `action`: this screen is phone-only and the tape's header row is `max-md:hidden`, so
+           a control passed there would render nowhere. The EMPTY STATE is visible at this width,
+           and it was a dead end - reachable by a pasted link on an account with no trades, since
+           `RecentTrades`' button only appears once there is a row to show. `Empty` drops it on the
+           narrowed branch, which is the common case here. Scoped, like every import launched from
+           inside this account. */
+        emptyAction={<ImportIntoAccountButton accountId={account.id} cta />}
         rest={{ ids }}
       />
     </AccountTradesScreen>

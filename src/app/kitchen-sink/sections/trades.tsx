@@ -17,6 +17,8 @@ import { QuarantineNotice } from '@/components/views/trades/quarantine-notice';
 import { EMPTY_FILTER } from '@/lib/trades/filter';
 import { Note, Row, Section } from '../_components/section';
 import { RecentTrades } from '@/components/views/accounts/recent-trades';
+import { ImportTradesButton } from '@/components/views/trades/import-trades-button';
+import { ImportIntoAccountButton } from '@/components/views/accounts/import-into-account';
 import {
   DIGEST_FIXTURE,
   DIGEST_FIXTURE_IDS,
@@ -137,18 +139,98 @@ export function TradesSection() {
         </Note>
       </Row>
 
-      <Row label="Recent Trades, day one" note="the empty case says so rather than drawing a button">
-        <RecentTrades trades={[]} zone="America/Chicago" allHref="#" />
+      <Row label="Recent Trades, day one" note="the empty case names the gap AND closes it">
+        <RecentTrades
+          trades={[]}
+          zone="America/Chicago"
+          allHref="#"
+          emptyAction={<ImportIntoAccountButton accountId={ACCOUNTS_FIXTURE[0].id} cta />}
+        />
         <Note>
           No narrowed variant. These four rows are never filtered. The Filters control lives on the
           screen the button leads to, which is the screen with a list worth narrowing.
+        </Note>
+        <Note>
+          This is the PHONE&apos;s only way into an import for an empty account: the tape header
+          that carries it on a desktop is `max-md:hidden`, and this table&apos;s own header is a
+          caption rather than a toolbar. Without the pill the screen stated the gap and offered
+          nothing.
+        </Note>
+      </Row>
+
+      {/* THE ONE CONTROL ON THESE SURFACES THAT ADDS ROWS (2026-09-02), racked in both shapes and
+          both scopes. It is HERE rather than in `buttons.tsx` because what needs checking is not
+          the button - it is that the header shape clears the `min-h-15` toolbar it sits in and the
+          CTA shape matches `RecentTrades`' own pill two rows up. Those are relationships, and a
+          rack row is where a relationship either holds or visibly does not. */}
+      <Row label="Import" note="the header shape, the CTA shape, scoped and unscoped">
+        <div className="flex flex-col gap-4">
+          {/* THE REAL TAPE IN THE ACCOUNT PAGE'S OWN CONFIGURATION - `title`, `fixedColumns`, and
+              the action - rather than a hand-rolled header that looks like one. A lookalike would
+              agree with the tape on the day it was written and never again, and the whole point of
+              this row is the FIT: 36px of control inside a `min-h-15` toolbar, pushed right past a
+              title, on a header whose other two occupants render nothing on this page. */}
+          <TradesTape
+            sessions={TAPE_FIXTURE}
+            total={7}
+            displayTimezone="America/Chicago"
+            narrowed={false}
+            accounts={[]}
+            selectedAccounts={[]}
+            title="Trades"
+            fixedColumns={['account']}
+            action={<ImportIntoAccountButton accountId={ACCOUNTS_FIXTURE[0].id} />}
+          />
+          <div className="flex justify-center">
+            <ImportTradesButton cta dryRun />
+          </div>
+        </div>
+        <Note>
+          Two openers, and the difference between them is a correctness property rather than a
+          style. From an account&apos;s own page the import is SCOPED to that account, which is the
+          trader asserting the files belong to that row and the one signal permitted to fill in a
+          hand-added placeholder. From `/trades` it cannot be, so the files decide and nothing is
+          adopted. Same label, same mark, two components, on purpose.
+        </Note>
+        <Note>
+          `md` (36px) in a header, `lg` (48px) as a CTA, and neither is a size picked for this
+          control: 36 is what every other thing in a header band measures, and 48 is what
+          `RecentTrades` and the modal footers already use. Below `md` the header shape drops to a
+          bare disc and keeps its `aria-label`, because an accent box among discs reads as a control
+          from another screen.
+        </Note>
+        <Note>
+          The scoped one is INERT here: it opens through `AccountModalsProvider`, which the rack
+          does not mount. The unscoped one is live and walkable, behind `dryRun`, so nothing on this
+          page can reach `/api/csv-import`.
         </Note>
       </Row>
 
       <Row label="Empty and excluded" note="two empties, two different sentences">
         <div className="flex flex-col gap-4">
-          <TradesTape sessions={[]} total={0} displayTimezone="UTC" narrowed={false} accounts={[]} selectedAccounts={[]} />
-          <TradesTape sessions={[]} total={0} displayTimezone="UTC" narrowed accounts={[]} selectedAccounts={[]} />
+          <TradesTape
+            sessions={[]}
+            total={0}
+            displayTimezone="UTC"
+            narrowed={false}
+            accounts={[]}
+            selectedAccounts={[]}
+            emptyAction={<ImportTradesButton cta dryRun />}
+          />
+          {/* THE SAME PROP, AND IT DELIBERATELY DOES NOT RENDER. `Empty` drops the action on the
+              narrowed branch: "widen the dates, or clear the filters" names two controls already
+              on screen, and an Import button under it would invite a trader to re-upload a file
+              they already have in order to fix a filter. Passed here so the rack proves the
+              suppression rather than the absence of a prop. */}
+          <TradesTape
+            sessions={[]}
+            total={0}
+            displayTimezone="UTC"
+            narrowed
+            accounts={[]}
+            selectedAccounts={[]}
+            emptyAction={<ImportTradesButton cta dryRun />}
+          />
           <QuarantineNotice quarantined={3} excluded={0} />
           <QuarantineNotice quarantined={0} excluded={7} />
         </div>
@@ -158,6 +240,12 @@ export function TradesSection() {
           the tape and out of every figure. `QuarantineNotice` with both counts at zero renders
           NOTHING, which is why there is no third card here - a permanent &ldquo;0 quarantined&rdquo;
           row is a status light for a condition that has never occurred.
+        </Note>
+        <Note>
+          Only the first empty offers a way out. &ldquo;Import your Tradovate exports and they will
+          appear here&rdquo; was an instruction with nothing to press, which is the dead end this
+          fixes; the narrowed one is not a dead end, because the controls that caused it are in the
+          band above.
         </Note>
       </Row>
     </Section>

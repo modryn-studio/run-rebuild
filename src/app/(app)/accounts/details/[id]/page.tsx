@@ -15,6 +15,7 @@ import { accountRowTitle } from '@/lib/prop-firms';
 import { AccountDetailView } from '@/components/views/accounts/account-detail-view';
 import { AccountRail } from '@/components/views/accounts/account-rail';
 import { RecentTrades } from '@/components/views/accounts/recent-trades';
+import { ImportIntoAccountButton } from '@/components/views/accounts/import-into-account';
 import { TradesTape } from '@/components/views/trades/trades-tape';
 
 /* ONE ACCOUNT'S OWN PAGE (`S6d`), reached by tapping a roster row.
@@ -188,6 +189,10 @@ export default async function AccountDetailPage({
           trades={sessions.flatMap((d) => d.trades)}
           zone={trader.displayTimezone}
           allHref={`/accounts/details/${account.id}/trades`}
+          /* THE PHONE'S ONLY WAY OUT OF AN EMPTY ACCOUNT. The tape header that carries this on a
+             desktop is `max-md:hidden`, so without it this screen states the gap and offers
+             nothing. Scoped, like every import launched from this page. */
+          emptyAction={<ImportIntoAccountButton accountId={account.id} cta />}
         />
       }
       tape={
@@ -197,6 +202,12 @@ export default async function AccountDetailPage({
              the same page for the same reason. */
           title="Trades"
           hasFees={provenance.hasFees}
+          /* THE ONE CONTROL ON THIS PAGE THAT ADDS ROWS, in the header of the table it fills
+             (2026-09-02). SCOPED: launched from this account's page, so it carries the trader's
+             assertion that the files belong to THIS row - the only signal permitted to fill in a
+             hand-added `pending:` placeholder (`lib/intake/accounts.ts`). `/trades` passes no
+             action and could not pass this one. */
+          action={<ImportIntoAccountButton accountId={account.id} />}
           /* THE PAGE OWNS ITS COLUMNS, so the Columns control does not render. Account goes because
              every row belongs to the one account this page IS, and saying so on each row is noise
              (v2's `TradesCard` makes the same call). Time stays, always: that leaves one toggle,

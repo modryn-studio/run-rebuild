@@ -35,7 +35,7 @@
  * that case.
  */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { buttonClasses } from '@/components/ui/button';
@@ -50,12 +50,18 @@ export function RecentTrades({
   trades,
   zone,
   allHref,
+  emptyAction,
 }: {
   /** The tape's first page, already ordered. Only the head of it is drawn. */
   trades: TapeRow[];
   zone: string;
   /** `/accounts/details/<id>/trades`. The screen that is only the list. */
   allHref: string;
+  /* THE WAY OUT OF THE EMPTY STATE (2026-09-02). This table used to name the gap and offer nothing
+     to press - "No trades imported for this account yet." on a phone whose tape header, which now
+     carries the import on a desktop, is `max-md:hidden`. A sign saying you need a ticket, with no
+     booth. A NODE rather than an account id, so this file keeps knowing only about trades. */
+  emptyAction?: ReactNode;
 }) {
   const [open, setOpen] = useState<TapeRow | null>(null);
   const shown = trades.slice(0, SHOWN);
@@ -71,12 +77,26 @@ export function RecentTrades({
         </div>
 
         {shown.length === 0 ? (
-          /* THE EMPTY CASE IS THE ACCOUNT'S FIRST DAY, and it says so rather than drawing an empty
-             table with a button under it. No "filtered" variant: this page's four rows are never
-             narrowed - the filter lives on the screen the button leads to. */
-          <p className="text-body text-muted px-5 py-8 text-center max-md:px-4">
-            No trades imported for this account yet.
-          </p>
+          /* THE EMPTY CASE IS THE ACCOUNT'S FIRST DAY, and it says so. No "filtered" variant: this
+             page's four rows are never narrowed - the filter lives on the screen the button leads
+             to.
+             IT USED TO SAY "rather than drawing an empty table with a button under it", AND THAT
+             IS NOW FALSE (2026-09-02). The sentence was written when the only import opener was on
+             the roster, so a button here would have been a second route to a screen the trader had
+             just come from. It is the only route now: the tape header that carries the import on a
+             desktop is `max-md:hidden`, and this table's header is a caption, not a toolbar. What
+             the old rule was protecting against was an empty table DRAWN with chrome - and there
+             is still no table here, only the sentence and the way to fix it. */
+          <>
+            <p className="text-body text-muted px-5 py-8 text-center max-md:px-4">
+              No trades imported for this account yet.
+            </p>
+            {/* THE FILLED STATE'S OWN BOX, to the class: `px-4 py-3` around a full-width `lg`
+                button, so the empty table and the full one end at the same inset with the same
+                object. `pt-0` is the one difference - the message above already carries `py-8`,
+                and stacking that on `py-3` opened a gap the filled state does not have. */}
+            {emptyAction && <div className="px-4 pt-0 pb-3">{emptyAction}</div>}
+          </>
         ) : (
           <>
             <div className="divide-rule divide-y">

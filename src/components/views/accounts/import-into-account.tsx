@@ -17,6 +17,9 @@
  * gap is the row that offers to close it.
  */
 
+import { Button } from '@/components/ui/button';
+import { IconButton } from '@/components/ui/icon-button';
+import { Icon } from '@/components/ui/icon';
 import { useImportTrades } from './account-modals';
 
 export function ImportIntoAccount({
@@ -37,5 +40,70 @@ export function ImportIntoAccount({
     >
       {label}
     </button>
+  );
+}
+
+/* THE SAME ACTION AS A BUTTON, in the two shapes the pages that fill a tape actually need
+ * (2026-09-02). The link above stays what it is: a value inside a row of stated values.
+ *
+ * WHY IT IS THE ACCENT. The roster's rule, quoted in `accounts-header.tsx` from v2: "a page has
+ * exactly one action that changes what is on it, and it should be the only thing on the screen
+ * wearing the accent." On an account's page `Edit` changes the ACCOUNT and `Filters` changes the
+ * VIEW; this is the only control that changes what is IN the tape. The band's two controls are
+ * `HeaderControl` chips, so nothing is competing with it.
+ *
+ * TWO SHAPES, ONE CONCEPT, because the two surfaces that need it are not the same box. The tape
+ * card's header is a 36px control row; the phone's empty state is a card with a full-width pill in
+ * its gutter. Splitting these into two components would put one action behind two names.
+ *
+ * `size="md"` (36px) BECAUSE THE HEADER IS 36px OF CONTROL EVERYWHERE ELSE - `HeaderControl`,
+ * `IconButton`, and `accounts-header.tsx`'s own CTA, which records the same measurement and why it
+ * is not `sm`: at h-8 it sat 4px short of the row it lives in and read as sunken rather than as a
+ * deliberate size. The tape header is `min-h-15` with `py-2`, so 36px clears it.
+ *
+ * `size="lg"` (48px) FOR THE CTA, which is `RecentTrades`' own "View all trades" height and the
+ * modals' footer height - the same object the trader has already pressed, not a new one invented
+ * for one table.
+ */
+export function ImportIntoAccountButton({
+  accountId,
+  /** The full-width pill under an empty table, rather than the control in a header row. */
+  cta = false,
+}: {
+  accountId: string;
+  cta?: boolean;
+}) {
+  const open = useImportTrades();
+
+  if (cta) {
+    return (
+      <Button size="lg" className="w-full" onClick={() => open(accountId)}>
+        <Icon name="upload" size={18} />
+        Import trades
+      </Button>
+    );
+  }
+
+  return (
+    <>
+      {/* THE DISC BELOW `md` IS `accounts-header.tsx`'s CALL, NOT A NEW ONE: in a band of bare
+          36px discs an accent-filled box reads as a control from another screen rather than as
+          emphasis. It is unreachable today, since the only header this shape sits in is
+          `max-md:hidden` - but the component cannot depend on that staying true.
+          `aria-label` IS UNCONDITIONAL. A control whose name disappears at one width is nameless
+          to a screen reader at that width. */}
+      <IconButton className="md:hidden" aria-label="Import trades" onClick={() => open(accountId)}>
+        <Icon name="upload" size={22} />
+      </IconButton>
+      <Button
+        size="md"
+        className="max-md:hidden"
+        aria-label="Import trades"
+        onClick={() => open(accountId)}
+      >
+        <Icon name="upload" size={16} />
+        Import trades
+      </Button>
+    </>
   );
 }

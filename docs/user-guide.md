@@ -55,9 +55,11 @@ flowchart TD
   Detail --> AcctTape["/accounts/details/[id]/trades<br/>phone only"]
   Accounts --> AddAcct(["Add account"])
   Detail --> EditAcct(["Edit account"])
+  Detail --> ImportAcct(["Import trades — scoped"])
 
   Trades --> TradeDetail["/trades/[id]"]
   Trades --> Filters(["Filters"])
+  Trades --> ImportTape(["Import trades — unscoped"])
   AcctTape --> Filters
 
   Trades -.-> Product["/products/[root] (S10)"]
@@ -69,6 +71,8 @@ flowchart TD
   Menu -.-> WhatsNew["/whats-new (S8b)"]
   Shell -.-> Notifs(["Notifications (S9c)"])
 
+  style ImportAcct stroke-dasharray: 2 3
+  style ImportTape stroke-dasharray: 2 3
   style Today stroke-dasharray: 5 5
   style Recap stroke-dasharray: 2 3
   style Settings stroke-dasharray: 5 5
@@ -210,6 +214,12 @@ flowchart TD
   style Brokers stroke-dasharray: 5 5
 ```
 
+**The doors have three openers, and one of them behaves differently.** `Add account` on the roster
+and `Import trades` on the tape are UNSCOPED: the accounts are resolved from the files alone.
+`Import trades` on an account's own page is SCOPED to that account, which is the trader asserting
+the files belong to that row — the only assertion allowed to fill in a hand-added placeholder. The
+scoped opener drops the `Add manually` door, because you cannot add an account you are standing on.
+
 **Brokers leads even though it is dark**, because it is the answer most traders want and the row
 says "Soon" rather than pretending. **Cash History is required on import, not optional** — the Fills
 export's `commission` column measures 42% of true cost.
@@ -229,13 +239,18 @@ flowchart TD
   Detail --> Tape["The whole tape — desktop, in place"]
   Detail --> Rail["Summary · Data"]
   Detail --> Edit(["Edit account"])
-  Detail --> Import(["Import into this account"])
+  Detail --> Import(["Import trades — in the tape's header"])
   AcctTape --> Filters(["Filters — account pinned"])
 
   style Edit stroke-dasharray: 2 3
   style Import stroke-dasharray: 2 3
   style Filters stroke-dasharray: 2 3
 ```
+
+**The import sits in the tape card's own header on a desktop**, which is the row of controls
+belonging to the table it fills. Below `md` there is no such row — `Recent Trades` carries a
+caption, not a toolbar — so the phone reaches it from the Data card, and from the empty state when
+the account has nothing in it yet. Either way it is scoped to this account.
 
 **`/accounts/details/[id]/trades` is phone-only and redirects to the parent above `md`** — nobody
 navigates there on a desktop, since the button that leads to it is `md:hidden`, so what the redirect
@@ -301,6 +316,7 @@ flowchart TD
   Trades --> Filters(["Filters"])
   Trades --> Columns(["Columns — desktop"])
   Trades --> Export(["Export CSV"])
+  Trades --> Import(["Import trades"])
   Trades --> RailToggle(["Summary — phone drawer"])
 
   style Drawer stroke-dasharray: 2 3
@@ -309,8 +325,14 @@ flowchart TD
   style Filters stroke-dasharray: 2 3
   style Columns stroke-dasharray: 2 3
   style Export stroke-dasharray: 2 3
+  style Import stroke-dasharray: 2 3
   style RailToggle stroke-dasharray: 2 3
 ```
+
+**Import is the only control here that ADDS.** Search, Date, Filters and Columns all narrow what is
+already in the tape; before this the page had four ways to hide trades and none to fill it, and its
+empty state gave an instruction with nothing to press. It is UNSCOPED — `/trades` spans accounts, so
+there is no row to assert against and the files decide. See `spec.md` `S1`, amended 2026-09-02.
 
 **`/trades/[id]` is a real route and an overlay at the same time.** Tapping a row pushes the address
 without unmounting the tape — the row's data is already in hand, so there is no fetch and no loading

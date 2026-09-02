@@ -17,7 +17,7 @@
  * nothing the eye could see.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { cn } from '@/lib/cn';
@@ -64,6 +64,8 @@ export function TradesTape({
   title,
   hasFees,
   fixedColumns,
+  action,
+  emptyAction,
 }: {
   sessions: SessionGroup[];
   /** Every trade the filter selected, which is not the number of rows sent. */
@@ -105,6 +107,30 @@ export function TradesTape({
      AND IT IS NOT WRITTEN BACK. `useTapeColumns` is `localStorage` and shared; a page's layout must
      never re-decide another page's. `/trades` keeps whatever the trader chose there. */
   fixedColumns?: TapeColumn[];
+  /* THE ONE CONTROL IN THIS HEADER THAT ADDS ROWS RATHER THAN NARROWING THEM (2026-09-02).
+     Everything else the tape offers - Search, Date, Filters, Columns - hides trades. Until this
+     prop there was no way to put the control that FILLS the tape on the surface the tape is, so
+     the trader who had just finished trading was sent to the roster to press a button named after
+     something they were not doing. `spec.md` `S1`, amended 2026-09-02.
+     A NODE RATHER THAN A BOOLEAN, because the two pages that pass one pass different things: the
+     account page's import is scoped to that account and may adopt a placeholder row, `/trades`'
+     cannot be and must not. That difference is a correctness property (`lib/intake/accounts.ts`),
+     so it is decided by the caller and never inferred here.
+     MEASURED ON MONARCH (2026-09-02, live): its transactions table header carries its `Add` in
+     exactly this position. What it opens there is a form for typing one transaction in by hand,
+     which is the half Run refuses - a hand-typed trade is unreconcilable by construction. The
+     placement is worth taking; the payload is not.
+     IT SITS AFTER `ColumnsMenu` AND PUSHES OFF `ml-auto`, so the header reads left to right as
+     what this list IS, then what narrows it, then the one thing that grows it. */
+  action?: ReactNode;
+  /* THE WAY OUT OF THE "no trades yet" STATE, and only that one - a NARROWED empty tape already
+     has its way out in the band it was narrowed from (2026-09-02).
+     SEPARATE FROM `action` BECAUSE THE TWO PAGES DIVERGE, and the divergence is Monarch's own,
+     measured live: it carries its list page's control in the PAGE BAND and its detail page's in the
+     TABLE HEADER. `/trades` follows that - its import is in the shell's band beside Search, Date
+     and Filters, so the tape takes no `action` there and only needs to fix its dead end. The
+     account page takes the reverse pair. */
+  emptyAction?: ReactNode;
 }) {
   /* WHICH ROW IS OPEN, as an INDEX into the flattened list rather than an id, because the steppers
      walk the list: "the next trade" is a position, and resolving an id back to one on every arrow
@@ -324,10 +350,16 @@ export function TradesTape({
             elsewhere is a control that cannot change anything, which this file already refuses for
             `AccountSelect` below two accounts. */}
         {!fixedColumns && <ColumnsMenu hidden={hiddenColumns} onToggle={toggleColumn} />}
+        {/* `ml-auto` RATHER THAN `justify-between` ON THE ROW, because this header's left-hand side
+            is a variable number of things - a title, a gross-fees note, a selector, a menu - and
+            several of them render nothing on any given page. Splitting the row would push the
+            leftmost survivor to one edge and this to the other on a header carrying two items;
+            pushing only this one keeps the rest as a left-aligned cluster whatever survives. */}
+        {action && <div className="ml-auto shrink-0">{action}</div>}
       </div>
 
       {all.length === 0 ? (
-        <Empty narrowed={narrowed} />
+        <Empty narrowed={narrowed} action={emptyAction} />
       ) : (
         days.map((d) => {
           const t = totalsFor.get(d.sessionDate);
@@ -712,7 +744,7 @@ function AccountName({ head, tail, logo }: { head: string; tail: string; logo: s
 /* THE EMPTY STATE SAYS WHICH EMPTY IT IS. "No trades in this range" and "no trades yet" send the
  * trader to two different places, and telling somebody with two years of tape that they have never
  * traded is the version that costs trust. */
-function Empty({ narrowed }: { narrowed: boolean }) {
+function Empty({ narrowed, action }: { narrowed: boolean; action?: ReactNode }) {
   return (
     <div className="px-6 py-14 text-center">
       <p className="text-body-lg text-text">
@@ -723,6 +755,12 @@ function Empty({ narrowed }: { narrowed: boolean }) {
           ? 'Widen the dates, or clear the filters.'
           : 'Import your Tradovate exports and they will appear here.'}
       </p>
+      {/* NEVER UNDER THE NARROWED SENTENCE. "Widen the dates, or clear the filters" names two
+          controls that are already on screen; an Import button under it would answer a question
+          nobody asked, and would invite a trader to re-upload a file they already have in order to
+          fix a filter. The sentence above is an INSTRUCTION only in the `!narrowed` case, and that
+          is the only case that was a dead end. */}
+      {!narrowed && action && <div className="mt-6 flex justify-center">{action}</div>}
     </div>
   );
 }

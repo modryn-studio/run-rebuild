@@ -6,6 +6,7 @@ import { WithSummaryRail } from '@/components/shell/summary-rail';
 import { TradesTape } from '@/components/views/trades/trades-tape';
 import { TradesRail } from '@/components/views/trades/trades-rail';
 import { TradesControls, TradesSearchPill } from '@/components/views/trades/trades-controls';
+import { ImportTradesButton } from '@/components/views/trades/import-trades-button';
 import { QuarantineNotice } from '@/components/views/trades/quarantine-notice';
 import {
   readTradesFilter,
@@ -118,6 +119,13 @@ export default async function TradesPage({
           accounts={facets.accounts}
           facetRows={facetRows}
         />
+        {/* LAST IN THE BAND, AFTER THE CONTROLS THAT NARROW - the order every header in this app
+            uses: the undo, then chrome, then the one thing wearing the accent
+            (`accounts-header.tsx`). OUTSIDE `TradesControls` deliberately: that component is
+            `contents max-md:hidden` because narrowing on a phone happens in `TradesSearchPill`
+            instead, and this control is wanted at BOTH widths. It carries its own breakpoint pair.
+            UNSCOPED - see `import-trades-button.tsx` for why that is a property and not a gap. */}
+        <ImportTradesButton />
       </HeaderSlot>
 
       <WithSummaryRail
@@ -157,6 +165,11 @@ export default async function TradesPage({
             total={ids.length}
             displayTimezone={trader.displayTimezone}
             narrowed={isNarrowed(filter)}
+            /* THE DEAD END THIS PAGE SHIPPED WITH: "Import your Tradovate exports and they will
+               appear here" was an instruction with nothing to press. The band's control is 200px
+               away in chrome the trader has not looked at yet; the empty state IS the page at
+               that moment. Only the `!narrowed` branch renders it - see `Empty`. */
+            emptyAction={<ImportTradesButton cta />}
             rest={{ ids }}
           />
         </div>

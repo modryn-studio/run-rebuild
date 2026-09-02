@@ -88,6 +88,12 @@ instead of guessing (S3/S4/P12), one pattern daily with a dollar cost (S5).
 This matters: the critical path is *the first trip through the product*, not a separate
 onboarding wing. Every step happens on a page that exists for its own sake afterward.
 
+**Step 1 is the FIRST trip only, and that is the whole point of the row (amended 2026-09-02).**
+`Add account` is where connecting happens once. It is not where importing happens *daily* — the
+recurring upload belongs on step 2's page, beside the record it changes, and on an account's own
+page. See `S1`'s 2026-09-02 amendment. Reading this table as "the import lives on Accounts" is what
+left the tape with four controls that narrow it and none that fill it.
+
 **Noted:** steps 1 and 2 may collapse into one continuous motion (add → watch it fill → it's
 right). Treated as two below because they have separate acceptance criteria; if the build
 shows they're one screen, that's a finding, not a spec change.
@@ -383,6 +389,39 @@ Edge cases:
 - Empty: no file yet — *"Upload your Tradovate export to get started."* with the export steps inline, not in a help article
 - Error: unrecognised or partial file — named, rejected whole, re-uploadable
 - Loading: determinate, count-based
+
+#### AMENDED 2026-09-02 — the import RECURS, and its openers belong where the record is
+
+This story is written as a first-run act, and the acceptance criteria above are all about the
+upload that CREATES an account. Every day after that, the same four files are uploaded against an
+account that already exists — and until this amendment the only openers were on `/accounts`: the
+roster's `Add account` CTA, and a link in an account's Data card. **A trader who has finished
+trading is not adding an account.** They were being sent to the roster to perform a step whose name
+does not describe what they are doing.
+
+**Read against Monarch (2026-09-02, live).** Monarch keeps CSV import off `/transactions` entirely
+and buries the per-account one eighth in an `Edit` menu. That placement is correct *for Monarch*,
+and copying it would be a mistake: Monarch syncs from the institution automatically, so import
+there is a migration path used once. Run has no sync. **The upload is the loop**, and a control
+used daily cannot live where a control used once does.
+
+What Monarch does put on both surfaces — its table header and its `/transactions` band — is an
+`Add` button, which opens a form for typing one transaction in by hand. **Run takes the placement
+and refuses the payload.** A hand-typed trade is unreconcilable by construction, which is the one
+thing this product may never ship (§2, and `CLAUDE.md`'s trades-are-not-editable rule).
+
+- `THE SYSTEM SHALL offer the CSV import from the record's own surfaces — the trades tape and an account's own page — and SHALL NOT offer it only from the account roster`
+- `WHEN an import is launched from an account's own page, THE SYSTEM SHALL scope it to that account, and THAT is the trader's assertion that the files belong to that row — the one signal permitted to adopt a pending placeholder`
+- `WHEN an import is launched from a surface that spans accounts, THE SYSTEM SHALL resolve every account from the files alone and SHALL NOT adopt any existing row`
+- `THE SYSTEM SHALL NOT offer manual entry, or manual correction, of a trade on any surface`
+- `THE SYSTEM SHALL NOT word an import control, or any surface leading to one, in terms of time elapsed since the last import` — the no-absence rule (`psychology.md`); the control is a standing affordance, never a notice that the trader has been away
+
+**The hazard this creates, stated so it is not discovered later.** The unscoped opener cannot adopt,
+by the rule above. So a trader who hand-added an account this morning and then imports from the
+tape gets a SECOND row, with the hand-made one left empty forever. This is not new — the roster's
+own CTA has always behaved this way — but the tape is the busiest surface in the app, so the
+failure moves from rare to reachable. The two openers are therefore labelled differently, and the
+import's outcome names the account the files landed in.
 
 **Deferred to v2, not v1:** OAuth connection, live sync, real-time fills. When it lands it is an
 *additional* source into the same pipeline, never a replacement for it.
