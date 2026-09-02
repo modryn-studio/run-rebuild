@@ -73,7 +73,13 @@ export function FileUploadStep({
   source: Source;
   /** Handed straight to `useImportRun`. See its own note — this is what makes adoption possible. */
   adoptAccountId?: string;
-  onBack: () => void;
+  /* OPTIONAL SINCE 2026-09-02, AND ABSENT MEANS NO ARROW. `AddAccountModal` passes one, because
+     this step sits over the doors there and there is somewhere to go back TO. The phone's account
+     actions sheet does not (Luke: "the import from csv screen ... from the three dot menu doesn't
+     need a back arrow in the header") - the row that opened it named the one live source, so a
+     step back would land on a list whose only other entry is Edit. `ModalHeader` draws the arrow
+     only when it is given a handler, so this needs no second flag. */
+  onBack?: () => void;
   onClose: () => void;
   onDone: () => void;
   onBusyChange: (busy: boolean) => void;

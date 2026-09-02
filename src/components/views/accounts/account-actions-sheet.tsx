@@ -104,8 +104,6 @@ export function AccountActionsSheet({
     if (!busy) sheet.requestClose();
   }, [busy, sheet]);
 
-  const toActions = useCallback(() => setView('actions'), []);
-
   /* THE EDIT FLOW'S SCREENS, HANDED UP so they can be layers of THIS sheet rather than a second one
      sliding up over it with its own header. See `useLabelAccountFlow` for why two sheets cannot do
      what Luke asked for here.
@@ -171,16 +169,18 @@ export function AccountActionsSheet({
       <AccountSheet
         open={sheet.open}
         onClose={close}
-        /* BACK MEANS ONE LAYER, AND WHICH LAYER DEPENDS ON WHOSE SCREEN IS ON TOP. The sheet asks;
-         this decides, exactly as `AddAccountModal` splits the same question.
-         THE TWO ANSWERS DIFFER ON PURPOSE, and it is the headers that say so. The upload step DRAWS
-         a back arrow, so its Back returns to the list. The edit screen draws NONE at the bottom of
-         its own stack (Luke, 2026-09-02: "there is no back arrow on the edit screen header ... the
-         back arrow on the phone should do the same thing as the cancel button, which is to close
-         the whole sheet") - and `editFlow.back` already behaves that way, popping its own screens
-         while it has them and calling `onClose` when it does not. A device Back that walked to a
-         list the screen shows no way back to would be answering a gesture the UI never offered. */
-        onBack={view === 'edit' ? editFlow.back : toActions}
+        /* WHAT BACK MEANS, AND THE SHEET ASKS WHILE THIS DECIDES - exactly as `AddAccountModal`
+         splits the same question.
+         NEITHER ROW DRAWS A BACK ARROW ANY MORE, so neither answers Back by walking to the actions
+         list. That would be answering a gesture the UI never offered: `design-system.md` §6a, a
+         device Back may only go where the screen shows a way to go.
+         EDIT STILL ROUTES THROUGH ITS OWN `back`, because its DEEPER screens (type, firm) DO draw
+         arrows and have to pop within the flow; at the bottom of its stack that same function
+         closes, which is what Luke asked for ("the back arrow on the phone should do the same thing
+         as the cancel button ... close the whole sheet").
+         THE UPLOAD STEP HAS NO INNER STACK, so Back there is simply the exit - and `close` refuses
+         while an import is in flight, which is the one press this screen must not obey. */
+        onBack={view === 'edit' ? editFlow.back : close}
         /* AN IMPORT IN FLIGHT LOCKS EVERY EXIT - Escape, the scrim and the device Back button. The
          request is not cancelled by leaving, so the corpus write lands either way and the only
          thing an exit achieves is throwing away the result. */
@@ -203,7 +203,13 @@ export function AccountActionsSheet({
                only signal permitted to fill in a `pending:` placeholder - `lib/intake/accounts.ts`
                re-checks it against the trader, the platform and `pending:%` regardless. */
               adoptAccountId={account.id}
-              onBack={toActions}
+              /* NO `onBack`, SO NO ARROW (Luke, 2026-09-02: "the import from csv screen ... from
+                 the three dot menu doesn't need a back arrow in the header"). `AddAccountModal`
+                 passes one because there this step sits over the DOORS and back means "pick a
+                 different source". Here the row that opened it already named the only live source,
+                 so an arrow would lead to a list whose one other entry is Edit — a way back to
+                 nothing the trader wanted. `ModalHeader` draws the arrow only when handed a
+                 handler, so omitting it is the whole change. */
               onClose={close}
               onDone={done}
               onBusyChange={setBusy}
