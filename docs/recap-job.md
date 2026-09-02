@@ -71,23 +71,105 @@ to get wrong, and the 16:15 leg still has nothing to read.
 
 ---
 
-## 3. One upload, several sessions — the question hiding under the trigger
+## 3. SCOPE: one card, one day. Corrected 2026-09-01
 
-A trader uploads a week. **Do they get five reads or one?**
+**The first version of this section said an upload of five sessions produces five reads. That is
+the wrong scope and Luke caught it:**
 
-**Five. One per session date, always.** `spec.md` §4.2: *"a trading session is a day... the atom is
-the day."* And Luke's own framing for `/read` (2026-09-01): *"like a journal the user doesn't have to
-write themselves."* **A journal has an entry per day. You do not skip Tuesday because you wrote it on
-Friday.**
+> *"that card only shows 1 day's recap. not monday's and tuesday's... im trying to implement this
+> step by step, piece by piece, slowly, based on what we have implemented so far. all we have is
+> the recap card. we need it to work for one day, correct?"*
 
-**It is not a backlog, and the distinction is the one `CLAUDE.md` draws.** The doctrine bans a state
-that *represents absence* — "you haven't imported in 9 days", a catch-up pile, a streak. Five reads
-in an archive is not that: the card shows the most recent and says nothing about the other four, and
-the rest are an archive on `/read` the same way a tape is an archive of trades. **Nothing counts how
-far behind you are.**
+Correct. **All that exists is a card that shows one read.** Five reads was a design for `/read`'s
+archive, which is deferred and unplanned. Designing the job around it now means building a thing
+nothing can display, and choosing its rules with no surface to check them against.
 
-**Cost is unchanged.** A weekly uploader and a daily uploader both produce five reads for five
-sessions. The bill follows the trading, not the uploading.
+### The rule for what exists
+
+> **An upload produces AT MOST ONE READ: the newest session date that is over and has no read yet.**
+
+Older sessions in the same upload get no read, and never will. That is not a gap - it is
+`build-plan.md` §S8's **no backfill** rule arriving one level down. A read written for Monday on
+Friday cannot say what yesterday did to anything, and the card cannot show it either.
+
+**Worked through:**
+
+| The trader uploads | Sessions in the file | Reads written |
+|---|---|---|
+| Monday 18:00, with Monday's session | Mon (over at 17:00) | **Monday** |
+| Wednesday, with Mon + Tue + Wed | Mon, Tue, Wed | **Wednesday only** |
+| Monday 11:00, mid-session | Mon (NOT over) | **none** - it is read on the next upload |
+| Friday, with the whole week | Mon-Fri | **Friday only** |
+| Saturday, nothing new since Friday | Fri, already read | **none** |
+
+**What this buys, beyond correctness:** no sweeper, no batch loop, no archive, no ordering, and one
+API call per upload at most. Every one of those was a thing §5 had to reason about, and none of them
+is a thing the card can show.
+
+**When `/read` is planned**, the question reopens as *"does the archive get entries for sessions that
+were never the newest?"* - and the answer is probably still no, for the same no-backfill reason.
+Recorded so the reasoning is not redone from scratch.
+
+---
+
+## 3a. The reference's own blueprint, read out of its running app *(2026-09-01)*
+
+Read from Monarch's Apollo cache on `app.monarch.com/dashboard/weekly-recap` via the standalone
+chrome-devtools CLI, on Luke's authenticated tab. **This is measured, not inferred.**
+
+### The stored object
+
+```
+recap(startDate: "2026-08-23", endDate: "2026-08-29")   ->  Recap:253648150574584074
+
+Recap {
+  id, dateRangeStart, dateRangeEnd,
+  summary:    "This week: net worth decline, higher spending, no scheduled transactions."
+  sentiment:  SLIGHTLY_NEGATIVE
+  createdAt:  2026-08-31T17:48:46.605296+00:00
+  updatedAt:  2026-08-31T17:48:46.605313+00:00
+  cards: [ RecapCard x5 ]
+}
+
+RecapCard {
+  module:     INTRO | NET_WORTH | SPENDING | RECURRING | OUTRO
+  title       the long specific sentence   "You spent $207 this week, up 74.5% vs. last week"
+  headline    the short one                "Your spending increased by 74.5% from last week"
+  message     the paragraph
+  titleMarkdown / headlineMarkdown / messageMarkdown   - the same three, with **bold** on figures
+  sentiment:  VERY_NEGATIVE | SLIGHTLY_NEGATIVE | SLIGHTLY_POSITIVE | ...
+  metrics:    a JSON STRING of label -> PRE-FORMATTED value
+              {"Change": "-$1,288", "Change %": "-0.4%", "Net Worth": "-$336,070"}
+  richBlocks: [ a fenced block: ```chart:line / ```chart:pie + `Label;Value` rows ]
+}
+```
+
+### Seven things worth taking
+
+1. **IT IS A STORED ROW, FETCHED BY DATE RANGE.** One query, `recap(startDate, endDate)`. Nothing is
+   generated when the modal opens. This is the same answer `build-plan.md` §S8 reached independently.
+2. **IT IS FROZEN, AND THEY PROVE IT.** `createdAt` and `updatedAt` differ by **17 microseconds** -
+   written once by the job, never touched again. Luke's frozen decision has the reference behind it.
+3. **IT IS NOT WRITTEN AT THE BOUNDARY.** The week ended Saturday 2026-08-29; the row was created
+   **Monday 2026-08-31 at 17:48 UTC** (12:48 CT). Two days late, mid-morning, on a business day.
+   **Even the reference does not publish at the close** - it batches when it suits them.
+4. **`richBlocks` IS THE GENERATIVE-UI VOCABULARY, AS A FENCED STRING.** ` ```chart:line ` with
+   `Label;Value` CSV inside it. That is exactly what `RecapEvidence` in `lib/desk/recap.ts` does with
+   a discriminated union. Theirs is LLM-native - the model emits it inline in markdown; ours is
+   type-safe. **Ours is the better fit for a product whose doctrine is that the LLM never computes a
+   number**, but theirs is worth knowing: a chart is a BLOCK IN THE PROSE, not a separate field.
+5. **`metrics` CARRIES PRE-FORMATTED STRINGS, NEVER RAW NUMBERS.** `"-$1,288"`, not `-1288`. Same
+   instinct as Run's: formatting is decided before the model sees it.
+6. **THREE LENGTHS OF THE SAME SENTENCE, GENERATED TOGETHER.** `title` (long, specific), `headline`
+   (short), `message` (the paragraph) - plus a markdown twin of each with the figures bolded. That is
+   how one generation serves the card, the modal and the email without re-asking.
+7. **`sentiment` IS AN ENUM, PER CARD AND PER RECAP.** It is almost certainly what selects the OUTRO's
+   register and the celebration. **Run should not copy this half** - `psychology.md` is explicit that
+   grading a trader's week is the failure, and `build-plan.md` §S8 already refused the outro.
+
+**And INTRO and OUTRO are modules in the same array**, not chrome. Their five "steps" are five data
+rows; the walkthrough is a renderer over a list. Ours is one card because a read has one subject -
+that difference is the product decision, not an implementation one.
 
 ---
 
