@@ -27,6 +27,12 @@ import { LoadingMark } from '@/components/ui/loading-mark';
  * `/status` is force-dynamic but is the walking skeleton and is meant to go away. A route that
  * genuinely needs a boundary declares its own.
  */
+/* `.wait-reveal` ADDED 2026-09-03, in the pass that made this rule consistent across every
+ * boundary in the app (Luke: *"i think that is a good rule about the wait 300ms before showing the
+ * skeleton. we should add that to the /trades page. for both mobile and desktop."*). It holds the
+ * mark invisible for 300ms and then fades it in over 200ms. `design-system.md` §7 had carried the
+ * rule since it was written and only `trades-rail-skeleton.tsx` was honouring it, so five
+ * boundaries were flashing on prefetched navigations that already felt instant. */
 export default function Loading() {
-  return <LoadingMark />;
+  return <LoadingMark className="wait-reveal" />;
 }

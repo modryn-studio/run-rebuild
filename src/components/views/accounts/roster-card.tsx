@@ -51,7 +51,8 @@ import {
 } from '@/lib/prop-firms';
 import type { RosterAccount } from '@/lib/accounts/read';
 import { AccountLogo } from './account-logo';
-import { TrendIndicator, sizeBase } from './trend-indicator';
+import { TrendIndicator } from './trend-indicator';
+import { sizeBase } from '@/lib/accounts/series';
 import { useChartView } from './chart-view';
 
 /* THE GROUP ORDER AND THE UNLABELLED GROUP'S NAME BOTH MOVED TO `lib/prop-firms.ts` (2026-08-27),

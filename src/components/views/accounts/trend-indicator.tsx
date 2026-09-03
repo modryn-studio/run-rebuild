@@ -29,8 +29,16 @@ export function TrendIndicator({
   baseDollars,
 }: {
   cents: number;
-  /** "3 month change" / "All time" — supplied by the chart so its menus govern this line. */
-  periodLabel: string;
+  /* "3 month change" / "All time" — supplied by the chart so its menus govern this line.
+     OPTIONAL SINCE 2026-09-03, and the reason is a said-twice rule rather than a preference.
+     `/today`'s `Net P&L` widget puts its period PICKER in the same header row, ~20px from this
+     line, so printing "1 week change" here spelled the trader's own selection back at them
+     (Luke: *"i dont think we need the '1 week change' copy. remove that."*). The reference has the
+     same redundancy on its dashboard and it is the one thing not worth porting.
+     THE WHOLE TRAILING SPAN DISAPPEARS when it is absent, rather than rendering empty: the row is
+     `flex ... gap-x-1.5`, and a zero-width child still gets its gap, which would leave 6px of
+     unexplained air after the figure. */
+  periodLabel?: string;
   /* The phone's shorter form. BOTH render and CSS picks one, rather than a JS width check: the
      choice has to be right on the first paint and the server has no viewport. Two spans of four
      words is cheaper than a hydration flash. */
@@ -59,7 +67,7 @@ export function TrendIndicator({
        value to travel from. Keyed on the CONTENT rather than the period, because a period change
        that happens to produce the same figure is not a change. */
     <div
-      key={`${cents}:${periodLabel}`}
+      key={`${cents}:${periodLabel ?? ''}`}
       /* `text-body-lg` (16px) FROM `sm` UP, and that stays: measured on Monarch's WEB app, which is
          the reference for Run's desktop - its change line is 16px/600 beside a 24px figure on the
          chart and 16px again beside an 18px group title.
@@ -88,32 +96,28 @@ export function TrendIndicator({
         {fmtMoney(Math.abs(cents))}
         {pct !== null && <span className="ml-0.5">({pct.toFixed(1)}%)</span>}
       </span>
-      <span className="text-muted font-medium">
-        {periodShort ? (
-          <>
-            {/* ONE SPAN, NOT TWO WITH A SEPARATOR BETWEEN THEM. A `·` in its own element gets the
-                row's `gap-x-1.5` on both sides and reads as a third item; inside the string it is
-                punctuation, which is what it is. */}
-            <span className="sm:hidden">{note ? `${periodShort} · ${note}` : periodShort}</span>
-            <span className="hidden sm:inline">{periodLabel}</span>
-          </>
-        ) : (
-          periodLabel
-        )}
-      </span>
+      {(periodLabel || periodShort) && (
+        <span className="text-muted font-medium">
+          {periodShort ? (
+            <>
+              {/* ONE SPAN, NOT TWO WITH A SEPARATOR BETWEEN THEM. A `·` in its own element gets the
+                  row's `gap-x-1.5` on both sides and reads as a third item; inside the string it is
+                  punctuation, which is what it is. */}
+              <span className="sm:hidden">{note ? `${periodShort} · ${note}` : periodShort}</span>
+              {periodLabel && <span className="hidden sm:inline">{periodLabel}</span>}
+            </>
+          ) : (
+            periodLabel
+          )}
+        </span>
+      )}
     </div>
   );
 }
 
-/* THE DENOMINATOR, OR NULL — and null the moment ONE account in the set is unsized, rather than
- * quietly summing the ones that are. A percentage against a partial base is a WRONG number, not a
- * partial one. */
-export function sizeBase(accounts: { sizeDollars: number | null }[]): number | null {
-  if (accounts.length === 0) return null;
-  let sum = 0;
-  for (const a of accounts) {
-    if (a.sizeDollars === null) return null;
-    sum += a.sizeDollars;
-  }
-  return sum > 0 ? sum : null;
-}
+/* `sizeBase` MOVED TO `lib/accounts/series.ts` ON 2026-09-03, and the move is a rule rather than
+ * tidying. `/today` computes its own `baseDollars` on the SERVER, and every export of a
+ * `'use client'` module becomes a client reference - so a server component importing it from here
+ * would get a reference it cannot call, and `CLAUDE.md` is explicit that re-exporting does not
+ * launder that. It is a pure fold over `{ sizeDollars }`, so it belongs in the plain module that
+ * already holds the figures this card's percentage is computed from. */

@@ -442,16 +442,15 @@ research it came from and what deliberately is not copied: `build-plan.md` §S10
 
 ```mermaid
 flowchart TD
-  Today["/today<br/>widget grid"]
-  Today --> Recap(["Your Daily Recap"])
-  Recap --> Read(["The read, opened in place"])
-  Read --> Trade["a cited trade → /trades/[id]"]
+  Today["/today<br/>widget grid — empty as of 2026-09-03"]
+  Today -.-> Recap(["Your Daily Recap — built, unmounted, not in beta"])
+  Recap -.-> Read(["The read, opened in place"])
   Today -.-> NetPnl(["Net P&L (S8)"])
-  Today -.-> Accts(["Accounts (S8)"])
   Today -.-> Last(["Last session (S8)"])
+  Today -.-> Accts(["Accounts (S8)"])
 
-  style Recap stroke-dasharray: 2 3
-  style Read stroke-dasharray: 2 3
+  style Recap stroke-dasharray: 5 5
+  style Read stroke-dasharray: 5 5
   style NetPnl stroke-dasharray: 5 5
   style Accts stroke-dasharray: 5 5
   style Last stroke-dasharray: 5 5
@@ -466,17 +465,28 @@ state with a **specific** CTA.
 the reason is structural: a dashboard's claim is *at a glance*. Browsing through time is a page's
 job. `build-plan.md` §S8 records what that would take.
 
-**There is no greeting, and the band says `Today`** *(2026-09-01, reversing 2026-08-31)*. It ran
-for one day: a `Good afternoon, Luke` computed in `trader.display_timezone` and portalled into the
-header slot, with the shell suppressing its own route title for this one route. Luke cut it -
-*"no greeting. replace the greeting with 'Today'. the name of the page. and center it. make sure it
-is exactly consistent with the /accounts and /trades pages"* - and the whole apparatus went with it:
-the component, the shell's `SELF_TITLED` set, and the two `Intl` helpers behind the clock.
+**The band carries the GREETING, and the account scope sits beside it** *(2026-09-03, restoring
+2026-08-31 and reversing 2026-09-01)*. It ran for one day, was replaced by the word `Today`, and is
+back on Luke's call: *"we did have the greeting in the header like monarch does it. that was a fully
+coded implementation... we need it back and it needs to be the code we had before because i did
+research to find out exactly how to code the greeting to make it work properly."* Restored with
+`git show` from `aa4522e` rather than retyped - `hourIn`'s three measured `Intl` failure modes are
+the valuable part, and re-deriving them is how one comes back. `/today` is again the one route the
+shell renders no title for (`SELF_TITLED`), or the band would print both.
 
-**What that buys is the consistency it was asked for.** The shell's own `<h1>` titles this page now,
-so `/today` renders `text-h3` centred on a phone and `sm:text-title` static from `sm` - the same
-element, classes and position as `/accounts` and `/trades`, rather than a portalled span that only
-resembled them.
+**To its right, in the header's controls cell, is the page-level account scope.** One picker, writing
+`?accounts=<uuid>`, and every card on the page reads it - so three widgets can never describe three
+different sets of accounts. It is `AccountSelect`, the same control `/trades` draws, so the labels
+and the param are shared. `Customize` is deliberately absent (`monarch-dashboard-teardown.md` §A8).
+
+**The `<h1>` interlude is over.** For two days the shell titled this page like the other two, which
+was the consistency Luke asked for on 2026-09-01 and is not what the reference does: its dashboard
+carries no heading element at all. The trade-off is stated rather than hidden - `/today`'s band no
+longer matches `/accounts` and `/trades` in markup, and that is the point of a front door.
+
+**The recap card is unmounted for the beta** *(2026-09-03)* — no nightly job, so a card on a fixture
+cannot ship. The three cards that replace it, their controls and their order are argued in
+`monarch-dashboard-teardown.md` §4. `/read` is a placeholder page rather than a 404 since the same day.
 
 **Back on `/today` exits the app** — it is a root. The recap's overlay is an in-app step and closes.
 

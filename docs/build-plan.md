@@ -1039,7 +1039,21 @@ downstream of it should be built on the assumption that either shape won.
 >   present-tense bridge — *"…9 lost. You're at three losses now"* — which is the most likely
 >   accidental crossing in the product ([§3](psychology.md#3-the-fence-is-retrospective-not-descriptive)).
 
-### S8 — Today — ⬅ **next, and it now carries the read** *(amended 2026-08-31)*
+### S8 — Today — ⬅ **next; the read is NOT in the beta** *(amended 2026-09-03; carried the read from 2026-08-31 to 2026-09-03)*
+
+> **2026-09-03 (Luke): *"do not implement the nightly job wired to the reading. too bad, we are
+> not shipping that in the beta version right now."*** `Your Daily Recap` — built 2026-09-01 on a
+> fixture — is **unmounted** from `/today` (the component and its rack rows stay; one line brings it
+> back). What replaces it is decided against a live read of the reference's dashboard rather than
+> from `wireframes.md` §5 alone: **[`monarch-dashboard-teardown.md`](monarch-dashboard-teardown.md)**,
+> every card mapped. **Luke's changes landed the same day and are §8 of that doc, which is the
+> current list**: six cards ship, not three. `Net P&L`, `Last session` and `Accounts` are joined by
+> **the self-set daily loss line** and **profit-target progress** (one slice, one migration - and
+> BLOCKED until Luke amends `spec.md` §6, which still lists stated-intent-vs-actual as NOT IN V1),
+> and by **`Set up Run`**, a five-step setup card that empties itself and then unmounts. The recap
+> is **reset to a blank sheet** - the built card has no design authority any more - and Monarch's
+> `Advice` is reopened for a session of Luke's own. Build order and the reasoning are in §A7.
+> The paragraphs below describe the slice as it stood while it carried the read.
 
 Monarch's widget contract applied unchanged. Last because every widget links to a page that
 must already exist.

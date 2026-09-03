@@ -37,7 +37,11 @@ export default function Loading() {
       {/* Every class on this wrapper and the two below is `[id]/page.tsx`'s own. A waiting state
           whose box differs from its page reflows on arrival, which is the failure it exists to
           prevent. */}
-      <div className="bg-bg mx-auto w-full max-md:fixed max-md:inset-0 max-md:z-[70] max-md:flex max-md:flex-col md:px-4 md:pb-8">
+      {/* `.wait-reveal` ON THE SHEET, NOT ON THE BAND ABOVE IT (2026-09-03). The band's back
+          control is a live `Link` and, as the note above says, the one thing a trader is certain to
+          want from a screen that has not loaded - fading it would delay the way OUT. The sheet is
+          what stands in for the trade, so the sheet is what waits. */}
+      <div className="bg-bg wait-reveal mx-auto w-full max-md:fixed max-md:inset-0 max-md:z-[70] max-md:flex max-md:flex-col md:px-4 md:pb-8">
         {/* `SheetHeader`'s geometry, hand-built: it takes a `title: string` and there is no string
             yet. Passing a placeholder one would print an invented instrument for a frame. */}
         <div className="bg-bg relative flex h-16 shrink-0 items-center justify-center px-2 md:hidden">

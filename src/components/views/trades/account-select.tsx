@@ -39,8 +39,8 @@
  * `accounts` param the Filters panel writes.
  */
 
-import { useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Menu } from '@/components/ui/menu';
 import type { FacetAccount } from '@/lib/trades/read';
 
@@ -65,6 +65,18 @@ export function AccountSelect({
   selected: string[];
 }) {
   const router = useRouter();
+  /* IT WRITES TO THE PAGE IT WAS CALLED FROM, and `/trades` was a literal here until 2026-09-03.
+   * `CLAUDE.md`: *"A filter control writes to `usePathname()`, never a hard-coded route."* This
+   * control was the last violation of that rule, and it stopped being harmless the moment `/today`
+   * mounted the same component for its page-level account scope - a picker in the dashboard's
+   * header that navigated to the tape instead of narrowing the dashboard.
+   * THE PATH IS HELD AT MOUNT, which is `useParamWriter`'s own pattern and its reasoning applies
+   * unchanged: `usePathname()` follows a native `pushState`, and `TradeSheet` pushes `/trades/<id>`
+   * onto this very page when a row is tapped on a phone. The address of the SCREEN does not change
+   * while the screen is mounted; only an overlay's does. `useState`'s initialiser rather than a
+   * ref, because reading a ref during render is what the React Compiler refuses. */
+  const here = usePathname();
+  const [pathname] = useState(here);
 
   /* THE CURRENT PARAMS COME FROM `window`, NOT `useSearchParams` (2026-08-20).
    *
@@ -84,9 +96,9 @@ export function AccountSelect({
       if (value === ALL) next.delete('accounts');
       else next.set('accounts', value);
       const qs = next.toString();
-      router.push(qs ? `/trades?${qs}` : '/trades', { scroll: false });
+      router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [router]
+    [router, pathname]
   );
 
   if (accounts.length === 0) return null;

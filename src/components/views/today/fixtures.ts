@@ -21,6 +21,7 @@
  */
 
 import type { Recap } from '@/lib/desk/recap';
+import { cumulate, type Point } from '@/lib/accounts/series';
 
 /** The good day: one mechanism, named, priced, and three trades that show it. */
 export const RECAP_STRONG: Recap = {
@@ -96,3 +97,74 @@ export const RECAP_PENDING: Recap = { state: 'pending', sessionDate: '2026-08-29
 
 /** Day one. The only state with nothing behind it at all. */
 export const RECAP_EMPTY: Recap = { state: 'empty', sessionDate: '2026-08-31' };
+
+/* ─── `Net P&L`'S SPECIMENS (2026-09-03) ───────────────────────────────────────────────────────
+ *
+ * A CORPUS LONG ENOUGH FOR THE PICKER TO MEAN SOMETHING. `pnl-plot.tsx`'s fixture is 14 days,
+ * which is right for racking the plot and useless for racking a period control: every range from
+ * `1m` up would return the same fourteen points, so the menu would look broken. 84 sessions is
+ * three months, so `1w`, `1m` and `3m` each draw a visibly different window and `all` differs
+ * again.
+ *
+ * WEEKDAYS ONLY, and that is not cosmetic. The x axis is REAL TIME rather than position in an
+ * array, so a fixture with no weekends in it never exercises the one thing that spacing buys - a
+ * flat Saturday drawn as wide as a Tuesday. `cumulate` fills the gaps.
+ *
+ * IT CROSSES ZERO AND ENDS DOWN. A curve that only ever climbs never shows where the dashed
+ * baseline sits, and a card racked exclusively on a green figure is a card nobody has seen on a
+ * bad month - which for this product is most of them.
+ */
+const SESSION_CENTS = [
+  41_250, -18_400, -63_900, 12_050, 88_700, -24_300, -51_100, 9_400, 76_800, -13_200, 44_600,
+  -92_500, 31_900, 58_300, -27_650, 15_400, -8_900, 62_100, -44_300, 5_750, -71_200, 23_800,
+  37_450, -16_900, -55_600, 48_200, 11_300, -29_750, 84_100, -62_400, 7_900, 19_650, -38_200,
+  53_700, -14_100, -47_900, 26_300, 68_500, -22_750, 3_400, -59_100, 41_800, 17_250, -33_600,
+  72_900, -18_050, -66_400, 9_850, 35_200, -27_300, 51_600, -43_900, 14_700, 22_400, -71_800,
+  38_950, -12_600, 57_100, -35_400, 8_200, -49_700, 63_300, 25_850, -18_900, -54_200, 42_100,
+  16_400, -31_750, 79_600, -58_300, 11_950, 20_700, -40_100, 49_800, -13_500, -52_400, 28_600,
+  64_200, -25_900, 2_850, -61_300, 39_400, 15_100, -46_750,
+];
+
+/** Weekday sessions ending 2026-09-02, so the fixture's own "last trading day" - which is what
+ *  every range is anchored on - is the day before the card was built. */
+const SESSION_DAYS = (() => {
+  const days: string[] = [];
+  const d = new Date(Date.UTC(2026, 8, 2));
+  while (days.length < SESSION_CENTS.length) {
+    const dow = d.getUTCDay();
+    if (dow !== 0 && dow !== 6) days.unshift(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() - 1);
+  }
+  return days;
+})();
+
+/** The cumulative line the card is handed. Cumulated HERE rather than in the rack, so the rack
+ *  and the page hand the component the same shape from the same helper. */
+export const NET_PNL_SERIES: Point[] = cumulate(
+  SESSION_DAYS.map((day, i) => ({ day, cents: SESSION_CENTS[i] }))
+);
+
+/** ONE SESSION. `cumulate` pads a zero anchor at the day before, so this draws the move OFF the
+ *  baseline rather than a floating dot - and every range collapses to those same two points, which
+ *  is the state a card racked only on a long corpus never shows you. */
+export const NET_PNL_ONE: Point[] = cumulate([{ day: '2026-09-02', cents: -46_750 }]);
+
+/* ONE SESSION, KEYED BY INSTANT - what the `1d` range hands the plot, and the running total is
+ * summed here rather than by `cumulate`. That helper fills the GAPS between calendar days, so it
+ * reads `dayBefore` on every key and THROWS on an ISO instant; the product never asks it to,
+ * because the intraday curve comes from `foldIntraday`, a different fold for a different key
+ * space. (`pnl-plot.tsx`'s section 500'd on exactly this the first time it rendered.)
+ *
+ * IT OPENS AT THE SESSION'S OWN ZERO and ends where `SESSION_CENTS` ends, so picking `1 day` on
+ * the racked card lands on the same figure the last daily point carries. A fixture whose ranges
+ * disagree with each other is a fixture that makes the control look broken. */
+export const NET_PNL_INTRADAY: Point[] = [0, 12_400, -31_800, 8_900, -4_200, -32_050].reduce<Point[]>(
+  (acc, cents, i) => [
+    ...acc,
+    {
+      day: new Date(Date.UTC(2026, 8, 1, 22 + i, 15)).toISOString(),
+      cents: (acc[acc.length - 1]?.cents ?? 0) + cents,
+    },
+  ],
+  []
+);

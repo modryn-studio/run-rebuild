@@ -99,13 +99,37 @@ const NAV = [
  *
  * THE CONTRACT THIS CREATES: any route below a NAV href owes the title slot a trail, or its band
  * renders nameless. There is exactly one such route today and it does. */
-/* NO ROUTE NAMES ITSELF ANY MORE (2026-09-01). A `SELF_TITLED` set lived here so `/today` could
-   render no route title and portal a greeting into the slot instead. Luke reversed the greeting -
-   *"no greeting. replace the greeting with 'Today'. the name of the page... make sure it is exactly
-   consistent with the /accounts and /trades pages"* - and the set went with it rather than being
-   left as an empty container with a paragraph about a feature that no longer exists.
-   The contract below is unchanged and is the one that matters: a route inside NAV is titled after
-   its row, and anything deeper returns null and owes the slot a trail of its own. */
+/* A ROUTE THAT NAMES ITSELF (2026-08-31). The shell titles every screen after its nav row, which is
+   right for three of them and wrong for the front door: the reference names that screen after the
+   PERSON rather than after the screen - its dashboard has no heading at all, just
+   `Good afternoon, Luke!` at 18px/500 where a title would be. Run does the same, and the page owns
+   the string because the shell holds neither the trader's clock nor a reason to compute a greeting.
+   So this returns null and `/today` portals its own into `HEADER_TITLE_SLOT_ID` beside it - the
+   same slot a drill-down route uses for its trail. Without the null the band prints both.
+
+   CUT 2026-09-01, RESTORED 2026-09-03, and the restore is verbatim rather than rewritten (Luke:
+   *"we did have the greeting in the header like monarch does it. that was a fully coded
+   implementation... we need it back and it needs to be the code we had before because i did
+   research to find out exactly how to code the greeting to make it work properly."*). He is right
+   that the research is the valuable part: `hourIn` in `today/page.tsx` carries three separate
+   `Intl` failure modes that were each measured on this runtime, and re-deriving them from memory
+   is how one of them comes back. Recovered from `aa4522e` with `git show`, not retyped.
+
+   AND IT IS DESKTOP-ONLY, WHICH THE FIRST RESTORE GOT WRONG (2026-09-03, same day). Suppressing
+   the title for the whole ROUTE took `Today` off the phone's band too, and Luke caught it within
+   the hour: *"the mobile /today page's header had the hamburger, the bell icon, then the name of
+   the page 'Today' centered to match the accounts and trades pages on mobile."*
+
+   THE REFERENCE'S OWN APP AGREES, and that is the deciding evidence rather than consistency for
+   its own sake: Monarch's iOS dashboard band reads `Dashboard`, centred, between a hamburger-and-
+   bell pair and one right-hand mark. There is no greeting anywhere on that screen. The greeting is
+   a thing their WEB dashboard does, and Luke is copying the app.
+
+   SO THE SET NAMES ROUTES WHOSE TITLE IS SUPPRESSED FROM `md` UP, and the `<h1>` still renders
+   below it. `Greeting` carries the mirror-image `max-md:hidden`, so exactly one of the two is
+   visible at any width and they can never overlap in the band's centre. */
+const SELF_TITLED = new Set<string>(['/today']);
+
 function routeTitle(pathname: string): string | null {
   return NAV.find((n) => n.href === pathname)?.label ?? null;
 }
@@ -583,7 +607,16 @@ export function AppShell({
                title is the largest thing in its band and reads as the name of the screen; at 18px
                beside a 16px nav row it read as a label. Both are roles from the ramp — this is a
                step up the scale, not a hand-picked size. */
-            <h1 className="text-h3 text-text sm:text-title pointer-events-none absolute left-1/2 max-w-[50%] -translate-x-1/2 truncate font-medium sm:pointer-events-auto sm:static sm:max-w-none sm:min-w-0 sm:translate-x-0">
+            /* `md:hidden` FOR A SELF-TITLED ROUTE, and only for those. `/today` puts a greeting
+               in this band from `md` up and its page name below it, which is the reference's own
+               split between its web dashboard and its app. Every other route is unaffected: the
+               class is absent, so the title renders at every width exactly as it did. */
+            <h1
+              className={cn(
+                'text-h3 text-text sm:text-title pointer-events-none absolute left-1/2 max-w-[50%] -translate-x-1/2 truncate font-medium sm:pointer-events-auto sm:static sm:max-w-none sm:min-w-0 sm:translate-x-0',
+                SELF_TITLED.has(pathname) && 'md:hidden'
+              )}
+            >
               {routeTitle(pathname)}
             </h1>
           )}

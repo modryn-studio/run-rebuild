@@ -25,7 +25,10 @@ import { cn } from '@/lib/cn';
  */
 export default function Loading() {
   return (
-    <div className={cn(PAGE_COLUMN, 'pb-8 max-md:px-0 max-md:pb-0')}>
+    /* `.wait-reveal` ON THE WHOLE BODY (2026-09-03), and here it can be: this file has no chrome
+       in it. The bar and the title are the SEGMENT LAYOUT's, which persists while the boundary
+       hands over, so the only thing in this subtree is the placeholder. */
+    <div className={cn(PAGE_COLUMN, 'wait-reveal pb-8 max-md:px-0 max-md:pb-0')}>
       {/* THE CHART CARD AT ITS REAL HEIGHT. The eyebrow, the figure, the plot and the range row are
           all drawn rather than approximated, because a card that arrives 40px taller than its
           placeholder makes everything under it jump - which is the jag this whole file exists to

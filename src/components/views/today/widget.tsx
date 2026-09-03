@@ -51,9 +51,29 @@ import { Card } from '@/components/ui/card';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { cn } from '@/lib/cn';
 
-/** One geometry for all three header shapes, so a link, a button and a plain block cannot drift
- *  apart. `py-4` rather than the reference's 13.5px: 14 is not a step on this scale and 16 is. */
-const HEAD = 'border-rule flex w-full flex-col border-b px-5 py-4 max-md:px-4';
+/* THE HEADER IS A ROW, AND THE SCOPE CONTROL IS A SIBLING OF THE CLICKABLE - NOT INSIDE IT
+ * (2026-09-03, read out of the reference's `net_worth` widget rather than inferred).
+ *
+ *   DashboardWidget__HeaderArea
+ *     FlexContainer__Root                     <- the row
+ *       a.NavLink DashboardWidget__HeaderClickable   <- title + period
+ *       DashboardWidget__HeaderRight          <- Select__Root, the period picker
+ *
+ * The picker CANNOT live inside the link, and that is the whole reason this structure changed: a
+ * `<button>` inside an `<a>` is invalid HTML, and clicking the menu would navigate. Their
+ * `HeaderRight` is a sibling, and `Getting Started`'s 5/5 ring sits in the same slot - so this is
+ * the contract for any right-edge affordance, not a special case for one card.
+ *
+ * THE PADDING MOVED OFF THE ROW AND ONTO ITS CHILDREN, so a widget with no scope control renders
+ * the byte-identical box it did before this slot existed: the clickable is `flex-1`, so with
+ * nothing beside it, it fills the row and its hover ground still reaches the card's own edges. Put
+ * the padding on the row instead and that ground would inset by 20px on every widget in the app. */
+const HEAD = 'border-rule flex w-full items-center border-b';
+/** `py-4` rather than the reference's 13.5px: 14 is not a step on this scale and 16 is. */
+const PAD = 'px-5 py-4 max-md:px-4';
+/** One geometry for all three clickable shapes, so a link, a button and a plain block cannot
+ *  drift apart. `min-w-0` so a long title truncates rather than shoving the picker off the row. */
+const CLICK = 'flex min-w-0 flex-1 flex-col';
 
 export function Widget({
   title,
@@ -75,7 +95,7 @@ export function Widget({
   className,
 }: {
   title: string;
-  period?: string;
+  period?: ReactNode;
   mark?: IconName;
   href?: string;
   onOpen?: () => void;
@@ -160,9 +180,18 @@ export function Widget({
           18px title at 375px, a 16px date is barely a step and the pair reads as two headings.
           DESKTOP IS UNTOUCHED at 16, which is the reference's measured value and the one Luke
           signed off on 2026-09-01 (*"i think we are done iterating on the desktop version"*). */}
-      {period && (
-        <span className="text-body-lg max-sm:text-body text-muted font-medium">{period}</span>
-      )}
+      {/* A STRING GETS THE SLOT'S OWN TYPE; A NODE IS TRUSTED TO CARRY ITS OWN (2026-09-03).
+          The reference's `net_worth` widget puts its DELTA in this slot - measured, its
+          `DashboardWidget__Description` holds `$2,969.64 (0.9%)` at 16px/600 in green, on the
+          title's line and inside the same `<a>` - so the slot has to take a component and not
+          only a date string. Wrapping a node would impose `text-muted` on something that has
+          already decided its own ink, which for a delta is the one thing it may not lose. */}
+      {period &&
+        (typeof period === 'string' ? (
+          <span className="text-body-lg max-sm:text-body text-muted font-medium">{period}</span>
+        ) : (
+          period
+        ))}
     </span>
   );
 
@@ -174,11 +203,12 @@ export function Widget({
           rather than a mark at the end of it. On a phone that difference is the affordance.
           `py-4` rather than the reference's 13.5px, because 14 is not a step on this scale and 16
           is. It reads 83px against their 78. */}
-      {href ? (
-        <Link href={href} className={cn(HEAD, 'hover:bg-hover transition-colors')}>
-          {head}
-        </Link>
-      ) : onOpen ? (
+      <div className={HEAD}>
+        {href ? (
+          <Link href={href} className={cn(CLICK, PAD, 'hover:bg-hover transition-colors')}>
+            {head}
+          </Link>
+        ) : onOpen ? (
         /* BOTH HALVES ARE TARGETS AND BOTH DO THE SAME THING, which is the reference's own shape
            and the thing this component got wrong until it was measured (2026-08-31). Its card
            carries an `<a>` over the header (553x53) AND a `<button>` over the body (585x88), each
@@ -193,15 +223,17 @@ export function Widget({
            claims the gesture. A title that lights up as well would make one card look like two
            controls. `focus-visible` is untouched: a keyboard user still gets a ring, because the
            thing being suppressed is a POINTER affordance, not the target itself. */
-        <button type="button" onClick={onOpen} className={cn(HEAD, 'text-left')}>
-          {head}
-        </button>
-      ) : (
-        <div className={HEAD}>
-          {head}
-          {scope && <span className="mt-2">{scope}</span>}
-        </div>
-      )}
+          <button type="button" onClick={onOpen} className={cn(CLICK, PAD, 'text-left')}>
+            {head}
+          </button>
+        ) : (
+          <div className={cn(CLICK, PAD)}>{head}</div>
+        )}
+        {/* THE RIGHT EDGE. `shrink-0` because the control is the fixed thing and the title is the
+            elastic one - a picker that compressed to fit a long title would be a control the
+            trader cannot read. Its own right padding, since the row has none. */}
+        {scope && <span className="shrink-0 pr-5 max-md:pr-4">{scope}</span>}
+      </div>
 
       {onOpen ? (
         /* THE BODY IS THE BUTTON, and this is the reference's own arrangement rather than a

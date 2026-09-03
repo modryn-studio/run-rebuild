@@ -763,7 +763,7 @@ index or an unscoped query.
 
 | Screen | Element | Reads | Writes |
 |---|---|---|---|
-| **Today** | ~~greeting~~ *(cut 2026-09-01)* | — | — |
+| **Today** | greeting *(restored 2026-09-03; cut 2026-09-01, adopted 2026-08-31)* | account scope (`accounts`) | — |
 | | Today's read widget | `read` (latest by `session_date`) | — |
 | | Net P&L + delta + sparkline | `session` over window | — |
 | | Accounts widget: counts, "all read 2h ago" | `account` grouped by `state`; `import.uploaded_at` max per account | — |

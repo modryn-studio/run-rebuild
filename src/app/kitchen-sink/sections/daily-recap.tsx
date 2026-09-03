@@ -18,6 +18,10 @@
 
 import { Widget } from '@/components/views/today/widget';
 import { DailyRecap } from '@/components/views/today/daily-recap';
+import { NetPnl } from '@/components/views/today/net-pnl';
+import { ScopeRow } from '@/components/views/today/scope-sheet';
+import { ForcePhone } from '@/lib/use-phone';
+import { PlotSkeleton, WidgetSkeleton } from '@/components/views/today/widget-skeleton';
 import {
   RECAP_COMPARISON,
   RECAP_EMPTY,
@@ -25,8 +29,14 @@ import {
   RECAP_PLAIN,
   RECAP_STRONG,
   RECAP_THIN,
+  NET_PNL_SERIES,
+  NET_PNL_ONE,
+  NET_PNL_INTRADAY,
 } from '@/components/views/today/fixtures';
 import { Note, Row, Section } from '../_components/section';
+
+/** `trader.display_timezone`'s stand-in. DISPLAY ONLY - it labels an axis and never buckets. */
+const ZONE = 'America/Chicago';
 
 export function DailyRecapSection() {
   return (
@@ -266,7 +276,7 @@ export function DailyRecapSection() {
       </Row>
 
       <Row label="The standard" note="three header shapes, one geometry, and the hover rule">
-        <div className="grid max-w-4xl gap-4 lg:grid-cols-2">
+        <div className="grid max-w-4xl items-start gap-4 lg:grid-cols-2">
           <Widget title="Accounts" period="6 accounts" href="/accounts">
             <p className="text-body text-muted">
               A header that links out is an anchor, so it gets middle-click and copy-link-address.
@@ -323,6 +333,313 @@ export function DailyRecapSection() {
           thing with a red-to-orange gradient clipped to the glyphs whose end stop IS its icon&rsquo;s
           colour, so a flat token says it without the gradient this system bans. Measured 6.37:1 on
           light and 6.55:1 on dark.
+        </Note>
+      </Row>
+
+      <Row
+        label="Net P&L"
+        note="the first card on /today, and the reference's own chart component in a second wrapper"
+      >
+        <div className="grid max-w-4xl items-start gap-4 lg:grid-cols-2">
+          <NetPnl
+            series={NET_PNL_SERIES}
+            intradaySeries={NET_PNL_INTRADAY}
+            counted={3}
+            scopeName={null}
+            imported
+            baseDollars={150_000}
+            zone={ZONE}
+          />
+          <NetPnl
+            series={NET_PNL_SERIES}
+            intradaySeries={NET_PNL_INTRADAY}
+            counted={1}
+            /* THE SCOPED SPECIMEN. One account picked, so the trailing clause on a phone names it
+               rather than counting to one. */
+            scopeName="Tradeify 150K (...4425)"
+            imported
+            baseDollars={null}
+            zone={ZONE}
+          />
+        </div>
+        <Note>
+          <strong>Open the period menu and step through it.</strong> All seven ranges, the same
+          scale <code>/accounts</code> offers. This shipped with six and <code>1 day</code> was the
+          one missing, on the argument that the day belongs to the <code>Last session</code> card:
+          true about the <em>record</em>, false about the <em>curve</em>. It costs a second query,
+          because a 1-day series is keyed by instants and cannot be sliced out of the daily one, so
+          the page takes the same second read <code>/accounts</code> does. The default is{' '}
+          <code>1 month</code>, meaning one calendar month back from the corpus&rsquo;{' '}
+          <em>last trading day</em>: the same window <code>/accounts</code> draws under the same
+          word, from the same <code>windowStart</code>.
+        </Note>
+        <Note>
+          <strong>No &ldquo;1 week change&rdquo; after the delta.</strong> It sat ~20px from a menu
+          already reading <code>1 week</code>, which is the trader&rsquo;s own selection spelled
+          back at them. The reference prints both; this is where the port stops.{' '}
+          <code>periodLabel</code> is optional on <code>TrendIndicator</code> now, and the whole
+          trailing span disappears rather than rendering empty, or the row&rsquo;s{' '}
+          <code>gap-x-1.5</code> would leave 6px of unexplained air after the figure. The phone
+          keeps <code>periodShort</code>, because there it carries the account coverage and the
+          summary rail is a screen below the fold.
+        </Note>
+        <Note>
+          <strong>The title links to <code>/accounts</code>, not <code>/trades</code>.</strong> The
+          reference&rsquo;s <code>Net worth</code> widget points at its accounts page and its{' '}
+          <code>Transactions</code> widget points at the transactions one. The rule underneath: a
+          widget&rsquo;s title goes to the page that <em>owns its subject</em>. This figure&rsquo;s
+          subject is the accounts it is summed across; the round trips belong to{' '}
+          <code>Last session</code>.
+        </Note>
+        <Note>
+          This is <code>Plot</code>, the same component <code>/accounts</code> draws, at the same
+          275px with the same six gridlines. Read out of the reference&rsquo;s markup on 2026-09-03
+          rather than inferred: its dashboard widget and its accounts page both render{' '}
+          <code>NetWorthPerformanceChart__LineChartContainer</code> at <code>height 275</code>, and
+          only the width differs. The widget compresses by collapsing a button row into a dropdown
+          and rounding the figure, <em>not</em> by shrinking the chart. An earlier plan here
+          called for a 96px sparkline with the axes off; that was reasoned from the card&rsquo;s
+          size instead of read out of it.
+        </Note>
+        <Note>
+          <strong>A widget is not a small page, and this card shipped as one for an hour.</strong>{' '}
+          Read with <code>getComputedStyle</code> on both running apps: between the
+          reference&rsquo;s dashboard widget and its accounts page, exactly <em>one</em> thing
+          shrinks: the figure, 24px &rarr; 18px. The delta stays 16/600, the axis stays
+          12/500, the chart stays 275px, and the eyebrow is dropped. Their widget comes out{' '}
+          <strong>15px shorter</strong> than their page card. Ours shrank nothing: 26px on both, and
+          the widget was <strong>36px taller</strong> than the page card it was meant to compress.
+        </Note>
+        <Note>
+          The fix was <em>where the figure lives</em>, not a smaller font. Their widget has no
+          figure row at all. <code>CardTitle</code> IS the figure, one 18/500 ink span
+          reading <code>-$334,452 net worth</code>, with the delta in the{' '}
+          <code>Description</code> slot beside it, both inside the same <code>&lt;a&gt;</code>, and
+          the body holding nothing but the chart. So the title here is{' '}
+          <code>-$2,092.29 net P&amp;L</code> and the period slot takes the{' '}
+          <code>TrendIndicator</code>. That deleted a 30px row and its 16px gap: the card is now
+          372px against <code>/accounts</code>&rsquo; 382, which is the reference&rsquo;s own
+          relationship rather than the inverse of it.
+        </Note>
+        <Note>
+          It also <em>satisfies</em> §2a instead of bending it. The header row is now one type size
+          (18px) and hierarchy comes from ink and weight alone: ink figure, muted qualifier,
+          coloured delta. The first build put a 26px figure under an 18px title, which is two sizes
+          in one card. What deliberately does <em>not</em> shrink: the plot, the axis and the delta.
+          A widget is compact by carrying less chrome, not by printing the same chrome smaller.
+        </Note>
+        <Note>
+          <strong>The headline is all-time and the delta is windowed</strong>, which is the one
+          place this diverges from the reference on purpose. Net worth is a <em>balance</em>, so
+          Monarch can window both; P&amp;L is a <em>flow</em>, so a windowed headline IS the delta
+          and printing both prints one number twice. <code>pnl-chart.tsx</code> settled that, and a
+          card beside it may not disagree.
+        </Note>
+        <Note>
+          The second specimen has <strong>no stated account size</strong>, so the delta prints no
+          percentage rather than a confident wrong one. Null the moment <em>one</em> counted account
+          is unsized. A percentage against a partial base is a wrong number, not a partial
+          one, and it would drift toward looking right as more accounts got labelled.
+        </Note>
+        <Note>
+          <strong>The picker sits in the header&rsquo;s right edge, outside the link.</strong> That
+          is the reference&rsquo;s <code>DashboardWidget__HeaderRight</code>, a sibling of{' '}
+          <code>HeaderClickable</code>, and the reason is mechanical as much as visual: a{' '}
+          <code>&lt;button&gt;</code> inside an <code>&lt;a&gt;</code> is invalid HTML and clicking
+          the menu would navigate. The clickable is <code>flex-1</code> and carries the padding, so
+          a widget with no control renders the box it did before the slot existed. Hover the
+          three headers in &ldquo;The standard&rdquo; above and below to confirm the ground still
+          reaches the card&rsquo;s edges.
+        </Note>
+      </Row>
+
+      <Row label="Net P&L, the states that ship wrong" note="one session, no totals, and day one">
+        <div className="grid max-w-4xl items-start gap-4 lg:grid-cols-2">
+          <NetPnl
+            series={NET_PNL_ONE}
+            intradaySeries={NET_PNL_INTRADAY}
+            counted={1}
+            scopeName={null}
+            imported
+            baseDollars={50_000}
+            zone={ZONE}
+          />
+          {/* THE STATE THIS CARD SHIPPED WRONG. `imported` is true and the series is EMPTY, which
+              is what switching every account out of totals actually produces - not a shorter
+              series, an absent one. Racked as the page produces it rather than as it reads well. */}
+          <NetPnl
+            series={[]}
+            intradaySeries={[]}
+            counted={0}
+            scopeName={null}
+            imported
+            baseDollars={null}
+            zone={ZONE}
+          />
+          <NetPnl
+            series={[]}
+            intradaySeries={[]}
+            counted={0}
+            scopeName={null}
+            imported={false}
+            baseDollars={null}
+            zone={ZONE}
+          />
+        </div>
+        <Note>
+          <strong>One session</strong> draws the move off the baseline, not a floating dot, and
+          that is <code>cumulate</code>&rsquo;s zero anchor doing its job: it opens the line at the
+          axis on the day before the first one that moved, because cumulative P&amp;L before you
+          have traded <em>is</em> zero. Without it a first winning day would start partway up the
+          plot with no baseline to read it against. Every range collapses to the same two points
+          here, which is the honest answer rather than a bug.
+        </Note>
+        <Note>
+          <strong>Every account left out of totals</strong> is a state a trader can reach from{' '}
+          <code>/accounts</code> and then not understand, so the card names the switch instead of
+          reporting zero. v2 shipped the other way and its rail read +$954.99 under a chart reading
+          &minus;$26,995.06.
+        </Note>
+        <Note>
+          <strong>Day one replaces the plot rather than drawing an empty one</strong>, which is what
+          the reference does on its Investments widget. 275px of unlabelled grid is a worse answer
+          than a sentence on the one screen a new trader opens first. No button: the header is
+          already the door to <code>/trades</code>, and a call to action inside a card that is
+          already one target is a second thing to aim at. The picker is <em>absent</em>, not
+          disabled: a period control belongs only where more than one period is answerable.
+        </Note>
+        <Note>
+          And it does not <em>count</em>. No &ldquo;no imports yet&rdquo;, no days, no zero. It says
+          what the card will hold, not what is missing: the re-entry rule, and the one this
+          card was most likely to break.
+        </Note>
+      </Row>
+
+      <Row
+        label="A widget, waiting"
+        note="the loading mark for every card /today will ever hold"
+      >
+        <div className="grid max-w-4xl items-start gap-4 lg:grid-cols-2">
+          <WidgetSkeleton>
+            <PlotSkeleton />
+          </WidgetSkeleton>
+          <WidgetSkeleton scope={false}>
+            <PlotSkeleton />
+          </WidgetSkeleton>
+        </div>
+        <Note>
+          <strong>Skeleton, decided once for the whole page.</strong>{' '}
+          <code>design-system.md</code> §7 asks one question: do you know the{' '}
+          <em>shape</em> of what is arriving? On <code>/today</code> the answer is always yes, more
+          strongly than anywhere else in the app, because a widget&rsquo;s geometry is fixed by{' '}
+          <code>Widget</code> before any data exists. So there is nothing a spinner could honestly
+          stand in for. The numbers: a skeleton reads as up to <strong>50% faster</strong> at
+          identical real load times, and NN/g finds the benefit lands in the{' '}
+          <strong>400ms&ndash;3s</strong> band, which is where a two-query dashboard read sits.
+        </Note>
+        <Note>
+          §7 also bans the spinner from a navigation outright: <em>a tap that opens a screen is not
+          a request in flight, it is a surface arriving, and the wait belongs at the destination in
+          the shape of what is coming.</em> A spinner inside a card is that mistake with a card
+          around it. The spinner keeps one job in this product: inside buttons. The wordmark keeps
+          one: a cold entry into the app.
+        </Note>
+        <Note>
+          <strong>Three bars in the header, not one</strong>, because the real header holds three
+          things at fixed positions and all three exist before the data does. One wide bar would say
+          &ldquo;something arrives here&rdquo; and then reflow into three, which §7 calls out as
+          reading worse than the spinner it replaced. Widths are ragged at roughly the real
+          measures. The second specimen drops the control: not every card will have one, and the
+          reference prints <code>this month</code> as a <em>label</em> on its Goals and Recurring
+          widgets, where only one period is answerable.
+        </Note>
+        <Note>
+          <strong>Compare its height to the live card above.</strong> Every class is copied from{' '}
+          <code>widget.tsx</code> rather than approximated, and the body reads{' '}
+          <code>Plot</code>&rsquo;s own <code>--chart-h</code> values &ndash; 242px below{' '}
+          <code>sm</code>, 275 above. Round that to a convenient number and the card jumps 33px on
+          a phone at the moment the data lands, which is the reflow the skeleton exists to prevent.
+        </Note>
+        <Note>
+          On the route it is wrapped in <code>.wait-reveal</code>, which holds it invisible for
+          300ms and then fades it in over 200ms &ndash; most navigations here are prefetched and
+          land inside that window, where a mark that appears and vanishes <em>adds</em> a flicker.
+          Measured: at a 20x CPU throttle, a client navigation from <code>/accounts</code> to{' '}
+          <code>/today</code> rendered no skeleton frame at all. It is not wrapped here, because a
+          specimen you cannot see is not a specimen.
+        </Note>
+      </Row>
+
+      <Row
+        label="Net P&L on a phone"
+        note="press and drag across the chart - the header reads, not a tooltip"
+      >
+        <ForcePhone value>
+          <div className="max-w-[390px]">
+            <NetPnl
+              series={NET_PNL_SERIES}
+              intradaySeries={NET_PNL_INTRADAY}
+              counted={9}
+              scopeName={null}
+              imported
+              baseDollars={450_000}
+              zone={ZONE}
+            />
+          </div>
+        </ForcePhone>
+        <Note>
+          <strong>Hold the chart and slide.</strong> The reference&rsquo;s iOS app answers a scrub
+          in the card&rsquo;s <em>header</em> rather than with a popover: the title&rsquo;s{' '}
+          <code>net P&amp;L</code> drops, the figure becomes the hovered point&rsquo;s running
+          level, the delta recomputes against the window&rsquo;s base, and the date lands to the
+          right of it. A tooltip on a 390px chart is drawn under the thumb that summoned it, and the
+          finger covers roughly the area the panel needs.
+        </Note>
+        <Note>
+          <strong>The 1-day range is the one that had a bug.</strong>{' '}
+          <code>foldIntraday</code> anchors the session at its open with{' '}
+          <code>cents: 0</code>, so that curve describes the day&rsquo;s <em>movement</em> while
+          every other range is a slice of the cumulative series, where a point <em>is</em> the
+          running level. Read the same way, the first dot printed <code>$0.00</code>, which tells a
+          trader they are flat on the year because they are flat on the morning. The previous
+          session&rsquo;s close is added back, so the first dot reads the morning&rsquo;s balance
+          against a <code>$0.00</code> change, and the last reads the all-time total against the
+          day&rsquo;s move.
+        </Note>
+        <Note>
+          <strong>What this specimen can and cannot show.</strong>{' '}
+          <code>ForcePhone</code> overrides the <em>hook</em>, so the scrub readout and the
+          suppressed tooltip are real here. It cannot override a <em>media query</em>: the chip row
+          under the chart and the header&rsquo;s <code>filter</code> mark are{' '}
+          <code>sm:hidden</code> / <code>md:hidden</code>, which resolve against the viewport rather
+          than this box. Open <code>/kitchen-sink</code> on a real phone for those, which is why this
+          route ships to production rather than living on localhost.
+        </Note>
+      </Row>
+
+      <Row label="Which account" note="the phone sheet's rows, behind the header's filter mark">
+        <div className="border-rule max-w-[390px] overflow-hidden rounded-[var(--radius)] border">
+          <ScopeRow label="All accounts" selected onClick={() => {}} />
+          <ScopeRow label="Apex Trader Funding 50K (...4021)" selected={false} onClick={() => {}} />
+          <ScopeRow label="Take Profit Trader 100K (...3145)" selected={false} onClick={() => {}} />
+          <ScopeRow label="Tradeify 150K (...4425)" selected={false} onClick={() => {}} />
+        </div>
+        <Note>
+          <strong>The sheet itself cannot be racked</strong>, and that is a property of the sheet
+          rather than a gap: it is <code>fixed inset-0</code>, so a specimen would cover the page it
+          is specimened on. Its trigger cannot either: the mark is <code>md:hidden</code> and does
+          not render at a desktop viewport. The row is the part with states.
+        </Note>
+        <Note>
+          <strong>Second row long enough to wrap is the case to watch.</strong> Account labels are
+          composed by <code>toFacetAccount</code> and run to about 30 characters; at 390px the
+          longest of them nearly fills the row beside the tick. It truncates rather than wrapping,
+          because a two-line row in a list of one-line rows reads as a different kind of thing.
+        </Note>
+        <Note>
+          The tick is on the <strong>right</strong>, which is where every other selected row in this
+          app puts it, and the row is one type size: the selected state is carried by the mark and
+          the weight, never by a second size.
         </Note>
       </Row>
     </Section>

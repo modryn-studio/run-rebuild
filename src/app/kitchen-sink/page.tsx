@@ -31,6 +31,7 @@ import { NavRowSection } from './sections/nav-row';
 import { SheetHeaderSection } from './sections/sheet-header';
 import { DailyRecapSection } from './sections/daily-recap';
 import { FeedbackSection } from './sections/feedback';
+import { WaitingSection } from './sections/waiting';
 import { PatternsSection } from './sections/patterns';
 import { OverflowSection } from './sections/overflow';
 import { VoiceSection } from './sections/voice';
@@ -105,6 +106,7 @@ export default function KitchenSinkPage() {
         <SheetHeaderSection />
         <NavRowSection />
         <FeedbackSection />
+        <WaitingSection />
         <BrandSection />
         <InstrumentMarkSection />
         <TradesSection />

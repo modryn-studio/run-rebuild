@@ -34,7 +34,10 @@ export default function Loading() {
         <div className="border-border bg-surface h-9 rounded-[var(--radius-sm)] border" />
       </div>
 
-      <Card className="mt-4 overflow-clip max-md:-mx-4 max-md:mt-0 max-md:rounded-none max-md:shadow-none">
+      {/* THE TAPE FADES; THE SEARCH ROW ABOVE DOES NOT (2026-09-03) - the same split `/trades`'
+          own boundary makes, for the reason its note above already gives: the field is chrome, and
+          a 300ms delay on it empties the band for 300ms. */}
+      <Card className="wait-reveal mt-4 overflow-clip max-md:-mx-4 max-md:mt-0 max-md:rounded-none max-md:shadow-none">
         {/* The tape's own column header: `min-h-15`, and gone on a phone. */}
         <div className="border-rule min-h-15 items-center border-b px-5 py-2 max-md:hidden">
           <Skeleton className="mt-3 h-5 w-40" />

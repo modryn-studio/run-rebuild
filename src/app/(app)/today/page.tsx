@@ -1,9 +1,16 @@
 import type { Metadata } from 'next';
-import { requireTrader } from '@/lib/trader';
+import { requireTrader, getSessionUser } from '@/lib/trader';
 import { PAGE_COLUMN } from '@/lib/shell';
+import { SESSION_BOUNDARY_ZONE } from '@/lib/time/session';
 import { cn } from '@/lib/cn';
-import { DailyRecap } from '@/components/views/today/daily-recap';
-import { RECAP_STRONG } from '@/components/views/today/fixtures';
+import { getDailySeries, getIntradaySeries, getRoster } from '@/lib/accounts/read';
+import { toFacetAccount } from '@/lib/trades/read';
+import { readTradesFilter } from '@/lib/trades/filter';
+import { cumulate, foldIntraday, sizeBase } from '@/lib/accounts/series';
+import { sessionWindow } from '@/lib/time/session';
+import { NetPnl } from '@/components/views/today/net-pnl';
+import { Greeting } from '@/components/views/today/greeting';
+import { TodayHeader } from '@/components/views/today/today-header';
 
 export const metadata: Metadata = { title: 'Today' };
 
@@ -20,57 +27,268 @@ export const metadata: Metadata = { title: 'Today' };
  * is a real feature (`useListDrag` already does it for the roster) and it is a feature of a page
  * that has enough widgets to reorder. One widget cannot be rearranged.
  *
- * ─── NO GREETING. THE BAND SAYS `Today`, LIKE EVERY OTHER PAGE ──────────────────────────
+ * ─── THE GREETING IS BACK, AND IT IS THE ORIGINAL CODE ──────────────────────────────────
  *
- * 2026-09-01, Luke: *"we will not have a 'Good Afternoon' greeting in the header. no greeting.
- * replace the greeting with 'Today'. the name of the page. and center it. make sure it is exactly
- * consistent with the /accounts and /trades pages."*
+ * Adopted 2026-08-31, cut 2026-09-01, **RESTORED 2026-09-03** (Luke: *"we did have the greeting in
+ * the header like monarch does it. that was a fully coded implementation... we need it back and it
+ * needs to be the code we had before because i did research to find out exactly how to code the
+ * greeting to make it work properly."*).
  *
- * This reverses 2026-08-31, and the whole apparatus went with it rather than being left inert: a
- * `Greeting` component, a `SELF_TITLED` set in the shell that made this the one route rendering no
- * route title, and two helpers here (`greetingFor`, `hourIn`) whose only caller was the greeting.
- * `hourIn` was 60 lines of genuinely hard-won reasoning about `Intl` - `formatToParts` because
- * `format()` returns `"00 Uhr"` in de-DE, a market-zone fallback because an unknown IANA zone throws
- * `RangeError` on a render path - and it is deleted anyway, because a helper kept for its comments
- * is dead code with a story attached. `git log` holds it if a clock is ever needed here again.
+ * RECOVERED WITH `git show`, NOT RETYPED, and that is the whole point of the instruction. The old
+ * comment on this file argued the deletion was safe because *"a helper kept for its comments is
+ * dead code with a story attached"* - which was true about the code and wrong about the value.
+ * `hourIn` below carries three separate `Intl` failure modes, each MEASURED on this runtime rather
+ * than recalled: `format()` returning `"00 Uhr"` in de-DE (so `Number()` gives `NaN`, so the
+ * greeting reads "evening" permanently), `hour12: false` resolving to an implementation-defined
+ * cycle that has already changed once between engines, and `RangeError` from an IANA zone that
+ * stops resolving after a runtime update - a 500 on the front door, months later, for a salutation.
+ * Re-deriving that from scratch is how one of the three comes back.
  *
- * WHAT THIS BUYS IS THE THING THAT WAS ASKED FOR: the shell's own `<h1>` now titles this page, so
- * `/today` gets `text-h3` centred on a phone and `sm:text-title` static from `sm` - the same
- * element, the same classes and the same position as `/accounts` and `/trades`, rather than a
- * portalled span that only resembled them.
+ * SO THE SHELL'S `SELF_TITLED` SET CAME BACK TOO, and `/today` is again the one route that renders
+ * no route title. Without it the band prints both the greeting and the word `Today`.
  *
  * ─── WHAT IS HERE AND WHAT IS NOT ────────────────────────────────────────────
  *
- * `Your Daily Recap` only, and it is deliberately the first thing built rather than the last. The
- * three figure widgets `wireframes.md` draws - Net P&L, Accounts, Last session - are all answerable
- * from read functions that already exist (`getDailySeries`, `getRoster` + `getFreshness`,
- * `getTape` + `getDigest`). The recap is the only one with nothing behind it, so it is the only one
- * whose SHAPE is a question, and it is the one worth putting in front of a person first.
+ * ONE CARD, `Net P&L`, AS OF 2026-09-03 - the first of the six the teardown's §8 settled
+ * (`docs/monarch-dashboard-teardown.md` §A7). It is first because it is the only one of the six
+ * that needs no new data and no locked-doc amendment: `getDailySeries` already exists, and the card
+ * is what builds the grid and the picker vocabulary the other five inherit.
  *
- * ─── THE READ IS A FIXTURE, AND THE PAGE SAYS SO NOWHERE ───────────────────────────
+ * `Your Daily Recap` WAS BUILT FIRST AND IS NOT HERE. It rendered a fixture the whole time, the
+ * nightly job that would feed it is not shipping in the beta (Luke: "do not implement the nightly
+ * job wired to the reading"), and on 2026-09-03 the card itself was reset to a blank sheet: *"i
+ * want you to forget everything we have created for this and start from scratch."* The component
+ * still compiles and still renders in `/kitchen-sink`, but it has no design authority any more, so
+ * it is not one line away from coming back - it is a design session away. `§A3`.
  *
- * Deliberate. A banner reading "sample" would be the honest thing for a shipped product and the
- * wrong thing for a design pass: the question this page exists to answer is whether the card reads
- * right, and a disclaimer above it changes how it reads. **`/today` is not linked from the nav
- * until the job lands** - the sidebar's `Read` row still points at its own 404 and this route is
- * reachable by address only. That is the containment, rather than a label.
+ * `/read` IS NO LONGER A 404 (2026-09-03) - it is a placeholder that says what is coming.
+ *
+ * ─── THE WAIT IS A SKELETON, AND `loading.tsx` BESIDE THIS FILE IS THE HOUSE ANSWER ──────────
+ *
+ * Settled 2026-09-03 for EVERY card this page will hold, not just the first, because a dashboard
+ * whose cards wait in different shapes is a dashboard that flickers in six ways. `design-system.md`
+ * §7 asks one question - do you know the SHAPE of what is arriving? - and on `/today` the answer is
+ * always yes: a widget's geometry is fixed by `Widget` before any data exists. So: `Skeleton`, in a
+ * boundary that occupies the page's own boxes. Not a spinner (buttons only), not the wordmark (a
+ * cold entry into the app, which a tab-to-tab move inside a mounted shell is not).
+ *
+ * ─── THE ACCOUNT SCOPE IS THE PAGE'S, NOT A CARD'S (2026-09-03) ──────────────
+ *
+ * `?accounts=<uuid>` narrows the fold before any card sees it, so every widget on this page
+ * describes the same set of accounts. A per-card picker would let three cards disagree about what
+ * "your accounts" means, which is the fault v2 shipped as a rail reading `+$954.99` under a chart
+ * reading `-$26,995.06`. `views/today/today-header.tsx` holds the control and the reasoning;
+ * `monarch-dashboard-teardown.md` §A8 holds what is still deferred.
+ *
+ * READ THROUGH `readTradesFilter`, NOT PARSED HERE. That module already guards `accounts` against
+ * `isUuid` - and it guards it because the unguarded version was a live 500: `trade.account_id` is a
+ * `uuid` column, so `?accounts=x` made Postgres answer *"invalid input syntax for type uuid"*, the
+ * Server Component throw, and the trader meet Next's bare error screen with no `error.tsx` under
+ * `src/app` to soften it. A second parser here would be a second chance to omit that check.
+ *
+ * ─── WHY THE FOLD HAPPENS HERE AND NOT IN THE CARD ───────────────────────────
+ *
+ * `/accounts` folds its series inside `AccountsView` because that page also draws a line PER
+ * ACCOUNT and a scope chip row that re-narrows the set - the fold has to move when the chips do.
+ * This page draws one total and has no chips, so the fold is a server concern: it keeps the roster
+ * off the wire, and `Point` is `{ day, cents }`, which crosses the RSC boundary as itself with no
+ * `Date` to revive.
  */
-export default async function TodayPage() {
-  /* THE AUTH GATE, and it is the only reason this page is async now. It used to bind `trader` and
-     `user` for the greeting; neither is read any more, but the call is what refuses an unauthorised
-     request and it stays. */
-  await requireTrader();
+export default async function TodayPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const trader = await requireTrader();
+  const user = await getSessionUser();
+  const scope = readTradesFilter(await searchParams).accounts;
+
+  /* IN PARALLEL, and the roster is not optional decoration: it decides WHICH accounts the total
+     counts, which is the same rule `/accounts` applies (*"the chart counts what the totals
+     count"*). It is also the read `Accounts`, the third card, is already specced against. */
+  const [accounts, days] = await Promise.all([getRoster(trader.id), getDailySeries(trader.id)]);
+
+  /* AN ACCOUNT SWITCHED OUT OF TOTALS IS OUT OF THIS FIGURE TOO. v2 shipped the other way and its
+     rail read +$954.99 under a chart reading -$26,995.06. `hidden` is NOT a filter here: hiding
+     takes a row off the roster and keeps it in the arithmetic, which is the whole difference
+     between the two switches. */
+  const counted = accounts.filter(
+    /* THE SCOPE NARROWS BEFORE THE EXCLUSION, and both narrow before the fold. An account the
+       trader has switched out of totals stays out even when it is the one they scoped TO - the
+       switch is a statement about the arithmetic and the scope is a statement about attention, so
+       the arithmetic wins. The card's own `allExcluded` state is what says so out loud. */
+    (a) => !a.excludedFromTotals && (scope.length === 0 || scope.includes(a.id))
+  );
+  const countedIds = new Set(counted.map((a) => a.id));
+
+  /* ONE BUCKET PER SESSION, SUMMED ACROSS ACCOUNTS, THEN CUMULATED. `getDailySeries` returns
+     `(account, day)` rows already ordered by day, so the `Map`'s insertion order IS date order and
+     `cumulate` gets what it needs without a sort. */
+  const byDay = new Map<string, number>();
+  for (const d of days) {
+    if (!countedIds.has(d.accountId)) continue;
+    byDay.set(d.day, (byDay.get(d.day) ?? 0) + d.cents);
+  }
+  const series = cumulate([...byDay.entries()].map(([day, cents]) => ({ day, cents })));
+
+  /* THE SCOPED ACCOUNT'S NAME, or null. Composed through `toFacetAccount` like the pickers are, so
+     the card's trailing clause, the desktop menu's trigger and the phone sheet's ticked row are
+     three renderings of one string rather than three chances to disagree.
+     EXACTLY ONE, because that is the only case where a name is the useful fact: the filter panel
+     on `/trades` can hold two, and "2 of 10 accounts" is a count question again. */
+  const scoped = scope.length === 1 ? counted.find((a) => a.id === scope[0]) : undefined;
+  const scopeName = scoped ? toFacetAccount(scoped).firm + ' ' + toFacetAccount(scoped).short : null;
+
+  /* THE 1-DAY RANGE'S OWN READ, AND IT IS SECOND ON PURPOSE - the same shape `/accounts/page.tsx`
+     takes, for the same reason its comment gives: the session it covers is the last day anything
+     traded, which is not known until the daily fold has come back. One extra round trip for one
+     range, rather than shipping every trade the trader has ever made so the client could find the
+     day itself.
+     `endsOn` COMES FROM THE COUNTED SERIES, not from `days`. A roster whose only recent trading is
+     on an account switched out of totals would otherwise ask for a session this card draws nothing
+     in - a 1-day chart that is empty for a reason the trader cannot see.
+     FOLDED HERE rather than in the card, like the daily series: `/accounts` folds on the client
+     because its chips re-narrow the set, and this page has no chips. */
+  const endsOn = series.length > 0 ? series[series.length - 1].day : null;
+  const intradayRows = endsOn ? await getIntradaySeries(trader.id, endsOn) : [];
+  const intraday = endsOn
+    ? foldIntraday(
+        /* SCOPED BEFORE FOLDING, exactly as `byDay` is above. Folding first and filtering after
+           would leave an excluded account's trades in the total, which is the
+           chart-disagrees-with-the-rail defect arrived at through a different door. */
+        intradayRows.filter((r) => countedIds.has(r.accountId)),
+        sessionWindow(endsOn)
+      ).total
+    : [];
 
   return (
     <div className={cn(PAGE_COLUMN, 'pb-8')}>
+      {/* INTO THE HEADER BAND, where the route title would be. See `greeting.tsx`. */}
+      <Greeting text={greetingFor(user?.name ?? null, trader.displayTimezone)} />
+
+      {/* AND INTO THE BAND'S CONTROLS CELL, beside it. Scoped to accounts that HAVE trades, which
+          is the set `/trades` offers (its `getFacets` inner-joins the trade table), so the two
+          pickers cannot present different lists of the same roster. An account with no trades
+          would resolve to an empty chart under a picker that implied there was something in it. */}
+      <TodayHeader
+        accounts={accounts.filter((a) => a.trades > 0).map(toFacetAccount)}
+        selected={scope}
+      />
+
       {/* TWO COLUMNS ABOVE `lg`, ONE BELOW - the reference's own breakpoint. `items-start` so a
           short widget does not stretch to match a tall one beside it, which is what makes a
           dashboard read as a set of cards rather than a table.
           `pt-4` NO LONGER SITS UNDER A PORTALLED GREETING, so it is the page's own top gutter and
           matches what `/accounts` and `/trades` put between the band and their first card. */}
       <div className="grid grid-cols-1 items-start gap-4 pt-4 lg:grid-cols-2">
-        <DailyRecap recap={RECAP_STRONG} />
+        <NetPnl
+          series={series}
+          intradaySeries={intraday}
+          counted={counted.length}
+          scopeName={scopeName}
+          /* WHETHER ANY COUNTABLE TRADE EXISTS AT ALL, which is NOT `series.length > 0`: switching
+             every account out of totals empties the fold, and a card reading that as "nothing
+             imported" would tell a trader holding a year of tape to go upload a file. `days` is
+             already `COUNTABLE`-filtered, so this is exactly "Run holds a trade". */
+          imported={days.length > 0}
+          /* NULL THE MOMENT ONE COUNTED ACCOUNT IS UNSIZED, so the delta prints no percentage
+             rather than a confident wrong one. Computed over the same set the series was folded
+             from, or the numerator and the denominator would describe different accounts. */
+          baseDollars={sizeBase(counted)}
+          zone={trader.displayTimezone}
+        />
+        {/* The remaining five land here in build order - §A7. */}
       </div>
     </div>
   );
+}
+
+/* THE TIME-OF-DAY GREETING. `wireframes.md` §5: "both Monarch and TradeZella do it; it's a
+ * convention, adopt it."
+ *
+ * IN THE TRADER'S OWN ZONE, and this is the one place `display_timezone` is unambiguously correct
+ * to read: "good afternoon" is a fact about the person, not about the market. `CLAUDE.md`'s rule is
+ * that the zone is DISPLAY ONLY and must never reach the bucketing code, and a greeting is display
+ * in the purest sense - nothing downstream of it is a number.
+ *
+ * THE NAME IS OPTIONAL BECAUSE IT IS NULLABLE. Google supplies one and the emailed-code path does
+ * not (`schema.ts`), so half the traders who sign up have no name to greet. "Good afternoon" alone
+ * is a complete sentence; "Good afternoon, null" is the bug that ships when a nullable column is
+ * treated as a string.
+ *
+ * A STRING, NOT A COMPONENT. It is rendered by a portal into the shell's band, and the portal has
+ * to be a client component; the hour has to come from a database column the shell does not carry.
+ * So the server computes the sentence and hands it over finished, which is also what stops the HTML
+ * and the hydrated tree disagreeing about what time it is.
+ */
+function greetingFor(name: string | null, zone: string): string {
+  const hour = hourIn(zone);
+  const part = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  /* FIRST NAME ONLY. The provider hands over whatever the trader typed into Google, which is a full
+     name more often than not, and "Good afternoon, Luke Hanner" is a form letter. */
+  const first = name?.trim().split(/\s+/)[0];
+  return `Good ${part}${first ? `, ${first}` : ''}`;
+}
+
+/* THE HOUR, 0-23, AND THREE WAYS THE OBVIOUS SPELLING BREAKS.
+ *
+ * The first version was `Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false,
+ * timeZone: zone }).format(new Date()))`. Each of the three changes below has a reason, and one of
+ * them is smaller than it first looked - recorded that way rather than tidied, because the next
+ * reader deserves to know which of these is a live bug and which is defence.
+ *
+ * ─── 1. `hourCycle: 'h23'` — DEFENCE, NOT A FIX (checked, 2026-08-31) ──────────────────────────
+ *
+ * `hour12: false` does not name a cycle; it lets the implementation resolve one, and the two have
+ * historically disagreed - SpiderMonkey resolving `h23` while V8 resolved `h24`, under which
+ * MIDNIGHT FORMATS AS "24". That would have made `24 < 12` false, `24 < 17` false, and told a
+ * trader "good evening" at 00:30.
+ *
+ * **It does not reproduce here.** Run on this runtime (Node 22.19, ICU 77) across eight locales,
+ * `hour12: false` resolves to `h23` in every one and midnight formats "00". So this was not a
+ * shipped bug and the comment does not get to claim it was. `hourCycle: 'h23'` stays because it
+ * STATES the cycle rather than relying on a resolution that is implementation-defined and has
+ * already changed once. https://github.com/tc39/ecma402/issues/402
+ *
+ * ─── 2. `formatToParts`, NOT `format` — THIS ONE IS REAL ──────────────────────────────────────
+ *
+ * `format()` returns a string for human eyes and decorates it per locale. Measured on this runtime,
+ * same options, one field requested:
+ *
+ *     de-DE  "00 Uhr"      fr-FR  "00 h"      ja-JP  "0時"      ko-KR  "0시"
+ *
+ * `Number("00 Uhr")` is `NaN`, and `NaN < 12` and `NaN < 17` are both false - so the greeting would
+ * read **evening, permanently**. The old code was safe only because it pinned `'en-US'`, which is a
+ * locale hardcoded to protect a numeric parse rather than to serve a reader. `formatToParts` hands
+ * the hour back as DATA, so the parse cannot be broken by a decoration.
+ *
+ * ─── 3. AN UNKNOWN ZONE THROWS, ON A RENDER PATH ──────────────────────────────────────────────
+ *
+ * `Intl.DateTimeFormat` throws `RangeError` on a zone it cannot resolve (confirmed). `trader.ts`
+ * validates on WRITE - `isKnownTimezone` asks `Intl` rather than matching a pattern - so a bad zone
+ * cannot be stored today. But the IANA database renames and merges zones, so a row written this
+ * year can stop resolving after a runtime update, and the failure would be a 500 on the front door
+ * months later, for a greeting.
+ *
+ * IT FALLS BACK TO THE MARKET ZONE, which is the answer `trader.ts` already gives for a zone that
+ * was never detected: "the least-wrong clock to show a futures trader is the one their sessions are
+ * cut in, never a clock nobody trades on." */
+function hourIn(zone: string): number {
+  for (const z of [zone, SESSION_BOUNDARY_ZONE]) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        hourCycle: 'h23',
+        timeZone: z,
+      }).formatToParts(new Date());
+      const h = Number(parts.find((p) => p.type === 'hour')?.value);
+      if (Number.isInteger(h) && h >= 0 && h <= 23) return h;
+    } catch {
+      // Falls through to the market zone, then to noon.
+    }
+  }
+  /* UNREACHABLE unless `America/Chicago` stops resolving, which would mean the runtime has no time
+     zone data at all. Noon rather than 0: if the clock is unknowable, the least-wrong greeting is
+     the one that is right for the longest stretch of a trading day. */
+  return 12;
 }

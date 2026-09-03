@@ -633,6 +633,30 @@ export interface FacetAccount {
   accountType: AccountType | null;
 }
 
+/* AN ACCOUNT ROW BECOMES A FILTER OPTION, and it is a function rather than an inline map because
+ * `/today` reaches it too (2026-09-03). Its page-level account scope reuses `AccountSelect`, so it
+ * needs the SAME composed labels off the roster rows it already holds - and a second copy of this
+ * mapping is a second answer to "what is this account called", which is the one thing a control
+ * that mirrors a filter cannot afford. No query: it is a pure fold over columns both reads carry. */
+export function toFacetAccount(a: {
+  id: string;
+  displayName: string | null;
+  externalAccountId: string;
+  propFirm: string | null;
+  sizeDollars: number | null;
+  status: AccountStatus;
+  accountType: AccountType | null;
+}): FacetAccount {
+  return {
+    id: a.id,
+    name: accountRowTitle(a),
+    firm: a.propFirm ?? UNLABELLED_FIRM,
+    short: accountShortTitle(a),
+    status: a.status,
+    accountType: a.accountType,
+  };
+}
+
 export async function getFacets(
   traderId: string
 ): Promise<{ products: string[]; accounts: FacetAccount[] }> {
@@ -663,14 +687,7 @@ export async function getFacets(
     // disagree about what an account is called. `firm` and `short` come along for the panel's tree:
     // it groups by firm and prints the account WITHOUT the firm under it, since the row above
     // already says it.
-    accounts: accounts.map((a) => ({
-      id: a.id,
-      name: accountRowTitle(a),
-      firm: a.propFirm ?? UNLABELLED_FIRM,
-      short: accountShortTitle(a),
-      status: a.status,
-      accountType: a.accountType,
-    })),
+    accounts: accounts.map(toFacetAccount),
   };
 }
 

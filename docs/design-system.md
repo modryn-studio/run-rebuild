@@ -851,6 +851,70 @@ wait: 305ms before anything moved became one frame, and the skeleton became noth
 skeleton for data you already have is a skeleton for nothing. *(2026-08-25; the numbers are in
 `build-plan.md` S5d.)*
 
+#### The full audit, 2026-09-03 — six boundaries, one rule each
+
+Luke asked for a review of every loading surface at once, because the rules above were being applied
+one route at a time and had drifted. **What the audit found, and what changed:**
+
+| Surface | Mark | `.wait-reveal` | Verdict |
+|---|---|---|---|
+| `(app)/loading.tsx` | wordmark | **added** | correct mark: a cold entry into the app |
+| `(app)/accounts/loading.tsx` | — | — | **DID NOT EXIST.** Fell through to the wordmark. New file |
+| `(app)/accounts/details/[id]` | skeleton | **added** | correct |
+| `(app)/accounts/details/[id]/trades` | skeleton | **added**, on the card only | correct |
+| `(app)/trades/loading.tsx` | skeleton | **added**, on the column only | correct |
+| `(app)/trades/[id]/loading.tsx` | skeleton | **added**, on the sheet only | correct |
+| `(app)/today/loading.tsx` | skeleton | had it | new the same day |
+| `trades-rail-skeleton.tsx` | skeleton | had it | the only file honouring the rule |
+
+**The two real findings.**
+
+1. **`.wait-reveal` was a rule nothing followed.** It has been in `globals.css` with a paragraph of
+   reasoning since it was written, and exactly ONE component used it. Six boundaries were flashing a
+   skeleton on prefetched navigations that already felt instant - the precise failure the class
+   exists to prevent. It is now on all of them.
+2. **`/accounts` had no boundary at all**, so it answered a tab-to-tab move with the WORDMARK while
+   `/trades` beside it answered with a skeleton. The note in `trades/loading.tsx` is what hid this:
+   it asks *"why /trades needed its own and /accounts did not"* and answers correctly for the
+   question it was asking - `/trades` portals a 57px row into the shell's band and therefore JUMPED,
+   `/accounts` portals into an existing flex row and does not. That was read as "and therefore needs
+   no boundary", which does not follow. It needed none to stop a jump, and still needed one to show
+   the right mark.
+
+**Where `.wait-reveal` goes is not always the root**, and the rule is: **it wraps what is standing in
+for data, never what is chrome.** `/trades`' boundary draws the real search field, because a search
+box does not depend on the response - delaying it for 300ms would empty the header band for 300ms,
+which is the 57px jag that boundary exists to prevent. `/trades/[id]` keeps its back arrow live for
+the same reason: the one thing a trader is certain to want from a screen that has not loaded is out
+of it.
+
+#### The outside research, checked rather than assumed
+
+`playbooks/ui-ux-sources.md` was read in full and **does not cover this**. It is Emil Kowalski's body
+of work - [animations.dev](https://animations.dev), [emilkowal.ski](https://emilkowal.ski), Sonner,
+Vaul - and it is about MOTION: easing curves, transitions, when not to animate. Its only two loading
+lines are *"a faster spinner makes an app feel faster to load at identical real load times"* and
+*"keep it under 300ms"*, both already in place.
+
+A 2026 web read confirms the table above and adds one refinement worth recording:
+
+- **Skeletons are perceived as up to 30% faster** at identical real load times, via spatial priming -
+  the brain builds expectations about the boxes before the content exists. A spinner gives it nothing
+  to process but elapsed time.
+- **The band is 400ms-3s**, per NN/g's 2026 report, which is the number `.wait-reveal`'s own comment
+  already carries.
+- **Over 3s, a skeleton plus a rough estimate.** No surface in Run is near that; if one appears, this
+  is the answer rather than a bigger spinner.
+- **A small inline spinner is recommended for 100-400ms** - and Run **declines** it, because the two
+  are answering different questions. That advice is about ACTIONS, which is exactly what §7 already
+  reserves the spinner for; for a NAVIGATION the honest answer inside 300ms is nothing at all, since
+  a mark that appears and vanishes adds a flicker rather than removing one.
+
+*Sources: [Skeleton Screens vs Loading Spinners: When to Use Each](https://www.onething.design/post/skeleton-screens-vs-loading-spinners) ·
+[Skeleton Screens vs. Spinners: Optimizing Perceived Performance](https://ui-deploy.com/blog/skeleton-screens-vs-spinners-optimizing-perceived-performance) ·
+[The Psychology of Loading States](https://medium.com/@atticusli/the-psychology-of-loading-states-why-perceived-performance-matters-more-than-actual-speed-dc7e97b15dbe) ·
+[Loading States in Mobile Apps: Spinners vs Skeleton](https://www.appypie.com/blog/loading-states-mobile-apps).*
+
 **A segment that needs a boundary declares its own.** A `loading.tsx` higher up is already mounted
 once you are inside it, and React will not re-show an existing fallback during a transition — so an
 app-level boundary never fires for navigation between sibling pages.

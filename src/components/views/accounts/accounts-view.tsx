@@ -20,8 +20,7 @@ import { ChartViewProvider } from './chart-view';
 import { ScopeTabs, inScope, type Scope } from './scope-tabs';
 import type { RosterFilter } from '@/lib/accounts/roster-filter';
 import { StickyRail } from '@/components/shell/sticky-rail';
-import { sizeBase } from './trend-indicator';
-import { cumulate, foldIntraday, type Point } from '@/lib/accounts/series';
+import { cumulate, foldIntraday, sizeBase, type Point } from '@/lib/accounts/series';
 import { sessionWindow } from '@/lib/time/session';
 import type { DayPoint, RosterAccount } from '@/lib/accounts/read';
 

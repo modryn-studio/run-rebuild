@@ -36,6 +36,12 @@ export const NAV: NavEntry[] = [
   { id: 'filters', label: 'Filter rows', group: 'Components' },
   { id: 'nav-row', label: 'Sidebar', group: 'Components' },
   { id: 'feedback', label: 'Feedback', group: 'Components' },
+  /* WAITING STATES ARE THEIR OWN ROW (2026-09-03), and `Feedback` above is why: that section
+     racks the two PRIMITIVES - does a `Spinner` read on four grounds, does a `Skeleton` show on
+     a card - which is a different question from WHICH mark a surface uses and WHEN it appears.
+     The second one spans six route boundaries and four of them had drifted apart, so it needs a
+     screen where all of them are visible at once. `design-system.md` §7 is the written rule. */
+  { id: 'waiting', label: 'Waiting states', group: 'Components' },
   { id: 'brand', label: 'Brand marks', group: 'Components' },
   { id: 'instrument-mark', label: 'Instrument mark', group: 'Components' },
   { id: 'trades', label: 'Trades', group: 'Patterns' },

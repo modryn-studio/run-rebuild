@@ -123,6 +123,57 @@ export function windowChange(
 }
 
 /**
+ * THE PERCENTAGE'S DENOMINATOR, OR NULL - and null the moment ONE account in the set is unsized,
+ * rather than quietly summing the ones that are. A percentage against a partial base is a WRONG
+ * number, not a partial one, and it would drift toward looking right as more accounts got labelled.
+ *
+ * HERE RATHER THAN BESIDE `TrendIndicator`, WHICH IS WHERE IT LIVED UNTIL 2026-09-03. `/today`
+ * folds its own series on the server, and every export of a `'use client'` module becomes a client
+ * reference - so importing this from `trend-indicator.tsx` in a server component yields something
+ * that cannot be called, and `CLAUDE.md` says re-exporting does not launder it. It is a pure fold,
+ * so the plain module wins.
+ */
+export function sizeBase(accounts: { sizeDollars: number | null }[]): number | null {
+  if (accounts.length === 0) return null;
+  let sum = 0;
+  for (const a of accounts) {
+    if (a.sizeDollars === null) return null;
+    sum += a.sizeDollars;
+  }
+  return sum > 0 ? sum : null;
+}
+
+/**
+ * The window a range asks for, sliced out of a cumulative series WITH ONE POINT OF LEAD-IN.
+ *
+ * THE LEAD-IN IS THE WHOLE REASON THIS IS A FUNCTION. A window sliced at its own first day draws
+ * that day from wherever the slice happened to open rather than from the level the line was
+ * actually at, so the first session inside a month appears to start at whatever it closed at - a
+ * chart reporting a move that never happened. Keeping the last point BEFORE the window anchors it.
+ *
+ * ONE IMPLEMENTATION, TWO HOSTS (2026-09-03). This was inline in `pnl-chart.tsx` until `/today`'s
+ * `Net P&L` widget needed the same window off the same series. Two copies of a lead-in rule is
+ * exactly the drift `CLAUDE.md` names - "two code paths computing one derived value is how a
+ * product disagrees with itself" - and the reference's own answer is the same shape: one
+ * `NetWorthPerformanceChart`, two wrappers.
+ *
+ * `1d` IS NOT ANSWERABLE HERE and callers must not ask. That range is keyed by INSTANTS and comes
+ * from its own read (`getIntradaySeries` + `foldIntraday`); string-comparing a session open against
+ * a calendar date silently lands on the last two DAILY points and draws a two-point line that looks
+ * like a chart. `PnlChart` branches before this call; the widget does not offer the range at all.
+ */
+export function windowSlice(
+  series: Point[],
+  range: Range
+): { points: Point[]; start: string | null } {
+  if (series.length === 0) return { points: [], start: null };
+  const start = windowStart(range, series[series.length - 1].day);
+  if (!start) return { points: series, start: null };
+  const from = series.findIndex((p) => p.day >= start);
+  return { points: series.slice(from > 0 ? from - 1 : 0), start };
+}
+
+/**
  * The last day the line actually MOVED.
  *
  * THE TEST IS MOVEMENT, NOT PRESENCE, and v2 shipped the wrong one first: because every series is

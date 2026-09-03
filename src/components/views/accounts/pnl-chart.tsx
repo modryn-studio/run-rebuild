@@ -45,6 +45,7 @@ import { SegmentedItem } from '@/components/ui/segmented';
 import { TrendIndicator } from './trend-indicator';
 import { useChartView } from './chart-view';
 import { cn } from '@/lib/cn';
+import { usePhone } from '@/lib/use-phone';
 import { fmtMoney } from '@/lib/format';
 import type { Grain } from '@/lib/time/session';
 import {
@@ -54,7 +55,7 @@ import {
   isInstantKey,
   bucketize,
   windowChange,
-  windowStart,
+  windowSlice,
   type Point,
   type Range,
 } from '@/lib/accounts/series';
@@ -154,7 +155,11 @@ function compactMoney(cents: number): string {
 /* A DATE THE AXIS CAN AFFORD. `displayDayShort` gives "Jul 7, 2026", which is right in a rail of
  * stated facts and too long for two ends of a plot. The year comes back only when the window
  * actually crosses one — otherwise it is the same four digits printed twice, saying nothing. */
-function axisDate(day: string, withYear: boolean, zone: string): string {
+/* EXPORTED SINCE 2026-09-03 for `/today`'s `Net P&L` widget, whose phone readout names the hovered
+   point's date in the card's own header rather than in a tooltip. One formatter, because the
+   instant-versus-date branch below and the trader's-zone rule are exactly the things a second copy
+   would get wrong. */
+export function axisDate(day: string, withYear: boolean, zone: string): string {
   /* A 1-DAY POINT IS AN INSTANT, so its axis label is a CLOCK rather than a date - "Jul 21" printed
      at both ends of a session would be the same three characters saying nothing about a window
      whose whole content is the hours between them.
@@ -242,6 +247,24 @@ export function PnlChart({
     useChartView();
   const [hover, setHover] = useState<number | null>(null);
 
+  /* ─── ON A PHONE THE SCRUB READS IN THE HEADER, NOT IN A TOOLTIP (2026-09-03) ────────────────
+   *
+   * Luke: *"for consistency, i want the accounts page chart to be implemented the same in regards
+   * to the hold to show p&l, up/down value changes, and date shown instead of having pop ups."*
+   * `/today`'s widget got this first, ported from the reference's iOS app, and the argument is the
+   * same on both: a tooltip on a 390px chart is drawn under the thumb that summoned it, and the
+   * finger covers roughly the area the panel needs. The header has room, nothing is touching it,
+   * and it costs nothing because it replaces copy that is already there.
+   *
+   * `usePhone()`, NOT `usePhoneState()`, and `CLAUDE.md` says which: render off the first, ACT off
+   * the second. This picks between two renderings of one number - it navigates, writes and fetches
+   * nothing - and `usePhone()` answers `false` before the query is read, which is what keeps the
+   * server's HTML and the first client render in agreement. A scrub cannot happen before hydration.
+   *
+   * THE DESKTOP KEEPS ITS TOOLTIP. It has the room, it has a mouse, and the crosshair panel is a
+   * measured interaction with no reason to be spent. */
+  const phone = usePhone();
+
   /* THE DRAWING WIDTH, MEASURED BY THE PARENT because the PAGE depends on it: how many bars fit is a
      question about pixels, and the answer decides the slice the bars, the hit test and the labels
      all read.
@@ -266,6 +289,18 @@ export function PnlChart({
        "2026-07-20T22:00:00Z", so the slice landed on the last two DAILY points and drew a two-point
        line that looked like a chart. The fold has already windowed this one exactly. */
     if (range === '1d') {
+      /* THE SESSION'S CURVE IS ZERO-BASED AND EVERY OTHER RANGE'S IS NOT (2026-09-03).
+         `foldIntraday` anchors the day at its OPEN with `cents: 0`, so these points describe the
+         day's MOVEMENT; every other range is a slice of the cumulative series, where a point IS
+         the running level. That difference is invisible to a tooltip labelled with a date and
+         wrong the moment the phone's header prints one as a balance - the first dot would read
+         `$0.00`, telling a trader they are flat on the year because they are flat on the morning.
+         `/today`'s widget hit exactly this and Luke caught it there first.
+         THE BASE IS THE PREVIOUS SESSION'S CLOSE. `series` is cumulative and its last point is the
+         session being drawn, so the level entering it is the point before. `cumulate` opens with a
+         zero anchor dated the day before the first that moved, so index 0 is that anchor and this
+         is safe at every length. */
+      const base = series.length > 1 ? series[series.length - 2].cents : 0;
       return {
         points: intradaySeries,
         bars: [],
@@ -273,20 +308,27 @@ export function PnlChart({
         total: series.length > 0 ? series[series.length - 1].cents : 0,
         change:
           intradaySeries.length > 0 ? intradaySeries[intradaySeries.length - 1].cents : 0,
+        base,
+        abs: (p: Point) => base + p.cents,
       };
     }
     if (series.length === 0) {
-      return { points: [], bars: [], start: null as string | null, total: 0, change: 0 };
+      return {
+        points: [],
+        bars: [],
+        start: null as string | null,
+        total: 0,
+        change: 0,
+        base: 0,
+        abs: (p: Point) => p.cents,
+      };
     }
-    const endsOn = series[series.length - 1].day;
-    const start = windowStart(range, endsOn);
-    const span = dayNum(endsOn) - dayNum(series[0].day);
-
-    /* THE WINDOW IS SLICED WITH ONE POINT OF LEAD-IN, so the first day inside it draws from the
-       level it actually started at rather than from wherever the slice happened to open. */
-    const from = start ? series.findIndex((p) => p.day >= start) : 0;
-    const lead = from > 0 ? from - 1 : 0;
-    const points = start ? series.slice(lead) : series;
+    /* THE WINDOW, WITH ITS ONE POINT OF LEAD-IN, NOW LIVES IN `series.ts` (2026-09-03). It was
+       nine lines here until `/today`'s `Net P&L` widget needed the same window off the same
+       series; `windowSlice` carries the lead-in rule and the reasoning for it, so the two hosts
+       cannot drift. (A dead `span` went with it - `grainFor` has not been called from this block
+       since the Breakdown stopped being bounded by the Period menu.) */
+    const { points, start } = windowSlice(series, range);
 
     return {
       points,
@@ -302,6 +344,12 @@ export function PnlChart({
       start,
       total: series[series.length - 1].cents,
       change: windowChange(series, start).change,
+      /* THE LEVEL THE WINDOW OPENED AT, which the phone's scrub readout subtracts to get a hovered
+         point's change. Same definition the resting delta above uses, so the two cannot disagree.
+         `abs` IS THE IDENTITY HERE, because these points already ARE the running level. Naming it
+         anyway is what gives the readout one formula instead of a branch. */
+      base: windowChange(series, start).base,
+      abs: (p: Point) => p.cents,
     };
   }, [series, intradaySeries, range, kind, grain]);
 
@@ -383,6 +431,10 @@ export function PnlChart({
      would already have thrown. */
   const at = hover !== null && hover < active.length ? hover : null;
 
+  /* ONLY THE CUMULATIVE VIEW, because Breakdown has no phone control to reach it - `ChartViewProvider`
+     forces the cumulative kind below `sm` - so a scrub there is unreachable rather than unhandled. */
+  const scrub = phone && at !== null && kind === 'cumulative' ? view.points[at] ?? null : null;
+
   return (
     <Card className="p-5 max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none">
       {/* Title cluster left, controls right, both TOP-aligned — on a wide screen. Below `sm` the two
@@ -459,14 +511,32 @@ export function PnlChart({
               from the ramp and both are 500 weight, so this is a step down the scale rather than a
               size picked for one screen. The line-heights are identical (30px), so nothing below it
               moves. */}
+          {/* UNDER A SCRUBBING FINGER THE FIGURE IS THE HOVERED POINT'S RUNNING LEVEL, and the
+              eyebrow above it is already desktop-only, so nothing else in this row has to move. */}
           <span className="text-figure max-sm:text-h3 text-text font-medium tabular-nums">
-            {fmtMoney(view.total)}
+            {fmtMoney(scrub ? view.abs(scrub) : view.total)}
           </span>
           {/* TWO DIFFERENT EMPTIES, TWO SENTENCES. v2 shipped one: excluding every account empties
               `counted` too, and the card then told a trader looking at their own roster that they
               had no accounts. The second names the switch that caused it, so the way back is
               obvious. */}
-          {counted === 0 ? (
+          {scrub ? (
+            /* THE HOVERED POINT'S DELTA, WITH ITS DATE TO THE RIGHT - the reference's own
+               arrangement, landing in the slot the resting delta already occupies so the row does
+               not change height under the finger.
+               `TrendIndicator` IS REUSED rather than hand-rolled: it owns the arrow, the pos/neg
+               ink, the absent-percentage rule and the flat-is-colourless rule, and a second
+               readout deciding any of those for itself would drift from the one beside it.
+               `periodLabel` ALONE, with no `periodShort`: that component renders the label
+               unbreakpointed when the short form is absent, which is what a date wants. `axisDate`
+               handles the `1d` case, where a point is an INSTANT and its label is a clock in the
+               trader's own zone - printing "Sep 2" at both ends of one session would say nothing. */
+            <TrendIndicator
+              cents={view.abs(scrub) - view.base}
+              periodLabel={axisDate(scrub.day, false, zone)}
+              baseDollars={baseDollars}
+            />
+          ) : counted === 0 ? (
             <span className="text-body-lg max-sm:text-small text-muted font-medium">
               {series.length === 0 ? 'No accounts yet' : 'Every account is left out of totals'}
             </span>
@@ -517,6 +587,9 @@ export function PnlChart({
         {note && <p className="text-body max-sm:text-small text-muted mt-1">{note}</p>}
 
         <Plot
+          /* THE PANEL IS THE PHONE'S ONLY LOSS, and the header took its job. The crosshair, the
+             highlighted point and the whole pointer model are untouched. */
+          showTip={!phone}
           kind={kind}
           points={view.points}
           bars={page.band}
@@ -575,6 +648,8 @@ export function Plot({
   canPanBack = false,
   canPanForward = false,
   onPan,
+  className,
+  showTip = true,
 }: {
   zone: string;
   kind: Kind;
@@ -593,6 +668,22 @@ export function Plot({
   canPanBack?: boolean;
   canPanForward?: boolean;
   onPan?: (by: -1 | 1) => void;
+  /* THE CALL SITE OWNS THE POSITION (2026-09-03, added for `/today`'s `Net P&L` widget). The two
+     utilities below - `mt-4` and the phone's `-mx-4` full bleed - are this plot's position INSIDE
+     the roster card, not properties of the plot: the margin closes the gap under that card's
+     figure row, and the bleed cancels `PAGE_COLUMN`'s own 16px gutter. Neither is true inside a
+     dashboard widget, whose body brings its own padding and whose gutter is the card's.
+     Same split `design-system.md` already draws for motion - the class owns the TIMING, the call
+     site owns the DISPLACING - and the reason it is a prop rather than a wrapper div is that
+     `--axis-gutter` and `--chart-h` are declared on this element and every layer inside reads
+     them. A wrapper cannot cancel a margin without also breaking that. */
+  className?: string;
+  /* WHETHER THE HOVER PANEL IS DRAWN (2026-09-03). `/today`'s widget answers the same gesture in
+     its HEADER on a phone, which is what the reference's app does - the title swaps for the hovered
+     point's figure, its delta and its date - so a tooltip there would be the same reading twice,
+     one of them under the trader's own thumb. The hit test, the crosshair and the highlighted dot
+     are untouched: what is suppressed is the panel, not the interaction. */
+  showTip?: boolean;
 }) {
   const values = kind === 'cumulative' ? points.map((p) => p.cents) : bars.map((b) => b.cents);
   const hasData = values.length > 0;
@@ -687,7 +778,10 @@ export function Plot({
        so the measured value goes in its own variable and the responsive class does the switching.
        Both still resolve on the FIRST paint, which is why this is CSS rather than a width check. */
     <div
-      className="relative mt-4 w-full [--axis-gutter:0px] [--chart-h:242px] max-sm:-mx-4 max-sm:w-auto sm:[--axis-gutter:var(--axis-w)] sm:[--chart-h:275px]"
+      className={cn(
+        'relative mt-4 w-full [--axis-gutter:0px] [--chart-h:242px] max-sm:-mx-4 max-sm:w-auto sm:[--axis-gutter:var(--axis-w)] sm:[--chart-h:275px]',
+        className
+      )}
       style={
         {
           '--axis-w': `calc(${axisChars}ch + ${AXIS_PAD}px)`,
@@ -974,7 +1068,7 @@ export function Plot({
         {/* THE TOOLTIP IS THE LEGEND. Colour with no key is decoration, so rather than a permanent
             legend taking width beside the chart, the panel that appears on hover names the bucket
             and its figure. */}
-        {at !== null && hasData && (
+        {at !== null && hasData && showTip && (
           <Tip
             zone={zone}
             kind={kind}

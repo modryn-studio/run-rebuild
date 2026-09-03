@@ -60,7 +60,15 @@ export default function Loading() {
           wrapper, so there was nothing to cancel and the card hung 16px off each edge instead of
           reaching them. Same grid as the real page, so the skeleton occupies the boxes the page
           will rather than boxes that resemble them. */}
-      <div className={cn(PAGE_COLUMN, 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]')}>
+      {/* THE TAPE FADES; THE BAND ABOVE DOES NOT (2026-09-03). `.wait-reveal` goes here rather
+          than around the whole return, and the split is this file's own argument applied to a
+          second thing: the search row is CHROME - drawn before the data and not waiting on it - so
+          delaying it for 300ms would empty the band for 300ms, which is exactly the 57px jag this
+          boundary exists to prevent. Only the part standing in for data waits. Desktop and phone
+          both, since the fade is on the shared column rather than behind a breakpoint. */}
+      <div
+        className={cn(PAGE_COLUMN, 'wait-reveal grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]')}
+      >
         <div className="flex min-w-0 flex-col gap-4">
           <Card className="overflow-clip max-md:-mx-4 max-md:rounded-none max-md:shadow-none">
             {/* The tape's own column header: `min-h-15`, `max-md:hidden`, gone on a phone. */}
