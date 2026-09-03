@@ -1734,6 +1734,82 @@ exception attached to it.
 
 ---
 
+## The road to a public beta *(added 2026-09-03)*
+
+**The beta is PUBLIC SIGNUP** (Luke, 2026-09-03) - anyone can register. That one answer re-ranks
+everything below, because the slice order above was written against a solo dogfooding corpus and a
+closed cohort. Three things change:
+
+- **You cannot watch every user.** A failure that a closed cohort would text you about becomes a
+  silent abandonment.
+- **You cannot control the shape of their exports.** Every parser assumption meets a stranger's file.
+- **The volume risks become real**, and so do the legal ones: an erasure request has a clock on it.
+
+### Where the work actually lives now
+
+The slices above are the BUILD. The tracker is the rest, and on 2026-09-03 it stopped being a
+backlog and became a plan: `run-trading` was retired and its 77 open issues were read one by one
+against this codebase, closed, and the ten that carry live knowledge migrated here. Nothing below is
+speculative - each line is either measured in v2 or verified in this source.
+
+### 1. Blockers - a public signup exposes each of these on day one
+
+| | Why it is a blocker rather than a bug |
+|---|---|
+| [#40](https://github.com/modryn-studio/run-rebuild/issues/40) no global email send budget | Verified in `auth.ts`: per-address `claim()` is durable, per-IP is an in-memory Map, and **nothing bounds the total**. Gmail caps at 2,000/day. An attacker cycling addresses locks out every signup for 24h and takes the work inbox with it |
+| [#41](https://github.com/modryn-studio/run-rebuild/issues/41) a re-import that saves nothing confirms like a success | The same `{step.detail && failed}` line as v2. Re-uploading is the likeliest new-trader mistake, and confirming a write that did not happen contradicts the product's one claim |
+| [#1](https://github.com/modryn-studio/run-rebuild/issues/1) auth is broken on preview deployments | Still live. The per-request `baseURL` fix is DEV-only; a Vercel preview runs `NODE_ENV=production`, so it stays pinned. Preview is where a release gets looked at before real users see it |
+
+### 2. Finish `/today`
+
+Five cards left of the six (`monarch-dashboard-teardown.md` §A7). The loss line and profit target are
+**one slice, one migration** - and blocked on a `spec.md` §6 carve-out, which is a signature rather
+than work. `Set up Run` is last of the six on purpose: four of its five steps point at flows that
+must already exist.
+
+### 3. The door
+
+`run.trading` and `app.run.trading` are **one repo, one deploy, two route groups**
+([#43](https://github.com/modryn-studio/run-rebuild/issues/43)) - not a second repository. The
+design system is the argument: *"`globals.css` is the design system, and the only copy of it"*, and a
+second repo needs a copy of it or a package. The `seo` skill already models the shape, and
+`layout.tsx`'s `robots: { index: false }` already carries the note about removing it when the project
+goes public.
+
+Terms and Privacy stop being optional at public signup, and the Privacy Policy has to describe the
+erasure path - which is why [#42](https://github.com/modryn-studio/run-rebuild/issues/42) is on this
+list rather than a later one.
+
+### 4. Before real users, not before the first one
+
+[#42](https://github.com/modryn-studio/run-rebuild/issues/42) erasure at scale (measured in v2:
+130,809 rows time out, 2,500 completes - a constraint on a path this build has not written yet),
+[#49](https://github.com/modryn-studio/run-rebuild/issues/49)'s **dev database branch** (no
+dependencies; the condition under which a seed script becomes a customer-data incident), and
+[#37](https://github.com/modryn-studio/run-rebuild/issues/37) tracking on the account write paths.
+
+### Deliberately NOT before the beta, and why
+
+Ingest at scale ([#4](https://github.com/modryn-studio/run-rebuild/issues/4)), the tape's unbounded
+DOM window ([#23](https://github.com/modryn-studio/run-rebuild/issues/23)), the export's missing
+duration cap ([#25](https://github.com/modryn-studio/run-rebuild/issues/25)) and the two
+accessibility issues ([#27](https://github.com/modryn-studio/run-rebuild/issues/27),
+[#30](https://github.com/modryn-studio/run-rebuild/issues/30)).
+
+All four are real. **None of them fires at ten traders**, and all four are cheaper once `/today` has
+settled and stopped moving the surfaces they touch. Recorded here so the deferral is a decision with
+a stated trigger rather than an oversight: the trigger is the first trader with a year of tape, and
+the a11y pair should land before any public claim about accessibility is made.
+
+### What is banked rather than planned
+
+[#48](https://github.com/modryn-studio/run-rebuild/issues/48) holds eight decisions from v2 that
+would cost real thinking to re-derive - the timezone override, roster order persistence, keyboard
+drag, prefix learning, the economic calendar, the close-outcome taxonomy, generative UI, and the
+measured 56-85s desk-read latency. None is scheduled. All of them have a home.
+
+---
+
 ## What runs in parallel
 
 Per the two-plane model: this repo runs several worktree sessions; slices only parallelise where

@@ -485,6 +485,19 @@ export function DailyRecapSection() {
             baseDollars={null}
             zone={ZONE}
           />
+          {/* THE THIRD BLANK, added by the 2026-09-03 postcheck. `counted` is 1 and the series is
+              empty, which is a real scope holding nothing - NOT an exclusion, and it used to say so
+              anyway. Racked because the three read almost alike and only one of them is about a
+              switch the trader can flip. */}
+          <NetPnl
+            series={[]}
+            intradaySeries={[]}
+            counted={1}
+            scopeName="Personal (...4470)"
+            imported
+            baseDollars={null}
+            zone={ZONE}
+          />
         </div>
         <Note>
           <strong>One session</strong> draws the move off the baseline, not a floating dot, and
@@ -507,6 +520,15 @@ export function DailyRecapSection() {
           already the door to <code>/trades</code>, and a call to action inside a card that is
           already one target is a second thing to aim at. The picker is <em>absent</em>, not
           disabled: a period control belongs only where more than one period is answerable.
+        </Note>
+        <Note>
+          <strong>The third blank is a real scope holding nothing.</strong> One account picked, Run
+          holds no countable trades for it. That state used to print{' '}
+          <em>&ldquo;Every account is left out of totals. Turn one back on from Accounts&rdquo;</em>{' '}
+          over an account that is not excluded and cannot be turned back on. Only a hand-edited URL
+          reaches it (neither picker offers a no-trade account), but a sentence that is
+          correct only because of who can reach it is a trap for the next surface reading the same
+          param.
         </Note>
         <Note>
           And it does not <em>count</em>. No &ldquo;no imports yet&rdquo;, no days, no zero. It says
@@ -618,7 +640,7 @@ export function DailyRecapSection() {
       </Row>
 
       <Row label="Which account" note="the phone sheet's rows, behind the header's filter mark">
-        <div className="border-rule max-w-[390px] overflow-hidden rounded-[var(--radius)] border">
+        <div className="border-rule max-w-[390px] overflow-hidden rounded-lg border">
           <ScopeRow label="All accounts" selected onClick={() => {}} />
           <ScopeRow label="Apex Trader Funding 50K (...4021)" selected={false} onClick={() => {}} />
           <ScopeRow label="Take Profit Trader 100K (...3145)" selected={false} onClick={() => {}} />

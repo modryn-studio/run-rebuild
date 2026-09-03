@@ -639,13 +639,40 @@ before the thing it contains.
 
 ### What is still open
 
-- **The phone.** §A1 took `/today`'s mobile layout out of scope entirely, and this control is part
-  of it: `/accounts` hides its Filters button below `md` and `/trades` answers the same problem with
-  a full-screen sheet. Which of those the scope picker takes is the iOS read's call.
-- **Whether `hidden` accounts appear in it.** §7 Q3 asks the same question of the `Accounts` card
-  and the answer should be one answer, not two.
-- **Whether the scope survives to `/trades`.** Sharing the `accounts` param means it does, which is
-  either the feature or the surprise. Worth one deliberate decision before card 2 ships.
+*Two of the three closed the same day. Struck rather than deleted, so the answer is readable beside
+the question.*
+
+- ~~**The phone.**~~ **ANSWERED 2026-09-03.** It takes `/trades`' shape, not `/accounts`': a
+  `filter` mark below `md` opening a full-screen sheet (`views/today/scope-sheet.tsx`), because
+  `design-system.md` §6a makes that the rule rather than a choice. The desktop dropdown is
+  `max-md:hidden` and the mark is `md:hidden`, so exactly one is ever in the document.
+- ~~**Whether `hidden` accounts appear in it.**~~ **ANSWERED, AND IT WAS THE WRONG SWITCH TO ASK
+  ABOUT.** `hidden` takes a row off the roster and keeps it in the arithmetic, so it has no bearing
+  on a control over a figure. `excluded_from_totals` does: an account excluded from totals cannot be
+  in a figure made of totals, so the picker does not offer one. The rule, which covers the
+  no-trade filter that was already there: **a control over a figure may not offer an option that
+  cannot be in it.** Found by Luke probing the other half - *"why does the /today page not show the
+  1 personal account with no activity?"* - which was the no-trade filter working and exposed that
+  the identical argument had not been applied to exclusion.
+- **Whether the scope survives to `/trades`.** Still open. Sharing the `accounts` param means it
+  does, which is either the feature or the surprise. Worth one deliberate decision before card 2
+  ships. *(One consequence is now known: `/trades`' facets are inner-joined on the trade table, so
+  that param cannot arrive here carrying an account Run holds nothing for.)*
+
+### What the coverage line does, settled 2026-09-03
+
+`Across N accounts` appears at the `all` range and nowhere else, and the reason is not a coverage
+decision: **at `all` the change IS the figure, so a delta there would be the same money twice, and
+the slot would otherwise be empty.** It is a fallback for an empty slot. That one sentence explains
+the whole matrix, and it is why `/accounts` showing it at `All time` and not at `1 month` is
+correct rather than inconsistent.
+
+**On `/today` it is phone-only** (Luke: *"the account picker is right there in the header... and all
+the other cards will have the same effect and i dont want to have to label all the other cards this
+way as well"*). The scope here is PAGE-level, so one control in the band governs every card and a
+card labelling its own coverage repeats it - six times, once the page is full. The phone keeps the
+line because there the picker is a bare mark that names nothing, and that line is the only place a
+scoped account is ever named.
 
 ## A9 — The greeting is back, and §1's "not reopened" is void *(2026-09-03)*
 

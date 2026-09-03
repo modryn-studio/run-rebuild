@@ -166,12 +166,24 @@ export default async function TodayPage({
       {/* INTO THE HEADER BAND, where the route title would be. See `greeting.tsx`. */}
       <Greeting text={greetingFor(user?.name ?? null, trader.displayTimezone)} />
 
-      {/* AND INTO THE BAND'S CONTROLS CELL, beside it. Scoped to accounts that HAVE trades, which
-          is the set `/trades` offers (its `getFacets` inner-joins the trade table), so the two
-          pickers cannot present different lists of the same roster. An account with no trades
-          would resolve to an empty chart under a picker that implied there was something in it. */}
+      {/* AND INTO THE BAND'S CONTROLS CELL, beside it.
+          TWO FILTERS, ONE RULE: **a control over a figure may not offer an option that cannot be
+          in it.** An account with no trades resolves to an empty chart under a picker implying
+          there was something in it - and an account EXCLUDED FROM TOTALS cannot be in a figure
+          made of totals, so it resolves to the same dead end by a different door.
+          THE SECOND HALF WAS MISSING FOR A DAY (2026-09-03). Luke found it by probing the first:
+          *"why does the /today page not show the 1 personal account with no activity?"* - which is
+          the no-trades filter working, and asking the question exposed that the identical argument
+          had not been applied to exclusion. Verified before the fix:
+          `/today?accounts=<an excluded account>` rendered *"Every account is left out of totals"*,
+          an honest message under a control that had just offered the option guaranteeing it.
+          `a.trades > 0` STAYS (Luke: *"keep no-activity accounts filtered out"*). `/accounts` is
+          where a trader checks whether an import landed, and the roster shows those rows there
+          with a count of zero. */}
       <TodayHeader
-        accounts={accounts.filter((a) => a.trades > 0).map(toFacetAccount)}
+        accounts={accounts
+          .filter((a) => a.trades > 0 && !a.excludedFromTotals)
+          .map(toFacetAccount)}
         selected={scope}
       />
 

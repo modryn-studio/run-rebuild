@@ -1,3 +1,5 @@
+import { HeaderSlot } from '@/components/shell/header-slot';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PAGE_COLUMN } from '@/lib/shell';
 import { cn } from '@/lib/cn';
 import { PlotSkeleton, WidgetSkeleton } from '@/components/views/today/widget-skeleton';
@@ -47,13 +49,39 @@ import { PlotSkeleton, WidgetSkeleton } from '@/components/views/today/widget-sk
  */
 export default function Loading() {
   return (
-    <div className={cn(PAGE_COLUMN, 'pb-8')}>
-      <div className="wait-reveal grid grid-cols-1 items-start gap-4 pt-4 lg:grid-cols-2">
-        {/* `Net P&L`: a header with a period picker, and a body that is the plot. */}
-        <WidgetSkeleton>
-          <PlotSkeleton />
-        </WidgetSkeleton>
+    <>
+      {/* ─── THE BAND'S LEFT, WHICH THIS SESSION EMPTIED (found by postcheck, 2026-09-03) ───────
+       *
+       * `/today` is the one route in `SELF_TITLED`, so from `md` up the shell renders NO route
+       * title and the PAGE portals a greeting into the slot instead. A page that is suspended
+       * portals nothing - so on a desktop the band's left was blank for the whole wait and the
+       * greeting popped in when the page committed. Every other route keeps its title throughout,
+       * because the shell derives it from `usePathname()` and that never suspends.
+       *
+       * NOTHING MOVES, which is why this is a pop-in rather than the 57px jag `trades/loading.tsx`
+       * exists to prevent: the band is a fixed height and the greeting sits at its left. It is
+       * still the front door showing nothing where every sibling shows its name.
+       *
+       * `trades/[id]/loading.tsx` SET THE PRECEDENT - it portals a skeleton where its title will be,
+       * because "the title is the instrument and it is not known yet". Here the greeting is not
+       * known either: it is computed from the trader's own `display_timezone`, which is a database
+       * column the shell does not carry.
+       *
+       * `md` ONLY, and `hidden md:block` rather than `max-md:hidden` so it is absent by default:
+       * below that width the shell's own `<h1>Today</h1>` is already rendering, and a skeleton
+       * beside it would be the band saying its name twice. */}
+      <HeaderSlot slot="title">
+        <Skeleton className="hidden h-6 w-40 md:block" />
+      </HeaderSlot>
+
+      <div className={cn(PAGE_COLUMN, 'pb-8')}>
+        <div className="wait-reveal grid grid-cols-1 items-start gap-4 pt-4 lg:grid-cols-2">
+          {/* `Net P&L`: a header with a period picker, and a body that is the plot. */}
+          <WidgetSkeleton>
+            <PlotSkeleton />
+          </WidgetSkeleton>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

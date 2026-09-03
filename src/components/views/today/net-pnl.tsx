@@ -249,8 +249,22 @@ export function NetPnl({
      and neither offers the picker, because a period control belongs only where more than one
      period is answerable. */
   const nothingImported = !imported;
-  const allExcluded = imported && series.length === 0;
-  const blank = nothingImported || allExcluded;
+  /* THREE BLANKS, NOT TWO (postcheck, 2026-09-03). `allExcluded` was `series.length === 0`, which
+     is true for TWO different reasons and told one story for both: every account in scope is
+     switched out of totals, OR the scope names an account Run holds no countable trades for. The
+     second printed *"Every account is left out of totals. Turn one back on from Accounts"* over an
+     account that is not excluded and cannot be turned back on, which is a wrong sentence - the one
+     thing this product does not get to ship.
+     `counted` IS THE TELL and it was already a prop: it is the scoped, non-excluded set, so zero
+     means exclusion emptied it and non-zero with an empty series means those accounts have nothing
+     to draw.
+     REACHABLE ONLY BY A HAND-EDITED URL TODAY - neither picker offers a no-trade account, and
+     `/trades`' facets are inner-joined on the trade table so its shared `accounts` param cannot
+     carry one either. Fixed anyway: a sentence that is only correct because of who happens to be
+     able to reach it is a trap for the next surface that reads the same param. */
+  const allExcluded = imported && counted === 0;
+  const nothingInScope = imported && counted > 0 && series.length === 0;
+  const blank = nothingImported || allExcluded || nothingInScope;
 
   /* ─── THE PHONE'S SCRUB READOUT LIVES IN THE HEADER, NOT IN A TOOLTIP (2026-09-03) ───────────
    *
@@ -331,19 +345,36 @@ export function NetPnl({
             baseDollars={baseDollars}
           />
         ) : range === 'all' ? (
-          /* AT `all` THE CHANGE *IS* THE FIGURE IN THE TITLE, so a delta beside it would be the
-             same money twice. Coverage is the useful second fact there instead - `/accounts`'
-             chart reaches the identical branch for the identical reason.
-             AT EVERY WIDTH, CORRECTED 2026-09-03 (Luke: *"should there be a copy of 'Across 10
-             accounts' shown when the range is set to 'All'? like the accounts page does it"*).
-             This shipped `md:inline` for one turn, which left the phone's header showing the
-             figure ALONE at `all` while every other range showed `1 month · 10 accounts` - a row
-             that emptied itself on one option of a control, which reads as a bug rather than as
-             restraint. `/accounts` prints its coverage at every width and so does this.
-             AND IT NAMES THE ACCOUNT WHEN THERE IS ONE, the same rule the delta line follows:
-             "across 9 accounts" answers *how much of my record is this*, and once the answer is
-             one the question is *which one*. */
-          <span className="text-body-lg max-sm:text-small text-muted font-medium">
+          /* ─── AT `all` THERE IS NO DELTA, SO THE SLOT HOLDS THE COVERAGE - ON A PHONE ONLY ────
+           *
+           * WHY THE SLOT EXISTS AT ALL: at `all` the change IS the figure in the title, so a delta
+           * there would be the same money twice. `/accounts`' chart reaches the identical branch
+           * for the identical reason. The coverage is a FALLBACK FOR AN EMPTY SLOT, which is also
+           * the whole explanation of why it appears at this one range and nowhere else - it is not
+           * a coverage decision, it is a slot that has nothing else to hold.
+           *
+           * WHY THE DESKTOP DOES NOT GET IT (2026-09-03, Luke): *"on /today desktop the 'Across 9
+           * accounts' is unnecessary because the account picker is right there in the header...
+           * and all the other cards (future widget cards) will have the same effect and i dont
+           * want to have to label all the other cards this way as well."*
+           *
+           * The second half is the stronger argument and it is the one to keep: the scope on this
+           * page is PAGE-LEVEL. One control in the band governs every card, so a card that labels
+           * its own coverage is labelling something the band already said - and six cards doing it
+           * would say it six times. `/accounts` is genuinely different: its chart has no scope
+           * control of its own, and its summary rail prints `Accounts 11` beside a total covering
+           * 9, so there the sentence is the only thing reconciling them.
+           *
+           * THE PHONE KEEPS IT, and not for symmetry. Below `md` the picker is a bare `filter`
+           * mark that names nothing, so the desktop's redundancy argument does not transfer - and
+           * this line is the ONLY place a scoped account is ever named on a phone. The count is
+           * simply what the same slot says when nothing is picked.
+           *
+           * `md:hidden` IS THE PICKER'S OWN BOUNDARY, since the picker is the reason. It leaves a
+           * seam at 640-767px, where `TrendIndicator`'s phone form (`sm:hidden`) has already
+           * stopped but this has not - a known mismatch between that component's `sm` and the
+           * shell's `md` that predates this card and belongs to a breakpoint pass, not here. */
+          <span className="text-body-lg max-sm:text-small text-muted font-medium md:hidden">
             {scopeName ?? `Across ${counted} ${counted === 1 ? 'account' : 'accounts'}`}
           </span>
         ) : (
@@ -399,7 +430,14 @@ export function NetPnl({
         )
       }
     >
-      {allExcluded ? (
+      {nothingInScope ? (
+        /* THE SCOPE IS REAL AND HOLDS NOTHING. No figure above it, for the same reason the branch
+           below has none: the net across an account with no countable trades is not $0.00, it is
+           unanswerable, and printing a zero would be a number a trader could act on. */
+        <p className="text-body text-muted">
+          Run holds no trades for this account yet. Widen the scope, or import its export.
+        </p>
+      ) : allExcluded ? (
         /* THE SWITCH, NAMED. No figure above it: the net across zero counted accounts is not
            $0.00, it is unanswerable, and printing a zero would be a number the trader could act
            on. `/accounts` is where the switch lives, so the sentence says so. */
