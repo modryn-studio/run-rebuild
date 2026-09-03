@@ -61,6 +61,13 @@ const schema = z.object({
   // build is always identifiable — which is what makes a rollback verifiable rather than a
   // thing you hope happened. Optional by necessity: it does not exist on a dev machine.
   VERCEL_GIT_COMMIT_SHA: z.string().optional(),
+  /* WHICH VERCEL ENVIRONMENT THIS IS - `production` | `preview` | `development`, set by the
+     platform. NOT the same question as `NODE_ENV`, which is `production` for a PREVIEW build too,
+     and conflating them is what left sign-in broken on every preview deployment (#1). */
+  VERCEL_ENV: z.enum(['production', 'preview', 'development']).optional(),
+  /* The deployment's own host, with no protocol - `run-rebuild-git-<branch>-<scope>.vercel.app`.
+     Only ever trusted on a preview; production stays pinned to `BETTER_AUTH_URL`. */
+  VERCEL_URL: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

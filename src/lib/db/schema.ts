@@ -111,6 +111,25 @@ export const alertThrottle = pgTable('alert_throttle', {
   lastSentAt: timestamp('last_sent_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ── send_budget — how much of today's mail allowance is spent, across ALL addresses. ──
+//
+// `alert_throttle` above answers "has this key been used recently". This answers "how many times
+// today, across every key", and they are different questions - a cooldown table with a counter
+// bolted on would be one table doing two jobs, which is how the border tokens broke.
+//
+// WHY IT EXISTS (#40). The per-address claim caps one inbox; nothing capped the TOTAL. Every fresh
+// address is a fresh key, so an attacker cycling addresses walked straight through - and all mail
+// goes over Gmail SMTP capped at 2,000 recipients/day. Exhaust it and Google suspends sending for
+// up to 24 hours: nobody can sign in, and since auth mail shares the work inbox, that goes too.
+//
+// THE KEY IS A UTC DATE, and it is the one date in this codebase that deliberately does NOT come
+// from `lib/time`. Google's quota resets on Google's clock, not on a 17:00 CT trading boundary;
+// this row models the vendor's limit, not the product's day.
+export const sendBudget = pgTable('send_budget', {
+  day: text('day').primaryKey(),
+  sent: integer('sent').notNull().default(0),
+});
+
 // ─────────────────────────────────────────────────────────────────────────────────────
 // DOMAIN TABLES — add yours below this line.
 //

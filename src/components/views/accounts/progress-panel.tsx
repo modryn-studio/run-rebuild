@@ -24,6 +24,21 @@
  * on FAILURE is the diagnosis, not a tally, and stays: the trader needs to know which step broke
  * and why, not just that something did.
  *
+ * ONE SUCCESS DETAIL SURVIVES THAT CUT, AND IT IS NOT A TALLY (#41, 2026-09-03). A re-upload of
+ * files already in the corpus writes ZERO rows — correctly, the dedupe key refuses them — and every
+ * step ticked, so the panel was identical to a first import. That is not a count being hidden, it
+ * is the screen's MEANING being hidden: `Already saved` and `1,204 fills` are different kinds of
+ * fact, and only one of them changes what the trader should conclude.
+ *
+ * `notable` RATHER THAN MATCHING THE STRING. The call site already decided (`use-import-run.ts`:
+ * *"On a re-upload that is legitimately 0, and saying so is the point"*); this flag carries that
+ * decision instead of this file re-deriving it by comparing copy, which would break the moment the
+ * wording changed. The counts stay unrendered, which is the rule that was actually asked for.
+ *
+ * THE COMPLETION SCREEN ALREADY GOT THIS RIGHT — `shared.tsx` reads `imported === 0` and says
+ * `Already saved.` over the check. So the run said nothing and the confirmation said the truth,
+ * which is the wrong way round: the panel is what the trader watches.
+ *
  * Checks are the PINE accent, never green — green is reserved for money.
  *
  * The title lives in the modal header, not here.
@@ -39,6 +54,9 @@ export interface Step {
   /** Real once known: a row count on success (computed, no longer rendered — see the header), or
    *  the failure diagnosis on failure (rendered). Never a placeholder. */
   detail?: string;
+  /** Whether `detail` changes what this step MEANS rather than counting it. Set by the caller,
+   *  never inferred here — see the header. A tally is not notable; `Already saved` is. */
+  notable?: boolean;
   state: StepState;
 }
 
@@ -152,8 +170,15 @@ function Row({ step }: { step: Step }) {
         >
           {step.label}
         </span>
-        {step.detail && failed && (
-          <span className="text-small text-neg block truncate">{step.detail}</span>
+        {/* `text-muted` ON A NOTABLE SUCCESS, `text-neg` ON A FAILURE. Nothing went wrong on a
+            re-upload — the record is intact and the refusal is the dedupe key doing its job — so
+            painting it in the loss colour would report a problem the trader does not have. */}
+        {step.detail && (failed || (done && step.notable)) && (
+          <span
+            className={`text-small block truncate ${failed ? 'text-neg' : 'text-muted'}`}
+          >
+            {step.detail}
+          </span>
         )}
       </span>
     </li>

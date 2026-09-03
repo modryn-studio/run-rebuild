@@ -18,7 +18,7 @@ import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { emailOTP } from 'better-auth/plugins';
 import { count, eq } from 'drizzle-orm';
-import { sendUserEmail, otpHtml, sendNotification, notifyHtml, alertSubject, claim } from '@/lib/notify';
+import { alertSubject, claim, notifyHtml, otpHtml, sendNotification, sendUserEmail, takeSendBudget } from '@/lib/notify';
 import { db, authUser, authSession, authAccount, authVerification } from '@/lib/db';
 import { track } from '@/lib/track';
 import { env } from '@/lib/env';
@@ -83,6 +83,35 @@ const emailOtpPlugin =
 
 const isProd = process.env.NODE_ENV === 'production';
 
+/* ─── A PREVIEW IS NOT PRODUCTION, AND `NODE_ENV` CANNOT TELL THEM APART (#1, 2026-09-03) ──────
+ *
+ * Sign-in failed on every Vercel preview deployment, both paths, and the cause was one line:
+ * `isProd` is true on a preview because a preview BUILDS in production mode. So `baseURL` stayed
+ * pinned to `https://app.run.trading` and Better Auth rejected any POST from
+ * `run-rebuild-git-<branch>-*.vercel.app` with `Invalid origin` - a 403 fired BEFORE the OTP
+ * throttle hook and before any mail was attempted, so the login screen reported a generic send
+ * failure that no retry could ever fix.
+ *
+ * IT MATTERS MORE NOW THAN WHEN IT WAS FILED. `build-plan.md` adopts worktree-per-slice, so every
+ * slice produces a preview - and the beta is public signup, which makes preview the last place a
+ * release gets looked at before strangers do.
+ *
+ * `VERCEL_ENV`, NOT `VERCEL_URL`'s PRESENCE, is the discriminator. The platform sets `VERCEL_URL`
+ * on production deployments too, so keying off it would widen production's allowlist - the exact
+ * open-redirect surface the pinned string exists to close.
+ *
+ * THE GOOGLE HALF IS NOT FIXED BY THIS AND CANNOT BE. The callback URL is built from `baseURL`, so
+ * OAuth on a preview would ask Google to redirect to a host that is not a registered redirect URI,
+ * and Google does not accept wildcards. A preview can therefore do the emailed code and not
+ * Google, which is the honest outcome rather than a partial one - and it is enough to review a
+ * slice. Registering every preview host is not possible; a stable alias per branch would be, if
+ * that ever becomes worth it.
+ *
+ * WHATEVER GOES WRONG HERE IS INVISIBLE TO CURL: the origin check only runs on a request carrying
+ * a Cookie header. Reproduce in a browser or not at all. */
+const isPreview = env.VERCEL_ENV === 'preview';
+const previewUrl = env.VERCEL_URL ? `https://${env.VERCEL_URL}` : null;
+
 export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   /* IN DEVELOPMENT, baseURL IS RESOLVED PER REQUEST FROM THE Host HEADER, not pinned to one
@@ -111,9 +140,11 @@ export const auth = betterAuth({
    * PRODUCTION STAYS PINNED, on purpose — a wildcard host allowlist in production is an open
    * redirect waiting to happen. `env.BETTER_AUTH_URL` there is a plain string, and Better
    * Auth's static-string path (not this dynamic one) resolves it once at boot. */
-  baseURL: isProd
-    ? env.BETTER_AUTH_URL
-    : {
+  baseURL: isPreview && previewUrl
+    ? previewUrl
+    : isProd
+      ? env.BETTER_AUTH_URL
+      : {
         // `*.localhost:*` is here for the door/app split. Production runs the marketing site on
         // the apex and the product on `app.run.trading`; locally that shape is reachable because
         // Chrome resolves any `*.localhost` to loopback with no hosts-file edit, and Next serves
@@ -199,6 +230,31 @@ export const auth = betterAuth({
       if (!(await claim(`otp:${address}`, OTP_SEND_COOLDOWN_MINUTES))) {
         throw new APIError('TOO_MANY_REQUESTS', {
           message: 'A code was just sent. Wait a minute before asking for another.',
+        });
+      }
+
+      /* ─── THE GLOBAL BUDGET, AND IT IS A DIFFERENT QUESTION FROM THE ONE ABOVE (#40) ────────
+       *
+       * The claim above caps ONE inbox. It says nothing about how many distinct inboxes exist,
+       * and every fresh address is a fresh key - so an attacker cycling addresses walks straight
+       * through it. Gmail SMTP caps this Workspace account at 2,000 recipients/day; exhausting it
+       * suspends sending for up to 24 hours, which locks out every signup AND takes the work
+       * inbox down with it, since auth mail shares it.
+       *
+       * SECOND, NOT FIRST, and the order is deliberate: a repeat request from one address should
+       * be refused by its own cooldown WITHOUT spending a unit of the global budget. Reversing
+       * these two would let one impatient trader burn the day's allowance.
+       *
+       * `takeSendBudget` FAILS OPEN - a throttle table that is down must not take sign-in down
+       * with it - and it alerts the founder at 75% and at the cap, because when this trips it
+       * refuses legitimate signups too and that has to reach a human. See `notify.ts`.
+       *
+       * THE MESSAGE DOES NOT NAME THE CAUSE. A trader who hits this did nothing wrong and can do
+       * nothing about it; telling them a quota is exhausted invites them to retry, and telling an
+       * attacker they succeeded is worse. */
+      if (!(await takeSendBudget())) {
+        throw new APIError('TOO_MANY_REQUESTS', {
+          message: 'Sign-in codes are temporarily unavailable. Try again shortly.',
         });
       }
     }),

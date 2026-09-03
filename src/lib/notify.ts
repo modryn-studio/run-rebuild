@@ -1,7 +1,7 @@
 import 'server-only';
 import nodemailer from 'nodemailer';
 import { sql } from 'drizzle-orm';
-import { db, alertThrottle } from '@/lib/db';
+import { db, alertThrottle, sendBudget } from '@/lib/db';
 import { env } from '@/lib/env';
 import { site } from '@/config/site';
 
@@ -65,6 +65,91 @@ export async function claim(key: string, cooldownMinutes: number | 'once'): Prom
     return rows.length > 0;
   } catch {
     // Never let throttle bookkeeping suppress a real alert.
+    return true;
+  }
+}
+
+/* ─── THE GLOBAL SEND BUDGET (#40, 2026-09-03) ─────────────────────────────────────────────────
+ *
+ * `claim()` above caps how often ONE inbox can be mailed. It says nothing about how many distinct
+ * inboxes exist, and that is the gap public signup opens: every fresh address is a fresh key, so an
+ * attacker cycling addresses walks straight through it. The per-IP layer does not help either -
+ * `auth.ts` says so itself, it is an in-memory Map and on Vercel that is per serverless instance.
+ *
+ * WHAT IS ACTUALLY AT RISK. All mail goes over Gmail SMTP on the Workspace account, capped at
+ * **2,000 recipients/day**. Exhaust it and Google suspends sending for up to 24 hours: nobody can
+ * sign in, and because auth mail shares the work inbox, that inbox goes down with it. The attacker
+ * needs no account, no credentials and no sophistication.
+ *
+ * A COUNTER, NOT A COOLDOWN, WHICH IS WHY IT DOES NOT REUSE `claim()` OR ITS TABLE. That helper
+ * answers "has this key been used recently"; this answers "how many times today, across all keys".
+ * Bolting a counter onto `alert_throttle` would make one table do two jobs, which is the same
+ * second-job pattern that broke the border tokens. `send_budget` is its own row per UTC day.
+ */
+
+/* WELL UNDER GOOGLE'S 2,000, and deliberately: the cap has to leave room for everything ELSE on
+   that account - founder alerts, and real correspondence. A beta legitimately needing more than
+   800 sign-in codes in a day has outgrown Gmail SMTP, and raising this number is not the fix. */
+const DAILY_SEND_CAP = 800;
+
+/** Where the founder is told, chosen so the warning arrives while it can still be acted on rather
+ *  than as a postmortem. */
+const WARN_AT = Math.floor(DAILY_SEND_CAP * 0.75);
+
+/**
+ * Take one unit of today's global mail budget. `false` means it is spent and the caller must NOT
+ * send.
+ *
+ * ATOMIC, AND IT HAS TO BE: two instances at the cap must not both be told they may send. The
+ * increment and the read are one statement, so the decision is the database's rather than a
+ * read-then-write race between serverless instances - the same reasoning `claim()` gives.
+ *
+ * IT FAILS OPEN. A throttle table that is down must not take sign-in down with it. The budget
+ * guards against abuse; it is not a correctness requirement, and trading availability for it is
+ * the wrong bargain. `claim()` makes the identical call.
+ *
+ * THE COST OF THAT IS UNDER-COUNTING, and it was observed rather than reasoned: on the first run
+ * against a cold Neon compute one call in twelve was swallowed and the day's total came back one
+ * short. That is the trade working as intended - a transient database error lets a mail through
+ * rather than refusing a real sign-in - and it means this number is a floor, not an audit. Verified
+ * on a warm connection: ten concurrent calls land exactly ten increments, because the increment is
+ * one statement and Postgres does the arithmetic.
+ *
+ * IT ALERTS RATHER THAN FAILING QUIETLY, which is the half most likely to be got wrong. When the
+ * budget trips, legitimate signups fail too - so a tripped budget has to reach a human. The alert
+ * goes through `claim()` so a sustained attack sends one warning, not eight hundred.
+ */
+export async function takeSendBudget(): Promise<boolean> {
+  const day = new Date().toISOString().slice(0, 10);
+  try {
+    const [row] = await db
+      .insert(sendBudget)
+      .values({ day, sent: 1 })
+      .onConflictDoUpdate({
+        target: sendBudget.day,
+        set: { sent: sql`${sendBudget.sent} + 1` },
+      })
+      .returning({ sent: sendBudget.sent });
+
+    const sent = row?.sent ?? 0;
+
+    if (sent === WARN_AT || sent === DAILY_SEND_CAP) {
+      /* NOT AWAITED, and never allowed to block the decision below: this is bookkeeping about the
+         send, not part of it. `sendNotification` is already fire-and-forget and swallows its own
+         failures. */
+      void sendNotification(
+        sent >= DAILY_SEND_CAP ? 'Mail budget SPENT' : 'Mail budget at 75%',
+        `<p>${sent} of ${DAILY_SEND_CAP} sends used on ${day} (UTC).</p>` +
+          (sent >= DAILY_SEND_CAP
+            ? '<p><strong>Sign-in emails are now being refused.</strong> If this is not an attack, raise the cap or move off Gmail SMTP.</p>'
+            : '<p>If this is not expected traffic, it is probably an address-cycling attack on the sign-in form.</p>'),
+        { throttleKey: `send-budget-alert:${day}`, cooldownMinutes: 60 }
+      );
+    }
+
+    return sent <= DAILY_SEND_CAP;
+  } catch {
+    // Never let budget bookkeeping take sign-in down.
     return true;
   }
 }

@@ -282,9 +282,13 @@ export function useImportRun(options?: {
             const unit = UNIT[ev.fileType] ?? 'rows';
             /* The count is what the DATABASE took, not what the file held. On a re-upload that is
                legitimately 0, and saying so is the point. */
-            const detail = ev.imported === 0 ? 'Already saved' : `${ev.imported.toLocaleString()} ${unit}`;
+            const nothingNew = ev.imported === 0;
+            const detail = nothingNew ? 'Already saved' : `${ev.imported.toLocaleString()} ${unit}`;
             await waitForMinVisible(ev.fileType);
-            if (mark(ev.fileType, { state: 'done', detail })) activateNext();
+            /* `notable` IS THE DECISION THIS FILE ALREADY MADE, now carried rather than re-derived
+               downstream (#41). The panel renders a success detail only when it is flagged, so the
+               counts stay hidden and the one fact that changes the screen's meaning does not. */
+            if (mark(ev.fileType, { state: 'done', detail, notable: nothingNew })) activateNext();
           } else if (ev.type === 'done') {
             done = {
               imported: ev.imported,
