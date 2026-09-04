@@ -217,7 +217,30 @@ would put first: comparison to your own baseline, never to anyone else's. Not in
 three cards in §4 already carry a chart and a comparison card beside Net P&L is two charts saying
 one thing; revisit when `S10`'s subject pages give it somewhere to link.
 
-### 3.9 Transactions — `Most recent ✦ · [All transactions ▾] · 4 rows, each with live merchant + category comboboxes` → `/transactions`
+### 3.9 Transactions — `Most recent ✦ · [All transactions ▾] · 5 rows, each with live merchant + category comboboxes` → `/transactions`
+
+> **CORRECTED IN PLACE, 2026-09-04: it is FIVE rows, not four.** Re-read off the running widget
+> (`data-rbd-draggable-id="transactions"`, 585×420 at a 1280 viewport) after Luke said their count
+> was five. The original figure was a miscount, not a change in their product. It matters because it
+> is the number Run's `Last session` was sized against: five rows there, five here, and the two cards
+> come out 420px and 411px — the same object.
+>
+> **AND IT STAYS FIVE ON A PHONE** *(asked and settled 2026-09-04; Luke: "keep it at 5")*. The
+> proposal was four below `md`, on the understanding that Monarch splits 4/5 — they do not on the web,
+> and their iOS app is a separate read this doc does not cover (`§A1`). Measured at 390×844 before
+> deciding: the scroll area is **723px**, the page is **903px**, so there is 180px of scroll. Dropping
+> a row saves **52px** — the page still scrolls, and the card still does not fit one screen. It would
+> trade a trade for 6% of a page you scroll either way.
+>
+> Three things settled it beyond the arithmetic. The two cards are **397px and 411px**, so they read
+> as a pair, and cutting a row makes the one carrying the content the shorter of them. The phone is
+> where a trader checks after a session, and this card's job is VERIFICATION — showing less of the
+> session on the device they check on is backwards. And one number is one rule: a 4/5 split is a
+> breakpoint to remember, for nothing.
+>
+> **The 14px difference between the two widths is not a row.** It is the header wrapping to two lines
+> (`max-md:flex-col` in `widget.tsx`), which is designed behaviour. Mobile height is a header
+> question, and a row count cannot answer it.
 
 The atomic record, newest first, **editable in place**. Exists so the dashboard is somewhere you can
 *do* the daily chore (categorise) without navigating; for the user it is the inbox.
