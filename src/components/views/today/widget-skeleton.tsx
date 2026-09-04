@@ -40,7 +40,7 @@ import { Skeleton } from '@/components/ui/skeleton';
  * bar would say "something arrives here" and then reflow into three, which §7 calls out as reading
  * worse than the spinner it replaced.
  *
- * RAGGED WIDTHS, at roughly the real measures: `-$2,092.29 total P&L` is a long string, a delta with
+ * RAGGED WIDTHS, at roughly the real measures: `-$2,092.29 net P&L` is a long string, a delta with
  * its percentage is about half of it, and the picker is a fixed control. §7: *"a column of identical
  * bars reads as a placeholder graphic, an uneven one reads as text that has not arrived."*
  *

@@ -67,7 +67,6 @@ export function TradesTape({
   narrowed,
   rest,
   title,
-  hasFees,
   fixedColumns,
   action,
   emptyAction,
@@ -96,7 +95,6 @@ export function TradesTape({
      their firm's dashboard needs to know which of the two they are reading. `undefined` means the
      caller is not making the claim - `/trades` answers it in the summary rail's own label instead,
      and two places saying it would be the same fact twice. */
-  hasFees?: boolean;
   /* THE COLUMN SET, WHEN THE PAGE DECIDES IT RATHER THAN THE TRADER (`S6d`, ported from v2's
      `TradesCard`). Passing it hides exactly these columns AND removes the Columns control, because
      on such a page there is nothing left to choose.
@@ -336,10 +334,10 @@ export function TradesTape({
             correctness rather than tidiness — which leaves this header carrying only `ColumnsMenu`
             on the current one-account corpus. That is the honest state of it, not an oversight. */}
         {title && <h2 className="text-title text-text font-medium">{title}</h2>}
-        {/* Only when it is FALSE. `undefined` is "not my claim to make"; `true` is a fact the label
-            over the figures already carries, and repeating "Net" over a tape of net figures is the
-            noise the same rule removed from the chart's own note. */}
-        {hasFees === false && <span className="text-body text-muted">Gross, no fees imported</span>}
+        {/* THE FEE LINE IS GONE (2026-09-04). It read *"Gross, no fees imported"* beside the word
+            `Trades`, and `hasFees === false` is now only true for an account with no trades - so the
+            one place it rendered was a header above an empty table, qualifying figures that were not
+            there. The argument is on `label` in `pnl-chart.tsx`. */}
         <AccountSelect accounts={accounts} selected={selectedAccounts} />
         {/* THE COUNT CAME OUT (2026-08-20). It read "360 trades" here, and the summary rail beside
             it already says `Trades 360` off the same filtered set - `getDigest` and the tape count

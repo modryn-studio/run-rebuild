@@ -98,8 +98,13 @@ export async function POST(req: Request): Promise<Response> {
 
     /* GROSS, FEES AND NET AS THREE COLUMNS rather than one. A prop account passes or fails on net,
        and a trader checking this against their firm's dashboard needs to see which of the two
-       numbers they are looking at — the same reason the rail's total says "Gross P&L" rather than
-       quietly showing gross under a net label. */
+       numbers they are looking at.
+       AND THIS IS NOW THE ONLY PLACE THE SPLIT LIVES, beside the trade panel's own `RESULT` ledger
+       (2026-09-04). The rails used to flip their label to "Gross P&L" when no Cash History covered
+       the range; they say "Net P&L" unconditionally now, because `preflight.ts` blocks a fee-less
+       import. Luke: *"sometimes they will want to see gross, fees, and net. when they want to see a
+       breakdown like in the csv downloaded file and the trade details side panel."* This is that
+       file. */
     const rows: (string | number | null)[][] = [
       [
         'Date',

@@ -213,7 +213,7 @@ export function PnlChart({
   series,
   counted,
   baseDollars,
-  label = 'Total P&L',
+  label = 'Net P&L',
   note,
   showCoverage = true,
 }: {
@@ -231,9 +231,41 @@ export function PnlChart({
      shape - `SubjectPage` passes `chartLabel`, `chartNote` and `showCoverage` and the card is
      otherwise identical, because "a subject page whose chart card could be swapped out would not be
      one page any more". Three props rather than a fork. */
-  /** The eyebrow. `Total P&L` on a roster; on one account it says whether fees are in the figure. */
+  /* ─── THE EYEBROW IS `Net P&L`, UNCONDITIONALLY, ON EVERY PAGE (2026-09-04) ──────────────────
+   *
+   * IT USED TO SAY THREE DIFFERENT THINGS. `Total P&L` on the roster - because a rollup across
+   * accounts whose fee coverage could differ was not entitled to the word `net` - and
+   * `Net P&L` / `Gross P&L` on one account, where there was one answer to give. Luke ended it:
+   * *"it should say Net P&L throughout ... all traders really want to see net p&l most of the time.
+   * sure sometimes they will want to see gross, fees, and net. when they want to see a breakdown
+   * like in the csv downloaded file and the trade details side panel."*
+   *
+   * THIS RETIRES A RULE RATHER THAN IGNORING ONE. The rule was *"any surface showing a net figure
+   * states whether fees were imported"*, and it was right when written: a fee-less import made net
+   * equal gross and both understated cost. `preflight.ts` then made `fees_empty` and `fees_partial`
+   * BLOCKING findings, so such an import cannot land - which left the `Gross` branch unreachable
+   * for any account that holds a trade.
+   *
+   * WHAT IT STILL REACHED WAS THE EMPTY CASE, AND THERE IT WAS WRONG. `hasFees` is `feeRows > 0`,
+   * so an account with NO TRADES has no fee rows and reads as "fees are missing" - one flag, two
+   * meanings. Read live on 2026-09-04: every account on the roster holding trades said `Net`, and
+   * the only `Gross P&L` in the whole app sat over `$0.00` on an account with zero trades, beside a
+   * note telling the trader to import fee data for sessions that do not exist. Luke: *"why are we
+   * saying 'no fee data imported' on accounts that have no data? net P&L would be zero for an
+   * account with no info. what does fee data have to do with anything?"*
+   *
+   * THE BREAKDOWN KEEPS ITS PLACES, and both already existed: the trade detail panel's `RESULT`
+   * ledger (Gross / Fees / Net) and the trades CSV's own `Gross`, `Fees`, `Net` columns. A label
+   * answers *what is this number*; a breakdown answers *what is it made of*, and only the second
+   * needs three rows.
+   *
+   * `hasFees` STAYS IN `getProvenance` AND LEAVES THE UI. It costs nothing, it is an honest
+   * provenance fact, and it is what a broker adapter arriving without fee data would need on the day
+   * the sentence has to come back. What is deleted is the branch, not the knowledge. */
   label?: string;
-  /** The line under the figure. Say what the number is net OF, since that is what it raises. */
+  /* THE LINE UNDER THE FIGURE. Nothing passes it any more - `account-detail-view.tsx` used it for
+     the fee-absent note that went with the branch above. Kept because the slot is the right shape
+     for the next thing a subject page has to qualify. */
   note?: string;
   /* "Across N accounts". OFF for a single subject, and not because it is redundant - because it is
      the wrong KIND of sentence. Coverage describes a SET, and `Across 1 account` on a page that IS

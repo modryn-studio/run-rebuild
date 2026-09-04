@@ -173,13 +173,16 @@ export function AccountRail({
           {/* THE SAME FIGURE THE CHART IS DRAWING, so the two cannot disagree. The `of` form does
               not work for money - "$907.96 of $521.60" is nonsense when a filtered subset exceeds
               the whole - so the label carries the qualifier instead. */}
+          {/* `Net P&L`, UNCONDITIONALLY (2026-09-04), which is also why the comment above about a
+              rollup not being entitled to the word is now history rather than rule. See `label` in
+              `pnl-chart.tsx` for the argument; `hasFees` left the UI and stayed in the data. */}
           {/* OFF ON A PHONE (2026-08-28). The chart states this exact figure 300px above, and the
               `, filtered` half of the label is about a Filters control that does not exist at this
               width - it moved to `/accounts/details/<id>/trades`, which is the screen with a list
               worth narrowing. A row that restates the headline under a qualifier that can never be
               true is two kinds of noise at once. */}
           <Line className="max-md:hidden"
-            label={`${provenance.hasFees ? 'Net P&L' : 'Gross P&L'}${view ? ', filtered' : ''}`}
+            label={`Net P&L${view ? ', filtered' : ''}`}
           >
             <span className="text-text tabular-nums">
               {signed(view ? view.netCents : account.netCents)}

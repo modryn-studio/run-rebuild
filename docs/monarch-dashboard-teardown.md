@@ -955,3 +955,63 @@ still narrowed to that account. That is the status quo, it is defensible, and it
 **It does not block the build.** Card 2 ships on the current behaviour; the decision is a one-line
 change either way whenever Luke wants it. What would force it sooner: the moment a card links
 somewhere that would be WRONG under the inherited scope.
+
+## A12 — It is `Net P&L`, everywhere, unconditionally. `§A10` and `§A11`'s copy rule are both reversed *(2026-09-04)*
+
+**Struck: `§A10` in full, and `§A11`'s "the copy rule" section.** They settled on `Total P&L` — first
+for `/today`'s card, then app-wide. Luke reversed it the same day, after seeing every remaining site
+outlined on the live app:
+
+> *"well now im thinking it should say Net P&L throughout. and why are we saying 'no fee data
+> imported' on accounts that have no data? that is unnecessary copy. net P&L would be zero for an
+> account with no info. what does fee data have to do with anything? all traders really want to see
+> net p&l most of the time. sure sometimes they will want to see gross, fees, and net. when they want
+> to see a breakdown like in the csv downloaded file and the trade details side panel for example."*
+
+**This is a better answer than either of the two it replaces, and the reason is that showing the
+sweep is what produced it.** `§A10` chose `Total` because a rollup could not honestly claim `net`.
+`§A11` extended that app-wide. Both were reasoning about a hazard — accounts whose fee coverage
+differs — without checking whether the hazard could still occur.
+
+### The three findings that settle it, in the order they arrived
+
+1. **The `Gross` branch is unreachable on any account that holds a trade.** `preflight.ts` makes
+   `fees_empty` and `fees_partial` **blocking** findings, so a fee-less file cannot land. Every
+   surface that flipped its label was defending against an import the intake refuses.
+2. **What it was still reaching was the EMPTY case, where it was wrong.** `hasFees` is
+   `feeRows > 0`, so an account with **no trades** has no fee rows and reads as *"fees are
+   missing"* — one flag, two meanings. Read live: the only `Gross P&L` in the whole app sat over
+   `$0.00` on an account with zero trades, beside a note telling the trader to import fee data for
+   sessions that do not exist, and a header reading *"Gross, no fees imported"* above an empty table.
+3. **The breakdown already had two homes**, so nothing is lost by deleting the label's variance: the
+   trade detail panel's `RESULT` ledger (Gross / Fees / Net) and the trades CSV's own `Gross`,
+   `Fees`, `Net` columns. A label answers *what is this number*; a breakdown answers *what is it made
+   of*, and only the second needs three rows. Luke named both before either was checked.
+
+### What changed
+
+| Where | Was | Now |
+|---|---|---|
+| `/today` — the card's title | `total P&L` *(one commit old)* | **`net P&L`** |
+| `/accounts` — chart eyebrow | `Total P&L` | **`Net P&L`** |
+| `/accounts` — Summary rail row | `Total P&L` *(since 2026-08-26)* | **`Net P&L`** |
+| `/accounts/details` — chart eyebrow | `Net P&L` / `Gross P&L` | **`Net P&L`** |
+| `/accounts/details` — Summary rail row | `Net P&L` / `Gross P&L` | **`Net P&L`** |
+| `/trades` — Summary rail row | `Net P&L` / `Gross P&L` | **`Net P&L`** |
+| Roster CSV column | `Net P&L` | unchanged |
+
+**Two strings deleted outright:** the chart note *"No fee data imported for this account yet."* and
+the tape header's *"Gross, no fees imported."*
+
+**`hasFees` left the UI and stayed in the data.** `getProvenance` and `getDigest` still compute it;
+`AccountDetailView` and `TradesTape` no longer take it as a prop, and three call sites stopped
+threading it. It costs nothing where it is, it is an honest provenance fact, and it is what a broker
+adapter arriving without fee data would need on the day the sentence has to come back. **What was
+deleted is the branch, not the knowledge.**
+
+### The rule that retired, said plainly so it is not re-derived
+
+`spec.md` §S3's *"any surface showing a net figure states whether fees were imported"* was correct
+when written and is now **satisfied at the intake instead of at the label**. The import cannot
+produce a figure the label would have to qualify. If a future adapter can, the disclosure comes back
+— and `hasFees` is still there to drive it.

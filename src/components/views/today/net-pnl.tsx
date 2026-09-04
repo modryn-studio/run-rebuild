@@ -72,7 +72,7 @@
  * which is very close to the 36px this card was over by.
  *
  * SO THE TITLE IS THE FIGURE HERE TOO, and `Widget` needed no new prop: `title` takes
- * `-$2,092.29 total P&L` and `period` takes the `TrendIndicator`. It also SATISFIES
+ * `-$2,092.29 net P&L` and `period` takes the `TrendIndicator`. It also SATISFIES
  * `design-system.md` §2a rather than bending it - the header row is now ONE type size (18px), and
  * hierarchy comes from ink and weight alone: ink figure, muted qualifier, coloured delta. The
  * first build put a 26px figure under an 18px title, which was two sizes in one card.
@@ -270,7 +270,7 @@ export function NetPnl({
    *
    * Luke, from the reference's iOS app: *"monarch does not show a pop up on the chart when user
    * presses and slides to see each point on the chart. instead of a pop up, the header changes
-   * state. so the copy 'net P&L' [now `total P&L`] would disappear when user tap and holds the chart on mobile. then
+   * state. so the copy 'net P&L' would disappear when user tap and holds the chart on mobile. then
    * the price would change depending on which dot on the chart the user is on. then the money
    * up/down would also change with where the user is positioned on the chart. and the date would
    * show to the right of the up/down amount."*
@@ -328,10 +328,10 @@ export function NetPnl({
      is exactly what the reference does: the words are what the readout replaces, because two
      numbers and a noun do not fit a 375px row. */
   const title = blank
-    ? 'Total P&L'
+    ? 'Net P&L'
     : scrub
       ? fmtMoney(view.abs(scrub))
-      : fmtMoney(view.total) + ' total P&L';
+      : fmtMoney(view.total) + ' net P&L';
 
   return (
     <Widget
@@ -485,7 +485,7 @@ export function NetPnl({
            AND IT DOES NOT COUNT. No "no imports yet", no days, no "0 sessions" - `CLAUDE.md`'s
            re-entry rule. It names what the card will hold, not what is missing. */
         <p className="text-body text-muted">
-          Import a Tradovate export and your total P&amp;L lands here, reconciled to the cent.
+          Import a Tradovate export and your net P&amp;L lands here, reconciled to the cent.
         </p>
       ) : (
         /* THE BODY IS THE CHART, FULL STOP - the reference's `AccountsDashboardWidget__Body` holds

@@ -172,7 +172,6 @@ export default async function AccountDetailPage({
          client whether or not it is spelled that way — so it is spelled that way. */
       intradayRows={intraday.map((r) => ({ ...r, at: r.at.toISOString() }))}
       zone={trader.displayTimezone}
-      hasFees={provenance.hasFees}
       filters={{ applied, products: productOptions, results: resultOptions, facetRows: own }}
       rail={
         <AccountRail
@@ -201,7 +200,6 @@ export default async function AccountDetailPage({
              says the word and here it says the account. v2's `TradesCard` carries the same title on
              the same page for the same reason. */
           title="Trades"
-          hasFees={provenance.hasFees}
           /* THE ONE CONTROL ON THIS PAGE THAT ADDS ROWS, in the header of the table it fills
              (2026-09-02). SCOPED: launched from this account's page, so it carries the trader's
              assertion that the files belong to THIS row - the only signal permitted to fill in a

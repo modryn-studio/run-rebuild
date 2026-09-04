@@ -51,7 +51,7 @@ function summarize(all: RosterAccount[]): Line[][] {
   const counted = all.filter((a) => !a.excludedFromTotals);
 
   if (all.length === 0) {
-    return [[{ label: 'Accounts', value: '0' }], [{ label: 'Total P&L', value: fmtMoney(0) }]];
+    return [[{ label: 'Accounts', value: '0' }], [{ label: 'Net P&L', value: fmtMoney(0) }]];
   }
 
   const groups: Line[][] = [];
@@ -72,16 +72,16 @@ function summarize(all: RosterAccount[]): Line[][] {
 
   const made: Line[] = [
     {
-      /* `Total P&L`, NOT `Net P&L` (2026-08-26). The chart directly above this rail carries the
-         eyebrow TOTAL P&L over the identical figure, so the page was calling one number two things
-         within 300px of itself. v2 says Total in both places.
-         `/trades` keeps `Net P&L` for a real reason that does not apply here: it flips to
-         `Gross P&L` when no Cash History covers the range, which is how that page satisfies "any
-         surface showing a net figure states whether fees were imported". This rail is a roster
-         rollup across accounts whose fee coverage can differ per account, so one label cannot make
-         that claim honestly for all of them - the per-account answer belongs on `/accounts/details`,
-         where there IS one account to answer for. */
-      label: 'Total P&L',
+      /* `Net P&L` (2026-09-04). It said `Total P&L` from 2026-08-26, and the reason was sound at the
+         time and is recorded here because it is the thing that changed: a roster rollup spans
+         accounts whose fee coverage could DIFFER, so no single label could honestly claim `net` for
+         all of them, and `Total` claimed only the arithmetic.
+         WHAT RETIRED IT is that fee coverage can no longer differ - `preflight.ts` blocks a fee-less
+         import outright, so every account holding a trade holds its fees. The full argument is on
+         `label` in `pnl-chart.tsx`, and the half that matters here is that the chart 300px above now
+         says `Net P&L` too, so the two still agree. That was the original complaint and it is still
+         satisfied - by both saying `net` rather than by both saying `total`. */
+      label: 'Net P&L',
       value: signed(counted.reduce((n, a) => n + a.netCents, 0)),
       strong: true,
     },

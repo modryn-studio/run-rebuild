@@ -149,7 +149,6 @@ export default async function AccountTradesPage({
       />
 
       <TradesTape
-        hasFees={digest.hasFees}
         /* THE PAGE OWNS ITS COLUMNS, so the Columns control does not render. Account goes because
            every row belongs to the one account this screen IS. Same call the details page makes. */
         fixedColumns={['account']}

@@ -36,7 +36,6 @@ export function AccountDetailView({
   days,
   intradayRows,
   zone,
-  hasFees,
   filters,
   rail,
   tape,
@@ -54,7 +53,6 @@ export function AccountDetailView({
   /* WHETHER A FEE LINE COVERS THIS ACCOUNT, which decides whether the chart's eyebrow may say NET.
      `/trades` makes the same call for its window and `accounts-rail.tsx` defers the per-account
      answer to this page, because a roster rollup spans accounts whose coverage can differ. */
-  hasFees: boolean;
   /** Everything the band's `Filters` control needs. Passed straight through rather than read here:
    *  this component owns the chart's view state and nothing else. */
   filters: {
@@ -115,20 +113,20 @@ export function AccountDetailView({
             facetRows={filters.facetRows}
           />
         }
-        /* THE EYEBROW STATES WHETHER FEES ARE IN THE FIGURE, which is the claim `/trades` makes for
-           its window and the roster cannot make for its rollup. One account, one honest answer. */
-        chartLabel={hasFees ? 'Net P&L' : 'Gross P&L'}
-        /* A NOTE ONLY WHEN THE NUMBER IS NOT WHAT IT LOOKS LIKE (2026-08-27, Luke: "why do we have
-           'Net of commissions and fees on this account'. i think that is unnecessary copy. of
-           course it is p&l with commissions and fees included. when is it ever always?").
-           He is right, and v2 reached the same place from the other side: NET is the rule for every
-           money figure in Run, so saying it under one card is noise rather than information - and
-           the eyebrow directly above already says the word. GROSS is the exception, and it earns a
-           sentence because it changes what the number MEANS: fees are missing, and nothing else on
-           the page would tell you why the figure is bigger than the broker's. v2 keeps its note on
-           the subject pages for exactly this case and removed it from the roster for exactly the
-           other. */
-        chartNote={hasFees ? undefined : 'No fee data imported for this account yet.'}
+        /* `Net P&L`, UNCONDITIONALLY (2026-09-04). This used to branch on `hasFees`; the whole
+           argument for retiring that branch is on `label` in `pnl-chart.tsx`. Short version: the
+           import path now blocks a fee-less file, so `Gross` was unreachable on any account with
+           trades and was reaching only the EMPTY one, where it read as a fee problem. */
+        chartLabel="Net P&L"
+        /* THE FEE NOTE IS GONE (2026-09-04, Luke: *"why are we saying 'no fee data imported' on
+           accounts that have no data? that is unnecessary copy."*). It read *"No fee data imported
+           for this account yet"*, and it was reachable on exactly one kind of account: one with no
+           trades at all - where it answered a question about costs that the trader had not incurred.
+           The case it was WRITTEN for - fees genuinely missing from real trades - has been
+           unreachable since `preflight.ts` made `fees_empty` blocking.
+           ITS 2026-08-27 ARGUMENT STILL STANDS AND IS WHY NOTHING REPLACES IT. Luke, then: *"of
+           course it is p&l with commissions and fees included. when is it ever always?"* NET is the
+           rule for every money figure in Run, so a sentence saying so under one card is noise. */
         /* OFF. "Across 1 account" is a sentence about a set, and this page is one account. */
         showCoverage={false}
         series={series}

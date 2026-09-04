@@ -293,7 +293,7 @@ export function DailyRecapSection() {
               A header with nowhere to go is a button. Same box, same target, different element.
             </p>
           </Widget>
-          <Widget title="Total P&L" period="Last 30 days">
+          <Widget title="Net P&L" period="Last 30 days">
             <p className="text-body text-muted">
               A widget whose subject has no page is not interactive at all, rather than a link to
               nothing.
@@ -422,7 +422,7 @@ export function DailyRecapSection() {
           reading <code>-$334,452 net worth</code>, with the delta in the{' '}
           <code>Description</code> slot beside it, both inside the same <code>&lt;a&gt;</code>, and
           the body holding nothing but the chart. So the title here is{' '}
-          <code>-$2,092.29 total P&amp;L</code> and the period slot takes the{' '}
+          <code>-$2,092.29 net P&amp;L</code> and the period slot takes the{' '}
           <code>TrendIndicator</code>. That deleted a 30px row and its 16px gap: the card is now
           372px against <code>/accounts</code>&rsquo; 382, which is the reference&rsquo;s own
           relationship rather than the inverse of it.
@@ -618,7 +618,7 @@ export function DailyRecapSection() {
         <Note>
           <strong>Hold the chart and slide.</strong> The reference&rsquo;s iOS app answers a scrub
           in the card&rsquo;s <em>header</em> rather than with a popover: the title&rsquo;s{' '}
-          <code>total P&amp;L</code> drops, the figure becomes the hovered point&rsquo;s running
+          <code>net P&amp;L</code> drops, the figure becomes the hovered point&rsquo;s running
           level, the delta recomputes against the window&rsquo;s base, and the date lands to the
           right of it. A tooltip on a 390px chart is drawn under the thumb that summoned it, and the
           finger covers roughly the area the panel needs.

@@ -104,18 +104,25 @@ export function TradesRail({
 
         <Group />
 
-        {/* THE LABEL CHANGES WITH THE TRUTH. `spec.md` §S3: a surface showing a net figure must say
-            whether fees were imported for that range, because the alternative is a gross number
-            wearing a net label — and on the reference export the fees exceeded the gross loss. */}
+        {/* ~~THE LABEL CHANGES WITH THE TRUTH~~ - retired 2026-09-04, and kept because it is the
+            rule that changed rather than a comment that rotted. `spec.md` §S3 said a surface showing
+            a net figure must say whether fees were imported for that range, since the alternative is
+            a gross number wearing a net label - and on the reference export the fees exceeded the
+            gross loss. `preflight.ts` now BLOCKS such an import, so the label cannot lie. */}
         {/* NO SEPARATE FEES ROW, matching v2 (2026-08-19). Fees are carried by this LABEL, not by a
-            line of their own: the label is already the load-bearing statement (`Net` means costs
-            are in the figure, `Gross` means they are not), so a Fees row underneath restates what
-            the word above it just said.
+            line of their own: the label was the load-bearing statement (`Net` meant costs
+            were in the figure, `Gross` meant they were not), so a Fees row underneath restated what
+            the word above it just said. STILL NO FEES ROW now that the label no longer varies: the
+            breakdown has two homes already, the trade panel's `RESULT` ledger and the CSV's own
+            Gross/Fees/Net columns, and neither is a rail.
             AND NO FOOTNOTE EITHER (2026-08-25). A sentence used to sit under this ledger reading
             "No Cash History covers these trades, so every figure here is before costs" - the same
             fact a third time, in prose, in a card made of rows, using a filename the trader has to
-            already know. `Gross P&L` says it, and it says it in the place the number is. */}
-        <Line label={digest.hasFees ? 'Net P&L' : 'Gross P&L'}>
+            already know. `Gross P&L` said it, in the place the number was. */}
+        {/* `Net P&L`, UNCONDITIONALLY (2026-09-04). The two comments above describe the branch this
+            replaced and are kept as the record of why it existed - see `label` in `pnl-chart.tsx`
+            for why it stopped being reachable. */}
+        <Line label="Net P&L">
           <Money cents={digest.netCents} strong />
         </Line>
         {/* Plural even at one: the question is "how many is this pooling", and "1 account" answers
