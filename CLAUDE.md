@@ -179,6 +179,7 @@ It records what each source gave us and, more usefully, what was weighed and TUR
 - **The app never names itself to the person using it.** Use *you / your*, *we*, or nothing. Marketing surfaces are the exception.
 
 **Tooling**
+- **NEVER read Monarch's phone UI from the browser.** `app.monarch.com` narrowed is a desktop table squeezed, not a designed screen — their phone product is a NATIVE APP the browser cannot reach. Desktop web is the reference and is where the measured numbers come from; **below `md`, ask Luke for the screenshot.** "The reference's mobile row" in this codebase always means the app.
 - **`chrome-devtools start --isolated` deletes its profile on exit.** Pass `--userDataDir <path>`. Its screenshot follows the FRONTED tab, not the one `select_page` chose. **Never run `chrome-devtools stop`.**
 
 ---

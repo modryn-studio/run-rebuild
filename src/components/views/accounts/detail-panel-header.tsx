@@ -2,7 +2,7 @@
 
 /* THE PHONE'S BAR FOR AN ACCOUNT, and it picks which of its two shapes to wear from the route.
  *
- * `/accounts/details/<id>`        back to the roster, the account's name, Edit.
+ * `/accounts/details/<id>`        back to whichever door led here, the account's name, Edit.
  * `/accounts/details/<id>/trades` back to the account, the same name, the summary toggle.
  *
  * ONE COMPONENT, CHOSEN BY SEGMENT, because both bars live in the same segment layout - which is
@@ -39,6 +39,7 @@ import { IconButton, ICON_BUTTON } from '@/components/ui/icon-button';
 import { useState } from 'react';
 import { AccountActionsSheet } from './account-actions-sheet';
 import type { RosterAccount } from '@/lib/accounts/read';
+import { useAccountParent } from '@/lib/nav-origin';
 
 /** Where `WithSummaryRail` portals its toggle, and where `TradesSearchPill` portals its row. Ids
  *  rather than refs, matching `header-slot.tsx`: the controls stay in the page's tree and only
@@ -56,6 +57,13 @@ export function DetailPanelHeader({
   /** True on the `/trades` child. Decides where Back goes and what sits opposite it. */
   onTrades: boolean;
 }) {
+  /* THE SAME TRAIL THE DESKTOP CRUMB READS (2026-09-04), so the two surfaces cannot disagree about
+     which door the trader came through. Below `md` this page is a full-screen panel with its own
+     bar, so it renders none of `account-detail-header.tsx` - which meant the desktop learned to say
+     "Trades" while the phone still sent every trader to the roster.
+     ONLY ON THE ACCOUNT ITSELF. The `/trades` child's Back is a level, not a trail: it goes up to
+     the account it belongs to, and no route in can change that. */
+  const parent = useAccountParent();
   const detailHref = `/accounts/details/${account.id}`;
   return (
     <SheetHeader
@@ -66,8 +74,8 @@ export function DetailPanelHeader({
            owes middle-click, cmd-click and "copy link address", none of which a button gives.
            `ICON_BUTTON` is exported for exactly this - same circle, same mechanic, one definition. */
         <Link
-          href={onTrades ? detailHref : '/accounts'}
-          aria-label={onTrades ? 'Back to the account' : 'Back to accounts'}
+          href={onTrades ? detailHref : parent.href}
+          aria-label={onTrades ? 'Back to the account' : `Back to ${parent.label.toLowerCase()}`}
           className={ICON_BUTTON}
         >
           <Icon name="back" size={SHEET_CONTROL_ICON} />

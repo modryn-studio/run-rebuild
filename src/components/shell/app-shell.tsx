@@ -38,6 +38,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useOverlayBack } from '@/lib/overlay-back';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTrackNavOrigin } from '@/lib/nav-origin';
 import { cn } from '@/lib/cn';
 import { Icon, type IconName, ICON_TOUCH } from '@/components/ui/icon';
 import { site } from '@/config/site';
@@ -152,6 +153,11 @@ export function AppShell({
   const [collapsed, setCollapsed] = useState(true);
   const [ready, setReady] = useState(false);
   const pathname = usePathname();
+  /* THE SHELL IS WHERE THE TRAIL IS KEPT, because it is the one component that renders on every
+     navigation and renders BEFORE the page. A drill-down whose breadcrumb has two honest parents
+     (`/accounts/details/<id>`, reached from the roster and from the tape) reads it on the way in.
+     See `nav-origin.ts` for why this is a render-phase write and not an effect. */
+  useTrackNavOrigin();
   /** Where a touch on the drawer began, so a leftward drag can be told from a scroll. */
   const swipe = useRef<{ x: number; y: number } | null>(null);
   /* Drives whether the floating Open control is conditional. Starts TRUE so the server and the

@@ -269,6 +269,42 @@ pair or neither.**
 
 ## Tooling
 
+### Monarch's phone reference is the NATIVE APP, and `app.monarch.com` narrowed is not it
+
+**2026-09-04.** A session driving `app.monarch.com/transactions` for the tape's account-cell work
+resized the viewport to 390px to find out what the reference does on a phone, and wrote the answer
+into a code comment: *"there is no phone layout there to copy — the table horizontally scrolls, the
+row is clipped mid-cell, the account collapses to a 20px disc under our own 22px `ICON_TOUCH`
+floor."*
+
+Every one of those observations is accurate about the web app at 390px, and every one of them is
+irrelevant. **That surface is a desktop table squeezed, not a designed phone screen.** Monarch's
+considered phone product is a native app, which the browser cannot reach at all. Luke supplies it as
+screenshots, and has been supplying it since `S5d` — which is why roughly fifteen comments across
+this codebase already say "the reference's mobile row/screen/drawer/list" and mean the app.
+
+**The failure is not that the reading was wrong. It is that a wrong-surface reading was written down
+in the same voice as a right-surface one**, in a comment a later session would have followed. Two
+sources, one name, and nothing in the text to tell them apart.
+
+What made it costly rather than merely untidy: the session used it as one of three legs holding up a
+decision (keep the tape's whole-row tap rather than copying Monarch's chevron-only). The leg was
+load-bearing for the PHONE half of that decision, and it was rotten. The honest evidence was already
+in the repo, from the right source, and said the same thing more strongly:
+
+- `build-plan.md` §S5d, from Luke's screenshots: the app's transaction row is **one line — category
+  emoji, merchant, amount** — and **"Tap a row → full screen, animated up from the bottom."**
+- `trades-tape.tsx` §S5d, 2026-08-20: *"The reference's mobile row has no chevron: the whole row is
+  the target and a tap is the affordance."*
+
+So the app's row is a whole-row tap with no chevron, and it carries **no account cell at all** — the
+same two facts the squeezed web view had obscured. Run's phone row already matched both, by
+decisions taken in August against the correct source.
+
+**The rule:** desktop web is fair game and is where every measured number in the design system came
+from. Below `md`, ask Luke for the screenshot. Never narrow the browser and call the result the
+reference.
+
 ### `chrome-devtools start --isolated` deletes its profile on exit
 
 That is what the flag means: a temporary user-data-dir, cleaned up when the browser closes. Every

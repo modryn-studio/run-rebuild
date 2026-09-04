@@ -88,7 +88,13 @@ export function TradeSheet({
 
   /* THE URL COMES FROM `row`, NOT `shown`. `shown` trails by one commit, so on the frame the sheet
      opens it is still the PREVIOUS trade - and this hook pushes its entry on exactly that frame. */
-  useOverlayBack(open, onClose, row ? `/trades/${row.id}` : undefined);
+  /* THE MARKER IS KEPT NOW, because this sheet has something inside it that navigates (2026-09-04):
+     the account line in `TradeDetail` links to `/accounts/details/<id>`. Without it, this hook's
+     cleanup runs `history.back()` in the same React commit as the router's push and unwrites it -
+     the trader taps the account, the account page appears, and the phone bounces straight back to
+     the tape. That is the identical race `overlay-back.ts` documents for the filter sheet's Apply,
+     and the marker is the fix that already exists for it. */
+  const markReplacing = useOverlayBack(open, onClose, row ? `/trades/${row.id}` : undefined);
 
   /* ESCAPE CLOSES, for the keyboard reaching this below `md` - a narrowed desktop window, or a
      phone with a keyboard attached. The device back button is handled by `useOverlayBack`; this is
@@ -160,7 +166,13 @@ export function TradeSheet({
             containers rather than stretching across a wide phone in landscape. */}
         <div className="mx-auto w-full max-w-[560px]">
           {shown && (
-            <TradeDetail trade={shown} zone={zone} titleId="trade-sheet-title" showTitle={false} />
+            <TradeDetail
+              trade={shown}
+              zone={zone}
+              titleId="trade-sheet-title"
+              showTitle={false}
+              onLeave={markReplacing}
+            />
           )}
         </div>
       </div>

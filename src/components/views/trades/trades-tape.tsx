@@ -42,6 +42,12 @@ const BATCH = 300;
  *  and an unsigned figure makes the reader do the comparison the sign is there to do for them. */
 const signed = (cents: number): string => (cents > 0 ? `+${fmtMoney(cents)}` : fmtMoney(cents));
 
+/** The account's name as one string, for the cell's tooltip and its accessible name. `AccountName`
+ *  puts the head and the tail in separate spans so only the head truncates, which means the space
+ *  between them is a flex gap rather than a character — so it has to be put back here. */
+const accountTitle = (t: TapeRow): string =>
+  t.accountTail ? `${t.accountHead} ${t.accountTail}` : t.accountHead;
+
 /** What the paging route needs to answer for the rest of the tape. */
 export type TapeRest = { ids: string[] };
 
@@ -515,7 +521,38 @@ function groupBySession(rows: TapeRow[]): { sessionDate: string; trades: TapeRow
  * THE LINK EARNS ITS PLACE ON THE AFFORDANCES ALONE. It was converted partly to enable a
  * `useLinkStatus` spinner in the row, and that spinner has since been removed as the wrong mark for
  * the event - the wait belongs at the destination, in the shape of what is arriving. The anchor
- * stays regardless: middle-click and cmd-click are reason enough for a control that navigates. */
+ * stays regardless: middle-click and cmd-click are reason enough for a control that navigates.
+ *
+ * ─── THE ROW STOPPED BEING THAT LINK (2026-09-04), AND KEPT BEING THAT TARGET ────────────────────
+ *
+ * The account cell is now a second destination, and two links cannot nest. The row is a `<div>`;
+ * the anchor wrapping the instrument name throws an `::after` back out to the row's edges. Same hit
+ * area, one fewer invalid nesting, a better accessible name. Details at the anchor itself.
+ *
+ * WHY THE ROW KEPT THE HIT AREA RATHER THAN COPYING THE REFERENCE, which was the live question.
+ * Monarch's transaction row is inert - `cursor: auto`, no hover rule anywhere on it - and its
+ * detail opens ONLY from a 32px chevron. Three things decided against copying that:
+ *
+ *   ITS ROW HAS FOUR PEER TARGETS (merchant, category, account, detail) and no primary, so no one
+ *   of them can own the row. This row has one primary and one secondary. A single dominant action
+ *   is the case the block link exists for.
+ *
+ *   OPENING THE TRADE IS THE LOOP HERE. Monarch can afford a 32x32 target because its common act
+ *   is re-categorising inline, which is why its merchant and category are comboboxes rather than
+ *   links. Run's tape is read by opening rows. Trading ~1000x49 for 32x32 is a Fitts's Law cost
+ *   paid on every single open.
+ *
+ *   AND ON A PHONE THE REFERENCE ITSELF TAPS THE ROW. Both facts are `S5d`, from the NATIVE APP via
+ *   Luke - never from the browser, which cannot reach it and whose narrowed web view is a squeezed
+ *   desktop table rather than a designed screen (CLAUDE.md, Tooling). `build-plan.md`: the app's
+ *   transaction row is one line - category emoji, merchant, amount - and "Tap a row -> full screen,
+ *   animated up from the bottom". The chevron note below says the same: no chevron there, the whole
+ *   row is the target. So chevron-only would not have been copying the reference on a phone, it
+ *   would have been contradicting it - and this row's chevron is already `max-md:hidden`, which
+ *   would have left the phone with no target at all.
+ *
+ *   THE SAME SOURCE SETTLES THE ACCOUNT CELL: the app's row carries no account, which is why the
+ *   link below is `hidden ... sm:flex` and why nothing was added to the phone row here. */
 /* EXPORTED SINCE 2026-08-28, for `RecentTrades` on the phone's account page. A second table
  * rendering its own lookalike row is how two lists of the same object stop agreeing about what a
  * row is - and this one already carries a dozen measured decisions (the 45px mark inset, the 14px
@@ -539,22 +576,14 @@ export function TradeRow({
   const excluded = t.state !== 'ok';
 
   return (
-    <Link
-      href={`/trades/${t.id}`}
-      /* `onOpen` DECIDES, AND IT ALREADY KNEW HOW. It measures the viewport at the tap and either
-         pushes the route or opens the drawer - see its own note upstream. The only new part is that
-         when it opens the drawer, the anchor's default navigation has to be cancelled, or the
-         desktop would open the drawer AND leave for the route.
-         Modified clicks are left alone: cmd/ctrl/shift/middle must reach the browser, or the
-         affordances this element became a Link for are the ones it swallows. */
-      onClick={(e) => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-        e.preventDefault();
-        onOpen();
-      }}
+    <div
       // A durable probe target. Verifying a tape by guessing markup selectors is how a session
       // spends an hour proving a page rendered nothing when it rendered fine.
       data-trade={t.id}
+      /* `relative` IS LOAD-BEARING NOW, not decoration: it is the containing block that clamps the
+         trade link's overlay to this row. Without it the overlay resolves against the nearest
+         positioned ancestor - the card, or the viewport - and one row's link swallows the whole
+         tape. See the anchor below. */
       /* `px-4` AND A TIGHTER MARK GAP ON A PHONE (2026-08-21). Measured against the reference's own
          mobile screen, taken as ratios of screen width so the device scale cannot skew it: its row
          label starts at 11.7% of the width, Run's started at 15.4% — 45px against 60px at 390. The
@@ -565,7 +594,7 @@ export function TradeRow({
          each began at a different x (16, 20, 20) is what made the column read as slightly loose
          rather than as a list. The `px-5` card gutter stays above `md`, where it is measured off
          the reference's desktop card and where a 20px inset has room to be one. */
-      className="group hover:bg-hover flex min-h-13 w-full items-center gap-4 px-5 py-2 text-left transition-colors max-md:gap-3 max-md:px-4"
+      className="group hover:bg-hover relative flex min-h-13 w-full items-center gap-4 px-5 py-2 text-left transition-colors max-md:gap-3 max-md:px-4"
     >
       {/* THE INSTRUMENT, and the first of the two flexible columns. `min-w-0` on both is what stops
           either from pushing the figures off their shared right edge.
@@ -582,7 +611,56 @@ export function TradeRow({
               that problem and takes the step anyway, because consistency is the reason.
               THE SEARCH FIELD ABOVE DOES NOT MOVE and must not: `text-body-lg` is the iOS no-zoom
               floor for a focused input, which is a browser behaviour rather than a type decision. */}
-          <p className="text-body-lg max-sm:text-body text-text truncate">{name ?? contract}</p>
+          {/* THE ROW'S TARGET IS THE WHOLE ROW; THE ANCHOR IS ONLY THIS WORD (2026-09-04). The
+              element used to BE the row, which stopped being legal markup the moment the account
+              cell became a second link - `<a>` inside `<a>` is not a nesting the parser allows, it
+              is one it silently rewrites. So the anchor shrank to the instrument name and grew an
+              `::after` back out to the row's edges, clamped by the `relative` above.
+              THE HIT AREA IS UNCHANGED. This is the block-link / "breakout" pattern (Adrian
+              Roselli, Andy Bell): one real anchor, one real second link raised above its overlay,
+              nothing nested. What it BUYS over the old shape is the accessible name - the row's
+              text used to be concatenated into one link label reading "MNQ 09:31 Apex Trader
+              Funding 50K (...4021) +$412.50, link". Now the label is composed, ordered, and stops.
+              `truncate` IS ON THE SPAN, NOT THE ANCHOR, and that is not tidiness. `truncate` sets
+              `overflow: hidden`, which clips a pseudo-element to its own box - so an anchor wearing
+              it would clip the overlay back down to the width of the word and take the row's hit
+              area with it. The anchor must not have an overflow. */}
+          <Link
+            href={`/trades/${t.id}`}
+            aria-label={`${name ?? contract}, ${displayTime(t.entryAt, zone)}, ${signed(t.netCents)}`}
+            /* `onOpen` DECIDES, AND IT ALREADY KNEW HOW. It measures the viewport at the tap and
+               either pushes the route or opens the drawer - see its own note upstream. The only new
+               part is that when it opens the drawer, the anchor's default navigation has to be
+               cancelled, or the desktop would open the drawer AND leave for the route.
+               Modified clicks are left alone: cmd/ctrl/shift/middle must reach the browser, or the
+               affordances this element is an anchor for are the ones it swallows.
+               AND A DRAG THAT SELECTED TEXT IS NOT A CLICK. This is the one cost the block-link
+               pattern is known for: an overlay covering the row means highlighting a figure to copy
+               it ends in a navigation instead. The row has had that bug since it became a link in
+               August; the overlay only makes it worth fixing. A selection inside this row means the
+               pointer was reading, not aiming. */
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+              /* SCOPED TO THIS ROW, and that is the difference between a guard and a bug. A bare
+                 "is anything selected" would let a selection left behind anywhere on the page - in
+                 the drawer that was just closed, in the header - swallow the next click on any row,
+                 and the trader would experience it as the tape ignoring them once. */
+              const selection = window.getSelection();
+              const dragged =
+                selection !== null &&
+                !selection.isCollapsed &&
+                selection.toString().trim() !== '' &&
+                e.currentTarget.closest('[data-trade]')?.contains(selection.anchorNode) === true;
+              e.preventDefault();
+              if (dragged) return;
+              onOpen();
+            }}
+            className="after:absolute after:inset-0 after:content-['']"
+          >
+            <span className="text-body-lg max-sm:text-body text-text block truncate">
+              {name ?? contract}
+            </span>
+          </Link>
           {/* THE PHONE'S SECOND LINE IS GONE (`S5d`, 2026-08-20). This read
               `{qty} {direction} · {time}` below `sm`, standing in for the two columns to its right.
               The reference's mobile row is strictly ONE line — its category mark, the merchant, the
@@ -606,10 +684,61 @@ export function TradeRow({
           fact that decides whether a loss matters. The hierarchy this column used to carry in COLOUR
           it now carries in SIZE, which is what the reference does too: `text-body` here against
           `text-body-lg` on the instrument. */}
+      {/* AND IT IS A LINK NOW (2026-09-04), to the account's own page. Read live off Monarch's
+          transactions table, which is where the whole mechanic comes from and where every number
+          below was measured rather than guessed.
+          `relative` PLUS A STACKING ORDER, which is what keeps this reachable: it sits above the
+          trade link's overlay instead of under it. It comes after that anchor in the DOM, so source
+          order alone would do it - `z-10` is here to say so out loud, because a later reorder of
+          this row would otherwise silently make the account uncliqueable and nothing would fail.
+          THE BORDER AND THE ARROW ARRIVE TOGETHER, on hover and on focus. Monarch: a 1px border in
+          `--border-primary-hover` at 8px radius, and an `arrow-right` fading 0 -> 1. Both at 0.1s
+          `ease-out`, which is the curve this system already names for a thing entering or leaving.
+          THE ARROW'S SPACE IS ALWAYS RESERVED - `opacity`, never `width`. Monarch's account cell
+          measures 234px at rest and 234px on hover; the merchant cell beside it animates its own
+          chevron's WIDTH and visibly shoves the name left. In a column of rows, one row reflowing
+          under the pointer is the tape moving while you read it.
+          NOT `IconButton`, and not a nested control: this is one link whose mark is part of it. */}
       {!hidden.includes('account') && (
-        <span className="text-body-lg text-text hidden min-w-0 flex-1 items-center gap-1.5 sm:flex">
+        <Link
+          href={`/accounts/details/${t.accountId}`}
+          /* THE FULL NAME ON HOVER, because this is the cell that truncates. `AccountName` gives
+             the firm away before the digits, so a squeezed column shows "Apex Trader Fun… (...4021)"
+             and the tooltip is the only place the whole string exists. Monarch does the same, with
+             the composed title on a plain `title`. */
+          title={accountTitle(t)}
+          /* AND THE SAME STRING AS THE ACCESSIBLE NAME, which is not belt-and-braces - without it
+             the name is wrong. `AccountName` renders the head and the tail as two spans separated
+             by a flex `gap-1`, and a gap is not a character: the eye reads "Tradeify 50K (...0007)"
+             and `textContent` says "Tradeify50K (...0007)". That was invisible while the row was
+             one link and this was a fragment inside its label; it is the whole name now. */
+          aria-label={accountTitle(t)}
+          /* `rounded-sm` IS 8px HERE, which is both Monarch's measured radius and this system's
+             CONTROL step (`--radius-sm`) - a button, an input, a chip. The cell is a control, so it
+             takes the control's radius rather than the 12px slot radius the row itself would use.
+             `group/account` SO THE ARROW ANSWERS THIS CELL AND NOT THE ROW. The row is already a
+             `group`, and a bare `group-hover` on the mark below would light the arrow whenever the
+             pointer was anywhere in the row - which is the one thing the mark must not say, since
+             the rest of the row goes somewhere else entirely.
+             THE FOCUS RING IS NOT SUPPRESSED. Monarch clears its outline and leans on the border
+             alone; this system draws a 2px accent ring on `:focus-visible` globally, and a keyboard
+             user losing it here to match a competitor would be copying the wrong half. The border
+             and the arrow arrive on focus too, so the cell reads the same either way in. */
+          className="group/account border-transparent hover:border-border focus-visible:border-border text-body-lg text-text relative z-10 hidden min-w-0 flex-1 items-center gap-1.5 rounded-sm border px-2 py-1 transition-colors sm:flex"
+        >
           <AccountName head={t.accountHead} tail={t.accountTail} logo={t.firmLogo} />
-        </span>
+          {/* THE ARROW, NOT A CHEVRON, and the distinction is the destination. A chevron in this
+              system means "there is more of this here" - it is what the row's own mark says. An
+              arrow means "you are leaving for somewhere else", which is what this cell does: it
+              exits the tape. `back` rotated 180deg because the set holds one arrow and rotating it
+              is how this file already draws the row's chevron. */}
+          <Icon
+            name="back"
+            size={16}
+            aria-hidden
+            className="text-muted ml-auto shrink-0 rotate-180 opacity-0 transition-opacity group-hover/account:opacity-100 group-focus-visible/account:opacity-100"
+          />
+        </Link>
       )}
 
       {/* WHEN IT WAS TAKEN, not when it closed, and it has to be the key the list is sorted by or
@@ -661,11 +790,14 @@ export function TradeRow({
         </span>
       </div>
 
-      {/* IT LIGHTS WITH THE ROW. The whole row is the button, so a bare chevron sitting inside it
-          reads as a control that is switched off.
-          A SPAN THAT WEARS `IconButton`'S MECHANIC, not the component: this sits INSIDE a <button>,
-          and a nested button is invalid HTML - which is also why it is `aria-hidden`. The row is the
-          control; this is the mark that says so.
+      {/* IT LIGHTS WITH THE ROW. The row is still the target - the trade link's overlay covers it -
+          so a bare chevron sitting there at rest would read as a control that is switched off.
+          STILL A SPAN, AND STILL `aria-hidden`, though the reason moved (2026-09-04). It used to be
+          that this sat inside the row's own <a> and a nested control is invalid markup. The row is
+          a plain <div> now, so it COULD be a real control - and must not be, because it would be a
+          second element pointing at the same trade the overlay already opens. Two tab stops, one
+          destination. Monarch's chevron is a real button precisely because ITS row is inert; ours
+          is not, so ours stays a mark.
           BORDER ON HOVER, NOT A DROP SHADOW (2026-08-20). It hand-rolled the mechanic IconButton
           carried before the house rule landed, `shadow-card` included - so it kept claiming "I float
           above the page" after every other control in the product had stopped. Now it is the same
@@ -685,13 +817,26 @@ export function TradeRow({
           not sit quiet and light up, it is simply part of the row. The hover mechanic below is
           unchanged and still does the work it was added for: the GROUND and the BORDER arrive on
           hover, which is what makes it read as a control. Only the resting ink moved. */}
+      {/* `pointer-events-none`, AND IT IS A BUG FIX, NOT TIDINESS (2026-09-04, Luke: "the chevron
+          button on the same row does not do anything"). The mark is `aria-hidden` decoration and was
+          nonetheless the one place in the row where a click died - it swallowed the event and had
+          nothing to do with it.
+          WHY ONLY HERE, when the time and the net figure sit further right and pass their clicks
+          through fine: the glyph inside is `-rotate-90`, and a non-`none` `rotate` promotes an
+          element into the POSITIONED paint step. That put it in the same step as the trade link's
+          `::after` at `z-index: auto`, where document order decides - and the chevron is the row's
+          last child. Nothing else in the row is transformed, so nothing else was affected, which is
+          exactly why this looked like "the chevron is broken" rather than "the overlay is short".
+          A z-index would also have worked and would have been the wrong fix: it would leave a
+          decorative mark hit-testable and make the row's targets depend on arithmetic between three
+          elements. Decoration should not be a target at all. */}
       <span
         aria-hidden
-        className="text-text group-hover:bg-surface group-hover:border-border group-active:bg-bg flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent transition group-active:shadow-[var(--shadow-press)] max-md:hidden"
+        className="text-text group-hover:bg-surface group-hover:border-border group-active:bg-bg pointer-events-none flex size-8 shrink-0 items-center justify-center rounded-full border border-transparent transition group-active:shadow-[var(--shadow-press)] max-md:hidden"
       >
         <Icon name="chevron" size={16} className="-rotate-90" />
       </span>
-    </Link>
+    </div>
   );
 }
 

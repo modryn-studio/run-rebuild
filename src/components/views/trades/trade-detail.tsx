@@ -25,15 +25,23 @@ import { productName } from '@/lib/instruments';
 import { displayClock } from '@/lib/time/session';
 import type { TapeRow } from '@/lib/trades/read';
 import { InstrumentMark } from './instrument-mark';
+import Link from 'next/link';
 import { Section, Row } from './trade-drawer-body';
 
 const signed = (cents: number): string => (cents > 0 ? `+${fmtMoney(cents)}` : fmtMoney(cents));
+
+/** The account's name as one string, for the link's tooltip and its accessible name. The head and
+ *  the tail render as separate spans so only the head truncates, which means the space between them
+ *  is a flex gap rather than a character — so it has to be put back here. */
+const accountTitle = (t: TapeRow): string =>
+  t.accountTail ? `${t.accountHead} ${t.accountTail}` : t.accountHead;
 
 export function TradeDetail({
   trade: t,
   zone,
   titleId,
   showTitle = true,
+  onLeave,
 }: {
   trade: TapeRow;
   zone: string;
@@ -42,6 +50,13 @@ export function TradeDetail({
    *  top bar, the way the reference's mobile detail screen does, and rendering the heading again
    *  underneath would say it twice. The drawer has no title bar, so it keeps the heading. */
   showTitle?: boolean;
+  /* CALLED JUST BEFORE THIS BODY NAVIGATES AWAY, and only one of the three containers passes it.
+     A container that owns a history entry has to be told that the entry is about to be REPLACED
+     rather than dismissed, or its cleanup's `history.back()` unwrites the navigation - see
+     `overlay-back.ts`, which is where that race is written up. `TradeSheet` passes
+     `useOverlayBack`'s marker; the desktop drawer does not touch history at all, and `/trades/[id]` is a
+     route rather than an overlay, so both correctly pass nothing. */
+  onLeave?: () => void;
 }) {
   const contract = t.contract ?? t.symbolRoot;
   const held = t.exitAt.getTime() - t.entryAt.getTime();
@@ -64,11 +79,30 @@ export function TradeDetail({
               {/* THE ACCOUNT, under the figure. The drawer opens from a tape that can span many
                   accounts, which is the moment the name stops being a label and starts answering
                   "which account was that".
-                  NOT A LINK YET: `/accounts/details/<id>` does not exist in this build, and a link
-                  to a 404 is worse than a plain string. It becomes one when that page lands.
+                  AND IT IS A LINK NOW (2026-09-04). The comment here read "NOT A LINK YET:
+                  `/accounts/details/<id>` does not exist in this build" and promised to become one
+                  when that page landed. It landed in `S6d`, and this was the last surface still
+                  saying otherwise - the tape's own account cell became a link the same day.
+                  THE SAME MECHANIC AS THE TAPE'S CELL, at this surface's size: transparent border
+                  at rest, `--color-border` and the arrow on hover and on focus, the arrow's space
+                  reserved so the name cannot shift under the pointer. Read live off Monarch's
+                  transaction detail panel, which links its account the same way.
+                  RIGHT-ALIGNED, SO THE PADDING IS NEGATIVE ON THE RIGHT. This column's contents are
+                  flushed to the figure's right edge; a control with 8px of its own padding would
+                  push the name 8px off that edge and break the alignment with the net above it.
+                  `-mr-2` puts the box's right edge back where the text's used to be.
                   mt-2, not mt-1 (v2's measurement): the reference clears its account line by 12px
                   and an earlier pass cleared it by 7, which read as the two being one block. */}
-              <span className="text-muted mt-2 flex items-center justify-end gap-1.5">
+              <Link
+                href={`/accounts/details/${t.accountId}`}
+                onClick={() => onLeave?.()}
+                title={accountTitle(t)}
+                /* THE COMPOSED NAME AS THE ACCESSIBLE NAME, for the reason the tape's cell carries
+                   one: the head and the tail are two spans separated by a flex `gap`, and a gap is
+                   not a character - `textContent` would announce "Tradeify50K (...0007)". */
+                aria-label={accountTitle(t)}
+                className="group/account text-muted hover:border-border focus-visible:border-border mt-2 -mr-2 flex items-center justify-end gap-1.5 rounded-sm border border-transparent px-2 py-1 transition-colors"
+              >
                 {t.firmLogo && (
                   // A local asset; next/image would need each firm host whitelisted for nothing.
                   // ONE LINE, and that is not style: this was written as a two-line comment, so
@@ -84,7 +118,15 @@ export function TradeDetail({
                   <span className="truncate">{t.accountHead}</span>
                   {t.accountTail && <span className="shrink-0">{t.accountTail}</span>}
                 </span>
-              </span>
+                {/* AN ARROW, NOT A CHEVRON: this cell EXITS the trade rather than opening more of
+                    it. Same distinction the tape's cell makes, same `back` glyph rotated. */}
+                <Icon
+                  name="back"
+                  size={16}
+                  aria-hidden
+                  className="shrink-0 rotate-180 opacity-0 transition-opacity group-hover/account:opacity-100 group-focus-visible/account:opacity-100"
+                />
+              </Link>
               {/* WHAT KIND OF ACCOUNT, under the name (2026-08-28, Luke, from v2's screen). It is
                   the fact that decides what the figure above it MEANS - the same +$12.60 is play
                   money on an evaluation and a payout on a funded account - and this is the only

@@ -1,6 +1,7 @@
 'use client';
 
-/* THE DETAILS PAGE'S HEADER CLUSTER: a breadcrumb back to the roster, and this page's controls.
+/* THE DETAILS PAGE'S HEADER CLUSTER: a breadcrumb back to whichever door led here, and this page's
+ * controls.
  *
  * THE BREADCRUMB REPLACES THE ROUTE TITLE. Every other route lets the shell name it from `NAV`
  * (derived synchronously from the pathname, so it is never a frame late), but this one is not a nav
@@ -27,6 +28,7 @@
 import Link from 'next/link';
 import { HeaderSlot } from '@/components/shell/header-slot';
 import { usePhone } from '@/lib/use-phone';
+import { useAccountParent } from '@/lib/nav-origin';
 import { Icon } from '@/components/ui/icon';
 import { ICON_BUTTON } from '@/components/ui/icon-button';
 import { AccountLogo } from './account-logo';
@@ -91,29 +93,50 @@ export function AccountDetailHeader({
   );
 }
 
+/* WHERE THE CRUMB POINTS, AND IT IS NOT ALWAYS THE ROSTER (2026-09-04).
+ *
+ * This screen has two doors: a roster row, and - since the tape's account cell became a link - a
+ * row on `/trades`. A trail that says "Accounts" to somebody who arrived from the tape is naming a
+ * screen they were not on and offering a way back to somewhere they did not come from.
+ *
+ * THE DEFAULT IS STILL THE ROSTER, and that is the honest answer rather than a fallback. On a cold
+ * entry - a refresh, a pasted URL, a new tab from a cmd-click - there IS no trail; `/accounts` is
+ * where this screen belongs when nothing led to it. Monarch behaves identically, verified live:
+ * arrive from `/transactions` and the crumb says Transactions, refresh and it says Accounts.
+ *
+ * STILL A LINK WITH A REAL `href`, NEVER `router.back()`, which is the rule this crumb already
+ * carried and the reason it survives the change unbothered. Monarch's own crumb is a `role="link"`
+ * div with no `href` - no middle-click, no "open in new tab", nothing in the status bar - and it
+ * pushes a new history entry when clicked rather than returning. Real anchors do the same job
+ * without giving any of that up.
+ *
+ * THE MAPPING ITSELF LIVES IN `nav-origin.ts`, not here. The phone draws this screen's way back
+ * from its own bar (`detail-panel-header.tsx`) and never renders this component at all, so a table
+ * kept here would be one of two copies - and the two would disagree the first time a third door
+ * was added. */
 function Breadcrumb({ account, title }: { account: RosterAccount; title: string }) {
+  const parent = useAccountParent();
   return (
     <HeaderSlot slot="title">
       <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2">
-        {/* TWO WAYS BACK, AND THEY ARE FOR TWO DIFFERENT PEOPLE. Above `sm` the word "Accounts" is
+        {/* TWO WAYS BACK, AND THEY ARE FOR TWO DIFFERENT PEOPLE. Above `sm` the parent's name is
             the trail - it says where you are as much as how to leave. Below it the word costs a
             third of a 390px band to duplicate what the phone's own back gesture already does, so it
             collapses to a mark, which is the same swap `/trades/[id]` makes.
-            A LINK, NOT `router.back()`. Back depends on how the trader ARRIVED, and this URL can be
-            pasted, bookmarked or refreshed - all of which would send them wherever they were before
-            Run. `/accounts` is where this screen belongs regardless of the route in. */}
+            BOTH READ THE SAME PARENT. The mark and the word are one crumb rendered at two widths,
+            so a phone and a desktop can never disagree about which door the trader came through. */}
         <Link
-          href="/accounts"
-          aria-label="Back to accounts"
+          href={parent.href}
+          aria-label={`Back to ${parent.label.toLowerCase()}`}
           className={`${ICON_BUTTON} shrink-0 sm:hidden`}
         >
           <Icon name="back" size={18} />
         </Link>
         <Link
-          href="/accounts"
+          href={parent.href}
           className="text-title text-muted hover:text-text hidden shrink-0 transition-colors sm:inline"
         >
-          Accounts
+          {parent.label}
         </Link>
         {/* The separator is the chevron laid on its side. `aria-hidden`, because the `<nav>` label
             and the link text already say what this is; a screen reader announcing "chevron" between
