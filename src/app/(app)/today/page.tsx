@@ -4,15 +4,22 @@ import { PAGE_COLUMN } from '@/lib/shell';
 import { SESSION_BOUNDARY_ZONE } from '@/lib/time/session';
 import { cn } from '@/lib/cn';
 import { getDailySeries, getIntradaySeries, getRoster } from '@/lib/accounts/read';
-import { toFacetAccount } from '@/lib/trades/read';
-import { readTradesFilter } from '@/lib/trades/filter';
+import { toFacetAccount, getTape } from '@/lib/trades/read';
+import { accountLabel } from '@/lib/prop-firms';
+import { readTradesFilter, EMPTY_FILTER } from '@/lib/trades/filter';
 import { cumulate, foldIntraday, sizeBase } from '@/lib/accounts/series';
 import { sessionWindow } from '@/lib/time/session';
 import { NetPnl } from '@/components/views/today/net-pnl';
+import { LastSession } from '@/components/views/today/last-session';
 import { Greeting } from '@/components/views/today/greeting';
 import { TodayHeader } from '@/components/views/today/today-header';
 
 export const metadata: Metadata = { title: 'Today' };
+
+/* HOW MANY ROWS `Last session` DRAWS, and it is the page's number because the page is what asks the
+   database for them. Five (Luke, 2026-09-04). The card slices to the same count for its own render;
+   fetching six to draw five would be a row nothing has a use for. */
+const LAST_SESSION_ROWS = 5;
 
 /* TODAY - the front door (`S8`, `wireframes.md` §5).
  *
@@ -48,6 +55,14 @@ export const metadata: Metadata = { title: 'Today' };
  * no route title. Without it the band prints both the greeting and the word `Today`.
  *
  * ─── WHAT IS HERE AND WHAT IS NOT ────────────────────────────────────────────
+ *
+ * TWO CARDS AS OF 2026-09-04, and the second is `Last session` (`§A11`). It ships on the reads
+ * `/trades` already owns, adds no schema, and needs no locked-doc amendment - the same three tests
+ * card 1 passed. `monarch-dashboard-teardown.md` §3.9 carries WHY Run has it, which is the one
+ * question that section was missing: their `Transactions` widget is an action queue for a chore Run
+ * deleted, so this card inherits the placement and none of the purpose. Run's reason is that it is
+ * the PROOF under card 1's figure - the only place on the front door showing the actual rows a
+ * trader would recognise from their broker - and the place they would catch that an import is wrong.
  *
  * ONE CARD, `Net P&L`, AS OF 2026-09-03 - the first of the six the teardown's §8 settled
  * (`docs/monarch-dashboard-teardown.md` §A7). It is first because it is the only one of the six
@@ -131,13 +146,17 @@ export default async function TodayPage({
   }
   const series = cumulate([...byDay.entries()].map(([day, cents]) => ({ day, cents })));
 
-  /* THE SCOPED ACCOUNT'S NAME, or null. Composed through `toFacetAccount` like the pickers are, so
+  /* THE SCOPED ACCOUNT'S NAME, or null. Composed through `toFacetAccount` AND `accountLabel`, so
      the card's trailing clause, the desktop menu's trigger and the phone sheet's ticked row are
      three renderings of one string rather than three chances to disagree.
+     THAT SENTENCE WAS A CLAIM AND IS NOW A FACT (2026-09-03). It was written while this line joined
+     the halves inline - a third copy of a formula the other two already had, and the only one of the
+     three missing the `.trim()`. A rule asserted in prose is a rule nothing enforces; `accountLabel`
+     in `lib/prop-firms.ts` is the enforcement, beside the two functions that build its halves.
      EXACTLY ONE, because that is the only case where a name is the useful fact: the filter panel
      on `/trades` can hold two, and "2 of 10 accounts" is a count question again. */
   const scoped = scope.length === 1 ? counted.find((a) => a.id === scope[0]) : undefined;
-  const scopeName = scoped ? toFacetAccount(scoped).firm + ' ' + toFacetAccount(scoped).short : null;
+  const scopeName = scoped ? accountLabel(toFacetAccount(scoped)) : null;
 
   /* THE 1-DAY RANGE'S OWN READ, AND IT IS SECOND ON PURPOSE - the same shape `/accounts/page.tsx`
      takes, for the same reason its comment gives: the session it covers is the last day anything
@@ -160,6 +179,65 @@ export default async function TodayPage({
         sessionWindow(endsOn)
       ).total
     : [];
+
+  /* ─── CARD 2'S SESSION, AND IT COSTS ONE QUERY BECAUSE CARD 1 ALREADY PAID FOR THE DATE ──────
+   *
+   * `endsOn` IS THE WHOLE TRICK. It is the newest day in the COUNTED series - the same value the
+   * `1d` range is drawn from - so "the newest session that has trades in it" is already known by the
+   * time this runs, and this card needs no round trip to find its own subject.
+   *
+   * IT IS NEVER "TODAY", which is the re-entry rule and not a convenience (§7 Q2, confirmed by Luke
+   * 2026-09-04). Scoping to the current date would draw an empty card every Monday morning and every
+   * day the trader did not trade, which is a state representing absence.
+   *
+   * SCOPED TO `countedIds`, NOT TO `scope`, and the two differ whenever an account is switched out
+   * of totals. Card 1's figure counts exactly these accounts, so a row list built from a wider set
+   * would put trades under a headline that does not include them - the chart-disagrees-with-the-rail
+   * defect, arrived at through a third door.
+   *
+   * `limit: SHOWN + 1` WOULD BE WRONG AND `limit: 5` IS NOT AN UNDERCOUNT. `getTape` totals a
+   * session in SQL over the whole `where` rather than folding the rows it returns - its own comment
+   * says why: "a header built from a truncated session would state a total for trades it cannot
+   * see". So the figure, the count and the win rate are the session's real ones at any limit. Five
+   * is what the card draws, and there is no "and N more" line that would need a sixth. */
+  const session =
+    endsOn === null
+      ? null
+      : ((
+          await getTape(
+            trader.id,
+            { ...EMPTY_FILTER, accounts: [...countedIds] },
+            { from: endsOn, to: endsOn },
+            { limit: LAST_SESSION_ROWS }
+          )
+        )[0] ?? null);
+
+  /* ─── THE LINK OUT: THE SESSION'S DATE, AND THE TRADER'S OWN SCOPE. NOT THE COUNTED SET ──────
+   *
+   * THE FIRST BUILD SENT `counted` AND THE LIVE PAGE SHOWED WHY THAT WAS WRONG. On the real roster -
+   * 11 accounts, 9 counted - it composed a **451-character URL carrying nine uuids**, which is a
+   * link that reads as heavily filtered while filtering almost nothing. That was the visible half of
+   * the mistake. The doctrinal half is worse.
+   *
+   * EXCLUSION IS A TOTALS DECISION AND `/trades` IS THE RECORD. `excluded_from_totals` takes an
+   * account out of the arithmetic; it does not take its trades out of existence, and `CLAUDE.md` is
+   * explicit that **an exclusion may never silently shrink the record**. A link that narrowed the
+   * tape by the totals switch would do exactly that - the trader would open the session and find
+   * trades missing, with nothing on screen saying why. The card's `7 trades` and the tape's rows are
+   * answers to two different questions and are allowed to differ; hiding the difference is the bug,
+   * not the difference.
+   *
+   * SO THIS PASSES THROUGH `scope` AND NOTHING ELSE - the param the band itself wrote, unchanged.
+   * The URL is short, it says only what the trader asked for, and `§A8`'s open question (does the
+   * band's scope follow a link out of this page?) stays Luke's to settle rather than being answered
+   * by a side effect of this card. */
+  const sessionHref = endsOn
+    ? `/trades?${new URLSearchParams([
+        ['from', endsOn],
+        ['to', endsOn],
+        ...scope.map((id) => ['accounts', id] as [string, string]),
+      ])}`
+    : '/trades';
 
   return (
     <div className={cn(PAGE_COLUMN, 'pb-8')}>
@@ -209,7 +287,14 @@ export default async function TodayPage({
           baseDollars={sizeBase(counted)}
           zone={trader.displayTimezone}
         />
-        {/* The remaining five land here in build order - §A7. */}
+        <LastSession
+          session={session}
+          href={sessionHref}
+          counted={counted.length}
+          imported={days.length > 0}
+          zone={trader.displayTimezone}
+        />
+        {/* The remaining four land here in build order - §A7. */}
       </div>
     </div>
   );

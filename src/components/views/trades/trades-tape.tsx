@@ -21,7 +21,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { cn } from '@/lib/cn';
-import { fmtMoney } from '@/lib/format';
+import { signed } from '@/lib/format';
 import { productName } from '@/lib/instruments';
 import { InstrumentMark } from './instrument-mark';
 import { ColumnsMenu, useTapeColumns, type TapeColumn } from './columns-menu';
@@ -40,7 +40,6 @@ const BATCH = 300;
 
 /** `+` on a gain, the minus `fmtMoney` already carries on a loss. A tape is a sequence of outcomes
  *  and an unsigned figure makes the reader do the comparison the sign is there to do for them. */
-const signed = (cents: number): string => (cents > 0 ? `+${fmtMoney(cents)}` : fmtMoney(cents));
 
 /** The account's name as one string, for the cell's tooltip and its accessible name. `AccountName`
  *  puts the head and the tail in separate spans so only the head truncates, which means the space

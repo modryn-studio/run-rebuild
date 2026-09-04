@@ -442,19 +442,37 @@ research it came from and what deliberately is not copied: `build-plan.md` §S10
 
 ```mermaid
 flowchart TD
-  Today["/today<br/>widget grid — empty as of 2026-09-03"]
-  Today -.-> Recap(["Your Daily Recap — built, unmounted, not in beta"])
-  Recap -.-> Read(["The read, opened in place"])
-  Today -.-> NetPnl(["Net P&L (S8)"])
-  Today -.-> Last(["Last session (S8)"])
+  Today["/today<br/>widget grid — two cards as of 2026-09-04"]
+  Today --> NetPnl(["Net P&L — header → /accounts"])
+  Today --> Last(["Last session — header → /trades, pinned to that day"])
+  Last --> Row["a row → the trade<br/>drawer above md, full-screen sheet below"]
   Today -.-> Accts(["Accounts (S8)"])
+  Today -.-> Line(["The daily loss line (§A4)"])
+  Today -.-> Target(["Profit target (§A5)"])
+  Today -.-> Setup(["Set up Run (§A2)"])
+  Today -.-> Recap(["Your Daily Recap — built, unmounted, reset to a blank sheet"])
+  Recap -.-> Read(["The read, opened in place"])
 
   style Recap stroke-dasharray: 5 5
   style Read stroke-dasharray: 5 5
-  style NetPnl stroke-dasharray: 5 5
   style Accts stroke-dasharray: 5 5
-  style Last stroke-dasharray: 5 5
+  style Line stroke-dasharray: 5 5
+  style Target stroke-dasharray: 5 5
+  style Setup stroke-dasharray: 5 5
 ```
+
+**`Last session` is the second card, built 2026-09-04**, and it is the first thing on this page a
+trader can open something FROM. Two doors, and the width picks between them at the moment of the tap
+exactly as `/trades` does: **a drawer above `md`, a full-screen sheet below it**. The sheet takes
+`/trades/<id>` into the address itself, so **Back closes it** rather than leaving the page; the
+drawer closes on `Escape` and on its own `x`. The header is the third door - `/trades` pinned to that
+session's date, carrying the account scope when the page is narrowed.
+
+**It draws the row's two-column form at every width** (instrument and result, no account column and
+no clock), which is not a phone concession: a half-width dashboard card is 376px at a 1024 viewport
+and never clears 560 below about 1400, so the four-column tape row cannot fit one. The account and
+the entry time are on the row the trader taps. `monarch-dashboard-teardown.md` §3.9 carries the
+measurement and the reference's own precedent.
 
 **The widget contract**, ported from the reference and confirmed in its markup: the **title is the
 link** (the whole header block, not a chevron beside it), the **period sits with the title**, the
@@ -606,7 +624,7 @@ goes public.
 |---|---|---|
 | `/` | S0 | ships — the door |
 | `/login` | S3a | ships |
-| `/today` | **S8** | **not built** — live nav row, 404s on purpose |
+| `/today` | **S8** | **two cards live** — `Net P&L` (2026-09-03) and `Last session` (2026-09-04) |
 | `/accounts` | S6 | ships |
 | `/accounts/details/[id]` | S6 | ships |
 | `/accounts/details/[id]/trades` | S6 | ships — phone only, redirects above `md` |

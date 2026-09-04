@@ -72,7 +72,7 @@
  * which is very close to the 36px this card was over by.
  *
  * SO THE TITLE IS THE FIGURE HERE TOO, and `Widget` needed no new prop: `title` takes
- * `-$2,092.29 net P&L` and `period` takes the `TrendIndicator`. It also SATISFIES
+ * `-$2,092.29 total P&L` and `period` takes the `TrendIndicator`. It also SATISFIES
  * `design-system.md` §2a rather than bending it - the header row is now ONE type size (18px), and
  * hierarchy comes from ink and weight alone: ink figure, muted qualifier, coloured delta. The
  * first build put a 26px figure under an 18px title, which was two sizes in one card.
@@ -270,7 +270,7 @@ export function NetPnl({
    *
    * Luke, from the reference's iOS app: *"monarch does not show a pop up on the chart when user
    * presses and slides to see each point on the chart. instead of a pop up, the header changes
-   * state. so the copy 'net P&L' would disappear when user tap and holds the chart on mobile. then
+   * state. so the copy 'net P&L' [now `total P&L`] would disappear when user tap and holds the chart on mobile. then
    * the price would change depending on which dot on the chart the user is on. then the money
    * up/down would also change with where the user is positioned on the chart. and the date would
    * show to the right of the up/down amount."*
@@ -290,18 +290,48 @@ export function NetPnl({
   const phone = usePhone();
   const scrub = phone && at !== null && !blank ? view.points[at] : null;
 
-  /* THE TITLE IS THE FIGURE, and it falls back to the plain name when there is no figure to show -
-     an empty card cannot lead with a number, and "$0.00 net P&L" over "import a file" would be a
+  /* ─── THE WORD IS `total P&L`, NOT `net P&L`, AND THAT IS A RECONCILE RULE (2026-09-03) ───────
+   *
+   * THIS CARD SHIPPED SAYING `net P&L` AND `/accounts` REFUSES TO. `accounts-rail.tsx` labels the
+   * IDENTICAL arithmetic - every counted account's net, summed - `Total P&L`, and says why in as
+   * many words: *"This rail is a roster rollup across accounts whose fee coverage can differ per
+   * account, so one label cannot make that claim honestly for all of them - the per-account answer
+   * belongs on `/accounts/details`, where there IS one account to answer for."* The standing rule it
+   * names is `any surface showing a net figure states whether fees were imported`, and this card
+   * stated nothing: there is no `hasFees` in this file, and `getDailySeries` does not carry one.
+   *
+   * SO ONE NUMBER HAD TWO NAMES, and the front door had the more confident one. That is the defect
+   * class this page's own comments cite twice (a rail reading +$954.99 under a chart reading
+   * -$26,995.06), reached through the vocabulary rather than through the arithmetic.
+   *
+   * WHY NOT JUST KEEP `net`, WHICH IS PROBABLY TRUE NOW? Because "probably" is the whole problem.
+   * `preflight.ts` made `fees_empty` and `fees_partial` BLOCKING findings, so a fee-less import
+   * cannot land any more and every row written since is genuinely net - but rows written before that
+   * guard are not, and this card sums across accounts without asking. `Total` is true either way,
+   * costs no query, and makes `/today` and `/accounts` say one word for one figure.
+   *
+   * WHAT WOULD EARN `net` BACK: fee coverage carried into the fold, so the card can say `Net P&L`
+   * when every counted account has it, `Gross P&L` when none do, and `Total P&L` when they differ -
+   * which is what `/accounts/details` already does for the one account it answers for. Filed in
+   * `monarch-dashboard-teardown.md` §A10; not beta, because the beta's front door does not need to
+   * make a claim it cannot check.
+   *
+   * THE CARD IS STILL CALLED `Net P&L` in the plan, the rack and this file's name, exactly as the
+   * rail is still `accounts-rail`. What a thing is called in the build and what it asserts on screen
+   * are different promises.
+   *
+   * THE TITLE IS THE FIGURE, and it falls back to the plain name when there is no figure to show -
+     an empty card cannot lead with a number, and "$0.00 total P&L" over "import a file" would be a
      figure asserting something. The qualifier is lower case after the number, which is the
      reference's own shape (`-$334,452 net worth`): the line is a value, not a heading.
      UNDER A SCRUBBING FINGER THE QUALIFIER GOES and the figure becomes the hovered point's, which
      is exactly what the reference does: the words are what the readout replaces, because two
      numbers and a noun do not fit a 375px row. */
   const title = blank
-    ? 'Net P&L'
+    ? 'Total P&L'
     : scrub
       ? fmtMoney(view.abs(scrub))
-      : fmtMoney(view.total) + ' net P&L';
+      : fmtMoney(view.total) + ' total P&L';
 
   return (
     <Widget
@@ -419,13 +449,13 @@ export function NetPnl({
              true in general, and wrong here twice over: it left 640-767px with neither the chips
              nor the menu on screen, and it put the card's period control at a different width from
              the identical control on `/accounts`. */
-          <span className="max-sm:hidden"> 
-          <Menu
-            label="Period"
-            value={range}
-            onChange={(v) => setRange(v as Range)}
-            options={RANGES.map((r) => ({ value: r, label: RANGE_LABELS[r] }))}
-          />
+          <span className="max-sm:hidden">
+            <Menu
+              label="Period"
+              value={range}
+              onChange={(v) => setRange(v as Range)}
+              options={RANGES.map((r) => ({ value: r, label: RANGE_LABELS[r] }))}
+            />
           </span>
         )
       }
@@ -455,7 +485,7 @@ export function NetPnl({
            AND IT DOES NOT COUNT. No "no imports yet", no days, no "0 sessions" - `CLAUDE.md`'s
            re-entry rule. It names what the card will hold, not what is missing. */
         <p className="text-body text-muted">
-          Import a Tradovate export and your net P&amp;L lands here, reconciled to the cent.
+          Import a Tradovate export and your total P&amp;L lands here, reconciled to the cent.
         </p>
       ) : (
         /* THE BODY IS THE CHART, FULL STOP - the reference's `AccountsDashboardWidget__Body` holds

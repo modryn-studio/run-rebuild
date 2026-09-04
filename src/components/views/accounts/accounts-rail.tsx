@@ -37,11 +37,10 @@
 
 import { Card } from '@/components/ui/card';
 import { DownloadRosterCsv } from './download-roster-csv';
-import { fmtMoney } from '@/lib/format';
+import { fmtMoney, signed } from '@/lib/format';
 import { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPE_ORDER, UNLABELLED_TYPE_TITLE } from '@/lib/prop-firms';
 import type { RosterAccount } from '@/lib/accounts/read';
 
-const signed = (cents: number): string => (cents > 0 ? `+${fmtMoney(cents)}` : fmtMoney(cents));
 
 type Line = { label: string; value: string; strong?: boolean };
 

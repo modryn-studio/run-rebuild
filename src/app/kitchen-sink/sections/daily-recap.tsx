@@ -19,9 +19,15 @@
 import { Widget } from '@/components/views/today/widget';
 import { DailyRecap } from '@/components/views/today/daily-recap';
 import { NetPnl } from '@/components/views/today/net-pnl';
+import { LastSession } from '@/components/views/today/last-session';
 import { ScopeRow } from '@/components/views/today/scope-sheet';
 import { ForcePhone } from '@/lib/use-phone';
-import { PlotSkeleton, WidgetSkeleton } from '@/components/views/today/widget-skeleton';
+import {
+  PlotSkeleton,
+  SessionRowsSkeleton,
+  WidgetSkeleton,
+} from '@/components/views/today/widget-skeleton';
+import { LAST_SESSION_FIXTURE, LAST_SESSION_THIN } from '../_fixtures/trades';
 import {
   RECAP_COMPARISON,
   RECAP_EMPTY,
@@ -287,7 +293,7 @@ export function DailyRecapSection() {
               A header with nowhere to go is a button. Same box, same target, different element.
             </p>
           </Widget>
-          <Widget title="Net P&L" period="Last 30 days">
+          <Widget title="Total P&L" period="Last 30 days">
             <p className="text-body text-muted">
               A widget whose subject has no page is not interactive at all, rather than a link to
               nothing.
@@ -416,7 +422,7 @@ export function DailyRecapSection() {
           reading <code>-$334,452 net worth</code>, with the delta in the{' '}
           <code>Description</code> slot beside it, both inside the same <code>&lt;a&gt;</code>, and
           the body holding nothing but the chart. So the title here is{' '}
-          <code>-$2,092.29 net P&amp;L</code> and the period slot takes the{' '}
+          <code>-$2,092.29 total P&amp;L</code> and the period slot takes the{' '}
           <code>TrendIndicator</code>. That deleted a 30px row and its 16px gap: the card is now
           372px against <code>/accounts</code>&rsquo; 382, which is the reference&rsquo;s own
           relationship rather than the inverse of it.
@@ -612,7 +618,7 @@ export function DailyRecapSection() {
         <Note>
           <strong>Hold the chart and slide.</strong> The reference&rsquo;s iOS app answers a scrub
           in the card&rsquo;s <em>header</em> rather than with a popover: the title&rsquo;s{' '}
-          <code>net P&amp;L</code> drops, the figure becomes the hovered point&rsquo;s running
+          <code>total P&amp;L</code> drops, the figure becomes the hovered point&rsquo;s running
           level, the delta recomputes against the window&rsquo;s base, and the date lands to the
           right of it. A tooltip on a 390px chart is drawn under the thumb that summoned it, and the
           finger covers roughly the area the panel needs.
@@ -662,6 +668,108 @@ export function DailyRecapSection() {
           The tick is on the <strong>right</strong>, which is where every other selected row in this
           app puts it, and the row is one type size: the selected state is carried by the mark and
           the weight, never by a second size.
+        </Note>
+      </Row>
+
+      <Row
+        label="Last session"
+        note="card 2 on /today, and the proof under card 1's figure"
+      >
+        <div className="grid max-w-4xl items-start gap-4 lg:grid-cols-2">
+          <LastSession
+            session={LAST_SESSION_FIXTURE}
+            href="/trades"
+            counted={3}
+            imported
+            zone={ZONE}
+          />
+          <LastSession
+            session={LAST_SESSION_THIN}
+            href="/trades"
+            counted={1}
+            imported
+            zone={ZONE}
+          />
+        </div>
+        <Note>
+          <strong>Six rows in the fixture, five on the card, and the count says 5.</strong> That is
+          not a bug in the specimen, it is the behaviour worth racking:{' '}
+          <code>sessionTotals</code> counts <code>state = &lsquo;ok&rsquo;</code> only, so the
+          quarantined row is <em>listed, marked and out of every total</em>. Doctrine requires it -
+          an exclusion may never silently shrink the record - and this card is where a trader would
+          notice it, which is most of the reason the card exists.
+        </Note>
+        <Note>
+          <strong>Why Run has this card at all</strong> is the question{' '}
+          <code>monarch-dashboard-teardown.md</code> §3.9 was missing until 2026-09-04. The
+          reference&rsquo;s <code>Transactions</code> widget is an <em>action queue</em> - somewhere
+          to categorise without navigating - and Run deleted that chore. This one is the{' '}
+          <em>proof</em> under card 1: a curve cannot demonstrate &ldquo;our numbers are the
+          broker&rsquo;s numbers&rdquo;, and rows can.
+        </Note>
+        <Note>
+          <strong>No picker and no call to action</strong>, and each is a rule rather than a
+          simplification. The account scope is <em>page-level</em> (§A8), so a control here would be
+          a second answer to &ldquo;which accounts&rdquo;. And the header is already the link, to{' '}
+          <code>/trades</code> pinned to this session - a pill under the rows would be a second thing
+          to aim at inside a card that is already aimed at.
+        </Note>
+        <Note>
+          <strong>Two columns, not four, and this rack row is what caught it.</strong> The first
+          build passed <code>hidden={'{[]}'}</code>. <code>TradeRow</code> is sized for a full-width
+          tape and its <code>sm:</code> rules are <em>viewport</em> queries, so in a narrow card at a
+          wide viewport every column renders and the elastic two collapse - measured here at 416px:
+          instrument 27px, account 45px, and the instrument name at <em>zero</em>. A half-width{' '}
+          <code>/today</code> card is 376px at a 1024 viewport and does not clear 560 until about
+          1400, so no amount of column-dropping saves the four-column form.
+        </Note>
+        <Note>
+          <strong>The reference already answered it:</strong> Monarch&rsquo;s own{' '}
+          <code>Transactions</code> widget row is the merchant and the amount - no account, no time,
+          both of which live on its full page. So this card draws{' '}
+          <code>TradeRow</code>&rsquo;s own <em>phone</em> form at every width, which{' '}
+          <code>trades-tape.tsx</code> already designed and already defends: the list is for
+          scanning, the detail is for checking. What it costs is stated in the component - the
+          account is one tap away in <code>TradeSheet</code>, and the page&rsquo;s scope band already
+          names which accounts are in view.
+        </Note>
+        <Note>
+          The date is <code>displaySessionDate</code> - the same string <code>/trades</code> prints on
+          its session bands, and longer than a widget header wants. Reused anyway:{' '}
+          <code>lib/time/session.ts</code> owns every date in this product so two surfaces cannot
+          disagree about which day it is, and <code>Widget</code>&rsquo;s head wraps.
+        </Note>
+      </Row>
+
+      <Row
+        label="Last session, the states that ship wrong"
+        note="day one, every account excluded, and a scope that holds nothing"
+      >
+        <div className="grid max-w-4xl items-start gap-4 lg:grid-cols-2">
+          <LastSession session={null} href="/trades" counted={0} imported={false} zone={ZONE} />
+          <LastSession session={null} href="/trades" counted={0} imported zone={ZONE} />
+          <LastSession session={null} href="/trades" counted={2} imported zone={ZONE} />
+          <WidgetSkeleton scope={false}>
+            <SessionRowsSkeleton />
+          </WidgetSkeleton>
+        </div>
+        <Note>
+          <strong>Three blanks, not one</strong>, and they are word for word{' '}
+          <code>Net P&amp;L</code>&rsquo;s. The two cards describe one set of accounts, so a page
+          that explained one condition two different ways would be worse than either. Day one names
+          what the card will hold; the second names the switch on <code>/accounts</code> that emptied
+          it; the third is a scope that is real and holds nothing.
+        </Note>
+        <Note>
+          <strong>None of them prints a date, and none of them counts.</strong> No &ldquo;0
+          sessions&rdquo;, no &ldquo;last traded 9 days ago&rdquo;, no date Run holds no trades for.
+          That is <code>CLAUDE.md</code>&rsquo;s re-entry rule, and this is the card most able to
+          break it: a session card is exactly the shape that wants to tell you how long it has been.
+        </Note>
+        <Note>
+          <strong>The skeleton is the fourth specimen</strong> because it is a shipped state.{' '}
+          <code>scope={'{false}'}</code>: this card mounts no header control, and a boundary drawing a
+          112px bar where nothing will land is a boundary that reflows by exactly that much.
         </Note>
       </Row>
     </Section>

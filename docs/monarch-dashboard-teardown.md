@@ -7,8 +7,19 @@ looked at, but nothing here is inferred from pixels. Web reads are cited at the 
 
 > **AMENDED, SAME DAY. `§8` IS THE CURRENT LIST — READ IT BEFORE ACTING ON §1–§7.** Six of the
 > twelve verdicts below have changed, every phone observation is void, and `§A8` settles where the
-> page-level account scope lives. Nothing above is edited: the doc is locked, and a superseded
-> argument is worth more visible than deleted.
+> page-level account scope lives.
+>
+> **HOW THIS DOC CHANGES, decided 2026-09-04 after the first correction was needed.** The rule was
+> *"all updates shall be amendments"*, which was right about decisions and wrong about facts:
+>
+> - **A DECISION that changed gets an amendment below**, and the original stays visible. Reading
+>   what was weighed and then reversed is the whole value of keeping it.
+> - **A FACT that was wrong gets corrected IN PLACE, with a dated marker naming what it said.** A
+>   locked doc's worth is that it is an accurate record of a measurement. §3.5 misquoted §1 of this
+>   same document; leaving that standing does not preserve reasoning, it gives the next reader a
+>   coin-flip on which of two lines to believe. There is no lesson in a transcription error.
+> - **An OPEN QUESTION that got answered is struck in place**, answer beside it - the shape `§A8`
+>   already uses.
 
 **The question this answers:** Monarch has twelve dashboard cards. What is each one *for*, and what
 is Run's version of it on `/today` — for a beta that ships **without** the nightly read
@@ -142,13 +153,37 @@ The one number. Headline, delta over the picked period, a chart of the period. M
 because it is the answer to *where do I stand* in a single glance; for the user it is the reason
 the dashboard exists.
 
-**Run: `Net P&L` — ships, and first.** Same shape exactly: net over the period, delta versus the
-prior period of the same length, a line of `getDailySeries()` under it, title linking to `/trades`.
+**Run: `Net P&L` — ships, and first.** Same shape exactly: net over the period, ~~delta versus the
+prior period of the same length~~ **the change over the picked window**, a line of
+`getDailySeries()` under it, title linking to ~~`/trades`~~ **`/accounts`**.
 **Port the picker whole:** `1 month · 3 months · 6 months · Year to date · 1 year · All time` — Run's
 `/accounts` chart already offers a range chip set and `yearToDateWindow` / `sessionWindow` exist in
 `lib/time`. The one rule that is Run's and not Monarch's: **net, never gross**, and the card states
 which it is showing when fees are absent (`hasFees === false → "Gross, no fees imported"`, the tape's
 own line).
+
+> **CORRECTED IN PLACE, 2026-09-04 — three errors in that paragraph, found by reviewing the built
+> card against it.** Two were mine; the third is a decision the build made and got right.
+>
+> 1. **The title links to `/accounts`, not `/trades`.** §1 of this document measured Monarch's own
+>    `Net worth` title going to `/accounts`; this paragraph contradicted that measurement two pages
+>    later. The rule under it, which §1 did not state: **a widget's title links to the page that OWNS
+>    its subject.** This figure's subject is the accounts it is summed across, and `/trades` is where
+>    Monarch's `Transactions` widget points — the card that becomes Run's `Last session`. Luke caught
+>    it in the build: *"why would clicking the header bring the user to /trades page?"*
+> 2. **The delta is the change OVER the window, not against a prior window of equal length.** The
+>    prior-period comparison is §3.8's `Spending` card (`This month vs. last month`); describing
+>    `Net worth` that way conflated two different cards. `windowChange` does the right thing.
+> 3. **The picker shipped as SEVEN Run ranges rather than Monarch's six**: `1 day · 1 week ·
+>    1 month · 3 months · Year to date · 1 year · All time`. `6 months` is gone; `1 day` and `1 week`
+>    are added, because those are the windows `/accounts` already offers under the same words. That
+>    is a DECISION, not a correction — consistency inside Run beating fidelity to the reference — and
+>    it is the right one: two controls offering different subsets of one scale is something a trader
+>    has to learn instead of read. `6 months` is the only option in the reference's set with no home
+>    here, and it stays dropped unless someone asks for it.
+>
+> **The `net, never gross` sentence is the one thing in this paragraph the build did not do**, and
+> the answer is `§A10` rather than a correction — it turned out to be a decision, not an oversight.
 
 ### 3.6 Savings goals — `$0.00 this month · Emergency fund · No target date`
 
@@ -187,14 +222,64 @@ one thing; revisit when `S10`'s subject pages give it somewhere to link.
 The atomic record, newest first, **editable in place**. Exists so the dashboard is somewhere you can
 *do* the daily chore (categorise) without navigating; for the user it is the inbox.
 
+> **WHY RUN HAS THIS CARD — the paragraph this section was missing** *(added 2026-09-04, Luke:
+> "why does the 'last session' card exist for run users?")*. Every other entry in §3 answers
+> *why Monarch has it* and then *what Run's version is*, and this one skipped the step between:
+> **why RUN has it.** That gap matters more here than anywhere else in the doc, because Monarch's
+> reason is the one reason that cannot transfer.
+>
+> **THEIR REASON IS A CHORE, AND RUN DELETED THE CHORE.** Their card exists so categorising happens
+> without navigating — it is an action queue. Run's whole wedge is that there is nothing to log, tag
+> or classify (`psychology.md` §5, `competitor-failures.md` P0 #3). Porting the card and keeping the
+> reason would be porting a PLACEMENT WITH NO PURPOSE, which is the exact failure this teardown was
+> written to catch.
+>
+> **1. IT IS THE PROOF UNDER THE HEADLINE.** `Net P&L` is a figure and a curve, which is an
+> abstraction, and the product's one claim is *"our numbers are the broker's numbers."* A curve
+> cannot demonstrate that; rows can. This is the only place on the front door where the trader sees
+> the actual trades they would recognise from their broker's own screen — so the card is the
+> reconcile claim made visible, sitting directly under the figure it explains. That is also why it
+> is second and not third: proof belongs beside the thing it proves.
+>
+> **2. A TRADER'S UNIT IS THE DAY.** Monarch's user arrives asking *what did I spend*; Run's arrives
+> asking *how did my last day go*. Card 1 answers a question about a level. This one answers the
+> question the trader actually walked in with, which is why the scope is a SESSION and not "the most
+> recent N".
+>
+> **3. IT IS THE RE-ENTRY CARD.** `CLAUDE.md`: no state may represent absence, and `psychology.md`
+> records that investors check 9.5% less the day after a loss — so the trader who has been away is
+> the one the front door is worth most to. `Last session` shows the last real day as though nothing
+> happened: no gap, no catch-up, no counting. It is *"every surface reopens where it was left"*
+> expressed as a card.
+>
+> **AND THERE IS ONE CHORE, BUT IT IS NOT DATA ENTRY — IT IS VERIFICATION.** The trader is the only
+> person who knows what their Friday actually looked like. A missing round trip, a quarantined row, a
+> fee that did not land: they see it in five rows instantly and nowhere else on this page. Doctrine
+> already requires that an excluded or quarantined trade stays visible and countable; **this card is
+> where that visibility reaches the front door.** So the honest one-line answer to the format's third
+> question is: *Monarch's card is where you fix your data; Run's is where you catch that yours is
+> wrong.*
+>
+> **WHAT WOULD KILL IT.** If it reads as a smaller `/trades` rather than as proof, it is redundant
+> and the slot belongs to something else. The test is whether a trader ever CATCHES something in it.
+> Worth watching in dogfooding, and worth saying out loud now so the answer is not rationalised
+> later.
+
 **Run: `Last session` — ships.** The rows are `TradeRow`, the same row the tape and `RecentTrades`
 already draw, so the card is the row the trader knows. Two departures from Monarch, both doctrine:
 **nothing is editable** (trades are the broker's or they are nothing — the whole reason the comboboxes
 do not come across), and the scope is **the newest session**, not "most recent N", because a
 trader's unit is the day. Headline: the session's net, trade count and win rate off `getDigest()`;
-title links to `/trades` filtered to that date. **Port the picker as an account scope:** Monarch's
+title links to `/trades` filtered to that date. ~~**Port the picker as an account scope:** Monarch's
 `All transactions · Anyone · Luke` becomes `All accounts · <each account>`, which `AccountSelect`
-already is — and, like `AccountSelect`, it renders nothing below two accounts.
+already is — and, like `AccountSelect`, it renders nothing below two accounts.~~
+
+> **THE PICKER SENTENCE IS VOID — `§A8` KILLED IT** *(marked 2026-09-04, before card 2 is built)*.
+> The scope is PAGE-level and lives in the header band, so this card must NOT carry a picker of its
+> own: two controls answering "which accounts" is exactly the disagreement `§A8` exists to prevent.
+> Everything else in this paragraph stands, and the read is cheaper than it looks — the page already
+> computes `endsOn` (the newest counted session) for card 1's `1d` range, so card 2 gets its date
+> for free and needs one query, not two.
 
 ### 3.10 Recurring — `$0 remaining due · This month · UW Credit Union · Every month · +$3,244.14 · in 14 days` → `/recurring`
 
@@ -292,9 +377,13 @@ manager. Say that.
 
 ## 7. Open, for Luke
 
-1. **Net P&L's default period.** Monarch defaults Net worth to `1 month`. A trader's month is not a
-   calendar month; `1 month` here should probably mean *the last 30 sessions* or *this month to
-   date*. `lib/time` owns the bucket either way. Pick one before the card is built.
+1. ~~**Net P&L's default period.**~~ **ANSWERED BY THE BUILD, 2026-09-03, and better than either
+   option this question offered.** `1 month` means what `windowStart` already makes it mean: **one
+   calendar month back from the subject's LAST TRADING DAY** — not from today, and not "the last 30
+   sessions". The argument this question missed is that `/accounts` already draws that window under
+   that word, so inventing a second meaning would have made one word mean two things on two screens.
+   Anchoring on the last trading day rather than on today is also what stops a trader who has been
+   away from opening an empty chart, which is the re-entry rule reaching the axis.
 2. **Last session on a day with no trades.** The card reads *the newest session with trades*, never
    "today" — otherwise a Monday morning shows an empty card, which is the absence state. Confirm.
 3. **Does Accounts show hidden accounts?** The roster keeps them in a flap. The card has no flap.
@@ -709,3 +798,160 @@ cheerfully the morning after a bad session is cheerful at exactly the wrong mome
 §6), and **first name only** (the OAuth provider hands over whatever the trader typed into Google,
 so *"Good afternoon, Luke Hanner"* is a form letter). The name is also **nullable** - the
 emailed-code path supplies none - and *"Good morning"* alone is a complete sentence.
+
+## A10 — The card says `Total P&L`, and §3.5's "net, never gross" is answered rather than followed *(2026-09-04)*
+
+**The card shipped saying `net P&L` and `/accounts` refuses to say it about the same number.**
+Found reviewing the built card against §3.5.
+
+[`accounts-rail.tsx`](../src/components/views/accounts/accounts-rail.tsx) labels the identical
+arithmetic — every counted account's net, summed — **`Total P&L`**, deliberately, since 2026-08-26,
+and states the reason:
+
+> *"`/trades` keeps `Net P&L` for a real reason that does not apply here: it flips to `Gross P&L`
+> when no Cash History covers the range, which is how that page satisfies **any surface showing a
+> net figure states whether fees were imported**. This rail is a roster rollup across accounts whose
+> fee coverage can differ per account, so one label cannot make that claim honestly for all of
+> them — the per-account answer belongs on `/accounts/details`, where there IS one account to
+> answer for."*
+
+`/today`'s card is that same rollup, over the same `counted` set, and it printed `-$2,092.29 net
+P&L` unconditionally. No `hasFees` in the file; `getDailySeries` does not carry one. **So one number
+had two names, and the front door had the more confident one** — which is the defect class the
+page's own comments cite twice (a rail reading `+$954.99` under a chart reading `-$26,995.06`),
+reached through the vocabulary instead of through the arithmetic.
+
+### Why not just keep `net`, which is probably true now
+
+Because *probably* is the problem, and this product's one claim is that it does not print numbers it
+cannot reconcile.
+
+`preflight.ts` made **`fees_empty` and `fees_partial` blocking findings**, so a fee-less import
+cannot land any more and everything written since that guard is genuinely net. §3.5's rule was
+written before that was read, which is why it prescribed a `Gross, no fees imported` line the build
+correctly did not need. But rows written *before* the guard are not covered by it, and this card
+sums across accounts without asking any of them. `Total` is true either way, costs no query, and
+makes `/today` and `/accounts` say one word for one figure.
+
+### What shipped
+
+| | |
+|---|---|
+| Title, with a figure | `-$2,092.29 total P&L` |
+| Title, blank card | `Total P&L` |
+| Empty state | *"Import a Tradovate export and your total P&L lands here, reconciled to the cent."* |
+| Everywhere else | unchanged — the card is still **called** `Net P&L` in the plan, the rack, and the filename, exactly as the rail is still `accounts-rail`. What a thing is called in the build and what it asserts on screen are different promises |
+
+### What would earn `net` back, and it is not beta
+
+Carry fee coverage into the fold, then the card can make the claim per scope, the way
+`/accounts/details` already does for the one account it answers for:
+
+- every counted account has fees → **`Net P&L`**
+- none do → **`Gross P&L`**
+- they differ → **`Total P&L`**
+
+That is one aggregate added to `getDailySeries` (or a `hasFees` per row on `getRoster`) plus a
+branch. It is worth doing when a second card needs the same fact — `Last session` reads `getDigest`,
+which **already carries `hasFees`**, so that card can and should make the claim honestly on day one,
+and this one can follow it. **Open until then:** whether a mixed set should say `Total P&L` or name
+the gap outright.
+
+### The rule this leaves behind, which is bigger than the card
+
+**A figure summed across accounts may not take a label that asserts something about one of them.**
+`Net`, `Gross` and `reconciled` are all claims about fee coverage. `Total` is a claim about
+arithmetic, and arithmetic is the only thing a rollup can promise. Every remaining card in `§A7`
+that sums across the scope inherits this — which, since the scope is page-level (`§A8`), is all of
+them.
+
+## A11 — Card 2 is specced. Five answers, one copy rule that reaches the whole app, and one correction *(2026-09-04)*
+
+Luke's answers to the five questions §A10 and §3.9 left open, plus the one thing his answer to #5
+assumed that turns out not to be true.
+
+| # | Question | Luke |
+|---|---|---|
+| 1 | Newest session **with trades**, never "today" | **Yes** |
+| 2 | How many rows | **5** |
+| 3 | Rows tappable, opening the trade sheet | **Yes** |
+| 4 | `Net` / `Gross` / `Total` on this card | **`Total P&L`, and no fee copy at all** — see below |
+| 5 | Excluded and quarantined rows show, marked | **Yes** — but his premise needs correcting |
+
+### The copy rule, which is bigger than this card
+
+Luke: *"no trader cares how much a trade made before fees. traders only care about the net value. we
+will use the copy `Total P&L` throughout the app where we could be using `Net`. but we chose `Total`
+so stick with it. don't add any copy talking about net or net vs gross."*
+
+**`§A10` is superseded by something simpler and better.** A10 said this card could "earn `Net` back"
+because `getDigest` carries `hasFees` — so the card could branch three ways. **It will not.** The
+word is `Total P&L` everywhere, unconditionally, and no surface explains the difference between net
+and gross to a trader who has never asked.
+
+**Why this is right and not a shortcut.** Two independent arguments land on the same answer:
+
+1. **The reader's.** Luke's: gross is not a number a futures trader uses. Explaining that a figure is
+   net-not-gross is answering a question nobody has, on the front door, in the space a real fact
+   could occupy.
+2. **The reconcile rule's.** The standing rule was *any surface showing a NET figure states whether
+   fees were imported* — a rule about the word `net`, which is a claim about fee coverage. `Total` is
+   a claim about arithmetic only, so **the rule's trigger never fires.** And `preflight.ts` made
+   `fees_empty` and `fees_partial` BLOCKING, so a fee-less import cannot land: the disclosure now has
+   nothing left to disclose on any row written since that guard.
+
+**What this does NOT license.** The figure is still net of fees in the arithmetic — `NET` is
+`gross_pnl_cents + fee_cents` and that does not change. This is a decision about the WORD, not about
+the sum. `spec.md` P8 (*the product states what its own output depends on*) is still answered, by the
+provenance card on `/accounts/details` naming the file, the range and the last read.
+
+**FIVE EXISTING SURFACES STILL SAY `Net P&L` OR `Gross P&L`,** and they predate this rule. Listed so
+the sweep is one decision rather than five discoveries:
+
+| Where | What it says now |
+|---|---|
+| `account-detail-view.tsx:120` | `chartLabel` flips `Net P&L` / `Gross P&L` |
+| `account-detail-view.tsx:131` | `chartNote` — *"No fee data imported for this account yet."* |
+| `account-rail.tsx:182` | `Net P&L` / `Gross P&L`, plus `, filtered` |
+| `trades-rail.tsx:118` | `Net P&L` / `Gross P&L` off `digest.hasFees` |
+| `trades-tape.tsx:337` | `Gross, no fees imported` |
+
+`accounts-rail.tsx` already says `Total P&L` and needs nothing. **Open: whether to sweep those five
+now or when each page is next touched.** The only one worth a second thought is
+`trades-tape.tsx:337`, which is a disclosure rather than a label — though by argument 2 above its
+condition is now unreachable through the import path.
+
+### The correction: quarantine is NOT near-zero
+
+Luke, on #5: *"but the likelihood of this happening is about zero, correct?"* **For him, yes. For a
+new trader, no — and the schema says so in its own words.**
+
+`schema.ts` on `contract_spec`: *"a MISSING row fails loudly, a WRONG row produces a plausible number
+nobody catches. So breadth bought from memory is a liability rather than coverage… **the table grows
+only when a real import quarantines something.**"* There is no seed migration. So:
+
+- **Quarantine is the DESIGNED intake path for any product not yet in the table**, not an edge case.
+  `project.ts` quarantines on four reasons, and `${root} is not in the contract spec` is the one that
+  fires for a trader who trades anything Luke has not traded yet.
+- **The beta makes this near-certain.** A public signup means a first import of MES, MGC, M2K, RTY or
+  anything else outside the current table, and **every trade on it quarantines** until someone adds
+  the row from the exchange's published spec. `Last session` is exactly where a new trader would meet
+  that, on day one.
+- **Excluded rows are genuinely near-zero today.** `trade-detail.tsx` RENDERS an `exclusionReason`,
+  and no control was found that WRITES one, so exclusion is a shape the data supports and the UI does
+  not yet offer.
+
+**So the answer to #5 stands and gets stronger.** Showing quarantined rows marked is not defensive
+decoration for a case that will not happen; it is the state a new trader is most likely to hit, and
+§3.9's verification argument is the reason the card is the right place to hit it.
+
+### Still open, and the only thing blocking
+
+**Does the account scope survive to `/trades`?** (`§A8`'s last item.) Luke, 2026-09-04: *"im not sure
+how to answer this yet."* Both routes already share the `accounts` param, so **today it follows by
+accident** — a trader on `/today?accounts=<apex>` who clicks this card's header lands on `/trades`
+still narrowed to that account. That is the status quo, it is defensible, and it needs no code.
+
+**It does not block the build.** Card 2 ships on the current behaviour; the decision is a one-line
+change either way whenever Luke wants it. What would force it sooner: the moment a card links
+somewhere that would be WRONG under the inherited scope.

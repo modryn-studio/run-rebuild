@@ -43,14 +43,7 @@ import { useCallback, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu } from '@/components/ui/menu';
 import type { FacetAccount } from '@/lib/trades/read';
-
-/* THE FIRM AND ITS SHORT, JOINED BY A SPACE AND NOTHING ELSE.
- *
- * `short` is already a finished label — `accountShortTitle` returns "50K (...4873)", or the display
- * name if the trader set one, with the brackets baked in by `accountLast4`. Wrapping it again
- * printed "Tradeify ((...4873))" on the real corpus, which is what a template that assumed a bare
- * number looks like when it meets a formatter that already did the work. */
-const accountLabel = (a: FacetAccount) => `${a.firm} ${a.short}`.trim();
+import { accountLabel } from '@/lib/prop-firms';
 
 /** The sentinel for "not narrowed". Not an account id, and never written to the URL — picking it
  *  DELETES the param, which is what keeps a cleared filter out of a URL a trader might read. */

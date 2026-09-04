@@ -1053,6 +1053,12 @@ downstream of it should be built on the assumption that either shape won.
 > and by **`Set up Run`**, a five-step setup card that empties itself and then unmounts. The recap
 > is **reset to a blank sheet** - the built card has no design authority any more - and Monarch's
 > `Advice` is reopened for a session of Luke's own. Build order and the reasoning are in §A7.
+>
+> **`Net P&L` SHIPPED FIRST AND ITS HEADLINE READS `total P&L`, NOT `net`** (§A10, 2026-09-04). The
+> card is a rollup across the scope, and `accounts-rail.tsx` already refuses the word `Net` for that
+> exact sum: a label naming fee coverage is a claim about ONE account, and a rollup can only promise
+> arithmetic. Every later card that sums across the scope inherits the rule - `Last session` is the
+> first that can beat it, because `getDigest` already carries `hasFees`.
 > The paragraphs below describe the slice as it stood while it carried the read.
 
 Monarch's widget contract applied unchanged. Last because every widget links to a page that

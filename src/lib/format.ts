@@ -22,6 +22,24 @@ export const fmtMoney = (cents: number): string => {
   return `${cents < 0 ? '-' : ''}$${abs}`;
 };
 
+/* THE SAME MONEY, WITH ITS SIGN SHOWN BOTH WAYS - `+$212.00` and `-$563.50`.
+ *
+ * A RESULT NEEDS THE PLUS AND A BALANCE DOES NOT, which is the whole distinction: `fmtMoney` prints
+ * a level, this prints a CHANGE, and a gain rendered as a bare `$212.00` beside a loss rendered as
+ * `-$340.50` makes the reader supply the missing sign from the colour alone.
+ *
+ * ONE COPY, ADDED 2026-09-04 WHEN A FOURTH WAS ABOUT TO BE WRITTEN. It existed identically in
+ * `trades-tape.tsx` and `accounts-rail.tsx`, and `/today`'s `Last session` card needed the same
+ * three lines. That is the `accountLabel` lesson from the day before, arriving again in a different
+ * file: a formula copied into every surface that needs it is a formula that will eventually be
+ * copied WRONG, and the copies here already differed from each other in nothing but luck.
+ *
+ * HERE BECAUSE THIS MODULE'S HEADER ALREADY CLAIMS IT - "one copy, so two surfaces can never render
+ * one figure two ways" - and because it is a leaf a `'use client'` row can import without dragging
+ * a server module behind it. */
+export const signed = (cents: number): string =>
+  cents > 0 ? `+${fmtMoney(cents)}` : fmtMoney(cents);
+
 /* A QUOTE, from micro-units. NEVER a fixed two decimals: that was the second half of the price bug,
  * and fixing only the storage would have left every 6E quote rendering as 1.09 from a perfectly
  * stored 1085000. Trailing zeros are trimmed but never below two decimals, so an index future still

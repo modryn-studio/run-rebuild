@@ -424,6 +424,30 @@ export function accountShortTitle(a: AccountName): string {
   return [size, last4].filter(Boolean).join(' ') || a.propFirm;
 }
 
+/* THE PICKER'S LABEL, AND THE ONLY COPY OF IT (2026-09-03).
+ *
+ * THREE SURFACES COMPOSE THIS STRING and each did it inline until now: the tape's `AccountSelect`,
+ * the phone's `ScopeSheet`, and `/today`'s trailing clause. Two called `.trim()` and one did not,
+ * and the one that did not carried a comment claiming the three were *"one string rather than three
+ * chances to disagree"* - which is the tell. A rule asserted in prose is a rule nothing enforces.
+ *
+ * THE FIRM AND ITS SHORT, JOINED BY A SPACE AND NOTHING ELSE. `short` is already a finished label -
+ * `accountShortTitle` above returns "50K (...4873)", or the display name if the trader set one,
+ * with the brackets baked in by `accountLast4`. Wrapping it again printed "Tradeify ((...4873))" on
+ * the real corpus, which is what a template assuming a bare number looks like when it meets a
+ * formatter that already did the work.
+ *
+ * `trim()` STAYS EVEN THOUGH `firm` FALLS BACK TO `UNLABELLED_FIRM` and cannot be blank today.
+ * `accountShortTitle` can return the firm alone, and a caller may yet pass a row this module did
+ * not build. One space, decided once.
+ *
+ * HERE RATHER THAN BESIDE `FacetAccount`, which lives in the db-backed `trades/read.ts`: a
+ * `'use client'` module may import TYPES from that file and never VALUES (`CLAUDE.md`). This module
+ * already owns both halves of the string and client components already import it. */
+export function accountLabel(a: { firm: string; short: string }): string {
+  return `${a.firm} ${a.short}`.trim();
+}
+
 /* THE TITLE, SPLIT WHERE IT IS ALLOWED TO BREAK. One definition, because more than one surface has
  * to truncate this string and each of them must cut in the SAME place.
  *

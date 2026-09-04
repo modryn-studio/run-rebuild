@@ -2,7 +2,11 @@ import { HeaderSlot } from '@/components/shell/header-slot';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PAGE_COLUMN } from '@/lib/shell';
 import { cn } from '@/lib/cn';
-import { PlotSkeleton, WidgetSkeleton } from '@/components/views/today/widget-skeleton';
+import {
+  PlotSkeleton,
+  SessionRowsSkeleton,
+  WidgetSkeleton,
+} from '@/components/views/today/widget-skeleton';
 
 /* THE DASHBOARD, BEFORE ITS FIGURES ARRIVE.
  *
@@ -43,9 +47,13 @@ import { PlotSkeleton, WidgetSkeleton } from '@/components/views/today/widget-sk
  *
  * ─── IT MIRRORS WHAT THE PAGE MOUNTS, AND GROWS WITH IT ────────────────────────────────────────
  *
- * One card, because `page.tsx` mounts one. A boundary standing in for six while the page renders
- * one is a boundary that reflows on every load. The rule for the next five: add its skeleton here
- * in the same commit that mounts it.
+ * TWO CARDS AS OF 2026-09-04, because `page.tsx` mounts two. A boundary standing in for six while
+ * the page renders two is a boundary that reflows on every load. The rule for the next four: add its
+ * skeleton here in the same commit that mounts it - which is how `Last session`'s arrived.
+ *
+ * `scope={false}` ON THE SECOND, and that is not a detail. `Last session` has no header control:
+ * `§A8` made the account scope PAGE-level, so the card owns no picker, and a boundary drawing a
+ * 112px bar where nothing will mount is a boundary that reflows by exactly that much.
  */
 export default function Loading() {
   return (
@@ -79,6 +87,10 @@ export default function Loading() {
           {/* `Net P&L`: a header with a period picker, and a body that is the plot. */}
           <WidgetSkeleton>
             <PlotSkeleton />
+          </WidgetSkeleton>
+          {/* `Last session`: a header with no control, and a body that is a figure and five rows. */}
+          <WidgetSkeleton scope={false}>
+            <SessionRowsSkeleton />
           </WidgetSkeleton>
         </div>
       </div>

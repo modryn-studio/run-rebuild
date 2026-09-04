@@ -91,6 +91,56 @@ export const TAPE_FIXTURE: SessionGroup[] = [
   },
 ];
 
+/* `/today`'S `Last session` CARD, WHICH DRAWS FIVE OF A SESSION AND TOTALS ALL OF IT (2026-09-04).
+ *
+ * SIX TRADES SO THE SLICE IS VISIBLE. `TAPE_FIXTURE[0]` has four, which racks the row fine and
+ * proves nothing about the card's own `SHOWN = 5`: a specimen that never reaches the cut cannot show
+ * that the cut is silent. It is silent on purpose - there is no "and 1 more" line, because the
+ * header already leads to the session in full.
+ *
+ * THE COUNT AND THE FIGURE DISAGREE WITH THE ROW LIST ON PURPOSE, and this is the fixture's real
+ * job. `tradeCount: 5` against six rows is what the database actually returns: `sessionTotals`
+ * counts `state = 'ok'` only, and the quarantined row is listed, marked, and out of every total.
+ * A rack specimen where those numbers happened to agree would hide the one behaviour most likely to
+ * be read as a bug.
+ *
+ * A SUNDAY, like every other date in this file, so no screenshot of it can be mistaken for a real
+ * session. */
+export const LAST_SESSION_FIXTURE: SessionGroup = {
+  sessionDate: '2027-03-07',
+  netCents: 70_000,
+  feesCents: -900,
+  tradeCount: 5,
+  winCount: 3,
+  lossCount: 2,
+  winRatePct: 60,
+  trades: [
+    row('ls1', { entryAt: at('2027-03-07T14:33:00Z'), exitAt: at('2027-03-07T14:37:00Z'), sessionDate: '2027-03-07', grossCents: 77_700 }),
+    row('ls2', { entryAt: at('2027-03-07T14:07:00Z'), exitAt: at('2027-03-07T14:09:00Z'), sessionDate: '2027-03-07', grossCents: -7_700, direction: 'short', symbolRoot: 'NQ', contract: 'NQZ7' }),
+    row('ls3', { entryAt: at('2027-03-07T13:51:00Z'), exitAt: at('2027-03-07T13:52:00Z'), sessionDate: '2027-03-07', grossCents: 300, state: 'quarantined', quarantineReason: 'XYZ is not in the contract spec.', symbolRoot: 'XYZ', contract: null, direction: null }),
+    row('ls4', { entryAt: at('2027-03-07T13:30:00Z'), exitAt: at('2027-03-07T13:33:00Z'), sessionDate: '2027-03-07', grossCents: 3_000 }),
+    /* A LONG ACCOUNT NAME, because this card leaves the account column ON - unlike `RecentTrades`,
+       where every row belongs to the account the page IS. The squeeze is the thing to look at. */
+    row('ls5', { entryAt: at('2027-03-07T13:12:00Z'), exitAt: at('2027-03-07T13:20:00Z'), sessionDate: '2027-03-07', grossCents: -3_300, direction: 'short', accountHead: 'Apex Trader Funding', accountTail: '150K (...0033)', accountName: 'Apex Trader Funding 150K (...0033)', firmLogo: null }),
+    row('ls6', { entryAt: at('2027-03-07T13:00:00Z'), exitAt: at('2027-03-07T13:04:00Z'), sessionDate: '2027-03-07', grossCents: 700 }),
+  ],
+};
+
+/** The same card on a day that went the other way, and the shortest a real session gets: one trade,
+ *  so the count reads "1 trade" rather than "1 trades" and the rate is a whole number off one. */
+export const LAST_SESSION_THIN: SessionGroup = {
+  sessionDate: '2027-03-06',
+  netCents: -33_300,
+  feesCents: -300,
+  tradeCount: 1,
+  winCount: 0,
+  lossCount: 1,
+  winRatePct: 0,
+  trades: [
+    row('lt1', { entryAt: at('2027-03-06T20:03:00Z'), exitAt: at('2027-03-06T20:11:00Z'), sessionDate: '2027-03-06', grossCents: -33_000, qty: 7 }),
+  ],
+};
+
 export const DIGEST_FIXTURE: TradesDigest = {
   trades: 7,
   sessions: 3,

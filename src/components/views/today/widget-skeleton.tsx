@@ -40,7 +40,7 @@ import { Skeleton } from '@/components/ui/skeleton';
  * bar would say "something arrives here" and then reflow into three, which §7 calls out as reading
  * worse than the spinner it replaced.
  *
- * RAGGED WIDTHS, at roughly the real measures: `-$2,092.29 net P&L` is a long string, a delta with
+ * RAGGED WIDTHS, at roughly the real measures: `-$2,092.29 total P&L` is a long string, a delta with
  * its percentage is about half of it, and the picker is a fixed control. §7: *"a column of identical
  * bars reads as a placeholder graphic, an uneven one reads as text that has not arrived."*
  *
@@ -99,4 +99,42 @@ export function WidgetSkeleton({
  * a phone at the moment the data lands, which is the reflow the skeleton exists to prevent. */
 export function PlotSkeleton() {
   return <Skeleton className="h-[242px] w-full sm:h-[275px]" />;
+}
+
+/* `Last session`'S BODY: one figure line, then five rows at the tape's own height.
+ *
+ * THE ROWS ARE FULL BLEED HERE TOO, and for the reason the card itself is: `TradeRow` carries its
+ * own `px-5 max-md:px-4` and `WidgetSkeleton`'s body carries the same, so a boundary that inset the
+ * bars twice would be 40px narrower than what lands and the whole list would shift on commit. The
+ * negative margin is the card's, to the class.
+ *
+ * `min-h-13` IS `TradeRow`'S OWN HEIGHT, read from it rather than approximated: 52px per row, five
+ * rows, four dividers. Get it wrong and the page grows or shrinks by the difference at the moment
+ * the data lands, which is the reflow a skeleton exists to prevent.
+ *
+ * RAGGED BAR WIDTHS at roughly the real measures - an instrument, an account, a clock, a figure -
+ * because four equal bars read as a table being drawn rather than as rows arriving. */
+export function SessionRowsSkeleton() {
+  return (
+    <>
+      <span className="flex min-h-6 items-center gap-x-2">
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-4 w-32" />
+      </span>
+      <div className="divide-rule -mx-5 mt-4 divide-y max-md:-mx-4">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="flex min-h-13 items-center gap-4 px-5 py-2 max-md:gap-3 max-md:px-4"
+          >
+            <span className="flex min-w-0 flex-1 items-center gap-3 max-md:gap-2">
+              <Skeleton className="size-7 shrink-0 rounded-full" />
+              <Skeleton className="h-4 w-28" />
+            </span>
+            <Skeleton className="h-4 w-20 shrink-0" />
+          </div>
+        ))}
+      </div>
+    </>
+  );
 }

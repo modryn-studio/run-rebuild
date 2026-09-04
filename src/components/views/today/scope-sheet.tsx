@@ -54,13 +54,12 @@ import { AccountSheet, useSheet } from '@/components/views/accounts/account-shee
 import { ModalHeader } from '@/components/views/accounts/shared';
 import { cn } from '@/lib/cn';
 import type { FacetAccount } from '@/lib/trades/read';
+import { accountLabel } from '@/lib/prop-firms';
 
 /** The sentinel for "not narrowed". Never written to the URL - picking it DELETES the param, which
  *  is what keeps a cleared filter out of an address a trader might read. Same value `AccountSelect`
  *  uses, and deliberately the same word, because they are one control at two widths. */
 const ALL = 'all';
-
-const label = (a: FacetAccount) => `${a.firm} ${a.short}`.trim();
 
 export function ScopeSheetTrigger({
   accounts,
@@ -189,7 +188,7 @@ function ScopeSheet({
             {accounts.map((a) => (
               <ScopeRow
                 key={a.id}
-                label={label(a)}
+                label={accountLabel(a)}
                 selected={current === a.id}
                 onClick={() => pick(a.id)}
               />
