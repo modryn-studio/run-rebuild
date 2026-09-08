@@ -449,12 +449,17 @@ export async function getDailySeriesFor(
   traderId: string,
   f: TradesFilter,
   window: { from: string | null; to: string | null }
-): Promise<{ accountId: string; day: string; cents: number }[]> {
+): Promise<{ accountId: string; day: string; cents: number; trades: number }[]> {
   const rows = await db
     .select({
       accountId: trade.accountId,
       day: trade.sessionDate,
       cents: sql<number>`coalesce(sum(${NET}), 0)`.mapWith(Number),
+      /* CARRIED SO THE TWO DAILY SERIES ARE ONE SHAPE (2026-09-08). `accounts/read.ts`'s
+         `getDailySeries` grew `trades` for the month calendar, and `/accounts/details` feeds THIS
+         function's rows into the same `DayPoint` slot - so the field is not optional here, it is
+         what stops one page's daily row and another's being two different types by accident. */
+      trades: sql<number>`count(*)::int`.mapWith(Number),
     })
     .from(trade)
     /* `state = 'ok'` ON TOP OF THE FILTER, exactly as `getDigest` does it. A quarantined trade stays

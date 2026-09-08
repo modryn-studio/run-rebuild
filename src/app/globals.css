@@ -205,6 +205,36 @@
   --color-accent-foreground: var(--color-accent-fg);
   --color-pos: #2b754e;         /* darkened 5.5%: 4.11 on surface-2 was under the floor */
   --color-neg: #a84a3c;         /* muted terracotta - the earned gravity / enforcement hue */
+  /* ── THE DAY-CELL GROUNDS, added 2026-09-08 for the month calendar (§A16) ────────────────────
+     `--color-pos` and `--color-neg` are INKS. They were tuned for 4.5:1 as text on a card, which
+     makes them far too saturated to fill 30-odd cells of a grid: a month of solid terracotta is a
+     screen shouting at a trader about a normal month. So the fill is a TINT of the same ink, and
+     the figure on top stays `--color-text` rather than the ink itself - one hue per state, at two
+     strengths, rather than a second pair of hues nobody can name.
+
+     MIXED AGAINST `--color-surface` BECAUSE THAT IS THE CARD, and a tint has to be a tint OF the
+     thing it sits on or it reads as a floating chip.
+
+     15% IS A CEILING, NOT A TASTE. The strength is bounded from above by the smallest thing standing
+     on the ground: the cell's trade count is `--color-muted` (#696765) at 11px, so it needs 4.5:1.
+     Measured against these grounds in this browser:
+         12% -> 4.75    13% -> 4.67    14% -> 4.61    15% -> 4.55    16% -> 4.47    20% -> 4.21
+     16% was the first pass and it fails. 15% is the last step that clears the floor, and it lands
+     at 1.23 against the card - the same separation `--color-flat-soft` already ships at 1.22, so
+     the three grounds read as one family rather than one of them shouting.
+
+     DECLARED IN FULL IN BOTH MODES, never as a mix that leans on `--color-pos` changing underneath.
+     Tailwind resolves a `@theme` value at build time, so a derived token whose input is overridden
+     in `.dark` silently keeps the light answer - the same trap `--shadow-card` documents further
+     down, and the reason `--color-selected` re-states its own mix in `.dark` rather than inheriting.
+
+     A FLAT DAY IS NOT A GREEN DAY. `--color-flat` is the recessed ground, so a day that was traded
+     and moved nothing reads as "something happened here" without claiming a direction. Rounding a
+     break-even day up to a win is the flattering direction, which is the one this product may never
+     round toward. An UNTRADED day gets no fill at all and is not the same fact. */
+  --color-pos-soft: color-mix(in oklab, var(--color-pos) 15%, var(--color-surface));
+  --color-neg-soft: color-mix(in oklab, var(--color-neg) 15%, var(--color-surface));
+  --color-flat-soft: var(--color-surface-2);
   /* DARKENED 2026-08-13, #b8863b -> #85612a. It failed EVERY light ground - 2.96 / 3.23 / 2.64 /
      3.09 - so it was not a legible ink anywhere, and at 2.64 on `surface-2` it missed even the 3:1
      floor a graphical indicator needs. That matters beyond text: its documented job is the red-zone
@@ -799,6 +829,18 @@
   --color-accent-fg: #0b1512;
   --color-pos: #6ab391;         /* lifted 11%: 3.97 on surface-2 was under the floor */
   --color-neg: #d89388;         /* lifted 16%: 3.69 on surface-2 was under the floor */
+  /* 20%, NOT light's 15%, and it is the same asymmetry `--color-selected` documents two tokens up:
+     a near-black card needs a larger step toward the hue before a ground reads as a ground at all.
+     The dark inks are the LIFTED ones, so a bigger share of a paler hue still sits well under the
+     near-white figure on top of it - 11.5:1 at this strength.
+     BOUNDED BY THE SAME SMALL THING as the light block, and measured the same way. The trade count
+     is `--color-muted` (#a6a4a0) at 11px against these grounds:
+         14% -> 5.15    18% -> 4.81    20% -> 4.62    22% -> 4.44    26% -> 4.13
+     26% was the first pass and it fails at 4.13. 20% is the last step that clears 4.5:1.
+     Re-stated in full rather than inherited - see the light block. */
+  --color-pos-soft: color-mix(in oklab, var(--color-pos) 20%, var(--color-surface));
+  --color-neg-soft: color-mix(in oklab, var(--color-neg) 20%, var(--color-surface));
+  --color-flat-soft: var(--color-surface-2);
   --color-warn: #cf9f4e;        /* ochre lifted for legibility on dark */
   /* Dark surfaces sit near-value to bg, so the lift needs a stronger black-based shadow to read.
      Widened with the light value above and by the same ratio, so a card does not read as raised in

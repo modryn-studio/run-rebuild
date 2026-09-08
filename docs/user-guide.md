@@ -442,10 +442,11 @@ research it came from and what deliberately is not copied: `build-plan.md` §S10
 
 ```mermaid
 flowchart TD
-  Today["/today<br/>widget grid — two cards as of 2026-09-04"]
+  Today["/today<br/>widget grid — three cards as of 2026-09-08"]
   Today --> NetPnl(["Net P&L — header → /accounts"])
   Today --> Last(["Last session — header → /trades, pinned to that day"])
   Last --> Row["a row → the trade<br/>drawer above md, full-screen sheet below"]
+  Today --> Month(["The month — a P&L calendar, header → /trades for the month"])
   Today -.-> Line(["The daily loss line (§A4) — next"])
   Today -.-> Target(["Profit target (§A5)"])
   Today -.-> Setup(["Set up Run (§A2)"])

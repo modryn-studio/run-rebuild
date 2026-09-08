@@ -13,6 +13,7 @@ import { getAttention } from '@/lib/accounts/attention';
 import { NetPnl } from '@/components/views/today/net-pnl';
 import { LastSession } from '@/components/views/today/last-session';
 import { AttentionStrip } from '@/components/views/today/attention-strip';
+import { MonthCalendar } from '@/components/views/today/month-calendar';
 import { Greeting } from '@/components/views/today/greeting';
 import { TodayHeader } from '@/components/views/today/today-header';
 
@@ -150,12 +151,18 @@ export default async function TodayPage({
   /* ONE BUCKET PER SESSION, SUMMED ACROSS ACCOUNTS, THEN CUMULATED. `getDailySeries` returns
      `(account, day)` rows already ordered by day, so the `Map`'s insertion order IS date order and
      `cumulate` gets what it needs without a sort. */
-  const byDay = new Map<string, number>();
+  /* THE TRADE COUNT RIDES ALONG IN THE SAME FOLD (2026-09-08, §A16). The calendar prints it in the
+     cell beside the net, and folding it here rather than in a second pass is what keeps the two
+     cards' arithmetic provably the same set: the curve and the grid cannot disagree about a day
+     when one loop produced both. */
+  const byDay = new Map<string, { cents: number; trades: number }>();
   for (const d of days) {
     if (!countedIds.has(d.accountId)) continue;
-    byDay.set(d.day, (byDay.get(d.day) ?? 0) + d.cents);
+    const at = byDay.get(d.day);
+    byDay.set(d.day, { cents: (at?.cents ?? 0) + d.cents, trades: (at?.trades ?? 0) + d.trades });
   }
-  const series = cumulate([...byDay.entries()].map(([day, cents]) => ({ day, cents })));
+  const calendarDays = [...byDay.entries()].map(([day, d]) => ({ day, ...d }));
+  const series = cumulate(calendarDays.map(({ day, cents }) => ({ day, cents })));
 
   /* THE SCOPED ACCOUNT'S NAME, or null. Composed through `toFacetAccount` AND `accountLabel`, so
      the card's trailing clause, the desktop menu's trigger and the phone sheet's ticked row are
@@ -250,6 +257,23 @@ export default async function TodayPage({
       ])}`
     : '/trades';
 
+  /* THE SAME URL SHAPE, A MONTH WIDE. Built here rather than in the card for the reason above: the
+     scope belongs to the page, and a client component composing its own `accounts` params is how
+     two surfaces come to disagree about which accounts a link means. The card knows which month is
+     on screen and nothing else, so it hands the month back and this fills in the rest.
+     THE LAST DAY IS COMPUTED, NEVER TYPED. `new Date(Date.UTC(y, m, 0))` is the last day of month
+     `m`, which is the one arithmetic in a calendar that must not be a lookup table with February
+     in it. */
+  const monthHref = (month: string) => {
+    const [y, m] = month.split('-').map(Number);
+    const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+    return `/trades?${new URLSearchParams([
+      ['from', `${month}-01`],
+      ['to', end],
+      ...scope.map((id) => ['accounts', id] as [string, string]),
+    ])}`;
+  };
+
   return (
     <div className={cn(PAGE_COLUMN, 'pb-8')}>
       {/* INTO THE HEADER BAND, where the route title would be. See `greeting.tsx`. */}
@@ -310,6 +334,18 @@ export default async function TodayPage({
           counted={counted.length}
           imported={days.length > 0}
           zone={trader.displayTimezone}
+        />
+        {/* THE MONTH, ONE CELL PER DAY (§A16). Run's answer to the reference's phone-only monthly
+            review card: their calendar, the field's cell. An ORDINARY WIDGET in the column rather
+            than a full-width band, because that is where the reference keeps every card it ships on
+            a desktop and because a card inventing its own width is the thing `§A15`'s lane is
+            allowed to do and a widget is not. */}
+        <MonthCalendar
+          days={calendarDays}
+          endsOn={endsOn}
+          href={monthHref}
+          counted={counted.length}
+          imported={days.length > 0}
         />
         {/* THE REMAINING THREE LAND HERE IN BUILD ORDER - §A7 as amended by §A13. Next is the
             self-set daily loss line, which is blocked on `spec.md` §6's carve-out rather than on

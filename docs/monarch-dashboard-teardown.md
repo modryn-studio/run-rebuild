@@ -459,6 +459,7 @@ ghosts.
 | `A13` | `Accounts` struck; slot 3 is the loss line | **live** |
 | `A14` | The phone's `Review transactions`: struck as a card, shipped as an operator alert | **live** — built |
 | `A15` | The same card, second answer: the lane, and it is about ACCOUNTS | **live** — built |
+| `A16` | The phone's `Monthly review`: the calendar ships, the walkthrough is filed | **live** — built |
 
 **A struck amendment stays in full.** `A10` and `A11`'s copy rule are the reasoning that produced
 `A12`, and `A12` is only defensible if you can read what it overturned: both of them argued from a
@@ -679,6 +680,13 @@ session should start from them rather than rediscover them:
 
 > **AMENDED BY `§A13`, 2026-09-04: the `Accounts` card is struck and FIVE ship, not six.** The two
 > rows it touches are marked below. Everything else here stands.
+>
+> **AMENDED AGAIN BY `§A16`, 2026-09-08: SIX, and the sixth came from the phone.** `The month` is
+> not a re-reading of anything in this table - it is the reference's THIRTEENTH widget, shipped only
+> in their mobile `Customize` list, so §4's original twelve could not have contained it. It is
+> BUILT, which puts it ahead of the three above it that are not: the loss line and the target are
+> blocked on `spec.md` §6, and `Set up Run` waits on flows that do not exist. The build ORDER below
+> is unchanged; what changed is that a card outside it shipped first.
 
 Superseding §4's table. Six rows are unchanged; the six that moved are marked.
 
@@ -690,6 +698,7 @@ Superseding §4's table. Six rows are unchanged; the six that moved are marked.
 | 3 | Budget | **The daily loss line** vs. actual | **ships — 3rd** ⬆ *was: 4th (`§A13`), and before that: no* | new column + `getDigest` |
 | 6 | Savings goals | **Profit-target progress** | **ships — 4th** ⬆ *was: 5th (`§A13`), and before that: no* | same column group |
 | 1 | Getting Started | **`Set up Run`** — 5 steps, self-emptying, self-unmounting | **ships — 5th** ⬆ *was: 6th (`§A13`), and before that: never* | existing state, no new data |
+| 13 📱 | Monthly review *(phone only)* | **`The month`** — a P&L calendar: one cell per day, net and trade count, four grounds | **BUILT — `§A16`** ⬆ *was: not in this table* | `getDailySeries` + `trades` |
 | 2 | Weekly Recap | **RESET — designed from scratch** ⬆ *was: built, unmounted* | held: no job, no design | — |
 | 8 | Spending trend | Month vs. month, day by day | hold: second chart | `getDailySeries` ×2 |
 | 10 | Recurring | Account renewals due | no: no billing data | needs new data |
@@ -698,13 +707,21 @@ Superseding §4's table. Six rows are unchanged; the six that moved are marked.
 | 12 | Advice | **REOPENED** ⬆ *was: never* | Luke's design session | — |
 
 ~~**Six cards ship, not three.** Which changes §4's *"No Customize, no dragging"* note: three cards
-cannot be rearranged into anything better, **six can**.~~ **FIVE, `§A13`** — and that reverts the
+cannot be rearranged into anything better, **six can**.~~ ~~**FIVE, `§A13`** — and that reverts the
 reorder aside with it: at five argued cards, none of them user-added, `Customize` and dragging stay
-unbuilt for the reason §4 gave originally.
+unbuilt for the reason §4 gave originally.~~
 
-**Order on the page** (a separate question from build order): Net P&L · Last session · The line ·
-Profit target, with **`Set up Run` above all of them while it is incomplete**, because a setup card
-that sorts below the cards it is trying to fill is a setup card nobody finishes.
+**SIX AGAIN, `§A16`, AND THE REORDER ASIDE IS BACK WITH IT.** The original sentence was right and
+`§A13` was right to strike it while the count was five; at six it is true again, and Luke asked for
+the feature by name on 2026-09-08: *"monarch allows the user to move the cards around. we will need
+to implement this as well at some point."* Their mechanism was read off the markup the same day —
+`react-beautiful-dnd`, `data-rbd-draggable-id` on all twelve, a handle on every one. **Owed, not
+built**, and `/today`'s own header note already frames the test it now passes: reorder is *"a
+feature of a page that has enough widgets to reorder."*
+
+**Order on the page** (a separate question from build order): Net P&L · Last session · **The month**
+· The line · Profit target, with **`Set up Run` above all of them while it is incomplete**, because a
+setup card that sorts below the cards it is trying to fill is a setup card nobody finishes.
 
 > **EVERY CARD'S EMPTY STATES ARE DEFERRED TO ONE PASS BEFORE THE BETA —
 > [#55](https://github.com/modryn-studio/run-rebuild/issues/55).** Luke, 2026-09-04: *"before we go
@@ -1538,3 +1555,126 @@ condition that makes the reference's card work on the reference's product.
   fill was tried and reverted. Revisited when the loss line ships, not before.
 - **`Monthly review`**, the calendar, is still the unreviewed half of the phone pair (`§A14`).
 - **`product_name` has no writer**, above.
+
+## A16 — `Monthly review`: the calendar SHIPS, the walkthrough is deferred *(2026-09-08)*
+
+The second of the two cards the reference ships **only on its phone**, and the last of them. `§A14`
+and `§A15` between them settled `Review transactions`; this settles the calendar.
+
+**Read from Luke's own screenshots of the iOS app**, per `§A1`'s rule that the source is what makes
+a phone read legitimate, not the width. Their desktop dashboard was re-read the same day to confirm
+the absence: twelve draggable widgets (`getting_started · recap · plan · net_worth · credit_score ·
+savings_goals · business_entities · cash_flow · transactions · recurring · investments · advice`),
+`react-beautiful-dnd`, a handle on every one, and **no monthly review among them.** It is a
+thirteenth widget that exists only in the mobile `Customize` list.
+
+### What the reference ships
+
+A **calendar card** whose cells hold a date and nothing else. The days ELAPSED in the month carry a
+teal band; today is a filled disc. Under the grid: `September's progress`, `View your progress this
+month`, and a filled `View progress` button.
+
+Tapping it opens a **twelve-step full-screen story** with a progress rail and Next/Previous — cash
+flow, a `FUN FACT:` interstitial, plan progress, top income and expense categories, a four-month
+trend, net worth, asset balances and breakdown, liability balances and breakdown, and a two-month
+net-worth chart. It ends on confetti: *"Great work! You're all caught up on your financial progress
+for September. Keep it up next week!"*, a referral CTA, and `Finish`. **The card then turns green
+with a checkmark and its button changes from filled to outline.** Leaving partway shows `Resume`.
+
+### The split, and it is the whole decision
+
+**The geometry is worth taking and the content is not.** Three of their moves are ruled out by
+locked docs, and they are the three that make the flow feel good:
+
+1. **The confetti.** Praise for opening a screen — `psychology.md` §7 excludes *anything that
+   rewards opening the app*. And *"caught up"* asserts a backlog, which `CLAUDE.md`'s re-entry rule
+   says may never exist.
+2. **The green tick on the calendar.** The same mechanic one layer quieter: a completion badge for
+   having read something.
+3. **🎉 *"Your expenses are tracking lower than planned."*** Praise attached to an outcome. For a
+   trader this is the worst available transfer — a month's P&L is mostly variance, and congratulating
+   the number teaches outcome-chasing (Kluger & DeNisi, `psychology.md` §1).
+
+The `FUN FACT` interstitial goes with them: a tips slot wedged into a data ritual.
+
+### What shipped: the calendar, with the field's cell
+
+Luke, 2026-09-08: *"i think C as the card for sure… basically we are just creating the calendar and
+not the separate screens."*
+
+**Their calendar carries no data at all**, so the cell had to come from somewhere else. Researched
+the same day rather than invented, and the field converges:
+
+| | Tradervue | TradeZella |
+|---|---|---|
+| Cell | **trade count + P&L** | **P&L**, plus a note icon if journalled |
+| Colour | green win, red loss, **blue break-even**, grey no-trades | green, red |
+| Extras | — | a weekly column: week net and days traded |
+| Header | — | month total P&L and trading days |
+| Nav | year view → month → day | month arrows |
+
+So: **the reference's chrome, the field's cell.** Month header, `SUN`–`SAT`, seven columns, a
+summary line under the grid, and an ordinary half-width widget in the column — because that is where
+the reference keeps every card it ships on a desktop, and a card inventing its own width is what
+`§A15`'s lane is allowed to do and a widget is not.
+
+**Four cell states, not two.** A winning day, a losing day, a **break-even** day that was traded and
+moved nothing, and an **untraded** day with no fill at all. Tradervue's four, and the distinction is
+doctrine rather than polish: folding a flat day into green rounds in the flattering direction, and
+merging "traded and made nothing" with "did not trade" states two different facts as one.
+
+**The figure in a cell is ink, not pos/neg.** The one deliberate departure from the tape's row rule:
+the GROUND already carries the sign, so colouring the number as well stacks two signals on one axis
+and leaves a colourblind trader with neither.
+
+### What the build settled that was not asked
+
+- **Two new token families, and both strengths are measured ceilings rather than choices.**
+  `--color-pos` and `--color-neg` are INKS, tuned as text; at fill strength a month of them shouts.
+  The tint is bounded from above by the smallest thing standing on it — the cell's trade count, at
+  `--color-muted`, 11px, needing 4.5:1. Measured: **light fails at 16% (4.47) and clears at 15%
+  (4.55); dark fails at 26% (4.13) and clears at 20% (4.62).** Both first passes were wrong and both
+  were caught by measuring rather than looking.
+- **`--color-flat-soft` is `--color-surface-2`**, the recessed ground already in the system. A
+  break-even day is "something happened here" without a direction, and that is what recessed means.
+- **`DayPoint` gained `trades`.** One extra aggregate on a group-by that already existed, in both
+  daily-series readers so the two cannot drift into different shapes.
+- **It opens on the month of `endsOn`, never on today's.** The page's own anchor, third time: card 1
+  windows off it and card 2 draws the newest session with trades. A trader back after two weeks lands
+  on the month they traded rather than on an empty grid.
+- **The arrows clamp to the data** — back to the first month with trades, forward to the month of the
+  last trading day. The field clamps the same way, and unbounded arrows make the control's own
+  affordance a lie in three directions out of four.
+- **The trade count is a bare numeral opposite the date.** It was `9 trades` on its own line and it
+  clipped to `14 trade` at a half-width card — seven columns leave ~47px of cell and `text-caption`
+  is the smallest step the system has. The word survives in the cell's `aria-label`, where there is
+  no width at all.
+
+### Not built, and each is a decision
+
+- **A day is not tappable.** Luke: *"nothing happens right now. we will plan this out better later."*
+  The header still links to `/trades` for the month, because that is the widget contract every card
+  on this page keeps.
+- **No weekly total column.** TradeZella runs an eighth column. It breaks the seven-column grid this
+  card was asked to copy, and a week total on a MONTH card reopens the question `§A3` reserved.
+- **No unit picker.** The field offers R, ticks, points and a privacy mode. R needs a per-trade risk
+  Run does not hold; the rest need a settings surface this card does not have.
+- **The walkthrough**, both ways it could be built, is filed rather than dropped:
+  [#58](https://github.com/modryn-studio/run-rebuild/issues/58) the paced story,
+  [#59](https://github.com/modryn-studio/run-rebuild/issues/59) one generated page instead. Both are
+  blocked on the same thing: their best screens are `§A4`'s loss line and `§A5`'s target, and both
+  wait on `spec.md` §6.
+
+### Left open, on purpose
+
+**Whether monthly REPLACES the weekly recap.** `§A3` reset the recap and left *"Daily or weekly?"*
+open; a monthly artefact would make three period surfaces, which is one too many. Luke, 2026-09-08:
+*"i kind of agree with monthly replacing weekly but i dont want you to make that a concrete decision
+made yet. just note it and note that we may go that route."* **Noted, and not decided.** Nothing in
+this section depends on the answer — the calendar is computed, not generated, and it survives either
+way.
+
+**Widget reordering is now owed.** Luke: *"monarch allows the user to move the cards around. we will
+need to implement this as well at some point."* Their mechanism is drag-and-drop on every widget,
+read off the markup above. `/today`'s own header note already says reorder is *"a feature of a page
+that has enough widgets to reorder"* — with three cards and a lane, that page is closer than it was.

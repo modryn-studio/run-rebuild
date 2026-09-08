@@ -30,6 +30,7 @@ import { Icon } from '@/components/ui/icon';
 import { DailyRecap } from '@/components/views/today/daily-recap';
 import { NetPnl } from '@/components/views/today/net-pnl';
 import { LastSession } from '@/components/views/today/last-session';
+import { MonthCalendar, type CalendarDay } from '@/components/views/today/month-calendar';
 import { ScopeRow } from '@/components/views/today/scope-sheet';
 import { ForcePhone } from '@/lib/use-phone';
 import {
@@ -50,6 +51,28 @@ import {
   NET_PNL_INTRADAY,
 } from '@/components/views/today/fixtures';
 import { Note, Row, Section } from '../_components/section';
+
+/* A MONTH WITH ALL FOUR CELL STATES IN IT, and the flat day is the one a happy-path fixture never
+   has. Two months so the arrows have somewhere to go and their clamp is visible at both ends: the
+   back arrow dies on February, the forward arrow on March. */
+const CALENDAR_FIXTURE: CalendarDay[] = [
+  { day: '2027-02-24', cents: 41_250, trades: 6 },
+  { day: '2027-02-25', cents: -18_800, trades: 11 },
+  { day: '2027-02-26', cents: 7_400, trades: 3 },
+  { day: '2027-03-01', cents: 84_000, trades: 9 },
+  { day: '2027-03-02', cents: -61_025, trades: 14 },
+  { day: '2027-03-03', cents: 0, trades: 2 },
+  { day: '2027-03-04', cents: 12_600, trades: 4 },
+  { day: '2027-03-05', cents: -3_450, trades: 7 },
+  { day: '2027-03-08', cents: 1_284_000, trades: 21 },
+  { day: '2027-03-09', cents: -22_100, trades: 5 },
+  { day: '2027-03-11', cents: 9_900, trades: 3 },
+  { day: '2027-03-12', cents: -7_250, trades: 8 },
+  { day: '2027-03-16', cents: 33_400, trades: 6 },
+  { day: '2027-03-17', cents: 0, trades: 1 },
+  { day: '2027-03-18', cents: -14_050, trades: 9 },
+  { day: '2027-03-19', cents: 52_775, trades: 12 },
+];
 
 /** `trader.display_timezone`'s stand-in. DISPLAY ONLY - it labels an axis and never buckets. */
 const ZONE = 'America/Chicago';
@@ -876,6 +899,48 @@ export function TodaySection() {
           <strong>The skeleton is the fourth specimen</strong> because it is a shipped state.{' '}
           <code>scope={'{false}'}</code>: this card mounts no header control, and a boundary drawing a
           112px bar where nothing will land is a boundary that reflows by exactly that much.
+        </Note>
+      </Row>
+
+      <Row
+        label="The month"
+        note="the reference's calendar, the field's cell (§A16)"
+      >
+        <div className="grid max-w-4xl items-start gap-4 lg:grid-cols-2">
+          <MonthCalendar
+            days={CALENDAR_FIXTURE}
+            endsOn="2027-03-19"
+            href={() => '/trades'}
+            counted={3}
+            imported
+          />
+          <MonthCalendar days={[]} endsOn={null} counted={0} imported={false} />
+        </div>
+        <Note>
+          <strong>Three grounds and a blank, and the blank is the fourth state.</strong> A winning
+          day, a losing day, and a <em>break-even</em> day that was traded and moved nothing - which
+          gets the recessed ground rather than being rounded up into green. A day with no trades has
+          no fill at all: it is not part of the record, which is a different fact from a zero in it.
+        </Note>
+        <Note>
+          <strong>The muted numeral opposite the date is the trade count</strong>, not a second
+          date. It was <code>9 trades</code> on its own line and it clipped to{' '}
+          <code>14 trade</code> at this width - seven columns inside a half-width card leaves ~47px
+          of cell, and <code>text-caption</code> is the smallest step the system has. The word
+          survives in the cell&rsquo;s <code>aria-label</code>, where there is no width at all.
+        </Note>
+        <Note>
+          <strong>The figure in a cell is ink, not pos/neg</strong>, and it is the one place this
+          departs from the tape&rsquo;s row rule on purpose. The <em>ground</em> already carries the
+          sign, so colouring the number as well would stack two signals on one axis and leave a
+          colourblind trader with neither. Weight carries the emphasis instead.
+        </Note>
+        <Note>
+          <strong>Open the arrows and walk back.</strong> They clamp to the data - back to the first
+          month with trades, forward to the month of the last trading day - so the control cannot
+          walk into a month that could only ever be empty. The card opens on the month of{' '}
+          <code>endsOn</code>, never on today&rsquo;s: a trader back after two weeks lands on the
+          month they actually traded.
         </Note>
       </Row>
     </Section>

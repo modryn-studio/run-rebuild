@@ -1047,8 +1047,12 @@ downstream of it should be built on the assumption that either shape won.
 > back). What replaces it is decided against a live read of the reference's dashboard rather than
 > from `wireframes.md` §5 alone: **[`monarch-dashboard-teardown.md`](monarch-dashboard-teardown.md)**,
 > every card mapped. **Luke's changes landed the same day and are §8 of that doc, which is the
-> current list**: **five cards ship**, not three. `Net P&L` and `Last session` (both BUILT) are
-> joined by **the self-set daily loss line** and **profit-target progress** (one slice, one
+> current list**: ~~**five cards ship**~~ **SIX (`§A16`, 2026-09-08)**, not three. `Net P&L`,
+> `Last session` and **`The month`** - a P&L calendar, one cell per day carrying that day's net and
+> trade count - are BUILT. The month came from the reference's PHONE, where it is a thirteenth
+> widget their desktop dashboard does not carry, so it is not a re-reading of anything in §4's
+> twelve; its walkthrough is deliberately not built and is filed as #58 and #59. The other three are
+> **the self-set daily loss line** and **profit-target progress** (one slice, one
 > migration - and BLOCKED until Luke amends `spec.md` §6, which still lists stated-intent-vs-actual
 > as NOT IN V1), and by **`Set up Run`**, a five-step setup card that empties itself and then
 > unmounts. An `Accounts` card was planned third and **struck on 2026-09-04 (`§A13`)**: the

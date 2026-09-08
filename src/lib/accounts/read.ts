@@ -130,6 +130,12 @@ export interface DayPoint {
   accountId: string;
   day: string;
   cents: number;
+  /* HOW MANY ROUND TRIPS MADE THAT NUMBER. Added 2026-09-08 for the month calendar, which prints it
+     beside the net: -$600 on one trade and -$600 on twelve are different days, and a calendar whose
+     whole job is showing the shape of a month cannot tell them apart without this.
+     A SECOND AGGREGATE ON A GROUP-BY THAT ALREADY EXISTS, not a second query - the rows were already
+     grouped `(account_id, session_date)`, so this is free. Every other caller ignores it. */
+  trades: number;
 }
 
 /**
@@ -166,6 +172,7 @@ export async function getDailySeries(
       accountId: trade.accountId,
       day: trade.sessionDate,
       cents: sql<number>`coalesce(sum(${NET}), 0)`.mapWith(Number),
+      trades: sql<number>`count(*)::int`.mapWith(Number),
     })
     .from(trade)
     .where(and(...bounds))
