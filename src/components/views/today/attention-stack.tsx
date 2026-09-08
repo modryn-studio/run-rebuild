@@ -248,10 +248,15 @@ export function AttentionStack({
                 ? item.account.externalAccountId
                 : placeholderAccountTitle(item.account.externalAccountId)}
             </p>
+            {/* WHAT IS TRUE OF IT, NOT WHEN IT ARRIVED. This said "New to Run, with N trades
+                already in it", which is wrong for the row that most needs this card: Luke's own
+                `FTDFYL...` holds 720 trades imported three weeks ago and has simply never been
+                labelled. An unlabelled account is a NORMAL, LONG-LIVED state (`schema.ts`), not a
+                recent arrival, and this component cannot see the import date anyway. */}
             <p className="text-body text-muted mt-1">
               {item.account.trades > 0
-                ? `New to Run, with ${item.account.trades.toLocaleString('en-US')} ${item.account.trades === 1 ? 'trade' : 'trades'} already in it.`
-                : 'New to Run.'}
+                ? `${item.account.trades.toLocaleString('en-US')} ${item.account.trades === 1 ? 'trade' : 'trades'}${item.account.lastSessionDate ? `, last one ${dayLabel(item.account.lastSessionDate)}` : ''}. Run does not know what kind of account this is.`
+                : 'Run does not know what kind of account this is.'}
             </p>
 
             <div className="mt-5">

@@ -36,6 +36,26 @@ import type { RosterAccount } from './read';
  * module exists to never write.
  */
 
+/* HOW CLOSE TWO IMPORTS HAVE TO BE TO COUNT AS ONE SITTING, and this constant exists because the
+ * `ended` question was WRONG WITHOUT IT - measured on real data 2026-09-08, not reasoned about.
+ *
+ * `/api/csv-import` REFUSES an upload covering more than one account: *"These files cover N
+ * accounts. Export one account at a time."* So one `import` row is one upload, always, and a trader
+ * doing their whole roster does it as a burst of separate uploads seconds apart. Luke's own log:
+ * SEVEN accounts committed between 16:03:09 and 16:03:24 on 2026-08-26, one sitting, fifteen
+ * seconds end to end.
+ *
+ * Comparing each account's newest import against the trader's newest INSTANT therefore flagged six
+ * of those seven as "not in your last import" - all six false, all six caused by a few seconds of
+ * skew. On the live page that was three of the five items in the lane.
+ *
+ * TEN MINUTES, AND THE DIRECTION OF THE ERROR IS THE REASON. It only has to be longer than one
+ * sitting and shorter than the gap between two deliberate uploads, and those differ by orders of
+ * magnitude, so the exact figure is not load-bearing. Erring LONG makes the lane ask less often;
+ * erring short makes it ask wrongly. For a surface whose whole risk is nagging, a missed question
+ * is cheap and a wrong one is not. */
+const SAME_SITTING_MS = 10 * 60 * 1000;
+
 /** One thing to ask about, and the account it is about. */
 export interface AttentionItem {
   /** `label` - an import created this account and nothing has said what it is.
@@ -58,10 +78,11 @@ export interface AttentionItem {
  * counted as "we saw this account" would answer the `ended` question with a file that contributed
  * nothing.
  *
- * `import` IS PER ACCOUNT - `account_id` is NOT NULL on that table - so one upload covering three
- * accounts writes three rows. That is what makes this shape work without an upload-session id:
- * comparing each account's newest import against the trader's newest import answers "was this
- * account in the last thing that landed" with no grouping to invent.
+ * `import` IS PER ACCOUNT and so is an UPLOAD: `account_id` is NOT NULL on that table, and
+ * `/api/csv-import` refuses anything covering more than one account outright. So there is no
+ * upload-session id to group by and none is needed - but it also means a roster imported in one
+ * sitting arrives as N separate rows seconds apart, which is what `SAME_SITTING_MS` exists to put
+ * back together.
  */
 export async function readLastImports(traderId: string): Promise<Map<string, number>> {
   const rows = await db
@@ -93,6 +114,8 @@ export function buildAttention(
      invisible to the comparison and ask about every other account for no reason. */
   let newest = 0;
   for (const at of lastImports.values()) if (at > newest) newest = at;
+  /* Everything within one sitting of the newest counts as part of it. See `SAME_SITTING_MS`. */
+  const cutoff = newest - SAME_SITTING_MS;
 
   const label: AttentionItem[] = [];
   const ended: AttentionItem[] = [];
@@ -128,7 +151,7 @@ export function buildAttention(
        import and is not dead; it is waiting for its first one. `undefined` here means "no committed
        import has ever named this account", which is a different fact from "the last one did not". */
     const seen = lastImports.get(account.id);
-    if (seen === undefined || seen >= newest) continue;
+    if (seen === undefined || seen >= cutoff) continue;
 
     ended.push({ kind: 'ended', account, siblingCount: 0 });
   }

@@ -1421,6 +1421,18 @@ your other accounts. This one was not in it"* is a fact about a file. *"You have
 nine days"* is a progress report on a person, and it is the sentence the re-entry rule exists to
 prevent. Nothing in the module reads a calendar.
 
+> **CORRECTED BY POSTCHECK, 2026-09-08, AND IT WAS SHIPPING WRONG.** `/api/csv-import` refuses an
+> upload covering more than one account (*"Export one account at a time"*), so one `import` row is
+> one upload and a trader doing their roster produces a BURST of them seconds apart. Luke's own log:
+> seven accounts committed between `16:03:09` and `16:03:24` on 2026-08-26, one sitting.
+>
+> Comparing each account's newest import against the trader's newest **instant** therefore flagged
+> six of those seven as *"not in your last import"* - every one of them false, all caused by seconds
+> of skew. On the live page that was **three of the five items in the lane**. `SAME_SITTING_MS`
+> (10 minutes) now folds one sitting back together; the live count went `5 to check` → `2 to check`,
+> which is exactly the two genuinely unlabelled accounts. The window errs LONG on purpose: for a
+> surface whose whole risk is nagging, a missed question is cheap and a wrong one is not.
+
 **Trigger: unconditional, every committed import** (Luke's call, 2026-09-08, over the narrower
 "only on the named→unnamed transition"): *"leave it unconditional and I'll see how it feels in
 dogfooding."* **The cost is known and accepted:** a trader with four active accounts who trades one
