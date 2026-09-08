@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { NOT_INVITED_CODE, NOT_INVITED_MESSAGE } from '@/lib/beta-invite';
 import { safeNext } from '@/lib/next-path';
 import { useKeyboardInset } from '@/lib/use-keyboard-inset';
 import { site } from '@/config/site';
@@ -100,12 +101,26 @@ export function Login() {
      `loading.tsx` at the app ROOT, which nobody had put there for this reason and which was in the
      wrong place for its own. This comment used to read "which the route already provides" - true,
      and true by accident. */
-  const next = safeNext(useSearchParams().get('next'));
+  const params = useSearchParams();
+  const next = safeNext(params.get('next'));
+  /* THE GOOGLE PATH'S REFUSAL ARRIVES HERE, ON THE URL. A social sign-in never resolves with an
+     `{ error }` this component can read: Better Auth's OAuth callback catches the APIError thrown
+     by the invite gate and REDIRECTS to `onAPIError.errorURL` (set to `/login` in `auth.ts`) with
+     `?error=<code>` attached. Without this read, a trader refused via Google would land back on a
+     login screen that says nothing at all and simply looks like the button did not work.
+
+     MATCHED ON THE CODE, AND THE COPY IS OURS. `error_description` is also on that URL and is the
+     obvious thing to render, which is exactly why it must not be: it is attacker-controlled text
+     displayed inside the product's own error slot, and a crafted link would put any sentence there
+     under this app's chrome. See `beta-invite.ts`. */
+  const refusedOnCallback = params.get('error') === NOT_INVITED_CODE;
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'form' | 'code'>('form');
   const [busy, setBusy] = useState<Busy>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Seeded from the URL so a callback refusal paints on the first render rather than flashing an
+  // empty error slot and filling it in an effect.
+  const [error, setError] = useState<string | null>(refusedOnCallback ? NOT_INVITED_MESSAGE : null);
   const [cooldown, setCooldown] = useState(0);
   const [sentCount, setSentCount] = useState(0);
   const verifyingRef = useRef(false);
@@ -180,10 +195,17 @@ export function Login() {
       // response over a screen they already left.
       if (abandonedRef.current) return;
       if (res?.error) {
+        /* THE INVITE REFUSAL NEEDS ITS OWN BRANCH, or it falls to the generic message below and
+           tells somebody who can never be admitted to "please try again" - forever. That is
+           `finding-notice.tsx` rule 1 broken on the first screen of the product: a person who
+           cannot act on a refusal will repeat the identical action, which reads as broken rather
+           than as careful. */
         setError(
-          res.error.status === 429
-            ? 'Too many tries. Wait a minute, then try again.'
-            : 'We could not send that code. Please try again.'
+          res.error.status === 403
+            ? NOT_INVITED_MESSAGE
+            : res.error.status === 429
+              ? 'Too many tries. Wait a minute, then try again.'
+              : 'We could not send that code. Please try again.'
         );
         setBusy(null);
         return;
@@ -218,9 +240,11 @@ export function Login() {
         // Clear the boxes: leaving a rejected code in place invites re-submitting the same digits.
         setCode('');
         setError(
-          res.error.status === 429
-            ? 'Too many tries. Wait a minute, then try again.'
-            : 'That code is wrong or expired. Check your email, or send a new one.'
+          res.error.status === 403
+            ? NOT_INVITED_MESSAGE
+            : res.error.status === 429
+              ? 'Too many tries. Wait a minute, then try again.'
+              : 'That code is wrong or expired. Check your email, or send a new one.'
         );
         setBusy(null);
         verifyingRef.current = false;

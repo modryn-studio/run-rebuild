@@ -54,6 +54,12 @@ const schema = z.object({
   // string. Unset = nobody is admin (see require-admin.ts: it fails closed).
   ADMIN_EMAILS: z.string().optional(),
 
+  // Comma-separated allowlist for BETA SIGNUP, unioned with ADMIN_EMAILS. Not a secret, for the
+  // same reason as above. Unset = no NEW account may be created (see beta-access.ts: it fails
+  // closed). Existing accounts are unaffected either way - removing an address never locks out a
+  // trader who has already imported.
+  BETA_ALLOWLIST: z.string().optional(),
+
   // ── Add project keys below. Required ones use .min(1) with a message; anything the app can
   // boot without stays .optional() so a half-configured environment still runs. ──
 

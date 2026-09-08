@@ -21,6 +21,8 @@ import { count, eq } from 'drizzle-orm';
 import { alertSubject, claim, notifyHtml, otpHtml, sendNotification, sendUserEmail, takeSendBudget } from '@/lib/notify';
 import { db, authUser, authSession, authAccount, authVerification } from '@/lib/db';
 import { track } from '@/lib/track';
+import { mayCreateAccount, mayRequestCode } from '@/lib/beta-access';
+import { NOT_INVITED_CODE, NOT_INVITED_MESSAGE } from '@/lib/beta-invite';
 import { env } from '@/lib/env';
 import { site } from '@/config/site';
 
@@ -225,6 +227,20 @@ export const auth = betterAuth({
       const address = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
       // Anything malformed is left for the route's own validator, so junk never claims a slot.
       if (!address.includes('@')) return;
+      /* THE INVITE GATE, AND IT IS FIRST ON PURPOSE (2026-09-08). Both throttles below exist to
+         ration a scarce resource - one inbox's patience, and the shared Gmail quota - and an
+         address that was never going to be admitted should not spend either. Refusing here also
+         means a stranger is told at the door rather than after a real code has landed in their
+         inbox and been typed in.
+
+         `mayRequestCode` hits the database, so it deliberately runs after the malformed-address
+         return above: junk never costs a query. It answers true for anyone who ALREADY has an
+         account, which is what keeps an existing trader signing in after their address leaves the
+         list. See `beta-access.ts` for why that distinction is load-bearing. */
+      if (!(await mayRequestCode(address))) {
+        throw new APIError('FORBIDDEN', { message: NOT_INVITED_MESSAGE, code: NOT_INVITED_CODE });
+      }
+
       // Keyed on the address alone, not address+type: the point is to protect one human's inbox
       // and the shared mail quota, and both are spent regardless of which OTP type asked.
       if (!(await claim(`otp:${address}`, OTP_SEND_COOLDOWN_MINUTES))) {
@@ -262,6 +278,21 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
+        /* THE GATE THAT ACTUALLY CLOSES (2026-09-08). The send hook above covers the emailed-code
+           path; GOOGLE never touches it, so without this a stranger with a Google account walks
+           straight into the closed beta. This hook is the one place both providers converge before
+           a row is written, which is what makes it the check rather than a second copy of one.
+
+           IT THROWS RATHER THAN RETURNING FALSE. Better Auth's `createWithHooks` treats a `false`
+           return as "abort and return null" (verified in `node_modules/better-auth/dist/db/
+           with-hooks.mjs`, not assumed), and a null user surfaces downstream as an opaque failure.
+           An APIError is a real response the login screen can render. */
+        before: async (user) => {
+          const email = (user as { email?: unknown }).email;
+          if (!mayCreateAccount(typeof email === 'string' ? email : null)) {
+            throw new APIError('FORBIDDEN', { message: NOT_INVITED_MESSAGE, code: NOT_INVITED_CODE });
+          }
+        },
         after: async (user) => {
           // Recorded server-side so it can't be spoofed or dropped by an ad blocker.
           // track() swallows its own errors, so this can never fail a signup.
@@ -294,5 +325,12 @@ export const auth = betterAuth({
       },
     },
   },
+  /* WHERE A FAILED OAUTH CALLBACK LANDS. Better Auth redirects an APIError thrown during the
+     social callback to `errorURL` with `?error=<code>&error_description=<message>` attached, and
+     the DEFAULT is `${baseURL}/error` - a Better Auth page, not one of ours. A trader refused at
+     the invite gate via Google would have met a stock error screen with no way back.
+     `/login` is where they can act, so that is where they go; the screen matches on the CODE and
+     renders its own copy, never the description off the URL (see `beta-invite.ts`). */
+  onAPIError: { errorURL: '/login' },
   plugins: [...(emailOtpPlugin ? [emailOtpPlugin] : [])],
 });
