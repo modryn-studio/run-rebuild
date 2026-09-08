@@ -4,7 +4,11 @@ import { PAGE_COLUMN } from '@/lib/shell';
 import { cn } from '@/lib/cn';
 import { getDailySeries, getFreshness, getIntradaySeries, getRoster } from '@/lib/accounts/read';
 import { AccountsView } from '@/components/views/accounts/accounts-view';
-import { applyRosterFilter, readRosterFilter } from '@/lib/accounts/roster-filter';
+import { applyRosterFilter, readRosterFilter, EMPTY_ROSTER_FILTER } from '@/lib/accounts/roster-filter';
+import { PageEmptyOverlay } from '@/components/ui/page-empty-overlay';
+import { AddAccountCta } from '@/components/views/accounts/add-account-cta';
+import { EXAMPLE_DAYS, EXAMPLE_ROSTER } from '@/lib/examples/accounts';
+import { Layers } from 'lucide-react';
 
 /* ACCOUNTS — "what I have" (`S6`).
  *
@@ -78,6 +82,34 @@ export default async function AccountsPage({
   const stamps = Object.fromEntries(
     [...freshness.entries()].map(([id, at]) => [id, at.toISOString()])
   );
+
+  /* DAY ONE, THE REFERENCE'S WAY (2026-09-08): no account exists yet, so the page draws itself with
+     three example accounts at 40% and puts one card over it. Copied from `app.monarch.com/accounts`
+     - "View all of your account balances and net worth history" / "Connect an account to get
+     started" - in Run's nouns. `all`, not `accounts`: a roster the FILTER emptied is a different
+     state with its own sentence inside `RosterCard`. See `ui/page-empty-overlay.tsx` for the fence
+     around the example data. */
+  if (all.length === 0) {
+    return (
+      <div className={cn(PAGE_COLUMN, 'pb-8')}>
+        <PageEmptyOverlay
+          icon={Layers}
+          headline="See every account, with its P&L over time"
+          cta={<AddAccountCta label="Add an account to get started" />}
+        >
+          <AccountsView
+            accounts={EXAMPLE_ROSTER}
+            freshness={{}}
+            days={EXAMPLE_DAYS}
+            filter={EMPTY_ROSTER_FILTER}
+            allAccounts={EXAMPLE_ROSTER}
+            intradayRows={[]}
+            zone={trader.displayTimezone}
+          />
+        </PageEmptyOverlay>
+      </div>
+    );
+  }
 
   return (
     <div className={cn(PAGE_COLUMN, 'pb-8')}>

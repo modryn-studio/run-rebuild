@@ -1,3 +1,15 @@
+/* EXAMPLE DATA FOR THE EMPTY STATES, and for the rack.
+ *
+ * Promoted out of `kitchen-sink/_fixtures` on 2026-09-08 when the pages started using it: a
+ * first-time trader now sees the real page rendered with THIS data at 40% opacity under a card that
+ * says "Let's begin" (`ui/page-empty-overlay.tsx`, copied from the reference's `PageEmptyOverlayCard`).
+ * The rack and the product show the same picture, so there is one place the picture is drawn.
+ *
+ * EVERY NUMBER HERE IS INVENTED AND IS ONLY EVER LEGAL BEHIND THAT CARD. `CLAUDE.md`'s claim is
+ * "never show a number you cannot reconcile"; the overlay's own note records why an inert, faded
+ * example under a "begin here" card is a picture and not a claim - and why widening that is a bug.
+ * Dates sit in 2027 on purpose: a fixture that cannot be mistaken for anything a live trader did.
+ */
 /* THE SCRIPTED TRADES EVERY TRADE SURFACE ON THE RACK IS BUILT FROM.
  *
  * ONE HOME, because two sections now render the same shape: the tape (`sections/trades.tsx`) and

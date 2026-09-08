@@ -51,10 +51,16 @@ function allowlist(): Set<string> {
   );
 }
 
+/** The gate is OPEN when `BETA_OPEN` is exactly "true". Compared as a string on purpose: an env var
+ *  set to "1", "yes" or "TRUE" leaves the door shut, because a door that opens on a typo is the
+ *  failure this module exists to prevent. Flipping it is the whole public-launch switch. */
+const isOpen = (): boolean => env.BETA_OPEN === 'true';
+
 /** True when this address may create a NEW account. Pure string work, no IO. */
 export function mayCreateAccount(email: string | null | undefined): boolean {
   const address = email?.trim().toLowerCase();
   if (!address) return false;
+  if (isOpen()) return true;
   return allowlist().has(address);
 }
 

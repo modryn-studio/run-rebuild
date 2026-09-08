@@ -26,7 +26,7 @@ import { FilterSheet, type FilterSheetDraft } from '@/components/views/trades/fi
 import { EMPTY_FILTER, type TradesFilter } from '@/lib/trades/filter';
 import type { FacetRow } from '@/lib/trades/facets';
 import { Note, Row, Section } from '../_components/section';
-import { ACCOUNTS_FIXTURE } from '../_fixtures/trades';
+import { ACCOUNTS_FIXTURE } from '@/lib/examples/trades';
 
 const PRODUCTS = ['MNQ', 'MES', 'NQ', 'ES'];
 

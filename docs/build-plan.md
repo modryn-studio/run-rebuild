@@ -1890,7 +1890,34 @@ card keeps only `nothingImported` - the one blank that is about the card's own s
 copy also began *"Run holds no trades"*, which the house style forbids; the new copy does not name
 the app. Racked in both states.
 
-### 3. The door - DEFERRED to the public launch, not to the beta
+### 3. The door - ✅ **BUILT 2026-09-08** (was: deferred to the public launch)
+
+> **Luke reversed the deferral the same day** (*"i think we need to get online asap and get google
+> crawling ... just create terms and privacy now"*). What shipped, on branch `beta-blockers`:
+>
+> - **`/` is a landing page**, indexable, copied in structure from `monarch.com` (the map below):
+>   hero + one CTA, "What is Run?", three pillars (Import · Record · Read), six feature sections under
+>   all-caps eyebrows, closing CTA, footer. The read carries a `Coming` mark per Luke's call to keep
+>   the full promise and mark the rest. No screenshots yet and no generated media - both wait on the
+>   empty states settling and on Luke's yes to any Replicate spend.
+> - **`/terms` and `/privacy`** are real documents, written from the code rather than a template:
+>   every item Privacy lists is a column this repo stores, every provider is one the deploy calls, and
+>   the erasure section describes `lib/erase.ts` behind `/settings/data`. Terms §5 and §6 carry the
+>   accuracy disclaimer and the CFTC line from `psychology.md` §3. **Two things are Luke's to fill in:
+>   the legal entity and its state of organisation** (both pages say "Modryn Studio" and "the state in
+>   which it is organised"), and the contact address (`luke@modrynstudio.com` today).
+> - **"Request access"** posts to `/api/access`: Luke gets an email, the domain is tracked, the
+>   address is throttled to one request a day. No waitlist table on purpose at this scale - the event
+>   log is the waitlist - and `build-plan.md` says when the table comes.
+> - **`BETA_OPEN=true`** opens signup to anyone. Exactly `"true"`, compared as a string, so a door
+>   cannot open on a typo. Unset, the allowlist stays in force. This is the whole public-launch
+>   switch, and it is Luke's to flip.
+> - `robots`: the root layout stays `noindex`; `/`, `/terms`, `/privacy` override it and are the only
+>   three URLs in `sitemap.ts`. The APP is never indexed (`user-guide.md`).
+>
+> **Still owed before the door is finished:** product screenshots in the feature sections; OG image;
+> the `/help` route group (§3's research is done, the build is not); Search Console submission (the
+> `seo` skill has the walkthrough).
 
 `run.trading` and `app.run.trading` are **one repo, one deploy, two route groups**
 ([#43](https://github.com/modryn-studio/run-rebuild/issues/43)) - not a second repository. The
@@ -1935,6 +1962,27 @@ DOM, not screenshots). Recorded so the build of the public surfaces starts from 
   never computes (every number is SQL), the retrospective-not-prospective fence in the trader's
   words, where the switch is, and the thumbs. Not before the read ships - an article about a feature
   that is not there is the fixture-money problem in prose.
+
+**THE EMPTY STATES ARE THE REFERENCE'S, EXACTLY** (2026-09-08, Luke: *"basically examples behind the
+scrim. modal with the cta ... i want the same"*). Read from `app.monarch.com` with an emptied
+account, through the DOM: every page - Dashboard, Accounts, Transactions, Cash Flow, Reports,
+Recurring, Goals, Investments - uses ONE component, `PageEmptyOverlayCard`. The page renders with
+EXAMPLE data (their Transactions widget shows `mock-merchant-Target`, their Recurring shows
+`ExampleMerchant`), the scroll container and page header sit at `opacity: 0.4; pointer-events: none`,
+and a 500×243 white card (`absolute`, 24px padding, 12px radius, `0 8px 16px rgba(0,40,100,.08)`)
+holds a 24px accent icon, a 24px/500 two-line headline (27px below the icon), and one 40px filled
+CTA (32px below the headline). No blur, no dark scrim. Their copy per page: Dashboard *"Let's begin by
+connecting the account where most of your spending happens" / "Connect your bank & credit cards"*;
+Accounts *"View all of your account balances and net worth history"*; Transactions *"See your
+transaction history across all of your accounts"*; Reports *"Build custom reports to better understand
+where your money is going"*; the CTA elsewhere is *"Connect an account to get started"*.
+
+Run's is `ui/page-empty-overlay.tsx`, on `/today`, `/accounts` and `/trades`, with the rack's own
+fixtures promoted to `lib/examples/` so the product and the rack draw one picture. **This is the one
+place the product shows a number it cannot reconcile**, and the primitive's note is the fence: legal
+only at 40%, inert, under a card whose first words are "Let's begin"; anywhere else it is a bug.
+`/read` does not use it - an unbuilt page is not an empty one. `ScopeNotice` (option A for #55)
+stays for the two states that are about the scope rather than about day one.
 
 ### 4. Before real users, not before the first one
 

@@ -59,6 +59,9 @@ const schema = z.object({
   // closed). Existing accounts are unaffected either way - removing an address never locks out a
   // trader who has already imported.
   BETA_ALLOWLIST: z.string().optional(),
+  // Set to exactly "true" to let ANY address create an account. Off by default and off when unset;
+  // the beta gate then falls back to the allowlist above. One flag, one line, no redeploy of code.
+  BETA_OPEN: z.string().optional(),
 
   // ── Add project keys below. Required ones use .min(1) with a message; anything the app can
   // boot without stays .optional() so a half-configured environment still runs. ──

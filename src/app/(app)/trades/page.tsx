@@ -19,6 +19,10 @@ import { getTape, getTapeIds, getDigest, getFacets, getFacetRows, getExcluded } 
 import { sessionDateFor } from '@/lib/time/session';
 import { Suspense } from 'react';
 import { TradesRailSkeleton } from '@/components/views/trades/trades-rail-skeleton';
+import { PageEmptyOverlay } from '@/components/ui/page-empty-overlay';
+import { AddAccountCta } from '@/components/views/accounts/add-account-cta';
+import { TAPE_FIXTURE } from '@/lib/examples/trades';
+import { ListOrdered } from 'lucide-react';
 
 export const metadata: Metadata = { title: 'Trades' };
 
@@ -108,6 +112,10 @@ export default async function TradesPage({
     getFacetRows(trader.id),
   ]);
 
+  /* Day one is "no trade exists", never "the filter found none" - the second has its own sentence. */
+  const dayOne = ids.length === 0 && !isNarrowed(filter);
+  const exampleTotal = TAPE_FIXTURE.reduce((n, g) => n + g.tradeCount, 0);
+
   return (
     <>
       {/* INTO THE SHELL'S OWN BAND, not a second one under it. The shell already prints "Trades"
@@ -151,6 +159,17 @@ export default async function TradesPage({
           </Suspense>
         }
       >
+        {/* DAY ONE, THE REFERENCE'S WAY (2026-09-08): no trade exists yet, so the tape draws example
+            sessions at 40% under one card. Copied from `app.monarch.com/transactions` - "See your
+            transaction history across all of your accounts" / "Connect an account to get started" -
+            in Run's nouns. `dayOne` is `ids.length === 0 && !narrowed`: a tape the FILTER emptied keeps
+            its own "widen the dates" sentence inside `Empty`. See `ui/page-empty-overlay.tsx`. */}
+        {dayOne ? (
+          <PageEmptyOverlay
+            icon={ListOrdered}
+            headline="See every trade across all of your accounts, reconciled to the cent"
+            cta={<AddAccountCta label="Import your trades to get started" />}
+          >
         <div className="flex flex-col gap-4">
           {/* THE PHONE'S SEARCH ROW, in the page body rather than the header band — a full row of
               its own directly under the title, the way the reference has it. Desktop keeps its
@@ -169,8 +188,8 @@ export default async function TradesPage({
           <TradesTape
             accounts={facets.accounts}
             selectedAccounts={filter.accounts}
-            sessions={sessions}
-            total={ids.length}
+            sessions={dayOne ? TAPE_FIXTURE : sessions}
+            total={dayOne ? exampleTotal : ids.length}
             displayTimezone={trader.displayTimezone}
             narrowed={isNarrowed(filter)}
             /* THE DEAD END THIS PAGE SHIPPED WITH: "Import your Tradovate exports and they will
@@ -181,7 +200,40 @@ export default async function TradesPage({
             rest={{ ids }}
           />
         </div>
-      </WithSummaryRail>
+          </PageEmptyOverlay>
+        ) : (
+        <div className="flex flex-col gap-4">
+          {/* THE PHONE'S SEARCH ROW, in the page body rather than the header band — a full row of
+              its own directly under the title, the way the reference has it. Desktop keeps its
+              chips in the band; this is `md:hidden` and that one is `max-md:hidden`, so exactly one
+              set of controls is on screen at any width. */}
+          <TradesSearchPill
+            applied={filter}
+            products={facets.products}
+            accounts={facets.accounts}
+            facetRows={facetRows}
+          />
+          <QuarantineNotice
+            quarantined={excluded.quarantined}
+            excluded={excluded.excluded}
+          />
+          <TradesTape
+            accounts={facets.accounts}
+            selectedAccounts={filter.accounts}
+            sessions={dayOne ? TAPE_FIXTURE : sessions}
+            total={dayOne ? exampleTotal : ids.length}
+            displayTimezone={trader.displayTimezone}
+            narrowed={isNarrowed(filter)}
+            /* THE DEAD END THIS PAGE SHIPPED WITH: "Import your Tradovate exports and they will
+               appear here" was an instruction with nothing to press. The band's control is 200px
+               away in chrome the trader has not looked at yet; the empty state IS the page at
+               that moment. Only the `!narrowed` branch renders it - see `Empty`. */
+            emptyAction={<ImportTradesButton cta />}
+            rest={{ ids }}
+          />
+        </div>
+        )}
+        </WithSummaryRail>
     </>
   );
 }

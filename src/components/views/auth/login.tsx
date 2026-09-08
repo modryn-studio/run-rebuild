@@ -14,6 +14,7 @@
    Google is DARK until GOOGLE_CLIENT_ID/SECRET land; the code path is live once SMTP creds do. */
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { NOT_INVITED_CODE, NOT_INVITED_MESSAGE } from '@/lib/beta-invite';
 import { safeNext } from '@/lib/next-path';
@@ -424,8 +425,6 @@ export function Login() {
                     Continue with email
                   </Button>
                 </form>
-
-                {/* PROJECT TODO: these two need real pages before this is public. */}
                 {/* THE ONE STATED EXCEPTION TO THE INK RULE (Luke, 2026-08-14: "leave it muted").
                     By the rule in globals.css this is prose and would take full ink. Consent
                     boilerplate is prose nobody chose to read, and setting it at the same strength as
@@ -433,7 +432,15 @@ export function Login() {
                     sits under. The exception is this string, not the category: an explanation that
                     happens to be legal still reads as prose. */}
                 <p className="text-small text-muted mt-6 text-center">
-                  By continuing you agree to our Terms and Privacy Policy.
+                  By continuing you agree to our{' '}
+                  <Link href="/terms" className="hover:text-text underline underline-offset-4">
+                    Terms
+                  </Link>{' '}
+                  and{' '}
+                  <Link href="/privacy" className="hover:text-text underline underline-offset-4">
+                    Privacy Policy
+                  </Link>
+                  .
                 </p>
               </>
             )}

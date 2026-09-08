@@ -26,7 +26,7 @@ import {
   DIGEST_FIXTURE_IDS,
   TAPE_FIXTURE,
   ACCOUNTS_FIXTURE,
-} from '../_fixtures/trades';
+} from '@/lib/examples/trades';
 
 export function TradesSection() {
   return (

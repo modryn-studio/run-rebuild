@@ -17,6 +17,12 @@ import { MonthCalendar } from '@/components/views/today/month-calendar';
 import { Greeting } from '@/components/views/today/greeting';
 import { TodayHeader } from '@/components/views/today/today-header';
 import { ScopeNotice } from '@/components/views/today/scope-notice';
+import { PageEmptyOverlay } from '@/components/ui/page-empty-overlay';
+import { AddAccountCta } from '@/components/views/accounts/add-account-cta';
+import { LAST_SESSION_FIXTURE } from '@/lib/examples/trades';
+import { CALENDAR_FIXTURE } from '@/lib/examples/today';
+import { NET_PNL_INTRADAY, NET_PNL_SERIES } from '@/components/views/today/fixtures';
+import { Upload } from 'lucide-react';
 
 export const metadata: Metadata = { title: 'Today' };
 
@@ -311,7 +317,40 @@ export default async function TodayPage({
           card's own subject: what it will hold.
           NEITHER SENTENCE COUNTS OR NAGS (`CLAUDE.md`: no state may represent absence). One names a
           switch the trader threw and where it lives; the other names a scope and how to widen it. */}
-      {scopeNotice ? (
+      {/* DAY ONE, THE REFERENCE'S WAY (2026-09-08). Nothing imported yet, so the page draws itself
+          with example data at 40% and puts one card over it: what this page will hold, and the one
+          thing to press. Copied from `app.monarch.com/dashboard`'s `PageEmptyOverlayCard` - "Let's
+          begin by connecting the account where most of your spending happens" / "Connect your bank &
+          credit cards" - with Run's nouns. The example is the same one the rack draws, so there is
+          one picture of this page. See `ui/page-empty-overlay.tsx` for why this is the one place
+          invented numbers are allowed to appear, and the fence around it. */}
+      {!imported ? (
+        <PageEmptyOverlay
+          icon={Upload}
+          headline="Let's begin with the export from the account you trade most"
+          cta={<AddAccountCta label="Import your trades" />}
+          className="pt-4"
+        >
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+            <NetPnl
+              series={NET_PNL_SERIES}
+              intradaySeries={NET_PNL_INTRADAY}
+              counted={3}
+              scopeName={null}
+              imported
+              baseDollars={150_000}
+              zone={trader.displayTimezone}
+            />
+            <LastSession
+              session={LAST_SESSION_FIXTURE}
+              href="/trades"
+              imported
+              zone={trader.displayTimezone}
+            />
+            <MonthCalendar days={CALENDAR_FIXTURE} endsOn="2027-03-19" imported />
+          </div>
+        </PageEmptyOverlay>
+      ) : scopeNotice ? (
         <div className="pt-4">
           <ScopeNotice kind={scopeNotice} />
         </div>

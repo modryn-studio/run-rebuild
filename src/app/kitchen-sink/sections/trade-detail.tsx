@@ -28,7 +28,7 @@ import {
   DRAWER_TRADE_BARE,
   DRAWER_TRADE_QUARANTINED,
   DRAWER_TRADE_SHORT,
-} from '../_fixtures/trades';
+} from '@/lib/examples/trades';
 
 const CASES: { label: string; trade: TapeRow; note: string }[] = [
   { label: 'A win', trade: DRAWER_TRADE, note: 'fees, all three broker ids' },

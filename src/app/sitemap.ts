@@ -1,19 +1,19 @@
 import { MetadataRoute } from 'next';
+import { site } from '@/config/site';
 
-/* EMPTY WHILE THE APP IS noindex, and the two facts are tied together on purpose.
+/* THE DOOR'S PAGES, AND ONLY THOSE (2026-09-08). `layout.tsx` still sets `noindex` globally and the
+ * APP stays noindex forever (`user-guide.md`: the app is never indexed) - but the landing, Terms and
+ * Privacy each override that in their own `metadata`, and those are the three URLs a sitemap may
+ * name. Listing a noindex URL here is what Search Console reports as `Submitted URL marked
+ * 'noindex'`, so this list and those three overrides have to move together.
  *
- * `layout.tsx` sets `robots: { index: false, follow: false }` for every route, which is right for
- * a trading journal — this host is the APP, and the app is never indexed (see
- * modryn-hq/playbooks/door-and-app.md). Listing a URL here at the same time is a contradiction:
- * a sitemap means "please index these", and Search Console reports the pair as an outright error,
- * `Submitted URL marked 'noindex'`.
- *
- * The file stays rather than being deleted because `robots.ts` points at it and because the door
- * will want one — but the door is a different host and, once it is its own deployment, a different
- * repo. THIS sitemap only ever describes the app, so while the app is noindex it describes nothing.
- *
- * Fill it in at the same moment the global `noindex` comes off, never before.
- */
+ * The earlier plan had the door as a second host and a second repo; `build-plan.md` §3 settled it
+ * as one repo, two route groups, so one sitemap describes both and only lists the public half. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [];
+  const now = new Date();
+  return [
+    { url: site.url, lastModified: now, changeFrequency: 'weekly', priority: 1 },
+    { url: `${site.url}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${site.url}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+  ];
 }
