@@ -1550,7 +1550,14 @@ condition that makes the reference's card work on the reference's product.
 
 ### Still open
 
-- **The nag arithmetic**, above. Dogfooding decides.
+- **[#61](https://github.com/modryn-studio/run-rebuild/issues/61) is the revisit list for this whole
+  section**, filed 2026-09-08 when Luke called the lane good enough for beta and moved on. It carries
+  what is unsettled rather than what was decided: the `ended` tenant is **dormant** (measured that
+  day on the founder's own roster - 11 accounts, 2 `label` items, `ended: 0`), and its trigger is a
+  weak proxy because `/api/csv-import` refuses multi-account uploads, so *"your last import"* can
+  only ever name one account.
+- **The nag arithmetic**, above. Dogfooding decides - and note it has not decided yet, because the
+  tenant that would do the nagging currently produces nothing.
 - **The palette**, [#57](https://github.com/modryn-studio/run-rebuild/issues/57) — filed after the
   fill was tried and reverted. Revisited when the loss line ships, not before.
 - **`Monthly review`**, the calendar, is still the unreviewed half of the phone pair (`§A14`).
