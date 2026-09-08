@@ -19,6 +19,8 @@ const ALLOWED_EVENTS = new Set<string>([
   'login_viewed',
   'signup_started',
   'welcome_viewed',
+  // A crashed render, from the app's error boundary. Carries a digest and nothing else.
+  'page_error',
 ]);
 
 const bodySchema = z.object({

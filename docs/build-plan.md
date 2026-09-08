@@ -1764,14 +1764,32 @@ exception attached to it.
 
 ## The road to a public beta *(added 2026-09-03)*
 
-**The beta is PUBLIC SIGNUP** (Luke, 2026-09-03) - anyone can register. That one answer re-ranks
-everything below, because the slice order above was written against a solo dogfooding corpus and a
-closed cohort. Three things change:
+**THE BETA IS INVITE-ONLY, AND THAT REVERSES THE 2026-09-03 CALL** *(audit 2026-09-08; Luke
+delegated this decision the same day, so it is recorded as the audit's and is his to veto)*. The
+line that stood here read *"the beta is PUBLIC SIGNUP - anyone can register."* Four review passes
+over this source found three things that make a public front door indefensible this week, and one
+that makes it embarrassing:
 
-- **You cannot watch every user.** A failure that a closed cohort would text you about becomes a
-  silent abandonment.
-- **You cannot control the shape of their exports.** Every parser assumption meets a stranger's file.
-- **The volume risks become real**, and so do the legal ones: an erasure request has a clock on it.
+- **`/kitchen-sink` is an ungated STATIC production route rendering invented money.**
+  `src/app/kitchen-sink/sections/today.tsx:52` imports `today/fixtures.ts` - fabricated dollar
+  figures, fake trade rows, invented prose - and renders it at six call sites. There is no
+  middleware in this repo and no gate on that directory, so the build emits `○ /kitchen-sink` and
+  anyone who guesses the URL reads numbers this product made up. Against Run's one claim, that is
+  the worst artefact in the codebase.
+- **There is no erasure path at all.** `run.privileged`, the only key that opens the append-only
+  trigger, appears throughout `scripts/` and nowhere in `src/`. `src/lib/track.ts:13` already
+  promises analytics "cascades on delete" - a guarantee with no mechanism. #42 measured the
+  statement you would hand-write timing out at 130,809 rows.
+- **Prod and dev are one database.** One `DATABASE_URL`, no branch, and `scripts/s6-seed-roster.mts`
+  opens the append-only trigger against it (#49 §3).
+- **No `error.tsx` exists at any level of `src/app`.** A throwing Server Component drops the trader
+  on Next's bare error screen on every route. `today/page.tsx:104` and `lib/trades/filter.ts:117`
+  both already say so, and `filter.ts` describes the live 500 that taught it.
+
+**What invite-only buys, precisely.** #43's door, `/terms`, `/privacy` and #42's erasure AT SCALE
+stop being launch blockers and become the public-launch slice. A small-scale delete that works, plus
+a written runbook, is the honest obligation to ten people you can name. Nothing else on this list is
+relaxed: ten strangers' exports meet the same parser assumptions a thousand would.
 
 ### Where the work actually lives now
 
@@ -1780,54 +1798,96 @@ backlog and became a plan: `run-trading` was retired and its 77 open issues were
 against this codebase, closed, and the ten that carry live knowledge migrated here. Nothing below is
 speculative - each line is either measured in v2 or verified in this source.
 
-### 1. Blockers - a public signup exposes each of these on day one
+### 1. Blockers
+
+**The three blockers that stood here are CLOSED** ([#40](https://github.com/modryn-studio/run-rebuild/issues/40)
+global email budget, [#41](https://github.com/modryn-studio/run-rebuild/issues/41) a re-import that
+saves nothing, [#1](https://github.com/modryn-studio/run-rebuild/issues/1) auth on previews). The
+list below replaces them, and every line was verified in this source on 2026-09-08 rather than
+carried from v2.
 
 | | Why it is a blocker rather than a bug |
 |---|---|
-| [#40](https://github.com/modryn-studio/run-rebuild/issues/40) no global email send budget | Verified in `auth.ts`: per-address `claim()` is durable, per-IP is an in-memory Map, and **nothing bounds the total**. Gmail caps at 2,000/day. An attacker cycling addresses locks out every signup for 24h and takes the work inbox with it |
-| [#41](https://github.com/modryn-studio/run-rebuild/issues/41) a re-import that saves nothing confirms like a success | The same `{step.detail && failed}` line as v2. Re-uploading is the likeliest new-trader mistake, and confirming a write that did not happen contradicts the product's one claim |
-| [#1](https://github.com/modryn-studio/run-rebuild/issues/1) auth is broken on preview deployments | Still live. The per-request `baseURL` fix is DEV-only; a Vercel preview runs `NODE_ENV=production`, so it stays pinned. Preview is where a release gets looked at before real users see it |
+| **`/kitchen-sink` ships ungated with fixture money** | Gate it behind `requireAdmin`, not deletion: `CLAUDE.md` makes the rack load-bearing for every component's definition of done. `src/app/kitchen-sink/page.tsx:59` already says to gate the directory before going public |
+| **No `error.tsx` anywhere in `src/app`** | Every route's failure is Next's bare screen. A beta's first job is to be trusted, and an unstyled crash is the fastest way to lose that |
+| [#5](https://github.com/modryn-studio/run-rebuild/issues/5) **no upload size cap** | Verified absent: no `bodySizeLimit` in `next.config.ts`, no byte check in the route or `file-upload-step.tsx`. Vercel rejects past 4.5 MB at the edge as a raw 413, and #5 measured a real annual export at 19.4 MB. The first import is the make-or-break moment and this is a silent edge failure |
+| [#5](https://github.com/modryn-studio/run-rebuild/issues/5) **an interrupted import strands the trader forever** | `commit.ts:142` writes `status: 'pending'`, flipped only by `markImportCommitted` at `:174`. Lose the response after the batch commits and the events are invisible to every read while the `(account_id, file_hash)` index refuses the retry. No idempotency key exists |
+| [#33](https://github.com/modryn-studio/run-rebuild/issues/33) · [#32](https://github.com/modryn-studio/run-rebuild/issues/32) **silent partial writes** | Same class, adjacent files, one pass. #33 commits some accounts and reports total failure; #32 writes eleven invisible sibling rows, defaults on, and answers 500 over a save that landed |
+| [#49](https://github.com/modryn-studio/run-rebuild/issues/49) **dev database branch** | No dependencies, and it is the condition under which a seed script becomes a customer-data incident. Everything else on this list gets tested against real traders' rows until it exists |
+| **Seven API failure paths alert nobody** | `/api/accounts` POST/PATCH/DELETE (`:195,320,409`), `/api/trader/timezone:44`, `/api/trades/export:154`, `/api/trades/page:55`, `/api/track:73` are `console.error` into Vercel logs and nothing else. Only csv-import and new-signup reach `notify` |
+| [#37](https://github.com/modryn-studio/run-rebuild/issues/37) **no tracking on the account write paths** | Verified: zero `track()` across all four. Labelling is the funnel's key step and there is exactly one first cohort |
+| [#3](https://github.com/modryn-studio/run-rebuild/issues/3) **the first-import-ever latch** | The rest of #3 shipped - `upload_completed`/`upload_failed`, `notifyMismatch`, `notifyUnknownRoots`, `after()`, `maxDuration = 60`. Only the `once` latch is missing, so you will not be told when a beta trader lands their first import. Narrow the issue to that |
+| **NUL bytes make two files invisible to grep** | `src/lib/fees/allocate.ts:89` and `src/lib/intake/statement.ts:86` embed a raw `0x00` as a composite-key separator inside a template literal. Both compile and behave correctly, but ripgrep and grep classify them as binary and skip them - so the two most doctrine-critical files in the repo are excluded from every sweep, `grep -rn FRICTION .` included. Write it `\0` |
 
 ### 2. Finish `/today`
 
-Five cards left of the six (`monarch-dashboard-teardown.md` §A7). The loss line and profit target are
-**one slice, one migration** - and blocked on a `spec.md` §6 carve-out, which is a signature rather
-than work. `Set up Run` is last of the six on purpose: four of its five steps point at flows that
-must already exist.
+**THE LOSS LINE AND PROFIT TARGET ARE OUT OF THE BETA** (Luke, 2026-09-08). `/today` ships with the
+three cards that are built - `Net P&L`, `Last session`, `The month`. That withdraws the `spec.md` §6
+carve-out from the critical path, and with it the migration, [#46](https://github.com/modryn-studio/run-rebuild/issues/46),
+[#57](https://github.com/modryn-studio/run-rebuild/issues/57) and [#58](https://github.com/modryn-studio/run-rebuild/issues/58)/[#59](https://github.com/modryn-studio/run-rebuild/issues/59).
 
-### 3. The door
+Two things the page still owes, and neither depends on that field:
+
+- **P8's provenance row** - the range-covered and last-read pair, recorded as OWED AND UNMET in
+  `monarch-dashboard-teardown.md`. It is a row, not a card.
+- **`Set up Run`** - ships with the steps that have destinations. Its steps 4 and 5 pointed at the
+  loss line, so it is a three-step card in the beta or it does not ship at all. Decide when the
+  other two are done, not now.
+
+[#55](https://github.com/modryn-studio/run-rebuild/issues/55) is narrower than it reads. The audit
+found `/trades` already distinguishes narrowed from first-day and `/accounts` splits no-matches from
+empty-roster; the duplicated pair is `allExcluded` and `nothingInScope` on `/today`, and with three
+cards rather than six, option A (one page-level scope notice) is now clearly the cheap answer.
+
+### 3. The door - DEFERRED to the public launch, not to the beta
 
 `run.trading` and `app.run.trading` are **one repo, one deploy, two route groups**
 ([#43](https://github.com/modryn-studio/run-rebuild/issues/43)) - not a second repository. The
 design system is the argument: *"`globals.css` is the design system, and the only copy of it"*, and a
-second repo needs a copy of it or a package. The `seo` skill already models the shape, and
-`layout.tsx`'s `robots: { index: false }` already carries the note about removing it when the project
-goes public.
+second repo needs a copy of it or a package. The redirect already exists (`next.config.ts:97`).
 
-Terms and Privacy stop being optional at public signup, and the Privacy Policy has to describe the
-erasure path - which is why [#42](https://github.com/modryn-studio/run-rebuild/issues/42) is on this
-list rather than a later one.
+**What the beta still owes despite the deferral**, because ten named people are still people:
+`src/components/views/auth/login.tsx:412` ships *"By continuing you agree to our Terms and Privacy
+Policy"* as plain text with a `PROJECT TODO` eight lines above it. Either the two pages exist or that
+sentence comes out. It cannot ship as a claim with nothing behind it. And `src/app/page.tsx:11` tells
+visitors *"not open for signups yet"* while `/login` accepts any address - invite-only makes that
+sentence true, but only once an allowlist exists.
 
 ### 4. Before real users, not before the first one
 
-[#42](https://github.com/modryn-studio/run-rebuild/issues/42) erasure at scale (measured in v2:
-130,809 rows time out, 2,500 completes - a constraint on a path this build has not written yet),
-[#49](https://github.com/modryn-studio/run-rebuild/issues/49)'s **dev database branch** (no
-dependencies; the condition under which a seed script becomes a customer-data incident), and
-[#37](https://github.com/modryn-studio/run-rebuild/issues/37) tracking on the account write paths.
+[#42](https://github.com/modryn-studio/run-rebuild/issues/42) erasure: the BETA obligation is a
+delete that works at ten-trader scale plus a written runbook. The 130,809-row timeout is a
+public-launch constraint on a path this build has not written yet.
+[#56](https://github.com/modryn-studio/run-rebuild/issues/56) `product_name` has no writer and is
+**not backfillable** - every beta account is permanently missing it, so if it matters it has to land
+before the cohort does, not after.
 
 ### Deliberately NOT before the beta, and why
 
 Ingest at scale ([#4](https://github.com/modryn-studio/run-rebuild/issues/4)), the tape's unbounded
-DOM window ([#23](https://github.com/modryn-studio/run-rebuild/issues/23)), the export's missing
+DOM window ([#23](https://github.com/modryn-studio/run-rebuild/issues/23)), the account pages'
+payload ([#31](https://github.com/modryn-studio/run-rebuild/issues/31)), the export's missing
 duration cap ([#25](https://github.com/modryn-studio/run-rebuild/issues/25)) and the two
 accessibility issues ([#27](https://github.com/modryn-studio/run-rebuild/issues/27),
 [#30](https://github.com/modryn-studio/run-rebuild/issues/30)).
 
-All four are real. **None of them fires at ten traders**, and all four are cheaper once `/today` has
-settled and stopped moving the surfaces they touch. Recorded here so the deferral is a decision with
-a stated trigger rather than an oversight: the trigger is the first trader with a year of tape, and
+All are real. **None of them fires at ten traders**, and all are cheaper once `/today` has settled
+and stopped moving the surfaces they touch. Recorded here so the deferral is a decision with a
+stated trigger rather than an oversight: the trigger is the first trader with a year of tape, and
 the a11y pair should land before any public claim about accessibility is made.
+
+**One that is deferred but should not be forgotten**:
+[#13](https://github.com/modryn-studio/run-rebuild/issues/13) scaling in and out. The title
+understates it - win rate is distorted *in the flattering direction*, on the product whose one claim
+is numbers that do not flatter, and every figure built on it inherits that. It also gates `S7`.
+
+### Dead weight the audit found, for whenever it is convenient
+
+`src/lib/desk/{read,render,lenses,tape}.ts` is roughly 92KB imported by nothing outside its own
+directory - the S7 engine, correctly parked rather than deleted while [#2](https://github.com/modryn-studio/run-rebuild/issues/2)
+is open. `src/lib/http-errors.ts` has six exports and zero consumers. `ManualAccountForm`
+(`manual-account-form.tsx:275`) and `SourceLogomark` (`shared.tsx:357`) are exported, unreferenced,
+and absent from the rack.
 
 ### What is banked rather than planned
 

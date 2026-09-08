@@ -29,6 +29,7 @@ import { ModalBody, ModalFooter } from '@/components/ui/modal-shell';
 import { ProgressPanel } from './progress-panel';
 import { ImportRefused } from './import-refused';
 import { useImportRun, type ImportOutcome } from './use-import-run';
+import { uploadSizeRefusal } from '@/lib/intake/limits';
 
 export type Picked = { file: File; type: TradovateFileType | undefined };
 
@@ -120,7 +121,13 @@ export function FileUploadStep({
   const remove = (i: number) => setFiles((prev) => prev.filter((_, idx) => idx !== i));
 
   const staged = new Set(files.map((f) => f.type).filter(Boolean));
-  const ready = REQUIRED.every((r) => staged.has(r.type));
+  /* DERIVED, NEVER STORED. The ceiling is on the whole batch (see `intake/limits.ts`: the limit is
+     on the request BODY, and every staged file goes up in one POST), so it has to be re-evaluated
+     whenever the set changes. Computing it here means removing a file clears the refusal by itself;
+     a `useState` set inside `addFiles` would strand the message after the trader has already fixed
+     it, which is the failure mode that makes a form feel broken. */
+  const sizeRefusal = uploadSizeRefusal(files.reduce((n, f) => n + f.file.size, 0));
+  const ready = REQUIRED.every((r) => staged.has(r.type)) && !sizeRefusal;
   // `settling` still counts as busy: the handoff is imminent and an exit would drop a real outcome.
   const busy = run.phase === 'running' || run.phase === 'settling';
 
@@ -298,7 +305,10 @@ export function FileUploadStep({
             </p>
           </div>
 
-          {notice && <p className="text-caption text-neg mt-2 text-center">{notice}</p>}
+          {/* The size refusal wins the slot when both apply: it is the only one that blocks. */}
+          {(sizeRefusal ?? notice) && (
+            <p className="text-caption text-neg mt-2 text-center text-pretty">{sizeRefusal ?? notice}</p>
+          )}
 
           {files.length > 0 && (
             <ul className="mt-3 flex flex-col gap-2">

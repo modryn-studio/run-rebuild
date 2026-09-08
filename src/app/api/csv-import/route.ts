@@ -19,6 +19,7 @@ import {
 } from '@/lib/intake/write';
 import { resolveRoundTripInstant, resolveOrderInstant } from '@/lib/intake/round-trip-instant';
 import { IMPORT_STREAM_CONTENT_TYPE, type ImportEvent } from '@/lib/intake/stream';
+import { uploadSizeRefusal } from '@/lib/intake/limits';
 import { sendNotification, notifyHtml, alertSubject } from '@/lib/notify';
 import { track } from '@/lib/track';
 import { db, contractSpec } from '@/lib/db';
@@ -70,6 +71,17 @@ export async function POST(req: Request): Promise<Response> {
     const files = (form?.getAll('file') ?? []).filter((f): f is File => typeof f !== 'string');
     if (files.length === 0) {
       return log.end(ctx, Response.json({ error: 'No file provided' }, { status: 400 }));
+    }
+
+    /* THE SAME CEILING THE PICKER ENFORCES, CHECKED AGAIN HERE. Not defence in depth for its own
+       sake: the client check is the one a trader meets and this one exists because a request that
+       did not come from the picker is still a request. It is also the honest place to say that
+       this check can only ever fire BELOW the platform's own limit - a body genuinely over 4.5 MB
+       is refused at the edge and this handler never runs, which is exactly why the picker has to
+       carry the real message. See `intake/limits.ts`. */
+    const refusal = uploadSizeRefusal(files.reduce((n, f) => n + f.size, 0));
+    if (refusal) {
+      return log.end(ctx, Response.json({ error: refusal }, { status: 413 }));
     }
 
     /* WHICH ACCOUNT THIS IMPORT WAS LAUNCHED FROM, when it was launched from one. This is the

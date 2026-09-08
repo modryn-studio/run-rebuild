@@ -72,3 +72,14 @@ LIMIT 30;
 
 -- ── Add product queries below ────────────────────────────────────────────────
 -- Anything here should answer a question you would actually change the product over.
+
+-- ── Crashed renders ──────────────────────────────────────────────────────────
+-- Every page that threw, newest first. `digest` is Next's hash for the real error, which is in
+-- the Vercel log for the same minute - this table says WHICH PAGE and HOW OFTEN, the log says why.
+-- A path appearing here more than once or twice in a beta is a bug with users behind it.
+SELECT path, properties ->> 'digest' AS digest, COUNT(*) AS n,
+       COUNT(DISTINCT visitor_id) AS traders, MAX(created_at) AS last_seen
+FROM analytics_event
+WHERE name = 'page_error'
+GROUP BY 1, 2
+ORDER BY n DESC, last_seen DESC;

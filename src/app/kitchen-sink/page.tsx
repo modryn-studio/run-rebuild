@@ -56,8 +56,9 @@ import { VoiceSection } from './sections/voice';
  * them are Client Components, and collecting those into a data structure for a Server Component
  * to map over is a boundary this route does not need to test. See sections.ts.
  *
- * BEFORE THE APP GOES PUBLIC: delete src/app/kitchen-sink/ (the whole directory, nothing else
- * imports it) or put it behind the admin check. The /launch gate asks.
+ * IT IS BEHIND THE ADMIN CHECK as of 2026-09-08 - see layout.tsx in this directory, which gates
+ * the whole segment. It still SHIPS to production, deliberately, because a rack that only exists on
+ * localhost cannot be opened on the phone it is meant to be judged on.
  */
 
 export const metadata: Metadata = {

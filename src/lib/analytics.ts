@@ -87,4 +87,12 @@ export const analytics = {
     send('upload_completed', { files, imported }),
   /** The preflight CODE, never its message. A code survives a copy rewrite; prose does not. */
   uploadFailed: (code: string) => send('upload_failed', { code }),
+
+  /* A RENDER THAT CRASHED, from `(app)/error.tsx`. The DIGEST and nothing else: Next replaces a
+     production error's message with that hash and logs the real one server-side, and the message is
+     the one field that can carry a trader's own data back (Postgres quotes the offending value in
+     its error text). `track.ts` rule 2 is no PII, so the hash is both the safe field and the useful
+     one - it joins this row to the exact stack in the Vercel log. `no-digest` means the failure was
+     client-side or local, where Next leaves the message intact and never assigns one. */
+  pageError: (digest: string) => send('page_error', { digest }),
 };
