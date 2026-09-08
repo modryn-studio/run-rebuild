@@ -476,20 +476,14 @@ export function TodaySection() {
         <div className="max-w-2xl">
           <AttentionRow
             tone="answer"
-            title="1 account needs you"
-            note="New from your last import."
+            title="Let's review your accounts"
+            note="1 to check"
             onClick={() => {}}
           />
           <AttentionRow
             tone="answer"
-            title="3 accounts need you"
-            note="2 new, 1 not in your last import."
-            onClick={() => {}}
-          />
-          <AttentionRow
-            tone="answer"
-            title="2 accounts need you"
-            note="Your last import did not name them."
+            title="Let's review your accounts"
+            note="5 to check"
             onClick={() => {}}
           />
         </div>
@@ -510,12 +504,12 @@ export function TodaySection() {
           <AttentionRow
             tone="numbers"
             title="2 trades we could not match"
-            note="They are out of every figure below."
+            note="Out of every figure below"
           />
           <AttentionRow
             tone="answer"
-            title="1 account needs you"
-            note="New from your last import."
+            title="Let's review your accounts"
+            note="1 to check"
             onClick={() => {}}
           />
         </div>
@@ -547,6 +541,9 @@ export function TodaySection() {
               <span className="text-body-lg block font-medium">3 accounts need you</span>
               <span className="text-body block">2 new, 1 not in your last import.</span>
             </span>
+            {/* The old copy and the old type scale, kept together on purpose: this specimen is what
+                the bar looked like before 2026-09-08, and changing half of it would make the
+                comparison dishonest. */}
             <Icon name="chevron" size={20} className="shrink-0 -rotate-90" />
           </div>
         </div>

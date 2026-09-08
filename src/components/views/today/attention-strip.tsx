@@ -95,16 +95,14 @@ export function AttentionStrip({ items }: { items: AttentionItem[] }) {
   if (items.length === 0 && open === null) return null;
 
   const n = items.length;
-  const labels = items.filter((it) => it.kind === 'label').length;
-  const ended = n - labels;
 
   return (
     <>
       {n > 0 && (
         <AttentionRow
           tone="answer"
-          title={n === 1 ? '1 account needs you' : `${n} accounts need you`}
-          note={subtitle(labels, ended)}
+          title="Let's review your accounts"
+          note={`${n} to check`}
           onClick={() => setOpen(items)}
         />
       )}
@@ -158,10 +156,13 @@ export function AttentionRow({
         className={cn('shrink-0', answer ? 'text-accent' : 'text-neg')}
       />
       <span className="min-w-0 flex-1">
-        {/* PROSE IS `text`, CHROME IS `muted` - two tiers, never three. The title takes the larger
-            step (16px) because the reference's does and because at 14px a two-line block on a 72px
-            bar reads as two captions rather than as a sentence with a subtitle. */}
-        <span className="text-body-lg text-text block font-medium">{title}</span>
+        {/* ONE TYPE SIZE FOR THE ROW, WHICH IS THE SYSTEM'S OWN RULE and was being broken here.
+            `design-system.md` §2a: "A row is ONE type size; chrome is never smaller than the content
+            it controls." This was `text-body-lg` over `text-body`, which read as a heading with a
+            caption under it and was most of why the bar stood 72px tall. Both lines are `text-body`
+            now and the rank is carried the way the rest of the app carries it: weight and ink.
+            PROSE IS `text`, CHROME IS `muted` - two tiers, never three. */}
+        <span className="text-body text-text block font-medium">{title}</span>
         <span className="text-body text-muted block">{note}</span>
       </span>
       {onClick && <Icon name="chevron" size={20} className="text-muted shrink-0 -rotate-90" />}
@@ -174,8 +175,19 @@ export function AttentionRow({
      24px mark over a 40px text block, which lands the bar at 68px.
      NOT A CARD, STILL. No border and no shadow on either branch: `Card` is the only thing in this
      system that gets the shadow, and a control gets a border OR a shadow, never both. */
+  /* THE GEOMETRY, MEASURED AGAINST THE REFERENCE'S OWN BANNER (Luke, 2026-09-08: *"monarch's banner
+     is tighter up to the header... not as tall"*).
+     60px, DOWN FROM 72. Two 20px lines and `py-2.5`. The height came off the type first - one size
+     for the row rather than 16-over-14 - and only then off the padding, because shrinking padding
+     around oversized type would have made it cramped rather than shorter.
+     `mt-2`, DOWN FROM `mt-4`. Measured live: this margin COLLAPSES THROUGH the page column (the
+     bar is its first child and the column has no top padding), so it is not decoration between two
+     boxes - it is the whole gap between the header band and the bar, and halving it is what
+     "tighter up to the header" actually costs.
+     STILL NOT A CARD. No border, no shadow: `Card` is the only thing here that gets the shadow, and
+     a control gets a border OR a shadow, never both. */
   const base =
-    'bg-surface-2 mt-4 flex w-full items-center gap-3.5 rounded-[var(--radius)] px-4 py-3.5 text-left';
+    'bg-surface-2 mt-2 flex w-full items-center gap-3.5 rounded-[var(--radius)] px-4 py-2.5 text-left';
 
   if (!onClick) return <div className={base}>{inner}</div>;
   return (
@@ -189,21 +201,20 @@ export function AttentionRow({
   );
 }
 
-/* WHAT THE ROW IS ABOUT, IN THE SECOND LINE, and every phrasing here names a FILE rather than a
- * person. "Your last import did not name it" is something Run observed about an upload; "you have
- * not traded this in nine days" is a progress report on the trader, and `CLAUDE.md`'s no-absence
- * rule is what stands between the two.
+/* THE COPY IS THE REFERENCE'S SHAPE, AND IT USED TO BE TWICE THE LENGTH.
  *
- * NO EM DASHES (house style), and the line ends with a period because it is helper text rather than
- * a label. */
-function subtitle(labels: number, ended: number): string {
-  /* ONE SENTENCE FOR ONE OR MANY. "It is new from your last import" reads as a correction of the
-     title rather than an addition to it, and the title already carries the count. */
-  if (ended === 0) return 'New from your last import.';
-  if (labels === 0) {
-    return ended === 1
-      ? 'Your last import did not name it.'
-      : 'Your last import did not name them.';
-  }
-  return `${labels} new, ${ended} not in your last import.`;
-}
+ * Theirs:  `Let's review some transactions` over `2 remaining`
+ * Ours:    `Let's review your accounts`     over `5 to check`
+ *
+ * WHAT CHANGED AND WHY (Luke, 2026-09-08: *"is our copy overboard? we should be keeping it
+ * simple"*). It read `5 accounts need you` over `2 new, 3 not in your last import.` - which put the
+ * count in the TITLE and a breakdown in the sub, inverting the reference's structure and saying in
+ * eleven words what they say in two. The breakdown was also answering a question nobody has yet:
+ * which kind each one is, is what the first card says.
+ *
+ * `to check`, NOT `remaining`. The one word of theirs that does not come across. A count of what is
+ * left undone is a backlog by another spelling, and `CLAUDE.md` bans that state by name; `to check`
+ * counts the same items without telling the trader they are behind on them.
+ *
+ * THE TITLE CARRIES NO NUMBER, so it does not need a plural branch and does not restate the sub.
+ */
