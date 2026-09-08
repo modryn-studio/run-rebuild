@@ -128,6 +128,7 @@ with a rule. The rules stay HERE, because this file is loaded into every session
 - **Migrations: `drizzle-kit generate` + `migrate`, NEVER `push`.** One push makes `migrate` skip older migrations forever, silently.
 - **A `'use client'` file may import TYPES from a db-backed module, never VALUES.** `import type` is erased and always safe.
 - **Every export of a `'use client'` module becomes a client reference.** The shell's layout constants live in a plain module (`src/lib/shell.ts`) and re-exporting does not launder them.
+- **A Server Component passes DATA to a client one, never behaviour.** A function prop is unserialisable and 500s every request; `tsc`, `next build` and `/kitchen-sink` all pass anyway. **A page behind auth is not verified until it has been loaded behind auth.**
 - **A row fetched over JSON has no `Date`s, and TypeScript will not tell you.** Revive at the boundary (`reviveTrade`), never at the call site.
 - **Turbopack's build cache is OFF** (`experimental.turbopackFileSystemCacheForBuild: false`, default `true` since 16.3.0). It shipped CURRENT HTML WITH A STALE STYLESHEET; the phone was unusable and build, lint, typecheck and `/status` were all green. `next dev` uses a different cache, so local can never show you this.
 - **`npm run build` verifies its own stylesheet** (`scripts/verify-css.mjs`). Every unconditional class rule in `globals.css`, and every token those rules read, must reach the emitted CSS or the build fails.

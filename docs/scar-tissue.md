@@ -61,6 +61,30 @@ It fails **only on the rows that came second** — the tape's first 300 clocks r
 **Revive at the boundary** (`reviveTrade` in `trades-tape.tsx`), never at the call site, or the next
 consumer re-learns it.
 
+### A function cannot be a prop from a Server Component, and nothing catches it but a request
+
+`/today` 500'd on every request in production, hours after shipping green. `MonthCalendar` is
+`'use client'` and took `href: (month: string) => string` from `today/page.tsx`, a Server Component,
+so that the page could own the URL shape and the account scope could not drift between two surfaces.
+The intent was right. A function is not serialisable across the RSC edge, so the render threw before
+anything drew.
+
+**Three gates were green and none of them could have been anything else.** `tsc` sees an honest prop
+type and no boundary at all. `npm run build` compiles every route and passes: RSC serialisation
+fails at REQUEST time, so a page that never renders during the build never fails during it.
+`/kitchen-sink` racked the card in every state and passed, because the rack is itself a
+`'use client'` module — client-to-client never exercises the edge the shipped page uses.
+
+**Pass data, never behaviour.** The fix sends `scope: string[]` — the ids the header band had already
+written into the URL — and the client builds its own href. Same guarantee, nothing on the wire but
+strings.
+
+**The rule the incident is really about:** *a page behind auth is not verified until it has been
+loaded behind auth.* Every other surface built that day was checked in a browser; this one was
+checked in a type system, and the summary said so without drawing the conclusion. The logged-in
+`chrome-devtools` profile exists for exactly this (`driving-chrome.md`), and it found the fix
+correct in one call.
+
 ### Next.js 16 is not the Next.js in your training data
 
 Read `node_modules/next/dist/docs/` before writing framework code. `next dev` maintains that pointer

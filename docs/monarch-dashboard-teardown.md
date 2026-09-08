@@ -1650,6 +1650,12 @@ and leaves a colourblind trader with neither.
   is the smallest step the system has. The word survives in the cell's `aria-label`, where there is
   no width at all.
 
+> **LUKE'S VERDICT, 2026-09-08, after testing the deploy on a phone:** *"it works now. and the
+> implementation you created works for the beta version of this. i will re visit this at some
+> point."* **So this section is closed for the beta**, and the revisit list lives in
+> [#60](https://github.com/modryn-studio/run-rebuild/issues/60) rather than growing here - including
+> the one thing never measured, the day figure at a true 390px viewport.
+
 ### Not built, and each is a decision
 
 - **A day is not tappable.** Luke: *"nothing happens right now. we will plan this out better later."*
