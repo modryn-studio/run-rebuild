@@ -9,8 +9,10 @@ import { accountLabel } from '@/lib/prop-firms';
 import { readTradesFilter, EMPTY_FILTER } from '@/lib/trades/filter';
 import { cumulate, foldIntraday, sizeBase } from '@/lib/accounts/series';
 import { sessionWindow } from '@/lib/time/session';
+import { getAttention } from '@/lib/accounts/attention';
 import { NetPnl } from '@/components/views/today/net-pnl';
 import { LastSession } from '@/components/views/today/last-session';
+import { AttentionStrip } from '@/components/views/today/attention-strip';
 import { Greeting } from '@/components/views/today/greeting';
 import { TodayHeader } from '@/components/views/today/today-header';
 
@@ -64,10 +66,10 @@ const LAST_SESSION_ROWS = 5;
  * the PROOF under card 1's figure - the only place on the front door showing the actual rows a
  * trader would recognise from their broker - and the place they would catch that an import is wrong.
  *
- * ONE CARD, `Net P&L`, AS OF 2026-09-03 - the first of the six the teardown's §8 settled
- * (`docs/monarch-dashboard-teardown.md` §A7). It is first because it is the only one of the six
- * that needs no new data and no locked-doc amendment: `getDailySeries` already exists, and the card
- * is what builds the grid and the picker vocabulary the other five inherit.
+ * ONE CARD, `Net P&L`, AS OF 2026-09-03 - the first of the FIVE the teardown's §8 settled
+ * (`docs/monarch-dashboard-teardown.md` §A7, amended by §A13). It is first because it is the only
+ * one of the five that needs no new data and no locked-doc amendment: `getDailySeries` already
+ * exists, and the card is what builds the grid and the picker vocabulary the rest inherit.
  *
  * `Your Daily Recap` WAS BUILT FIRST AND IS NOT HERE. It rendered a fixture the whole time, the
  * nightly job that would feed it is not shipping in the beta (Luke: "do not implement the nightly
@@ -120,13 +122,22 @@ export default async function TodayPage({
 
   /* IN PARALLEL, and the roster is not optional decoration: it decides WHICH accounts the total
      counts, which is the same rule `/accounts` applies (*"the chart counts what the totals
-     count"*). It is also the read `Accounts`, the third card, is already specced against. */
+     count"*). `Accounts` WAS to be the third card and is not: it was struck on 2026-09-04 (§A13)
+     once the reference turned out to offer no such widget and `spec.md`'s P8 amendment turned out
+     to forbid it - per-account facts on an aggregate surface "turn a summary into a manifest". The
+     roster is still read here for the arithmetic above, which is the only reason it was ever read. */
   const [accounts, days] = await Promise.all([getRoster(trader.id), getDailySeries(trader.id)]);
 
   /* AN ACCOUNT SWITCHED OUT OF TOTALS IS OUT OF THIS FIGURE TOO. v2 shipped the other way and its
      rail read +$954.99 under a chart reading -$26,995.06. `hidden` is NOT a filter here: hiding
      takes a row off the roster and keeps it in the arithmetic, which is the whole difference
      between the two switches. */
+  /* THE LANE. One query on top of the roster this page already read, and DELIBERATELY NOT SCOPED BY
+     `scope`: the strip is not a figure. An account needing a label still needs one while the trader
+     is looking at a different account, and narrowing it by the band's filter would make a fact about
+     the roster disappear behind a control that is about arithmetic. §A15. */
+  const attention = await getAttention(trader.id, accounts);
+
   const counted = accounts.filter(
     /* THE SCOPE NARROWS BEFORE THE EXCLUSION, and both narrow before the fold. An account the
        trader has switched out of totals stays out even when it is the one they scoped TO - the
@@ -265,6 +276,12 @@ export default async function TodayPage({
         selected={scope}
       />
 
+      {/* ABOVE THE GRID, NOT IN IT. The reference keeps its review banner out of the widget column
+          and out of its Customize catalogue, and Run's is chrome for the same reason: it takes no
+          slot, cannot be hidden, and is absent whenever it has nothing to ask. It renders nothing at
+          all when the lane is empty, so the grid's top gutter is unaffected on a normal day. */}
+      <AttentionStrip items={attention} />
+
       {/* TWO COLUMNS ABOVE `lg`, ONE BELOW - the reference's own breakpoint. `items-start` so a
           short widget does not stretch to match a tall one beside it, which is what makes a
           dashboard read as a set of cards rather than a table.
@@ -294,7 +311,10 @@ export default async function TodayPage({
           imported={days.length > 0}
           zone={trader.displayTimezone}
         />
-        {/* The remaining four land here in build order - §A7. */}
+        {/* THE REMAINING THREE LAND HERE IN BUILD ORDER - §A7 as amended by §A13. Next is the
+            self-set daily loss line, which is blocked on `spec.md` §6's carve-out rather than on
+            anything in this file. The page also owes P8's aggregate pair - the range covered and
+            when it was last read - and that is a provenance ROW under this grid, not a card. */}
       </div>
     </div>
   );

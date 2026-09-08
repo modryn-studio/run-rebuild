@@ -83,6 +83,7 @@ import { TradeRow } from '@/components/views/trades/trades-tape';
 import { TradeSheet } from '@/components/views/trades/trade-sheet';
 import { TradeDrawer } from '@/components/views/trades/trade-drawer';
 import { displaySessionDate } from '@/lib/time/session';
+import { PHONE_QUERY } from '@/lib/shell';
 import { signed } from '@/lib/format';
 import type { SessionGroup, TapeRow } from '@/lib/trades/read';
 
@@ -135,7 +136,7 @@ export function LastSession({
   const shown = session ? session.trades.slice(0, SHOWN) : [];
 
   const openTrade = (row: TapeRow, index: number) => {
-    if (window.matchMedia('(max-width: 767px)').matches) {
+    if (window.matchMedia(PHONE_QUERY).matches) {
       setSheetRow(row);
       return;
     }

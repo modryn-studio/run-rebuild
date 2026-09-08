@@ -1047,10 +1047,15 @@ downstream of it should be built on the assumption that either shape won.
 > back). What replaces it is decided against a live read of the reference's dashboard rather than
 > from `wireframes.md` §5 alone: **[`monarch-dashboard-teardown.md`](monarch-dashboard-teardown.md)**,
 > every card mapped. **Luke's changes landed the same day and are §8 of that doc, which is the
-> current list**: six cards ship, not three. `Net P&L`, `Last session` and `Accounts` are joined by
-> **the self-set daily loss line** and **profit-target progress** (one slice, one migration - and
-> BLOCKED until Luke amends `spec.md` §6, which still lists stated-intent-vs-actual as NOT IN V1),
-> and by **`Set up Run`**, a five-step setup card that empties itself and then unmounts. The recap
+> current list**: **five cards ship**, not three. `Net P&L` and `Last session` (both BUILT) are
+> joined by **the self-set daily loss line** and **profit-target progress** (one slice, one
+> migration - and BLOCKED until Luke amends `spec.md` §6, which still lists stated-intent-vs-actual
+> as NOT IN V1), and by **`Set up Run`**, a five-step setup card that empties itself and then
+> unmounts. An `Accounts` card was planned third and **struck on 2026-09-04 (`§A13`)**: the
+> reference offers no such widget, the card it was mapped from turned out to be `Top movers` read in
+> its empty state, and `spec.md`'s own P8 amendment already ruled that per-account facts on an
+> aggregate surface *"turn a summary into a manifest"*. Its one live obligation - P8's range-covered
+> and last-read pair - is a provenance ROW this page still owes, not a card. The recap
 > is **reset to a blank sheet** - the built card has no design authority any more - and Monarch's
 > `Advice` is reopened for a session of Luke's own. Build order and the reasoning are in §A7.
 >
@@ -1510,6 +1515,17 @@ narrow and worth stating before any UI is built:
 - an import that **finished** while the trader was away, and what it found
 - a trade that **quarantined**, since that is a fact about the record they have to act on
 - the daily **read** being ready
+
+> **THE SECOND ITEM IS NOT DONE, AND SOMETHING NEARBY IS** *(2026-09-04, `monarch-dashboard-teardown.md`
+> §A14)*. An unknown `symbol_root` now raises a non-blocking preflight finding that names the product
+> on the import's completion screen, and emails **Luke** — the founder, not the trader — with the raw
+> export row needed to seed the contract spec. That is an operator alert on a Run defect, and it is
+> deliberately not this slice: it reaches an inbox, not a bell, and it exists because three of the
+> four quarantine reasons are things only the operator can resolve.
+>
+> **What `S9c` still owes** is the trader-facing half: a quarantine the trader CAN act on, arriving
+> in-product while they are away. That is still an open list, still last, and still allowed to end
+> with the bell coming out of the sidebar.
 
 All three are *events that happened*, never *reminders that something did not*. If the list cannot
 be filled without reaching for absence, the honest outcome is that Run has no notification centre

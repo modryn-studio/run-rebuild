@@ -446,8 +446,7 @@ flowchart TD
   Today --> NetPnl(["Net P&L — header → /accounts"])
   Today --> Last(["Last session — header → /trades, pinned to that day"])
   Last --> Row["a row → the trade<br/>drawer above md, full-screen sheet below"]
-  Today -.-> Accts(["Accounts (S8)"])
-  Today -.-> Line(["The daily loss line (§A4)"])
+  Today -.-> Line(["The daily loss line (§A4) — next"])
   Today -.-> Target(["Profit target (§A5)"])
   Today -.-> Setup(["Set up Run (§A2)"])
   Today -.-> Recap(["Your Daily Recap — built, unmounted, reset to a blank sheet"])

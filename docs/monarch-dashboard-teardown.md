@@ -407,8 +407,11 @@ manager. Say that.
    that word, so inventing a second meaning would have made one word mean two things on two screens.
    Anchoring on the last trading day rather than on today is also what stops a trader who has been
    away from opening an empty chart, which is the re-entry rule reaching the axis.
-2. **Last session on a day with no trades.** The card reads *the newest session with trades*, never
-   "today" — otherwise a Monday morning shows an empty card, which is the absence state. Confirm.
+2. ~~**Last session on a day with no trades.**~~ **CONFIRMED BY LUKE, 2026-09-04** (`§A11`, Q1),
+   and BUILT: the card reads *the newest session with trades*, never "today". `endsOn` — the newest
+   day in the counted series, which card 1 already computes for its `1d` range — is the subject, so
+   a Monday morning and a day the trader sat out both draw the last real session rather than an
+   empty card, which would be a state representing absence.
 3. **Does Accounts show hidden accounts?** The roster keeps them in a flap. The card has no flap.
    Suggest: count them in the headline (*3 hidden*), do not list them.
 4. **Whether §3.8's comparison card is worth a fourth slot** once the three are live and dogfooded.
@@ -425,16 +428,56 @@ manager. Say that.
 
 ---
 
-# 8. Amendments — 2026-09-03, later the same day
+# 8. Amendments — opened 2026-09-03
 
 **§1–§7 above are frozen as written.** Nothing in them is edited; where an amendment below
 contradicts one, **the amendment wins** and the original stays visible so the reasoning that was
 wrong is still readable. Luke's instruction: *"all updates to the doc shall be amendments. treat
 the doc as locked."*
 
-Six changes, in Luke's order, then the revised card list and the build order.
+**The same rule now applies WITHIN §8, and it is why this table exists.** Amendments supersede each
+other too — `§A12` reversed `§A10` in full and half of `§A11` on the day after they were written —
+so a reader landing on `§A10` finds a complete, confident argument for a decision that is dead, with
+nothing at the top of that section saying so. **This ledger is the only place that answers "is this
+still true?"** Read it first; it is cheaper than reading twelve sections to find out which two are
+ghosts.
+
+| | Amendment | Status |
+|---|---|---|
+| `A1` | Phone observations are void | **live** |
+| `A2` | Getting Started → `Set up Run`, Run builds it | **live** |
+| `A3` | Weekly Recap reset to a blank sheet | **live** |
+| `A4` | Budget → the self-set loss line, ships | **live** — blocked on `spec.md` §6 |
+| `A5` | Savings goals → profit-target progress, ships | **live** — blocked with `A4` |
+| `A6` | Advice reopened for Luke's own design | **live** |
+| `A7` | The revised card list and the build order | **live** — the master list, **AMENDED by `A13`**: `Accounts` struck, five ship |
+| `A8` | Account scope is page-level, in the header band | **live** — built |
+| `A9` | The greeting is back | **live** — built |
+| `A10` | The card says `Total P&L` | ~~**STRUCK by `A12`**~~ — it is `Net P&L` |
+| `A11` | Card 2's five answers, and the quarantine correction | **live**, EXCEPT its *"copy rule"* section — ~~**STRUCK by `A12`**~~ |
+| `A12` | `Net P&L` everywhere, unconditionally | **live** — built |
+| `A13` | `Accounts` struck; slot 3 is the loss line | **live** |
+| `A14` | The phone's `Review transactions`: struck as a card, shipped as an operator alert | **live** — built |
+| `A15` | The same card, second answer: the lane, and it is about ACCOUNTS | **live** — built |
+
+**A struck amendment stays in full.** `A10` and `A11`'s copy rule are the reasoning that produced
+`A12`, and `A12` is only defensible if you can read what it overturned: both of them argued from a
+hazard — accounts whose fee coverage differs — without checking whether the intake could still
+produce one. That is the mistake worth keeping visible, not the conclusion.
+
+**Anyone adding `A13` and beyond adds a row here in the same edit.** A ledger that is updated
+sometimes is worse than none, because it is believed.
+
+Below: six changes in Luke's order (`A1`–`A6`), the revised card list and build order (`A7`), then
+what each build has settled since (`A8`–).
 
 ## A1 — Every phone observation in §1–§7 is VOID
+
+> **STILL LIVE, AND `§A14` IS NOT AN EXCEPTION TO IT** *(2026-09-04)*. This section voids phone
+> observations **read from the browser**, which is the only kind `§1`–`§7` contains. `§A14` reads
+> the iOS app from Luke's own screenshots, which is the source `CLAUDE.md` names for anything below
+> `md` and the one this section was pointing at when it said the phone read "gets its own document".
+> The rule is the source, not the width.
 
 **Struck:** §1's `Phone (390)` row, and §4's *"Order, on both widths"*.
 
@@ -634,16 +677,19 @@ session should start from them rather than rediscover them:
 
 ## A7 — The revised list, and the build order
 
+> **AMENDED BY `§A13`, 2026-09-04: the `Accounts` card is struck and FIVE ship, not six.** The two
+> rows it touches are marked below. Everything else here stands.
+
 Superseding §4's table. Six rows are unchanged; the six that moved are marked.
 
 | # | Monarch | Run on `/today` | Beta | Reads |
 |---|---|---|---|---|
 | 5 | Net worth | **Net P&L** — picker: 1m · 3m · 6m · YTD · 1y · All | **ships — 1st** | `getDailySeries` |
 | 9 | Transactions | **Last session** — newest session, read-only, account picker | **ships — 2nd** | `getTape` + `getDigest` |
-| 11 | Investments | **Accounts** — count by type, net, freshness | **ships — 3rd** | `getRoster` + `getFreshness` |
-| 3 | Budget | **The daily loss line** vs. actual | **ships — 4th** ⬆ *was: no* | new column + `getDigest` |
-| 6 | Savings goals | **Profit-target progress** | **ships — 5th** ⬆ *was: no* | same column group |
-| 1 | Getting Started | **`Set up Run`** — 5 steps, self-emptying, self-unmounting | **ships — 6th** ⬆ *was: never* | existing state, no new data |
+| 11 | Investments | ~~**Accounts** — count by type, net, freshness~~ **`Top movers`, misread in its empty state** | ~~ships — 3rd~~ **STRUCK, `§A13`** | — |
+| 3 | Budget | **The daily loss line** vs. actual | **ships — 3rd** ⬆ *was: 4th (`§A13`), and before that: no* | new column + `getDigest` |
+| 6 | Savings goals | **Profit-target progress** | **ships — 4th** ⬆ *was: 5th (`§A13`), and before that: no* | same column group |
+| 1 | Getting Started | **`Set up Run`** — 5 steps, self-emptying, self-unmounting | **ships — 5th** ⬆ *was: 6th (`§A13`), and before that: never* | existing state, no new data |
 | 2 | Weekly Recap | **RESET — designed from scratch** ⬆ *was: built, unmounted* | held: no job, no design | — |
 | 8 | Spending trend | Month vs. month, day by day | hold: second chart | `getDailySeries` ×2 |
 | 10 | Recurring | Account renewals due | no: no billing data | needs new data |
@@ -651,13 +697,23 @@ Superseding §4's table. Six rows are unchanged; the six that moved are marked.
 | 7 | Business tracking | — | never | — |
 | 12 | Advice | **REOPENED** ⬆ *was: never* | Luke's design session | — |
 
-**Six cards ship, not three.** Which changes §4's *"No Customize, no dragging"* note: three cards
-cannot be rearranged into anything better, **six can**. Reorder is still not in this slice, but it
-stops being obviously pointless — file it, revisit after dogfooding.
+~~**Six cards ship, not three.** Which changes §4's *"No Customize, no dragging"* note: three cards
+cannot be rearranged into anything better, **six can**.~~ **FIVE, `§A13`** — and that reverts the
+reorder aside with it: at five argued cards, none of them user-added, `Customize` and dragging stay
+unbuilt for the reason §4 gave originally.
 
 **Order on the page** (a separate question from build order): Net P&L · Last session · The line ·
-Profit target · Accounts, with **`Set up Run` above all of them while it is incomplete**, because a
-setup card that sorts below the cards it is trying to fill is a setup card nobody finishes.
+Profit target, with **`Set up Run` above all of them while it is incomplete**, because a setup card
+that sorts below the cards it is trying to fill is a setup card nobody finishes.
+
+> **EVERY CARD'S EMPTY STATES ARE DEFERRED TO ONE PASS BEFORE THE BETA —
+> [#55](https://github.com/modryn-studio/run-rebuild/issues/55).** Luke, 2026-09-04: *"before we go
+> live, im going to implement the empty states the way i want. not concerned right now."* So a card
+> built between now and then **copies the shape the two shipped cards use** (`nothingImported`,
+> `allExcluded`, `nothingInScope`, inline, `text-body text-muted`) and does not invent a better one.
+> Two of those three states are duplicated word for word across cards on purpose — they describe the
+> PAGE's scope, which `§A8` made page-level, not the card's own subject — and #55 is where that is
+> resolved for all of them at once rather than drifting card by card. **Do not solve it in card 3.**
 
 ### Build order, and why
 
@@ -666,12 +722,12 @@ setup card that sorts below the cards it is trying to fill is a setup card nobod
    only one of the six that touches no locked doc.
 2. **Last session.** Existing reads, and it introduces the **account picker** that the line card
    then reuses.
-3. **Accounts.** Existing reads, and the smallest of the three.
-4. **The line + the target, as ONE slice.** One migration (`daily_line_cents`,
+3. ~~**Accounts.** Existing reads, and the smallest of the three.~~ **STRUCK, `§A13`.**
+4. **The line + the target, as ONE slice — now slot 3.** One migration (`daily_line_cents`,
    `profit_target_cents`), one field group in the Edit layer, two cards. Splitting them would mean
    two migrations and two passes over the same form. **Blocked on `spec.md` §6's carve-out.**
-5. **`Set up Run`.** Last of the six on purpose: four of its five steps point at flows that must
-   already exist, and step 4 points at the field that slice 4 creates.
+5. **`Set up Run`.** Last on purpose: four of its five steps point at flows that must already
+   exist, and step 4 points at the field the slice above creates.
 
 Then the two design sessions, in either order: **the recap reset** (A3) and **advice** (A6).
 
@@ -824,6 +880,10 @@ emailed-code path supplies none - and *"Good morning"* alone is a complete sente
 
 ## A10 — The card says `Total P&L`, and §3.5's "net, never gross" is answered rather than followed *(2026-09-04)*
 
+> ~~**STRUCK IN FULL BY `§A12`, 2026-09-04.** It is `Net P&L`, everywhere, unconditionally.~~ Kept
+> because `A12` is only readable against it: the mistake below is arguing from a hazard — accounts
+> whose fee coverage differs — without checking whether the intake can still produce one.
+
 **The card shipped saying `net P&L` and `/accounts` refuses to say it about the same number.**
 Found reviewing the built card against §3.5.
 
@@ -902,6 +962,9 @@ assumed that turns out not to be true.
 | 5 | Excluded and quarantined rows show, marked | **Yes** — but his premise needs correcting |
 
 ### The copy rule, which is bigger than this card
+
+> ~~**STRUCK BY `§A12`, the next day.**~~ The word is `Net P&L`, not `Total P&L`. **The rest of
+> `§A11` stands** — the five answers above and the quarantine correction below are live.
 
 Luke: *"no trader cares how much a trade made before fees. traders only care about the net value. we
 will use the copy `Total P&L` throughout the app where we could be using `Net`. but we chose `Total`
@@ -1038,3 +1101,428 @@ deleted is the branch, not the knowledge.**
 when written and is now **satisfied at the intake instead of at the label**. The import cannot
 produce a figure the label would have to qualify. If a future adapter can, the disclosure comes back
 — and `hasFees` is still there to drive it.
+
+## A13 — The `Accounts` card is STRUCK. Slot 3 is the loss line *(2026-09-04)*
+
+Luke, after the card was specced and before a line of it was written: *"im having a hard time
+understanding why this accounts card would need to exist for Run users… i dont have solid pushback
+on the card, i just feel like it doesn't belong."*
+
+He was right. Every reason below is either in the reference's own markup or in this repository's
+locked docs — **none of it needed to be invented, and all of it was available before `§3.11` was
+written.** Four findings, in the order they landed.
+
+### 1. The reference offers no such widget, and it is the company with the most reason to
+
+`Customize` opened and read on the running app, 2026-09-04. The complete catalogue Monarch ships is
+twelve, and an account list is not one of them — not switched off, **not offered**:
+
+```
+Getting started guide · Weekly Recap · Budget · Net worth · Credit score · Savings goals
+Business tracking · Spending trend · Transactions · Recurring transactions · Investments · Advice
+```
+
+The dashboard body was also scanned for `sync|reconnect|attention|disconnect|updated`: **zero
+matches.** Monarch's whole product is aggregating dozens of accounts across institutions whose
+connections break constantly, and their front door says nothing about any of it.
+
+**Where it actually lives, read the same day:** `app.monarch.com/accounts` carries **seven freshness
+stamps, one per row — `20 hours ago`, `13 hours ago`, `9 hours ago`.** The job is real. It is an
+accounts-page job.
+
+### 2. `Investments` was misread, and it was misread the same way `Getting Started` was
+
+The widget is populated now — Luke connected a brokerage between the two reads — and it is not an
+inventory card:
+
+```
+$508,453 investments · $0.00 · Today      → /investments
+Top movers today
+  BAGIX   Baird Aggregate Bond Inst   $9.66   0.00%
+```
+
+**`Top movers` is a per-holding PERFORMANCE card.** `§3.11` read the empty upsell state — *"Sync
+your brokerage for a live view of your portfolio"* — and mapped it to a roster. That is the second
+time in this document a placeholder was read as the product; `§A2` was the first, and it was the
+same card class both times: an upsell that renders nothing of the real widget.
+
+> **The rule this leaves behind, because it has now cost two sections:** **a card read only in its
+> empty state has not been read.** An empty state is written to sell the feature, not to describe
+> it. Before any Monarch card is mapped, either populate it or say out loud that the mapping is
+> provisional.
+
+### 3. `spec.md` already forbade it, in Luke's own amendment, before `/today` existed
+
+The 2026-08-25 amendment to **P8** names this page:
+
+> **On an AGGREGATE surface** — `/trades`, **and `/today` when it lands** — the range covered and
+> when it was last read. The other two are per-account facts that an aggregate can only list or
+> lose: a tape filtered across three accounts has three source files and three accounts, and
+> **printing them turns a summary into a manifest.**
+
+The card `§3.11` and `§A7` specced — one row per account, carrying that account's name, net and
+freshness — **is a manifest.** The locked doc ruled on it a week before the page was built.
+
+### 4. The wireframe never drew a roster
+
+`wireframes.md` §5 drew two lines, not a list:
+
+```
+│ Accounts                [›]  │
+│ 2 funded · 1 eval · 3 closed │
+│ all read 2h ago              │
+```
+
+A count by type, and **one collective stamp**. `architecture.md`'s own row says the same:
+*"Accounts widget: counts, `all read 2h ago`"*. `§3.11`'s *"a short list of accounts with net and
+freshness"* inflated that into the manifest, and `§A7` carried the inflation forward as a shipping
+decision.
+
+**And the small version does not survive either.** Monarch's seven stamps differ — `20h`, `13h`,
+`9h`. *"All read 2h ago"* is honest only while every account agrees; across eleven accounts it is
+either false or it silently degrades to the oldest, which is a manifest again — or worse, a sentence
+about how long the trader has been away, which is the re-entry rule (`CLAUDE.md`).
+
+### Where the two real facts went
+
+The card was wrong; the jobs inside it are not. Both already have homes.
+
+| The fact | Story | Where it belongs | State |
+|---|---|---|---|
+| **Per-account freshness** — when Run last read THIS account | ⭐`S4`, `P5` | `/accounts`, one stamp per roster row | **ALREADY SHIPPED.** `roster-card.tsx`'s `ago()`: `12m ago` · `3h ago` · `yesterday` · `4d ago`. The same place Monarch puts it. Nothing to build |
+| **The aggregate pair** — the range covered, and when it was last read | `P8` | `/today`, as a **row**, not a card | **OWED AND UNMET.** The amendment is explicit: *"They are ROWS, not sentences."* `/trades` already does it as `First trade` · `Last trade` · `Last import` |
+
+**So `/today` still owes one small provenance line, and it owes it whether or not a third card ever
+exists.** It is not a card, it does not take a slot, and it is not blocked by anything. Filed here
+rather than built, because it belongs with the page's furniture and not with this list.
+
+### The list is now FIVE, and slot 3 is the loss line
+
+Monarch's own third card — top of their left column, above Net worth — is **Budget**: *am I inside
+the plan I set?* That is the job a third card should do, and Run's version of it is already argued
+in `§A4`: the **self-set daily loss line**, `psychology.md`'s d=0.65 implementation intention, and
+`§5`'s answer to the one thing every prop-trader tool leads with and Run currently cannot show.
+
+| Slot | Card | State |
+|---|---|---|
+| 1 | `Net P&L` | **built** |
+| 2 | `Last session` | **built** |
+| 3 | **The daily loss line** | next — **blocked only on `spec.md` §6's carve-out** |
+| 4 | `Profit-target progress` | ships with slot 3, one migration |
+| 5 | `Set up Run` | last: its steps point at flows that must exist first |
+
+**Five ship, not six**, which also settles `§A7`'s aside about reorder: at five cards, none of them
+user-added, `Customize` and dragging stay unbuilt for the reason `§4` gave originally.
+
+## A14 — The phone's `Review transactions` card: STRUCK as a card, SHIPPED as an alert *(2026-09-04)*
+
+**The first amendment written off the PHONE product rather than the web one.** `§A1` voided every
+phone observation in `§1`–`§7` because they were read from `app.monarch.com` narrowed, which is a
+desktop table squeezed. This one is read from Luke's own screenshots of the native iOS app, which is
+the only legitimate source for it (`CLAUDE.md`: *"below `md`, ask Luke for the screenshot"*),
+supplemented by Monarch's own published copy.
+
+There are **two** cards on the phone dashboard that the web dashboard does not have. This section
+covers the first. The second — `Monthly review`, a calendar — is **not reviewed yet** and gets its
+own section.
+
+### What it actually is, in three parts
+
+**A thin accent banner ABOVE the grid**, not a widget: full-bleed, an icon, `Let's review some
+transactions`, `2 remaining`, a chevron. It is the only accent-coloured object on the dashboard and
+it appears only when something needs review.
+
+**A full-screen card stack** when tapped. Each card is the entire transaction editor — category
+chips, tag chips, date, notes, *Spend from save up goal*, *Assign to*, a hide toggle, and actions
+for split, attach and delete. `Skip for now` / `Mark as reviewed` at the foot, mirrored as
+swipe-left and swipe-right with a full-card overlay. The header counts down (`2 remaining` →
+`1 remaining`), grows an undo arrow after the first action, and carries a filter with a badge.
+
+**A queue with a source.** Transactions are flagged for review automatically by if-then rules or by
+hand; Monarch's own pitch is speed — *"2x faster"*, *"whenever you have a few spare minutes (and
+even have some fun with it!)"*.
+
+**Their reason is sound and it is theirs alone: a bank feed arrives GUESSED.** A merchant string and
+a machine-picked category, and only the human knows whether it is right. The queue is where machine
+uncertainty is resolved by the one person who can resolve it.
+
+### The structural fact that settles the slot question before the copy question
+
+**It is not one of the twelve widgets in `Customize`.** `§A13` read that catalogue off the running
+app and listed it in full; there is no `review` entry. So on Monarch's own product this card cannot
+be reordered, hidden, or added — **it is chrome, not a card.** Whatever Run does with it, it was
+never contending for a slot, and the five-card list `§A13` settled is untouched.
+
+### Ported as a card it breaks three rules, all of them already written down
+
+1. **`2 remaining` is a backlog.** `CLAUDE.md`: *no state may represent absence — no backlog, no
+   catch-up, no streak.* `psychology.md` §6 calls that rule the direct mitigation for the ostrich
+   effect, which makes the trader this counter would greet the exact person it would harm.
+2. **Every control on the card is editing.** *Trades are not editable, and the option is not
+   offered.* And `spec.md`'s NOT IN V1 names Monarch's own controls, by name: *"Notes, notebook,
+   journaling-by-typing, tags, folders."*
+3. **`§3.9` already ruled on the sibling.** The desktop `Transactions` widget is this same job at
+   lower fidelity, and this document struck its inline comboboxes for the reason that applies twice
+   as hard here: *"THEIR REASON IS A CHORE, AND RUN DELETED THE CHORE."*
+
+### The job inside it that IS real, and why it is not a card either
+
+Run has exactly one class of data that arrives uncertain, and it is **not** uncertain about the
+trader's intent — it is uncertain about **Run's own ability to price a product**.
+
+`contract_spec` holds **41 roots** and **18 are deliberately absent**: the grains
+(`ZC ZS ZW KE ZL ZM ZO`, published in dollars per bushel and quoted in cents, a hundred-fold apart),
+the treasuries (`ZT ZF ZN TN ZB UB ZQ`, quoted in 32nds), the livestock (`LE HE GF`), and `SR3`
+whose tick is not a constant. None can be settled from a spec sheet. Apex allows the full grain
+complex, so a public beta reaches this.
+
+**Three of the four quarantine reasons in `trades/project.ts` are Run defects a trader cannot
+resolve.** The fourth — *"its fills are not in this account"* — is theirs, and its fix is to import
+the missing file, not to press a button in a queue.
+
+So the shape Monarch found is right and the audience is wrong. **This is operator work.** Which is
+also what the field does: **TradeZella** and **Tradervue** both answer an unsupported instrument
+with *email support with the symbol and the exchange and we will add it*. Nobody ships a user-facing
+queue for reference data, because reference data is the vendor's job.
+
+> **The rule this leaves behind:** before porting a card, ask **who** resolves the uncertainty it
+> exists to resolve. Monarch's queue works because the person holding the phone is the only one who
+> knows. A queue whose remedy lives with the operator is a support ticket wearing a card's clothes.
+
+### What shipped instead, and it is not on `/today`
+
+| Monarch's mechanic | Run's version |
+|---|---|
+| Conditional banner, self-erasing | A **non-blocking preflight finding**, `unknown_roots`, raised before the write |
+| `2 remaining`, counted down | The completion screen names the **product and the count**: *"ZC is a product we cannot price yet. 3 of your 412 trades are saved and marked…"* |
+| Editor in the card | **Nothing.** No control reaches the trader, because there is nothing they can do |
+| `Skip for now` | **Deleted.** An unresolved trade stays marked and visible, which doctrine already requires — there is nothing to defer |
+| The filter | **Deleted.** You filter a hundred transactions, not three parked trades |
+| The queue itself | An **email to Luke** carrying the raw export row, and a read-only `/admin` section grouped by root and reason |
+
+And the half nobody had built: **adding the spec row now re-projects.** `scripts/seed-contract-spec.mts`
+clears the parked trades in the same command, so the loop `schema.ts` always assumed — *"the table
+grows only when a real import quarantines something"* — has all three of its steps for the first
+time.
+
+**Two bugs were found on the way and fixed with it.** Non-blocking findings were computed, streamed
+to the client and dropped: `ImportComplete` never took the prop, so the route's own comment
+(*"Non-blocking findings still have to reach the trader"*) had been false since it was written. And
+`architecture.md` §6 already specified that the pre-commit step validates roots against
+`contract_spec`; `preflight.ts` never read it. Per `CLAUDE.md`, the code was the bug.
+
+### Still open
+
+- **`Monthly review`** — the calendar, the second phone-only card. Unreviewed.
+- **`spec.md` §S9b's two actions** (re-sync, exclude-with-a-reason) remain unbuilt, and this work
+  argues the story may describe the wrong problem: re-sync cannot help the dominant cause. Worth
+  re-reading S9b now that the operator path exists.
+- **`architecture.md`'s §7 debt row** still reads *"`contract_spec` seeded by hand | four
+  instruments today"*. It is 41. LOCKED, so flagged rather than edited.
+
+---
+
+## A15 — `Review transactions`, the second answer: the lane, and it is about ACCOUNTS *(2026-09-08)*
+
+**`§A14` and this section are one investigation with two conclusions, and they do not compete.**
+A14 asked what Run's version of the phone's `Review transactions` card would hold if it held
+QUARANTINED TRADES, and answered: nothing, because the remedy is the operator's. Luke then asked the
+next question — *"come up with a list of ideas on what Run's version could be"* — and this is the
+answer that survived. A14's own closing rule is what picks it:
+
+> **Before porting a card, ask WHO resolves the uncertainty it exists to resolve.** A queue whose
+> remedy lives with the operator is a support ticket wearing a card's clothes.
+
+### The finding that narrowed the field to one candidate
+
+**Run has almost nothing to review, and that is architectural rather than accidental.**
+`preflight.ts` refuses a dirty import at the gate — fourteen codes, `fees_unmatched`,
+`pnl_unreconciled`, `statement_uncovered`, `rows_unnamed`, `unknown_roots` — so the class of problem
+Monarch's queue exists to clean up cannot get in. Monarch lets guessed data land and builds a queue
+to correct it later; Run does not let it land.
+
+**So the only reviewable things left are facts that exist in NO FILE.** And Run already models that
+class explicitly, in its own vocabulary: `firm_source` is `'stated'` (the trader said so) versus
+`'detected'` (recalled from a prefix confirmed on somebody else's account — *"weaker, and the
+trader's own answer always overwrites it"*). `trader.display_timezone` carries the same pair.
+
+> **The idea underneath the whole section:** the lane is where Run's **guesses and blanks** go to
+> become facts. Same job the reference's banner does, on the one class of data Run actually has it on.
+
+### Every chore a trader must do by hand to keep their accounts true
+
+Read off `schema.ts`, `label-account-form.tsx`, `account-actions-sheet.tsx` and the
+`account_type_status_check` constraint. **Marks:** 🔒 forced by the flow · ⛓ forced, but only once
+you start a different chore · ⚠️ skippable and something degrades · ○ skippable, nothing breaks.
+
+| | Chore | | Why |
+|---|---|---|---|
+| **A — an import created an account** ||||
+| 1 | Set the type | ⚠️ | Nothing makes you open Edit. Once open, `ready` blocks Save without it |
+| 2 | Confirm or set the firm | ⚠️ | Same gate. Appears in **none** of the six export types |
+| 3 | Set the size | ⚠️ | Same gate. **1–3 are one unit: all or nothing** |
+| 4 | Name it | ○ | Explicitly optional; null composes firm + size + last four |
+| 5 | Apply the firm to siblings | ○ | Convenience, and it is what makes a copy-trader's import bearable |
+| **B — something happened that no file records** ||||
+| 6 | Mark an evaluation **passed** | ⚠️ | Nothing knows it happened |
+| 7 | Mark an evaluation **failed** | ⚠️ | The common one at 5–15% pass rates |
+| 8 | Sim funded failed / closed | ⚠️ | |
+| 9 | Personal closed | ○ | |
+| — | *…but 6–9 all require #1 first* | ⛓ | `disabled={type === null \|\| typeStaged}` — an account cannot be closed until its type is set |
+| 10 | Reopen one closed by mistake | ○ | Corrective only |
+| 11 | Change the type of an **ended** account | 🔒 | The CHECK plus `needsEnding` force an ending pick in the **same Save**. Unskippable, deliberately or otherwise |
+| 12 | Label the **replacement** account | ⚠️ | A passed evaluation issues a new broker id, so it lands as a fresh unlabelled row. **Passing is two chores** |
+| **C — tidiness** ||||
+| 13 | Hide / un-hide | ○ | About the LIST |
+| 14 | Exclude from totals | ○ | About the ARITHMETIC |
+| 15 | Rename later | ○ | |
+| 16 | Display timezone | 🔒 | `NOT NULL`, detected on first visit. Only *deliberately choosing* is skippable |
+| **D — not built** ||||
+| 17–18 | Loss line, profit target | ⚠️ | `§A4`/`§A5`. `daily_line_cents` is not in the schema yet |
+
+**Two things the marks say.** Only two chores complete themselves: the timezone, and adding an
+account **by hand** — that path gates creation on `ready`, so a hand-added account is *born
+labelled*. **Every account arriving the normal way, through an import, can sit unlabelled forever,
+and nothing in the product ever asks.**
+
+**And #7 is the one that actually hurts.** A failed evaluation left unmarked is not untidy: it leaves
+a dead account sitting `active` on the roster, so the product claims the trader has a live account
+they do not have. It is the only chore on the list where skipping makes Run **state something false**
+— which is the one thing this product is not allowed to do.
+
+### One gap found while listing, not fixed here
+
+**`product_name` has no writer.** It is in the schema, and it is RENDERED — `account-rail.tsx:125`,
+`roster-card.tsx:307` — but no form writes it, so it is permanently null for everybody. Read-only
+data with no door. Flagged, not built.
+
+### What shipped
+
+**A conditional row above the grid on `/today`, opening a full-screen stack.** `attention.ts`,
+`attention-strip.tsx`, `attention-stack.tsx`, racked in `/kitchen-sink`.
+
+| The reference | Run |
+|---|---|
+| Chrome above the grid, not in `Customize` | Same. Takes no slot, cannot be hidden, absent when empty |
+| `2 remaining`, counting down | `1 of 3` — a position in a set you opened, never what is left undone |
+| One subject at a time | Same |
+| Full transaction editor per card | Three fields Run cannot derive, and nothing that touches a trade |
+| `Skip for now` | **Deleted.** Nothing is queued, so closing IS skipping |
+| Swipe left / right, undo arrow | **Deleted with skip.** Two consequential answers is a pair of buttons |
+| Filter with a badge | **Deleted.** You filter a hundred transactions, not three accounts |
+
+**The queue is computed, never remembered.** No queue table, no dismissal, no seen flag. It is a
+pure function of the account rows and the import log, so the row is correct on every render and
+closing it costs nothing. A dismissal state would make it a **backlog**, which is the thing
+`CLAUDE.md` forbids by name.
+
+**The `ended` question is asked off the IMPORT LOG, never off a clock.** *"Your last import covered
+your other accounts. This one was not in it"* is a fact about a file. *"You have not traded this in
+nine days"* is a progress report on a person, and it is the sentence the re-entry rule exists to
+prevent. Nothing in the module reads a calendar.
+
+**Trigger: unconditional, every committed import** (Luke's call, 2026-09-08, over the narrower
+"only on the named→unnamed transition"): *"leave it unconditional and I'll see how it feels in
+dogfooding."* **The cost is known and accepted:** a trader with four active accounts who trades one
+that week is asked about three, every import. If that grates, the transition rule is a one-line
+change in `buildAttention`.
+
+**The stack ends on a closing screen rather than vanishing.** Rams: a lane that is simply absent on
+the next paint conceals the state change — the trader cannot tell whether their answer landed or the
+row was never there. So the last card is followed by *"Nothing else to answer"* and a Done button.
+**No count, no ring, no congratulation:** `psychology.md` §7 bans anything that rewards opening the
+app, and a completion trophy is that mechanic in the one place a chore ends.
+
+> **FILLED, THEN REVERTED, ON THE SAME DAY. The bar is RECESSED and the geometry is the
+> reference's.** Luke asked for the fill twice (*"dont you think we should use our primary color as
+> well?"*, then *"copy them. make Run's version exactly."*), it shipped filled, and it came back out
+> once both products were read off their markup rather than argued about. The section below is the
+> original objection; the paragraph here is what actually settled it, and it is a stronger argument
+> than the one it replaces.
+>
+> **THE PALETTE STRUCTURE IS THE THING THAT DOES NOT TRAVEL.** Read live from Monarch, 2026-09-08:
+>
+> | Job | Monarch | Run |
+> |---|---|---|
+> | Data, the performance line | cyan `#00a2c7` | pine `--color-accent` |
+> | Default primary control | near-black `#222221` | pine `--color-accent` |
+> | Brand and attention | orange `#ff692d` | *nothing* |
+>
+> **Their banner is loud because orange appears nowhere in their data.** That is the precondition,
+> and Run cannot meet it: `globals.css` calls pine *"the product's one accent (Rams, validated cold
+> twice)"*, and it is already `Button` primary, the selection state, the switch, the badge and the
+> chart. `/today` and `/accounts` share ONE `Plot` stroked `var(--color-accent)` — verified live at
+> `rgb(86,183,155)` on both — so a filled bar sits ~200px above a line in the **identical token**.
+> Not `dE 0.040` as Rams estimated. `dE 0`.
+>
+> **What the round trip fixed, because it was not wasted.** The first recessed bar was a thin 56px
+> row with a 16px mark, and Luke was right that it was too quiet. **The geometry pass answered that
+> and survives the revert:** 72px, a 24px mark, a `text-body-lg` title over a `text-body` note, the
+> position in the stack's header, a two-button footer. The fill was solving a problem the geometry
+> had already solved.
+>
+> **Reopening it is filed rather than forgotten** — [#57](https://github.com/modryn-studio/run-rebuild/issues/57).
+> The trigger is a message that earns a loud hue: slot 3 is the self-set daily loss line, and `warn`
+> is already documented as the red-zone gauge, so the first question there is whether `warn` already
+> does the job rather than whether to add a hue.
+
+### The colour: the reference's own treatment REFUSED, and the reason is measured
+
+Luke asked the right question — *"monarch's banner is their primary color, orange. dont you think we
+should use our primary color as well?"* Rams (2026-09-08) said no, with numbers:
+
+```
+accent vs pos    dE 0.040 light, 0.020 dark    floors: 0.050 neighbour, 0.062 semantic
+```
+
+**Run's accent is a pine green and `--color-pos` is a green.** `globals.css` had already written the
+verdict for exactly this adjacency: *"A green mark beside a green P&L figure is a lie no amount of
+contrast rescues."* A full-width pine bar directly above a `Net P&L` figure rendered in `--color-pos`
+is that adjacency at the largest scale the page offers. Dark fails by a factor of three.
+
+**Two more, independent of the hue.** `bg-accent` + `text-accent-fg` is *literally* `Button primary`,
+so the strip would be a primary button the width of the page. And `/today` currently spends **zero**
+accent — no `text-accent` or `bg-accent` in `net-pnl.tsx`, `last-session.tsx` or `today-header.tsx`
+— which is what makes one pine glyph unambiguous there and a pine fill the whole budget spent on the
+row that says *nothing is wrong*.
+
+**So: ground `surface-2`, no border, no shadow; the accent spent on the MARK.** The token's own
+comment is the argument — *"a recessed slot, never raised"*. A card here is `surface` plus
+`--shadow-card`; this is neither, which makes **recessed where every widget is raised** the category
+signal, stated in tokens rather than in prose.
+
+> **The general rule this leaves behind:** *position and saturation are two ways to buy attention,
+> and this lane already spent the first.* It sits above the headline, in a slot nothing else
+> occupies, and it did not exist yesterday. Appearing at all IS the signal. Monarch buys both because
+> their banner competes with twelve widgets on a scrolling page; this competes with two cards.
+
+**The pine-fill version is racked beside the shipped one in `/kitchen-sink`**, under a danger note,
+so the comparison is available as evidence rather than as memory.
+
+### The lane is general, and today it has exactly one tenant
+
+Built general at Luke's instruction, against a second tenant `§A14` then ruled out — quarantine went
+to the **operator**. The `numbers` tone (a `warn` mark in `text-neg`) is therefore **specified and
+unoccupied**: it costs one prop, it settles the vocabulary in advance, and it is not a claim that a
+tenant exists. If one ever arrives, both rows render in priority order, never a count.
+
+**Accounts passes A14's test as cleanly as anything could.** Type, firm, size and *did this
+evaluation end* are unresolvable by the operator **by definition** — no file, no API and no support
+inbox can answer them. The person holding the phone is the only one who knows, which is the exact
+condition that makes the reference's card work on the reference's product.
+
+### Considered and not built
+
+- **Accept/reject the daily read's pattern.** The closest structural match to the swipe stack, and a
+  scoring mechanic through the back door. `§A6` reserved Advice for Luke's own design.
+- **Anything per-trade.** Editing is out; notes, tags and folders are named in `spec.md`'s NOT IN V1.
+- **`statement_uncovered` as a lane row.** Real, and one word away from *"you haven't imported since
+  Tuesday"*. Deferred rather than refused.
+
+### Still open
+
+- **The nag arithmetic**, above. Dogfooding decides.
+- **The palette**, [#57](https://github.com/modryn-studio/run-rebuild/issues/57) — filed after the
+  fill was tried and reverted. Revisited when the loss line ships, not before.
+- **`Monthly review`**, the calendar, is still the unreviewed half of the phone pair (`§A14`).
+- **`product_name` has no writer**, above.

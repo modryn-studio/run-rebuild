@@ -21,6 +21,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { cn } from '@/lib/cn';
+import { PHONE_QUERY } from '@/lib/shell';
 import { signed } from '@/lib/format';
 import { productName } from '@/lib/instruments';
 import { InstrumentMark } from './instrument-mark';
@@ -157,9 +158,12 @@ export function TradesTape({
    * when it is needed, so the question is asked at the one moment the answer is knowable.
    *
    * `md`, THE SAME 768px BOUNDARY the shell already draws for the sidebar and the bottom bar. A
-   * third breakpoint for "is this a phone" is a third answer to one question. */
+   * third breakpoint for "is this a phone" is a third answer to one question - which is why this
+   * reads `PHONE_QUERY` rather than spelling the width out. The literal was here and in
+   * `last-session.tsx` until 2026-09-04, two copies of a string `lib/shell.ts` already exports and
+   * `usePhone` already reads; a third copy is how the three answers start. */
   const openTrade = (row: TapeRow, index: number) => {
-    if (window.matchMedia('(max-width: 767px)').matches) {
+    if (window.matchMedia(PHONE_QUERY).matches) {
       /* NO `router.push` HERE ANY MORE (2026-08-25). It used to navigate, which unmounted this
          entire tape and made the trader wait on a server round trip for a row already sitting in
          `flat` - see `trade-sheet.tsx` for the measurements. The sheet takes the row directly and

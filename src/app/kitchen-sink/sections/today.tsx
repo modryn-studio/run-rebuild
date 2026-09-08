@@ -1,6 +1,14 @@
 'use client';
 
-/* THE DASHBOARD WIDGET, AND THE READ IT CARRIES (`S8`).
+/* THE `/today` RACK - the widget contract and every card that wears it (`S8`).
+ *
+ * RENAMED FROM `daily-recap.tsx` ON 2026-09-04, and the rename is the record of a decision rather
+ * than tidying. This section was built when the recap WAS `/today`; it now racks `Net P&L` and
+ * `Last session`, the two cards that shipped, and the recap is one specimen among them. On
+ * 2026-09-03 that card was reset to a blank sheet (Luke: *"forget everything we have created for
+ * this and start from scratch"*), so it holds no design authority here - it stays racked because
+ * the component still compiles and a specimen costs nothing, not because it is the subject.
+ * `monarch-dashboard-teardown.md` §A3.
  *
  * Racked in the same change that built it, and this is the section that most needs to exist:
  * `/today` shows ONE state, and the other four are the ones that ship wrong. A card designed
@@ -17,6 +25,8 @@
  */
 
 import { Widget } from '@/components/views/today/widget';
+import { AttentionRow } from '@/components/views/today/attention-strip';
+import { Icon } from '@/components/ui/icon';
 import { DailyRecap } from '@/components/views/today/daily-recap';
 import { NetPnl } from '@/components/views/today/net-pnl';
 import { LastSession } from '@/components/views/today/last-session';
@@ -44,10 +54,10 @@ import { Note, Row, Section } from '../_components/section';
 /** `trader.display_timezone`'s stand-in. DISPLAY ONLY - it labels an axis and never buckets. */
 const ZONE = 'America/Chicago';
 
-export function DailyRecapSection() {
+export function TodaySection() {
   return (
     <Section
-      id="daily-recap"
+      id="today"
       title="Today widgets"
       intro="The standard every card on /today follows, ported from the reference and measured off it. Two halves with a rule between them: the header is title over period, the body is the content with a chevron. Both halves are targets and both do the same thing; only the body takes a hover ground, because the body is the half carrying the chevron. No widget paginates."
     >
@@ -456,6 +466,105 @@ export function DailyRecapSection() {
           a widget with no control renders the box it did before the slot existed. Hover the
           three headers in &ldquo;The standard&rdquo; above and below to confirm the ground still
           reaches the card&rsquo;s edges.
+        </Note>
+      </Row>
+
+      <Row
+        label="The lane, above the grid"
+        note="chrome, not a card: recessed where every widget is raised"
+      >
+        <div className="max-w-2xl">
+          <AttentionRow
+            tone="answer"
+            title="1 account needs you"
+            note="New from your last import."
+            onClick={() => {}}
+          />
+          <AttentionRow
+            tone="answer"
+            title="3 accounts need you"
+            note="2 new, 1 not in your last import."
+            onClick={() => {}}
+          />
+          <AttentionRow
+            tone="answer"
+            title="2 accounts need you"
+            note="Your last import did not name them."
+            onClick={() => {}}
+          />
+        </div>
+        <Note>
+          The empty state is <strong>no element at all</strong>, which is why it has no specimen
+          here: the strip is a pure function of the account rows and the import log, so there is
+          never a &ldquo;0 to answer&rdquo; row. Position is the whole attention budget. It sits
+          above the headline figure, in a slot nothing else occupies, and it was not on the page
+          yesterday.
+        </Note>
+      </Row>
+
+      <Row
+        label="The second tone, specified and unoccupied"
+        note="no tenant wears it today; §A14 sent quarantine to the operator"
+      >
+        <div className="max-w-2xl">
+          <AttentionRow
+            tone="numbers"
+            title="2 trades we could not match"
+            note="They are out of every figure below."
+          />
+          <AttentionRow
+            tone="answer"
+            title="1 account needs you"
+            note="New from your last import."
+            onClick={() => {}}
+          />
+        </div>
+        <Note>
+          The lane was built general, against a second tenant that has since been ruled out:{' '}
+          <strong>§A14 sent quarantine to the operator</strong>, because three of its four causes are
+          Run defects a trader cannot resolve. So this row is a <em>specimen of the vocabulary</em>,
+          not of a shipping surface. The top row draws <strong>no chevron</strong>, which is the rule
+          it demonstrates: a chevron promises somewhere to go, and a row with no remedy has nowhere.
+        </Note>
+        <Note>
+          Kept because it costs one prop and it settles two things in advance. The mark carries the
+          distinction and so does the <em>shape</em>. <code>finding-notice.tsx</code>:{' '}
+          <em>colour alone would put the whole distinction on the one axis a colourblind trader
+          cannot use</em>. And if a second tenant ever arrives, both rows render in priority order,
+          never a count: folding them into &ldquo;and 1 more&rdquo; is the backlog sentence §A15
+          struck, in fewer characters.
+        </Note>
+      </Row>
+
+      <Row
+        label="The filled version, tried and reverted"
+        note="racked as evidence: the fill needs a palette Run does not have"
+      >
+        <div className="max-w-2xl">
+          <div className="bg-accent text-accent-fg mt-4 flex w-full items-center gap-3.5 rounded-[var(--radius)] px-4 py-3.5">
+            <Icon name="accounts" size={24} className="shrink-0" />
+            <span className="min-w-0 flex-1">
+              <span className="text-body-lg block font-medium">3 accounts need you</span>
+              <span className="text-body block">2 new, 1 not in your last import.</span>
+            </span>
+            <Icon name="chevron" size={20} className="shrink-0 -rotate-90" />
+          </div>
+        </div>
+        <Note tone="danger">
+          Shipped for part of 2026-09-08 and reverted once both products were read off their markup.
+          Monarch splits three jobs across three hues: data is cyan <code>#00a2c7</code>, the default
+          primary control is near-black <code>#222221</code>, and orange <code>#ff692d</code> is
+          brand and attention. <strong>Their banner is loud because orange appears nowhere in their
+          data.</strong> Run has one accent by decision, and it is already <code>Button</code>{' '}
+          primary, the selection state, the switch, the badge and the chart line: this bar would sit
+          about 200px above a <code>Plot</code> stroked in the identical token.
+        </Note>
+        <Note>
+          The round trip was not wasted. The first recessed bar was a thin 56px row with a 16px mark
+          and it genuinely was too quiet; the geometry pass answered that and survives the revert.
+          The fill was solving a problem the geometry had already solved. Reopen the palette when
+          there is a message that earns a loud hue: slot 3 is the self-set daily loss line, and{' '}
+          <code>warn</code> is already documented as the red-zone gauge.
         </Note>
       </Row>
 

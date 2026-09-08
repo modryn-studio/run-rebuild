@@ -29,7 +29,7 @@ import { TradesSection } from './sections/trades';
 import { IntakeSection } from './sections/intake';
 import { NavRowSection } from './sections/nav-row';
 import { SheetHeaderSection } from './sections/sheet-header';
-import { DailyRecapSection } from './sections/daily-recap';
+import { TodaySection } from './sections/today';
 import { FeedbackSection } from './sections/feedback';
 import { WaitingSection } from './sections/waiting';
 import { PatternsSection } from './sections/patterns';
@@ -102,7 +102,7 @@ export default function KitchenSinkPage() {
         <PnlPlotSection />
         <RosterRowSection />
         <AccountFieldsSection />
-        <DailyRecapSection />
+        <TodaySection />
         <SheetHeaderSection />
         <NavRowSection />
         <FeedbackSection />
