@@ -348,6 +348,28 @@ export function useLabelAccountFlow({
             : 'Could not save the account';
         throw new Error(message);
       }
+      /* THE SPREAD CAN FAIL WITHOUT THIS SAVE FAILING (#32). The route used to answer 500 when the
+         sibling UPDATE threw, so the form said "Could not save the account" over an edit that HAD
+         landed - and the trader either re-saved a change already applied or believed it was lost.
+         Both writes now report separately, and this is the branch that tells the truth about them.
+
+         IT KEEPS THE FORM OPEN, deliberately. Saving again re-sends the identical patch, which is
+         idempotent on the primary row and retries the spread - so the one control still on screen
+         is also the fix. Closing with a warning would leave the trader nothing to press. */
+      const body: unknown = await res.json().catch(() => null);
+      const siblingsFailed =
+        typeof body === 'object' && body !== null && (body as { siblingsFailed?: unknown }).siblingsFailed === true;
+      if (siblingsFailed) {
+        router.refresh();
+        setError(
+          `Saved. The firm did not reach the other ${siblingCount} ${siblingCount === 1 ? 'account' : 'accounts'} on this prefix. Save again to apply it to them.`
+        );
+        savingRef.current = false;
+        setSaving(false);
+        onBusyChange(false);
+        return;
+      }
+
       /* `router.refresh()` IS THE WHOLE UPDATE. Every surface that shows this account - the roster,
          the rail, the breadcrumb, the chart's own scoping - is a Server Component reading the
          corpus, so re-reading is the one source of truth. Patching local state as well would make a

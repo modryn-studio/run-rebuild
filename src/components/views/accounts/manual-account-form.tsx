@@ -93,6 +93,20 @@ export function useManualAccount({
   /* THE REAL REENTRANCY GUARD. `saving` state can read false in two handlers before either commits
      on a fast double-click, and this one creates ROWS. */
   const savingRef = useRef(false);
+  /* HOW MANY OF THE BATCH ARE ALREADY IN THE DATABASE (#33). The loop below POSTs one row at a
+     time, and it used to throw on the first failure and report "Could not add the account" - with
+     the quantity still reading 5, no statement that 3 already existed, and a button that created
+     three duplicates when pressed again.
+
+     It survives across attempts on purpose. A retry is then a RESUME of the same batch rather than
+     a restart of it, which is what makes pressing the button again safe. Nothing resets it except
+     a successful finish, and there is nothing to reset on success because the form unmounts.
+
+     A REF, NOT STATE. Nothing renders this number - it is read by `save` and by the message `save`
+     writes - so state would buy a re-render per created row and nothing else. It also has to be
+     readable synchronously inside the catch, and a state binding captured by that closure is the
+     value from BEFORE the loop ran, which is exactly the wrong one. */
+  const landedRef = useRef(0);
 
   const isProp = type !== null && type !== 'personal';
 
@@ -130,7 +144,9 @@ export function useManualAccount({
          A PERSONAL ACCOUNT IS NEVER A BATCH — the quantity control belongs to prop SKUs a trader
          buys several of, and it never renders on that path. */
       const count = nextProp ? qty : 1;
-      for (let i = 0; i < count; i++) {
+      // Only what is still owed. On a first attempt this is the whole batch.
+      const remaining = count - landedRef.current;
+      for (let i = 0; i < remaining; i++) {
         const res = await fetch('/api/accounts', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -145,6 +161,9 @@ export function useManualAccount({
           }),
         });
         if (!res.ok) throw new Error('create failed');
+        // Counted as each one lands, not after the loop: the count has to be true at the moment
+        // the NEXT request fails, which is the only moment it is ever read.
+        landedRef.current += 1;
       }
       onBusyChange(false);
       onCreated();
@@ -152,7 +171,19 @@ export function useManualAccount({
       savingRef.current = false;
       setSaving(false);
       onBusyChange(false);
-      setError('Could not add the account. Try again.');
+      /* SAY WHAT LANDED (#33). The message names both halves because they are different facts and
+         only one of them is a failure: some accounts exist now, and the rest do not.
+
+         NEVER "TRY AGAIN" ALONE over a partial write. That is the sentence that made a trader press
+         the button a second time and get three duplicates, and it is `finding-notice.tsx` rule 1 -
+         say what is wrong, then what to do - broken by omission of the first half. */
+      const total = nextProp ? qty : 1;
+      const done = landedRef.current;
+      setError(
+        done === 0
+          ? 'Could not add the account. Try again.'
+          : `${done} of ${total} added. Try again to add the remaining ${total - done}.`
+      );
     }
   }
 

@@ -1,6 +1,8 @@
 import { and, eq, like, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { after } from 'next/server';
 import { createRouteLogger } from '@/lib/route-logger';
+import { track } from '@/lib/track';
 import { getTrader } from '@/lib/trader';
 import { db } from '@/lib/db';
 import { account, importBatch, trade, ACCOUNT_TYPES, ACCOUNT_STATUSES } from '@/lib/db/schema';
@@ -189,6 +191,21 @@ export async function POST(req: Request): Promise<Response> {
       })
       .returning({ id: account.id });
 
+    /* THE FUNNEL'S MISSING STEP (#37). Labelling an account is where an imported row stops being
+       anonymous, and it is the one move between "a file landed" and "the product can say something
+       about your trading" - so without these three call sites there is no way to see where a trader
+       stops. A call site has to exist WHEN THE CODE SHIPS: there is exactly one first cohort, and
+       retrofitting means it was invisible.
+
+       SCALARS ONLY, never the firm name or the account name (`track.ts` rule 2). `propFirm` is the
+       trader's own text on this path and an account name is their broker identity. `after()` so the
+       response does not wait on an insert, and `track` swallows its own failures anyway. */
+    after(() =>
+      track('account_added', {
+        userId: trader.authUserId,
+        properties: { accountType, hasSize: sizeDollars != null },
+      })
+    );
     return log.end(ctx, Response.json({ ok: true, id: created.id }, { status: 201 }));
   } catch (err) {
     log.err(ctx, err);
@@ -299,22 +316,51 @@ export async function PATCH(req: Request): Promise<Response> {
     /* THE SIBLING WRITE COMES AFTER THE PRIMARY ONE SUCCEEDED, so a bad id fails loudly rather than
        quietly relabelling a dozen accounts and then 404ing on the one the trader was looking at. */
     let alsoUpdated = 0;
+    /* AND IT FAILS ON ITS OWN, WITHOUT TAKING THE PRIMARY SAVE DOWN WITH IT (#32). This used to
+       fall through to the catch below, so a sibling UPDATE that threw answered 500 and the form
+       said "Could not save the account" over a save that had already landed. The trader then either
+       re-saved a change that was already applied, or believed their edit was lost.
+
+       The two writes are genuinely separate facts and the response now reports them separately.
+       There is no transaction to roll the first one back into - and there should not be, because
+       the primary edit is the one the trader asked for and the spread is the convenience. */
+    let siblingsFailed = false;
     if (applyFirmToPrefix && propFirm) {
-      const siblings = await db
-        .update(account)
-        .set({ propFirm, firmSource: 'stated' })
-        .where(
-          and(
-            eq(account.traderId, trader.id),
-            like(account.externalAccountId, `${applyFirmToPrefix}%`),
-            ne(account.id, id)
+      try {
+        const siblings = await db
+          .update(account)
+          .set({ propFirm, firmSource: 'stated' })
+          .where(
+            and(
+              eq(account.traderId, trader.id),
+              like(account.externalAccountId, `${applyFirmToPrefix}%`),
+              ne(account.id, id)
+            )
           )
-        )
-        .returning({ id: account.id });
-      alsoUpdated = siblings.length;
+          .returning({ id: account.id });
+        alsoUpdated = siblings.length;
+      } catch (err) {
+        // Logged, not swallowed: the trader is told the spread did not happen, and this is how the
+        // reason reaches somebody who can do something about it.
+        log.err(ctx, err);
+        siblingsFailed = true;
+      }
     }
 
-    return log.end(ctx, Response.json({ ok: true, alsoUpdated }));
+    after(() =>
+      track('account_labelled', {
+        userId: trader.authUserId,
+        properties: {
+          // WHICH FIELDS MOVED, not what they moved to: the shape of the edit is the analysable
+          // fact, and the values are the trader's own data.
+          fields: Object.keys(patch).sort().join(','),
+          status: typeof patch.status === 'string' ? patch.status : 'unchanged',
+          alsoUpdated,
+          siblingsFailed,
+        },
+      })
+    );
+    return log.end(ctx, Response.json({ ok: true, alsoUpdated, siblingsFailed }));
   } catch (err) {
     log.err(ctx, err);
     return log.end(ctx, Response.json({ error: 'Could not save the account' }, { status: 500 }));
@@ -403,6 +449,7 @@ export async function DELETE(req: Request): Promise<Response> {
     }
 
     await db.delete(account).where(and(eq(account.id, id), eq(account.traderId, trader.id)));
+    after(() => track('account_deleted', { userId: trader.authUserId }));
     return log.end(ctx, Response.json({ ok: true }));
   } catch (err) {
     log.err(ctx, err);

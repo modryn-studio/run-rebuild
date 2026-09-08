@@ -390,6 +390,27 @@ export async function POST(req: Request): Promise<Response> {
               }),
               notifyMismatch(importedTrader, checks.findings),
               notifyUnknownRoots(importedTrader, checks.findings, roundTrips),
+              /* THE FIRST IMPORT A TRADER EVER LANDS (#3), and the last piece of that issue. The
+                 rest of it shipped - `upload_completed`, `upload_failed`, the recon and
+                 unknown-root alerts, `after()`, `maxDuration` - but this one never did, so the
+                 moment a beta trader crosses from "signed up" to "has a record" reached nobody.
+                 In a cohort of ten that is the single event most worth knowing about in real time.
+
+                 `cooldownMinutes: 'once'` is a LATCH, not a cooldown: `claim()` takes the key
+                 permanently, so this fires on the first import and never again for that trader.
+                 Keyed on the trader rather than the account, because a trader's second account is
+                 not their first import. */
+              sendNotification(
+                alertSubject('🎉', 'A trader landed their first import'),
+                notifyHtml('First import', [
+                  ['Trader', importedTrader],
+                  ['Files', String(recognised.length)],
+                  ['Rows written', String(result.rowsWritten)],
+                  ['Range', `${result.rangeStart ?? '?'} to ${result.rangeEnd ?? '?'}`],
+                  ['When (UTC)', new Date().toISOString()],
+                ]),
+                { throttleKey: `first_import:${importedTrader}`, cooldownMinutes: 'once' }
+              ),
             ]);
           });
         } catch (error) {

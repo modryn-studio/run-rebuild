@@ -83,3 +83,26 @@ FROM analytics_event
 WHERE name = 'page_error'
 GROUP BY 1, 2
 ORDER BY n DESC, last_seen DESC;
+
+-- ── The account funnel (#37) ─────────────────────────────────────────────────
+-- Labelling an account is the step between "a file landed" and "the product can say something
+-- about your trading". Server-side events, so they never pass through ALLOWED_EVENTS.
+SELECT name, COUNT(*) AS n, COUNT(DISTINCT user_id) AS traders
+FROM analytics_event
+WHERE name IN ('account_added', 'account_labelled', 'account_deleted')
+GROUP BY 1
+ORDER BY 1;
+
+-- Which fields a label edit actually moves. A `fields` list that never contains `prop_firm` means
+-- the firm picker is not being reached, not that traders are happy with the detected value.
+SELECT properties ->> 'fields' AS fields_changed, COUNT(*) AS n
+FROM analytics_event
+WHERE name = 'account_labelled'
+GROUP BY 1
+ORDER BY 2 DESC;
+
+-- The sibling spread, and whether it is failing (#32). `siblings_failed` should always be 0.
+SELECT SUM((properties ->> 'alsoUpdated')::int) AS siblings_relabelled,
+       COUNT(*) FILTER (WHERE properties ->> 'siblingsFailed' = 'true') AS siblings_failed
+FROM analytics_event
+WHERE name = 'account_labelled';
