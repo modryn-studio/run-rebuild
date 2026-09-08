@@ -1,5 +1,6 @@
 import 'server-only';
 import { createHash } from 'node:crypto';
+import { and, eq } from 'drizzle-orm';
 import { db, event, importBatch } from '@/lib/db';
 import { IMPORT_SOURCES } from '@/lib/db/schema';
 import { sessionDateFor } from '@/lib/time/session';
@@ -78,8 +79,26 @@ export interface CommitArgs {
   preflight: PreflightResult;
 }
 
+/* WHAT THE WRITE ACTUALLY DID, and it is three things rather than two.
+ *
+ *  `written`   the normal path: this batch inserted the provenance row and the events.
+ *  `duplicate` this exact file was already imported and confirmed. Nothing to do.
+ *  `recovered` this exact file was already WRITTEN but never confirmed - a previous request died
+ *              between the batch landing and the caller marking it committed. The events are in
+ *              the log, invisible to every read, and this run adopts them instead of failing.
+ *
+ *  The third case is the one this type exists for. Before it, a retry hit the
+ *  `(account_id, file_hash)` unique index, the whole batch failed, and the trader could never
+ *  import that file again - which is issue #5's strand, and the exact opposite of what the route's
+ *  own catch block promised: *"the trader can simply retry ... the dedupe key makes a second pass
+ *  over an already-imported file a no-op."* That comment described the intent; this makes it true. */
+export type CommitOutcome = 'written' | 'duplicate' | 'recovered';
+
 export interface CommitResult {
   importId: string;
+  /** See `CommitOutcome`. A caller that treats all three alike still behaves correctly; a caller
+   *  that reports or alerts on them can tell a duplicate from a resurrected failure. */
+  outcome: CommitOutcome;
   /** Rows the parser produced. */
   rowsParsed: number;
   /** ROWS THE DATABASE ACTUALLY ACCEPTED. See the note on the return below. */
@@ -117,6 +136,14 @@ export async function commitImport(args: CommitArgs): Promise<CommitResult> {
     throw new Error(`Refusing to commit an import that failed preflight: ${blocking.join(', ')}`);
   }
 
+  const fileHash = hashFile(args.fileText);
+
+  /* HAS THIS EXACT FILE BEEN HERE BEFORE? Asked before the write rather than discovered by the
+     unique index failing, because the index cannot tell the caller WHICH of the two answers it is
+     and a failed batch tells the trader only that their import broke. */
+  const prior = await findPriorImport(args.accountId, fileHash);
+  if (prior) return resolvePrior(prior, args.rowsParsed);
+
   const importId = crypto.randomUUID();
   const values = args.events.map((e) => ({ ...e, importId }));
 
@@ -132,7 +159,7 @@ export async function commitImport(args: CommitArgs): Promise<CommitResult> {
       traderId: args.traderId,
       accountId: args.accountId,
       filename: args.filename,
-      fileHash: hashFile(args.fileText),
+      fileHash,
       source: args.source,
       rowsParsed: args.rowsParsed,
       rowsRejected: args.rowsRejected ?? 0,
@@ -148,17 +175,93 @@ export async function commitImport(args: CommitArgs): Promise<CommitResult> {
 
   // drizzle's `batch()` wants a fixed-length tuple; this list is variable by design, one statement
   // per chunk. Every statement after the first has the same shape, so the assertion is safe.
-  const results = (await db.batch(
-    statements as unknown as Parameters<typeof db.batch>[0]
-  )) as unknown as { id: number }[][];
+  let results: { id: number }[][];
+  try {
+    results = (await db.batch(
+      statements as unknown as Parameters<typeof db.batch>[0]
+    )) as unknown as { id: number }[][];
+  } catch (error) {
+    /* THE RACE THE PRE-CHECK ABOVE CANNOT CLOSE. Two requests carrying the same file can both pass
+       `findPriorImport` before either inserts - a double-submit, or a retry racing the request it
+       is retrying. One wins the unique index and the other lands here. Re-asking the question is
+       the whole fix: by now the winner's row exists, so the loser resolves to `duplicate` or
+       `recovered` exactly as if it had arrived a moment later.
+
+       ANYTHING THAT IS NOT THAT UNIQUE VIOLATION IS RETHROWN. A write that failed for some other
+       reason must not be quietly reported as a successful duplicate - that would be a confidently
+       wrong number, which is the one thing this product cannot ship. */
+    if (!isImportFileConflict(error)) throw error;
+    const raced = await findPriorImport(args.accountId, fileHash);
+    if (!raced) throw error;
+    return resolvePrior(raced, args.rowsParsed);
+  }
 
   return {
     importId,
+    outcome: 'written',
     rowsParsed: args.rowsParsed,
     rowsWritten: results.slice(1).reduce((n, rows) => n + rows.length, 0),
     rangeStart,
     rangeEnd,
   };
+}
+
+/** The provenance row for this exact file on this exact account, or null. */
+async function findPriorImport(accountId: string, fileHash: string) {
+  const [row] = await db
+    .select({
+      id: importBatch.id,
+      status: importBatch.status,
+      rangeStart: importBatch.rangeStart,
+      rangeEnd: importBatch.rangeEnd,
+    })
+    .from(importBatch)
+    .where(and(eq(importBatch.accountId, accountId), eq(importBatch.fileHash, fileHash)))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
+ * Turn a prior import into this run's result.
+ *
+ * `rowsWritten` IS ZERO IN BOTH SURVIVING CASES, and honestly so: this run inserted nothing. The
+ * distinction the caller needs is not how many rows landed but WHEN they landed, which is what
+ * `outcome` carries.
+ *
+ * A `rejected` prior throws rather than resolving. Nothing calls `markImportRejected` today, so it
+ * is unreachable - but the safe answer is refusing rather than guessing, because the alternative
+ * is silently flipping data a trader deliberately rejected back into their record. If that flow is
+ * ever built, this is the line that has to be decided rather than discovered.
+ */
+function resolvePrior(
+  prior: { id: string; status: string; rangeStart: string | null; rangeEnd: string | null },
+  rowsParsed: number
+): CommitResult {
+  if (prior.status === 'rejected') {
+    throw new Error(
+      'This file was imported and then rejected. Re-importing it would restore rows that were deliberately excluded, so it is refused here rather than decided silently.'
+    );
+  }
+  return {
+    importId: prior.id,
+    // `pending` means a previous request wrote the events and never got to confirm them. The batch
+    // is atomic (drizzle's neon-http `batch` runs one HTTP transaction), so a pending row is proof
+    // its events are all present - which is what makes adopting it safe rather than hopeful.
+    outcome: prior.status === 'pending' ? 'recovered' : 'duplicate',
+    rowsParsed,
+    rowsWritten: 0,
+    rangeStart: prior.rangeStart,
+    rangeEnd: prior.rangeEnd,
+  };
+}
+
+/** Postgres answers a unique violation with SQLSTATE 23505. The neon-http driver does not always
+ *  surface `code`, so the index name is checked too - it is the only place that string occurs. */
+function isImportFileConflict(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (code === '23505') return true;
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return message.includes('import_file_uq') || message.includes('23505');
 }
 
 /**

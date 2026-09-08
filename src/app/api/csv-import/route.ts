@@ -288,7 +288,35 @@ export async function POST(req: Request): Promise<Response> {
             events,
             preflight: checks,
           });
+          /* Correct for all three outcomes. `written` and `recovered` both need the flip; on a
+             `duplicate` the row is already committed and this is a harmless no-op. */
           await markImportCommitted(result.importId);
+
+          /* A RECOVERED IMPORT MEANS AN EARLIER REQUEST DIED SILENTLY, and that is worth waking up
+             for during a beta. The trader is fine - their retry just adopted the events the dead
+             request had already written - but the fact that a request died between an atomic batch
+             landing and its confirmation is a real failure nobody would otherwise ever see. It is
+             also the only evidence that #5's strand actually happens in production rather than
+             only in theory. Not throttled per trader: at ten traders these should be rare enough
+             that suppressing one is worse than reading two. */
+          if (result.outcome === 'recovered') {
+            log.info(ctx.reqId, 'Adopted a pending import from a dead request', {
+              importId: result.importId,
+            });
+            after(() =>
+              sendNotification(
+                alertSubject('♻️', 'An import was recovered, not written'),
+                notifyHtml('An earlier import request died before confirming', [
+                  ['Import ID', result.importId],
+                  ['Trader', importedTrader],
+                  ['Account', accountId],
+                  ['Files', recognised.map((r) => r.file.name).join(', ')],
+                  ['What happened', 'The events were already in the log under a pending import. This retry adopted them and marked it committed, so the trader is whole.'],
+                  ['Worth checking', 'Why the first request did not finish: a timeout, a lost response, or a client that closed the stream.'],
+                ])
+              )
+            );
+          }
 
           /* ── PROJECT, BEFORE THE TRADER IS TOLD THEY ARE DONE ───────────────────────────
              The corpus is committed above; this is what makes it READABLE. `trade` and `session`
@@ -368,7 +396,13 @@ export async function POST(req: Request): Promise<Response> {
           log.err(ctx, error);
           /* Reaching here means the write may already have landed. That is fine and is why the
              trader can simply retry: the batch is atomic, and the dedupe key makes a second pass
-             over an already-imported file a no-op. */
+             over an already-imported file a no-op.
+
+             THAT WAS AN INTENTION UNTIL 2026-09-08, NOT A FACT. A retry used to hit the
+             `(account_id, file_hash)` unique index, fail the whole batch, and leave the trader
+             permanently unable to import that file - the events sitting in the log under a
+             `pending` import that no read would ever show them (#5). `commitImport` now resolves a
+             prior import instead of colliding with it, so this comment describes the code. */
           const message = error instanceof Error ? error.message : 'Import failed';
           send({ type: 'error', message });
           await Promise.allSettled([
