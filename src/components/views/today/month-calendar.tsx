@@ -135,14 +135,12 @@ export function MonthCalendar({
   /** The newest counted session. The month this opens on, and the forward bound. */
   endsOn,
   scope = [],
-  counted,
   imported,
 }: {
   days: CalendarDay[];
   endsOn: string | null;
   /** The account ids the band narrowed to, passed through untouched. See `monthHref`. */
   scope?: string[];
-  counted: number;
   imported: boolean;
 }) {
   /* IT OPENS ON THE MONTH OF THE LAST TRADING DAY, NEVER ON TODAY'S, and that is this page's own
@@ -171,10 +169,10 @@ export function MonthCalendar({
     null
   );
 
+  /* ONE BLANK, NOT THREE (#55, 2026-09-08): the page says the scope's two states once, above the
+     grid, and this card keeps only the one about its own subject. */
   const nothingImported = !imported;
-  const allExcluded = imported && counted === 0;
-  const nothingInScope = imported && counted > 0 && days.length === 0;
-  const empty = nothingImported || allExcluded || nothingInScope;
+  const empty = nothingImported;
 
   return (
     <Widget
@@ -211,17 +209,7 @@ export function MonthCalendar({
         )
       }
     >
-      {nothingInScope ? (
-        /* WORD FOR WORD THE OTHER TWO CARDS', because it is the same condition and the page may not
-           explain one fact in three ways. See issue #55 on finalising these before beta. */
-        <p className="text-body text-muted">
-          Run holds no trades for this account yet. Widen the scope, or import its export.
-        </p>
-      ) : allExcluded ? (
-        <p className="text-body text-muted">
-          Every account is left out of totals. Turn one back on from Accounts and this fills in.
-        </p>
-      ) : nothingImported ? (
+      {nothingImported ? (
         <p className="text-body text-muted">
           Every day you trade lands here, coloured by what it made, straight from your broker&rsquo;s
           export.

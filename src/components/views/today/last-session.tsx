@@ -94,7 +94,6 @@ const SHOWN = 5;
 export function LastSession({
   session,
   href,
-  counted,
   imported,
   zone,
 }: {
@@ -107,8 +106,6 @@ export function LastSession({
   session: SessionGroup | null;
   /** `/trades` narrowed to this session, composed by the page. Plain `/trades` when there is none. */
   href: string;
-  /** How many accounts are in the figure. Only its zero-ness is read - see `allExcluded`. */
-  counted: number;
   /** Whether Run holds any countable trade at all, ignoring exclusion and ignoring scope. */
   imported: boolean;
   /** `trader.display_timezone`. DISPLAY ONLY - the row clocks a fill with it and never buckets. */
@@ -143,9 +140,10 @@ export function LastSession({
     setDrawerAt(index);
   };
 
+  /* ONE BLANK, NOT THREE (#55, 2026-09-08). `allExcluded` and `nothingInScope` were facts about the
+     PAGE'S scope, and the page now says them once above the grid instead of every card saying them
+     in its own words. What is left is the one state that is about THIS card's subject. */
   const nothingImported = !imported;
-  const allExcluded = imported && counted === 0;
-  const nothingInScope = imported && counted > 0 && session === null;
 
   return (
     <>
@@ -157,17 +155,7 @@ export function LastSession({
         period={session ? displaySessionDate(session.sessionDate) : undefined}
         href={href}
       >
-        {nothingInScope ? (
-          /* THE SCOPE IS REAL AND HOLDS NOTHING. Word for word `Net P&L`'s, because it is the same
-             condition and the page may not explain it twice in two ways. */
-          <p className="text-body text-muted">
-            Run holds no trades for this account yet. Widen the scope, or import its export.
-          </p>
-        ) : allExcluded ? (
-          <p className="text-body text-muted">
-            Every account is left out of totals. Turn one back on from Accounts and this fills in.
-          </p>
-        ) : nothingImported ? (
+        {nothingImported ? (
           /* DAY ONE, AND IT NAMES WHAT THE CARD WILL HOLD RATHER THAN WHAT IS MISSING. No count, no
              "no sessions yet", no date - `CLAUDE.md`'s re-entry rule. No button either: the header
              is already the door, and `widget.tsx` says why a second target inside one card is

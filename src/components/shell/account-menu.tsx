@@ -31,6 +31,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { authClient } from '@/lib/auth-client';
+import { SETTINGS_HOME } from '@/components/views/settings/settings-nav';
 import type { SessionUser } from '@/lib/trader';
 import { useTheme } from '@/components/theme-provider';
 import { cn } from '@/lib/cn';
@@ -136,14 +137,17 @@ export function AccountMenu({ user }: { user: SessionUser | null }) {
           <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} />
           {theme === 'dark' ? 'Light mode' : 'Dark mode'}
         </button>
-        {/* Inert: no changelog surface exists to open. Kept as a placeholder row for parity with
-            the reference rather than dropped, so adding one later is a behaviour change, not a
-            layout change. */}
-        <button role="menuitem" onClick={() => setOpen(false)} className={ITEM_CLASS}>
+        {/* Live as of 2026-09-08 (S8b): the row was an inert placeholder until `/whats-new` existed,
+            and the note here said adding one would be a behaviour change rather than a layout one.
+            It was. */}
+        <Link role="menuitem" href="/whats-new" onClick={() => setOpen(false)} className={ITEM_CLASS}>
           <Icon name="bolt" size={16} />
           What&apos;s new
-        </button>
-        <Link role="menuitem" href="/settings" onClick={() => setOpen(false)} className={ITEM_CLASS}>
+        </Link>
+        {/* `SETTINGS_HOME`, not the bare `/settings`: on a desktop the bare route is a nav beside an
+            empty column (the reference's is too), and the gear already skips that. Same target from
+            both controls, so there is one answer to "where does Settings go". */}
+        <Link role="menuitem" href={SETTINGS_HOME} onClick={() => setOpen(false)} className={ITEM_CLASS}>
           <Icon name="settings" size={16} />
           Settings
         </Link>

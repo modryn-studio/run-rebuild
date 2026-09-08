@@ -1457,7 +1457,45 @@ whose span is not stated is a number taken on faith.
    because every fixture on the rack today is corrective, which is a property of hand-written
    fixtures rather than of the engine.
 
-### S8b — The two rows the account menu already opens *(added 2026-08-20)*
+### S8b — The two rows the account menu already opens *(added 2026-08-20)* — ✅ **CLOSED 2026-09-08, beta scope**
+
+> **What shipped (branch `beta-blockers`).** `/settings` as a segment: a two-group sub-nav
+> (`Account`: Profile, Display, Notifications-disabled; `Your data`: Data) beside a column of titled
+> cards. **Profile** edits the display name (through `authClient.updateUser`, the one writer for
+> `auth_user.name`) and the display timezone (`/api/trader/timezone`, `source: 'chosen'`, so it wins
+> over detection permanently). **Display** is System / Light / Dark on the theme provider, which
+> learned a `preference` for it - `system` is what an empty storage key always meant. **Data** is the
+> trades CSV for the whole record (`/api/trades/export` learned `all: true` rather than the page
+> shipping every id back, which is #23/#31's payload) and **the erasure path #42 said did not exist**:
+> `lib/erase.ts`, one privileged DO block, typed-address confirmation checked server-side,
+> `erase-gate.mts` proving it removes everything of one trader and nothing of the trader beside them.
+> `/whats-new` is a hand-kept list in `lib/changelog.ts`. The sidebar gear and both account-menu rows
+> are live; the shell names both routes so the band is never blank.
+>
+> **Copied from the reference's markup, not its pixels** (`app.monarch.com/settings/*`, read live via
+> the DOM on 2026-09-08): a 242px white nav card with 40px rows at `8px 16px` and an 8px radius, the
+> active row changed by colour alone, 18px/500 group labels in plain ink; 757px content cards at 12px
+> with `0 2px 4px rgba(34,32,29,.1)`. Mapped onto the nearest named steps (`md:w-60`, `max-w-3xl`,
+> `rounded-sm`, `cardSurface`) because lint refuses literals and the system is the only place a number
+> may live. Their Preferences page is where the AI opt-out lives (`aiAssistantEnabled`) - noted for the
+> day the read ships.
+>
+> **Deliberately NOT in the beta, and why:**
+> - **Setups, symbols, tags** - `spec.md` §4.1 puts the taxonomy here and the reference confirms it
+>   (Categories, Merchants, Rules, Tags all under Settings). But no tables exist for any of it and
+>   auto-tagging is #11, deferred with S7. A nav row for a feature with no data model is a promise, not
+>   "coming soon". They land under `Your data` with their tables.
+> - **Notifications** - the row is present and `disabled` with a tooltip naming S9c, following the
+>   sidebar gear's own precedent.
+> - **The phone drill-down** - below `md` the nav is the index on `/settings` and a sub-page shows its
+>   content alone, with the browser's Back as the way out. The reference's phone settings is a native
+>   screen the browser cannot reach (`CLAUDE.md`: ask Luke for the screenshot), so this is the honest
+>   minimum, not a designed slide (`design-system.md` §6b). Filed here as the follow-up.
+> - **Security, Labs, Integrations, Billing, Members, Referrals** - the reference's rows for things Run
+>   does not have. Not copied, because copying a nav row without the thing behind it is the same
+>   promise as above.
+>
+> Everything below is the record of the slice as planned, kept because the reasoning still holds.
 
 **Both of these rows ship today and both go nowhere.** `account-menu.tsx` renders Settings as a
 live `<Link href="/settings">` and What's new as an inert button, and neither route exists. That was
@@ -1844,10 +1882,13 @@ Two things the page still owes, and neither depends on that field:
   loss line, so it is a three-step card in the beta or it does not ship at all. Decide when the
   other two are done, not now.
 
-[#55](https://github.com/modryn-studio/run-rebuild/issues/55) is narrower than it reads. The audit
-found `/trades` already distinguishes narrowed from first-day and `/accounts` splits no-matches from
-empty-roster; the duplicated pair is `allExcluded` and `nothingInScope` on `/today`, and with three
-cards rather than six, option A (one page-level scope notice) is now clearly the cheap answer.
+[#55](https://github.com/modryn-studio/run-rebuild/issues/55) is narrower than it reads, and it is
+**CLOSED as option A (2026-09-08)**. The audit found `/trades` already distinguishes narrowed from
+first-day and `/accounts` splits no-matches from empty-roster; the duplicated pair was `allExcluded`
+and `nothingInScope` on `/today`. `ScopeNotice` now says each once, in place of the grid, and each
+card keeps only `nothingImported` - the one blank that is about the card's own subject. The old
+copy also began *"Run holds no trades"*, which the house style forbids; the new copy does not name
+the app. Racked in both states.
 
 ### 3. The door - DEFERRED to the public launch, not to the beta
 
@@ -1863,11 +1904,48 @@ sentence comes out. It cannot ship as a claim with nothing behind it. And `src/a
 visitors *"not open for signups yet"* while `/login` accepts any address - invite-only makes that
 sentence true, but only once an allowlist exists.
 
+**THE DOOR'S RESEARCH IS DONE, AND IT LIVES HERE** (2026-09-08, read from the live pages' text and
+DOM, not screenshots). Recorded so the build of the public surfaces starts from facts:
+
+- **`monarch.com` (the landing).** Hero (headline, one-line subhead, one CTA) → "WHAT IS MONARCH?"
+  eyebrow + one paragraph → four pillars as tabs (Track · Budget · Collaborate · Plan) → seven
+  feature sections each under an ALL-CAPS eyebrow (NET WORTH, TRANSACTIONS, RECURRING, REPORTS,
+  GOALS, APPS, SYNCING), each a heading + one paragraph → member reviews (App Store) → press quotes
+  with outlet + article title → community (Reddit, blog) → pricing CTA ("Try free for 7 days") →
+  closing CTA. **Run's map:** hero on the one claim (the record is the broker's, reconciled and
+  visibly so); pillars Import · Record · Read; eyebrows TRADES, ACCOUNTS, FEES, SESSIONS, THE
+  READ; no reviews or press until there are some - an empty social-proof band is worse than none.
+  `REPLICATE_API_TOKEN` is for this page's media and nothing else, and spend needs Luke's yes.
+- **`help.monarch.com` (Zendesk).** Six categories - Getting Started · Financial Accounts &
+  Connectivity · Billing & User Account Settings · Product Feature Guides · Professionals Program ·
+  What's New - then a "Popular Articles" list with last-updated dates. Each article: author, date,
+  body, "Was this article helpful? N of M", and "Articles in this section". **Run's map:** four
+  categories to start (Getting started · Importing from Tradovate · Your record · Your account), no
+  Zendesk - a `/help` route group in this repo on the same design system, because a second surface
+  on a second system is how the two drift.
+- **"About Monarch's AI Features" (the article to copy for the read).** Three NAMED features
+  (Assistant, Insights, Weekly Recap), each: what it does, where the control is, what data it uses.
+  A philosophy link ("AI in Monarch"). Optional household context "in Settings > Members". Opt-out
+  "in Settings > Preferences", with the honest line that some AI is integral and cannot be opted out
+  of. Thumbs feedback on every AI output. And the disclaimer, verbatim: *"responses should not be
+  considered a substitute for personalized financial advice"*, repeated in the FAQ as *"AI should not
+  replace advice from a financial professional who knows the full details of your situation."*
+  **This is `psychology.md` §3's fence and `priya`'s CFTC line, already written by a product that
+  survived it.** When the read ships, the article for it follows this shape: what it reads, what it
+  never computes (every number is SQL), the retrospective-not-prospective fence in the trader's
+  words, where the switch is, and the thumbs. Not before the read ships - an article about a feature
+  that is not there is the fixture-money problem in prose.
+
 ### 4. Before real users, not before the first one
 
-[#42](https://github.com/modryn-studio/run-rebuild/issues/42) erasure: the BETA obligation is a
-delete that works at ten-trader scale plus a written runbook. The 130,809-row timeout is a
-public-launch constraint on a path this build has not written yet.
+[#42](https://github.com/modryn-studio/run-rebuild/issues/42) erasure: the BETA obligation - a
+delete that works at ten-trader scale - **SHIPPED 2026-09-08** as `lib/erase.ts` behind
+`/settings/data`, with `erase-gate.mts` (13 assertions: everything of one trader gone through the
+append-only trigger, nothing of the trader beside them moved, a quote in the id refused before any
+SQL, 214ms on the fixture). What remains of #42 is the public-launch shape: the 130,809-row
+timeout needs chunked deletes or a background job, and this route's `maxDuration = 60` is the honest
+ceiling until then. The runbook is the route: a trader asks, they use the page; if they cannot,
+`eraseTrader(authUserId)` from a script is the same statement.
 [#56](https://github.com/modryn-studio/run-rebuild/issues/56) `product_name` has no writer and is
 **not backfillable** - every beta account is permanently missing it, so if it matters it has to land
 before the cohort does, not after.

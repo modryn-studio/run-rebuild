@@ -31,6 +31,7 @@ import { DailyRecap } from '@/components/views/today/daily-recap';
 import { NetPnl } from '@/components/views/today/net-pnl';
 import { LastSession } from '@/components/views/today/last-session';
 import { MonthCalendar, type CalendarDay } from '@/components/views/today/month-calendar';
+import { ScopeNotice } from '@/components/views/today/scope-notice';
 import { ScopeRow } from '@/components/views/today/scope-sheet';
 import { ForcePhone } from '@/lib/use-phone';
 import {
@@ -808,14 +809,12 @@ export function TodaySection() {
           <LastSession
             session={LAST_SESSION_FIXTURE}
             href="/trades"
-            counted={3}
             imported
             zone={ZONE}
           />
           <LastSession
             session={LAST_SESSION_THIN}
             href="/trades"
-            counted={1}
             imported
             zone={ZONE}
           />
@@ -872,22 +871,20 @@ export function TodaySection() {
 
       <Row
         label="Last session, the states that ship wrong"
-        note="day one, every account excluded, and a scope that holds nothing"
+        note="day one, and the wait"
       >
         <div className="grid max-w-4xl items-start gap-4 lg:grid-cols-2">
-          <LastSession session={null} href="/trades" counted={0} imported={false} zone={ZONE} />
-          <LastSession session={null} href="/trades" counted={0} imported zone={ZONE} />
-          <LastSession session={null} href="/trades" counted={2} imported zone={ZONE} />
+          <LastSession session={null} href="/trades" imported={false} zone={ZONE} />
           <WidgetSkeleton scope={false}>
             <SessionRowsSkeleton />
           </WidgetSkeleton>
         </div>
         <Note>
-          <strong>Three blanks, not one</strong>, and they are word for word{' '}
-          <code>Net P&amp;L</code>&rsquo;s. The two cards describe one set of accounts, so a page
-          that explained one condition two different ways would be worse than either. Day one names
-          what the card will hold; the second names the switch on <code>/accounts</code> that emptied
-          it; the third is a scope that is real and holds nothing.
+          <strong>One blank, not three</strong> (#55, 2026-09-08). This row used to rack two more -
+          every account excluded, and a scope that holds nothing - and they were word for word{' '}
+          <code>Net P&amp;L</code>&rsquo;s because they were the same fact. They are facts about the{' '}
+          <em>page&rsquo;s</em> scope, so the page now says each once above the grid (the row below)
+          and the cards keep only the state about their own subject: day one, naming what will land.
         </Note>
         <Note>
           <strong>None of them prints a date, and none of them counts.</strong> No &ldquo;0
@@ -903,6 +900,23 @@ export function TodaySection() {
       </Row>
 
       <Row
+        label="The page's own blank"
+        note="one notice in place of the grid, in its two states (#55)"
+      >
+        <div className="grid max-w-4xl items-start gap-4 lg:grid-cols-2">
+          <ScopeNotice kind="allExcluded" />
+          <ScopeNotice kind="nothingInScope" />
+        </div>
+        <Note>
+          <strong>The page speaks once.</strong> Both conditions are about the account scope, which
+          §A8 made page-level on purpose - one control in the band governing every card - so they
+          render where the grid would be rather than inside three cards. Neither counts, neither
+          names the app, and each carries the one link that answers it: the switch on{' '}
+          <code>/accounts</code>, or the scope widened back to every account.
+        </Note>
+      </Row>
+
+      <Row
         label="The month"
         note="the reference's calendar, the field's cell (§A16)"
       >
@@ -910,10 +924,9 @@ export function TodaySection() {
           <MonthCalendar
             days={CALENDAR_FIXTURE}
             endsOn="2027-03-19"
-            counted={3}
             imported
           />
-          <MonthCalendar days={[]} endsOn={null} counted={0} imported={false} />
+          <MonthCalendar days={[]} endsOn={null} imported={false} />
         </div>
         <Note>
           <strong>Three grounds and a blank, and the blank is the fourth state.</strong> A winning

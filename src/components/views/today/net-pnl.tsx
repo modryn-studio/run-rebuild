@@ -249,22 +249,13 @@ export function NetPnl({
      and neither offers the picker, because a period control belongs only where more than one
      period is answerable. */
   const nothingImported = !imported;
-  /* THREE BLANKS, NOT TWO (postcheck, 2026-09-03). `allExcluded` was `series.length === 0`, which
-     is true for TWO different reasons and told one story for both: every account in scope is
-     switched out of totals, OR the scope names an account Run holds no countable trades for. The
-     second printed *"Every account is left out of totals. Turn one back on from Accounts"* over an
-     account that is not excluded and cannot be turned back on, which is a wrong sentence - the one
-     thing this product does not get to ship.
-     `counted` IS THE TELL and it was already a prop: it is the scoped, non-excluded set, so zero
-     means exclusion emptied it and non-zero with an empty series means those accounts have nothing
-     to draw.
-     REACHABLE ONLY BY A HAND-EDITED URL TODAY - neither picker offers a no-trade account, and
-     `/trades`' facets are inner-joined on the trade table so its shared `accounts` param cannot
-     carry one either. Fixed anyway: a sentence that is only correct because of who happens to be
-     able to reach it is a trap for the next surface that reads the same param. */
-  const allExcluded = imported && counted === 0;
-  const nothingInScope = imported && counted > 0 && series.length === 0;
-  const blank = nothingImported || allExcluded || nothingInScope;
+  /* ONE BLANK HERE, NOT THREE (#55, 2026-09-08). `allExcluded` and `nothingInScope` were facts about
+     the PAGE'S scope - §A8 made the account scope page-level on purpose - and this card, `Last
+     session` and `The month` each derived them from the same inputs and each said them in slightly
+     different words. The page now says each once, above the grid, and short-circuits the cards. What
+     stays is the one state that is about THIS card's subject: whether there is anything to draw.
+     `counted` STAYS A PROP because the header still prints "Across N accounts" from it. */
+  const blank = nothingImported;
 
   /* ─── THE PHONE'S SCRUB READOUT LIVES IN THE HEADER, NOT IN A TOOLTIP (2026-09-03) ───────────
    *
@@ -460,21 +451,7 @@ export function NetPnl({
         )
       }
     >
-      {nothingInScope ? (
-        /* THE SCOPE IS REAL AND HOLDS NOTHING. No figure above it, for the same reason the branch
-           below has none: the net across an account with no countable trades is not $0.00, it is
-           unanswerable, and printing a zero would be a number a trader could act on. */
-        <p className="text-body text-muted">
-          Run holds no trades for this account yet. Widen the scope, or import its export.
-        </p>
-      ) : allExcluded ? (
-        /* THE SWITCH, NAMED. No figure above it: the net across zero counted accounts is not
-           $0.00, it is unanswerable, and printing a zero would be a number the trader could act
-           on. `/accounts` is where the switch lives, so the sentence says so. */
-        <p className="text-body text-muted">
-          Every account is left out of totals. Turn one back on from Accounts and this fills in.
-        </p>
-      ) : nothingImported ? (
+      {nothingImported ? (
         /* A SPECIFIC EMPTY STATE, AND NO PLOT. The reference does the same on its Investments
            widget - *"Sync your brokerage for a live view of your portfolio"* replaces the content
            rather than drawing an empty version of it - and 275px of unlabelled grid is a worse

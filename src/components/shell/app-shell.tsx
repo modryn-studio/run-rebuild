@@ -42,7 +42,8 @@ import { useTrackNavOrigin } from '@/lib/nav-origin';
 import { cn } from '@/lib/cn';
 import { Icon, type IconName, ICON_TOUCH } from '@/components/ui/icon';
 import { site } from '@/config/site';
-import { IconButton } from '@/components/ui/icon-button';
+import { IconButton, ICON_BUTTON } from '@/components/ui/icon-button';
+import { SETTINGS_HOME } from '@/components/views/settings/settings-nav';
 import { Tooltip } from '@/components/ui/tooltip';
 import { Wordmark } from '@/components/ui/wordmark';
 import { AccountMenu } from '@/components/shell/account-menu';
@@ -131,8 +132,25 @@ const NAV = [
    visible at any width and they can never overlap in the band's centre. */
 const SELF_TITLED = new Set<string>(['/today']);
 
+/* ROUTES OUTSIDE `NAV` THAT THE SHELL STILL NAMES (2026-09-08). `/settings/*` and `/whats-new` are
+   account-menu destinations with no sidebar row, so the exact-match lookup below finds nothing and
+   the band would be blank on every one of them - on a phone especially, where the centred `<h1>` is
+   the only title a page gets.
+   A PREFIX FOR SETTINGS, AND WHY THAT IS SAFE HERE when the S5d note above forbids it for `/trades`:
+   the double-title bug needs a page that ALSO names itself through the title slot, and no settings
+   page does - the segment's layout owns the frame and every sub-page is a card inside it. The band
+   reads `Settings` on `/settings/profile` exactly as the reference's does. */
+const NAMED_ROUTES: readonly { test: (p: string) => boolean; label: string }[] = [
+  { test: (p) => p === '/settings' || p.startsWith('/settings/'), label: 'Settings' },
+  { test: (p) => p === '/whats-new', label: "What's new" },
+];
+
 function routeTitle(pathname: string): string | null {
-  return NAV.find((n) => n.href === pathname)?.label ?? null;
+  return (
+    NAV.find((n) => n.href === pathname)?.label ??
+    NAMED_ROUTES.find((r) => r.test(pathname))?.label ??
+    null
+  );
 }
 
 const isOverlay = () =>
@@ -436,13 +454,17 @@ export function AppShell({
                 </IconButton>
               </Tooltip>
               <Tooltip label="Settings">
-                <IconButton disabled aria-label="Settings">
+                {/* LIVE AS OF 2026-09-08 (S8b). A `<Link>` wearing `ICON_BUTTON`, the class the
+                    component exports for exactly this - a control that is an anchor, not a button.
+                    It lands on `/settings/profile` because that is where the reference's gear lands;
+                    the bare `/settings` is the phone's index and the account menu's row. */}
+                <Link href={SETTINGS_HOME} aria-label="Settings" className={ICON_BUTTON}>
                   {/* 20 ON A PHONE, 16 ABOVE IT (2026-08-21). See the note on `BottomBar` for the
                       measurement: a touch target's mark carries the whole control once the chip is
                       gone, so it has to be readable at arm's length rather than merely present. */}
                   <Icon name="settings" size={20} className="md:hidden" />
                   <Icon name="settings" size={16} className="hidden md:block" />
-                </IconButton>
+                </Link>
               </Tooltip>
               {/* DESKTOP ONLY (Luke, 2026-08-21: "dont need the « icon in the left sidebar. only
                   need the settings icon. match the way monarch does it"). The reference's mobile

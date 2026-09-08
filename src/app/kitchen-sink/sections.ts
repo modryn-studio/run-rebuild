@@ -48,6 +48,7 @@ export const NAV: NavEntry[] = [
   { id: 'columns-menu', label: 'Columns menu', group: 'Patterns' },
   { id: 'trade-detail', label: 'Trade detail', group: 'Patterns' },
   { id: 'intake', label: 'Intake', group: 'Patterns' },
+  { id: 'settings', label: 'Settings', group: 'Patterns' },
   { id: 'patterns', label: 'Patterns', group: 'Patterns' },
   { id: 'overflow', label: 'The bad day', group: 'Patterns' },
   { id: 'voice', label: 'Voice', group: 'Voice' },

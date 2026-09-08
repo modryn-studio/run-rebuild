@@ -28,7 +28,9 @@
  */
 
 import { getTrader } from '@/lib/trader';
+import { eq } from 'drizzle-orm';
 import { createRouteLogger } from '@/lib/route-logger';
+import { db, trade } from '@/lib/db';
 import { getTradesByIds } from '@/lib/trades/read';
 import { productName } from '@/lib/instruments';
 import { BOM, csvMoney, toCsv } from '@/lib/csv/export';
@@ -72,19 +74,31 @@ export async function POST(req: Request): Promise<Response> {
     const trader = await getTrader();
     if (!trader) return log.end(ctx, Response.json({ error: 'Not signed in' }, { status: 401 }));
 
-    const body = (await req.json().catch(() => null)) as { ids?: unknown } | null;
+    const body = (await req.json().catch(() => null)) as { ids?: unknown; all?: unknown } | null;
 
     /* A MALFORMED BODY IS A 400, NOT AN EMPTY FILE. `{"ids":"notanarray"}` and `{}` both used to
        fall through to `[]` in v2 and return 200 with a header-only CSV — bytes that look like a
        successful export of nothing, which the client cannot tell from "you filtered everything
        out". */
-    if (!Array.isArray(body?.ids)) {
-      return log.end(
-        ctx,
-        Response.json({ error: 'ids must be an array of trade ids' }, { status: 400 })
-      );
+    /* `all: true` IS THE SETTINGS PAGE'S PATH (2026-09-08). "Download your trades" means every
+       trade, and the alternative - the page fetching every id to post them back - is the exact
+       payload #23 and #31 file against. So the route selects the set itself, scoped by the session's
+       trader like every other read. The `ids` shape stays for `/trades`, which exports a filtered
+       view and knows which rows are on screen. */
+    let ids: string[];
+    if (body?.all === true) {
+      ids = (
+        await db.select({ id: trade.id }).from(trade).where(eq(trade.traderId, trader.id))
+      ).map((r) => r.id);
+    } else {
+      if (!Array.isArray(body?.ids)) {
+        return log.end(
+          ctx,
+          Response.json({ error: 'ids must be an array of trade ids' }, { status: 400 })
+        );
+      }
+      ids = body.ids.filter((v): v is string => typeof v === 'string' && UUID.test(v));
     }
-    const ids = body.ids.filter((v): v is string => typeof v === 'string' && UUID.test(v));
     if (ids.length === 0) {
       return log.end(ctx, Response.json({ error: 'no valid trade ids' }, { status: 400 }));
     }

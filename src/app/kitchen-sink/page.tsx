@@ -30,6 +30,7 @@ import { IntakeSection } from './sections/intake';
 import { NavRowSection } from './sections/nav-row';
 import { SheetHeaderSection } from './sections/sheet-header';
 import { TodaySection } from './sections/today';
+import { SettingsSection } from './sections/settings';
 import { FeedbackSection } from './sections/feedback';
 import { WaitingSection } from './sections/waiting';
 import { PatternsSection } from './sections/patterns';
@@ -114,6 +115,7 @@ export default function KitchenSinkPage() {
         <ColumnsMenuSection />
         <TradeDetailSection />
         <IntakeSection />
+        <SettingsSection />
         <PatternsSection />
         <OverflowSection />
         <VoiceSection />

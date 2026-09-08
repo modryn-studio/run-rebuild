@@ -16,6 +16,7 @@ import { AttentionStrip } from '@/components/views/today/attention-strip';
 import { MonthCalendar } from '@/components/views/today/month-calendar';
 import { Greeting } from '@/components/views/today/greeting';
 import { TodayHeader } from '@/components/views/today/today-header';
+import { ScopeNotice } from '@/components/views/today/scope-notice';
 
 export const metadata: Metadata = { title: 'Today' };
 
@@ -162,6 +163,19 @@ export default async function TodayPage({
     byDay.set(d.day, { cents: (at?.cents ?? 0) + d.cents, trades: (at?.trades ?? 0) + d.trades });
   }
   const calendarDays = [...byDay.entries()].map(([day, d]) => ({ day, ...d }));
+
+  /* THE PAGE'S OWN BLANK, or null. `days` is already COUNTABLE-filtered, so `days.length > 0` is
+     exactly "a trade exists"; `counted` is the scoped, non-excluded set, so zero means the switches
+     emptied it; and a non-empty `counted` folding to nothing means the scope names accounts with no
+     trades. The cards used to derive these three separately from the same inputs. */
+  const imported = days.length > 0;
+  const scopeNotice: 'allExcluded' | 'nothingInScope' | null = !imported
+    ? null
+    : counted.length === 0
+      ? 'allExcluded'
+      : calendarDays.length === 0
+        ? 'nothingInScope'
+        : null;
   const series = cumulate(calendarDays.map(({ day, cents }) => ({ day, cents })));
 
   /* THE SCOPED ACCOUNT'S NAME, or null. Composed through `toFacetAccount` AND `accountLabel`, so
@@ -289,6 +303,20 @@ export default async function TodayPage({
           all when the lane is empty, so the grid's top gutter is unaffected on a normal day. */}
       <AttentionStrip items={attention} />
 
+      {/* ONE NOTICE FOR THE PAGE'S SCOPE, NOT ONE PER CARD (#55, option A, 2026-09-08). `allExcluded`
+          and `nothingInScope` are facts about the PAGE'S scope - §A8 made the account scope
+          page-level on purpose, one control in the band governing every card - so three cards each
+          saying the same sentence was the page speaking through three mouths. With six cards planned
+          it would have been six. Each card keeps only `nothingImported`, which really is about the
+          card's own subject: what it will hold.
+          NEITHER SENTENCE COUNTS OR NAGS (`CLAUDE.md`: no state may represent absence). One names a
+          switch the trader threw and where it lives; the other names a scope and how to widen it. */}
+      {scopeNotice ? (
+        <div className="pt-4">
+          <ScopeNotice kind={scopeNotice} />
+        </div>
+      ) : (
+      <>
       {/* TWO COLUMNS ABOVE `lg`, ONE BELOW - the reference's own breakpoint. `items-start` so a
           short widget does not stretch to match a tall one beside it, which is what makes a
           dashboard read as a set of cards rather than a table.
@@ -314,7 +342,6 @@ export default async function TodayPage({
         <LastSession
           session={session}
           href={sessionHref}
-          counted={counted.length}
           imported={days.length > 0}
           zone={trader.displayTimezone}
         />
@@ -327,7 +354,6 @@ export default async function TodayPage({
           days={calendarDays}
           endsOn={endsOn}
           scope={scope}
-          counted={counted.length}
           imported={days.length > 0}
         />
         {/* THE REMAINING THREE LAND HERE IN BUILD ORDER - §A7 as amended by §A13. Next is the
@@ -335,6 +361,8 @@ export default async function TodayPage({
             anything in this file. The page also owes P8's aggregate pair - the range covered and
             when it was last read - and that is a provenance ROW under this grid, not a card. */}
       </div>
+      </>
+      )}
     </div>
   );
 }
