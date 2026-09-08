@@ -39,7 +39,7 @@
  * who wants the date opens the account and sets it there.
  */
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -454,6 +454,22 @@ export function AttentionStack({
   const body =
     screen === 'done' ? done : screen === 'firm' ? firm : screen === 'ending' ? ending : card;
 
+  /* FRAGMENTS, NEVER A WRAPPER ELEMENT, and this was a real bug rather than a style note.
+   *
+   * `ModalScroller` is `min-h-0 flex-1` and it can only bound itself against a flex column with a
+   * height: `ModalShell`'s card on a desktop, `AccountSheet`'s layer box (`absolute inset-0 flex
+   * flex-col pt-16`) on a phone. Both paths here used to put a plain `<div>` between that box and
+   * the header/body pair, which is a block-level flex ITEM with no `flex-1` - so the scroller had
+   * nothing to shrink against, sized itself to its content, and `overflow-y-auto` never fired.
+   *
+   * WHAT THAT LOOKED LIKE: the label card is the tall one (three type rows, a firm chip row, seven
+   * size chips, the sibling switch, a name field), and past the fold it simply could not be reached.
+   * Luke, 2026-09-08: *"some issues with scrolling while I'm viewing the pages and selecting
+   * options"*.
+   *
+   * EVERY WORKING CALLER ALREADY DID THIS - `label-account-form`'s `screenNode` and
+   * `account-actions-sheet`'s `actions` both return `<>...</>`. The wrapper was mine and it was the
+   * only thing between this flow and the one the rest of the app uses. */
   if (phone) {
     return (
       <AccountSheet
@@ -463,15 +479,15 @@ export function AttentionStack({
         busy={busy}
         label="Accounts that need you"
         layers={[
-          <div key="base">
+          <Fragment key="base">
             {header}
             {screen === 'done' ? done : card}
-          </div>,
+          </Fragment>,
           screen === 'firm' || screen === 'ending' ? (
-            <div key="layer">
+            <Fragment key="layer">
               {header}
               {screen === 'firm' ? firm : ending}
-            </div>
+            </Fragment>
           ) : null,
         ]}
       />
@@ -480,10 +496,8 @@ export function AttentionStack({
 
   return (
     <ModalShell onDismiss={() => !busy && requestClose()} busy={busy} closing={closing}>
-      <div className={cn('flex min-h-0 flex-col')}>
-        {header}
-        {body}
-      </div>
+      {header}
+      {body}
     </ModalShell>
   );
 }
