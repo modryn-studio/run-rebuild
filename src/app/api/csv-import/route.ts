@@ -21,7 +21,9 @@ import { resolveRoundTripInstant, resolveOrderInstant } from '@/lib/intake/round
 import { IMPORT_STREAM_CONTENT_TYPE, type ImportEvent } from '@/lib/intake/stream';
 import { sendNotification, notifyHtml, alertSubject } from '@/lib/notify';
 import { track } from '@/lib/track';
+import { db, contractSpec } from '@/lib/db';
 import type { ParsedFill } from '@/lib/csv/fills';
+import type { ParsedRoundTrip } from '@/lib/csv/position-history';
 
 /** The one shape an account id can take. A hand-typed `adoptAccountId` must not reach SQL. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -159,7 +161,14 @@ export async function POST(req: Request): Promise<Response> {
              confirm panel (Luke, 2026-08-15). The trader is not asked to approve the numbers; the
              numbers are simply never stored if they cannot be reconciled. `commitImport` refuses a
              failing result too, so this is a second gate rather than the only one. */
-          const checks = preflight({ fills, roundTrips, fees, tradePaired, statement });
+          /* THE ONE THING PREFLIGHT CANNOT ANSWER ON ITS OWN. It is pure, so the known products
+             are read here and passed in — the same query `trades/project.ts` runs after the commit,
+             against the same global table. Read once per import, not per round trip. */
+          const knownRoots = new Set(
+            (await db.select({ root: contractSpec.symbolRoot }).from(contractSpec)).map((r) => r.root)
+          );
+
+          const checks = preflight({ fills, roundTrips, fees, tradePaired, knownRoots, statement });
           if (!checks.ok) {
             refuse(
               'These files cannot be imported yet.',
@@ -340,6 +349,7 @@ export async function POST(req: Request): Promise<Response> {
                 properties: { files: recognised.length, imported: result.rowsWritten },
               }),
               notifyMismatch(importedTrader, checks.findings),
+              notifyUnknownRoots(importedTrader, checks.findings, roundTrips),
             ]);
           });
         } catch (error) {
@@ -414,5 +424,72 @@ async function notifyMismatch(traderId: string, findings: PreflightFinding[]): P
       ])
     ),
     { throttleKey: `recon_mismatch:${traderId}`, cooldownMinutes: 60 }
+  );
+}
+
+/* A PRODUCT WITH NO `contract_spec` ROW, alerted to the one person who can fix it.
+ *
+ * THIS IS NOT THE TRADER'S PROBLEM AND THEY CANNOT RESOLVE IT. Three of the four quarantine reasons
+ * in `trades/project.ts` are Run defects, and this is the one that fires by design: the table is
+ * seeded narrow because a WRONG tick is a plausible number nobody catches, so eighteen roots are
+ * held back until a real export settles their quote convention. Without this email the loop that
+ * design assumes — import quarantines, someone notices, row added, trades re-project — has no
+ * "someone notices" step, and the first signal is a support request.
+ *
+ * IT CARRIES THE RAW EXPORT ROW, which is the entire point. `ZC` is published at 0.0025 dollars per
+ * bushel and quoted in cents: a hundred-fold difference that no spec sheet resolves and one real
+ * `Buy Price` string does. `ParsedRoundTrip.raw` is the untouched CSV row, so the four numbers that
+ * settle it travel with the alert instead of needing a database session at 11pm.
+ *
+ * THROTTLED ON THE ROOT SET, NOT THE TRADER. Two traders importing corn is one job, not two emails.
+ * A genuinely new root produces a new key and a fresh alert. TWENTY-FOUR HOURS rather than `once`,
+ * because `once` means an alert missed on a Friday never comes back and the rows stay parked. */
+async function notifyUnknownRoots(
+  traderId: string,
+  findings: PreflightFinding[],
+  roundTrips: ParsedRoundTrip[]
+): Promise<void> {
+  const finding = findings.find((f) => f.code === 'unknown_roots');
+  const roots = finding?.detail.roots ?? [];
+  if (roots.length === 0) return;
+
+  const rows: [string, string][] = [
+    ['Products', roots.join(', ')],
+    ['Trades affected', `${finding?.detail.affected ?? 0} of ${finding?.detail.total ?? 0}`],
+    ['Trader ID', traderId],
+  ];
+
+  /* ONE SAMPLE PER ROOT. Every row on a root shares its quote convention, so a second one says
+     nothing the first did not — and an export with two hundred corn trades would otherwise send an
+     email nobody scrolls to the bottom of. */
+  for (const root of roots) {
+    const sample = roundTrips.find((r) => r.symbol === root);
+    if (!sample) continue;
+    /* `not named` RATHER THAN A DASH, and it is the lint rule doing its job on an alert nobody
+       thought of as copy: an em dash is banned in app content, and it was a poor fallback anyway.
+       A blank where a contract should be is a fact worth reading as words. */
+    rows.push([
+      `${root} · contract`,
+      `${sample.contract ?? 'not named'} on ${sample.accountName ?? 'no account name'}`,
+    ]);
+    rows.push([`${root} · raw export row`, JSON.stringify(sample.raw)]);
+  }
+
+  /* THE CHECKLIST, IN THE ALERT. Adding a `ROWS` line is one of five steps and the other four are
+     not guessable: `scripts/s2-gate.mts` hard-asserts the roster count, the exchange and currency
+     sets, and that these exact roots are ABSENT. An alert that prompts a fix which reds the gate is
+     a worse alert than none. */
+  rows.push([
+    'To fix',
+    'Add the Globex outright tick in the BROKER quote units to ROWS in scripts/seed-contract-spec.mts, ' +
+      'update scripts/s2-gate.mts (roster count, and the deliberately-absent list if this root is on it), ' +
+      'update the count in docs/build-plan.md and docs/architecture.md, then re-run the seed script: ' +
+      'it re-projects every affected account and un-quarantines the trades.',
+  ]);
+
+  await sendNotification(
+    alertSubject('🚨', `Unknown product: ${roots.join(', ')} needs a contract spec`),
+    notifyHtml('Unknown product', rows),
+    { throttleKey: `unknown_roots:${[...roots].sort().join(',')}`, cooldownMinutes: 1440 }
   );
 }

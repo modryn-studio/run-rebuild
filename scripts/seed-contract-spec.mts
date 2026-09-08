@@ -6,6 +6,21 @@
 // Baked into a migration it would need a schema change to fix a typo, which is the wrong shape
 // for a table whose job is to be edited when a real import quarantines something.
 //
+// ── ADDING A ROOT: FIVE STEPS, AND FOUR OF THEM ARE NOT GUESSABLE ─────────────────────────
+// The alert that brings you here (`🚨 Unknown product`, from the csv-import route) carries the raw
+// export row, which is the one thing that settles the quote convention. Then:
+//
+//   1. Add a line to `ROWS` below, in the right group. `tick` is the Globex OUTRIGHT tick IN THE
+//      BROKER'S QUOTE UNITS - read the alert's raw `Buy Price`, do not read a spec sheet. See the
+//      unit warning further down; this is the step that produces a wrong row rather than no row.
+//   2. Update `scripts/s2-gate.mts`, which hard-asserts against this list and WILL go red:
+//        the roster count, the exchange set (CBOT/CME/COMEX/NYMEX), every currency being USD,
+//        and that ZC ZS ZB ZN LE HE SR3 are deliberately ABSENT - which is the exact list the
+//        first real alert is most likely to come from.
+//   3. Update the count stated in prose: `docs/build-plan.md` and `docs/architecture.md`.
+//   4. Run this script. It upserts, so re-running is free and corrects a bad tick in place.
+//   5. Nothing. Phase 2 at the bottom re-projects the parked trades for you.
+//
 // ── WHERE THE NUMBERS CAME FROM ───────────────────────────────────────────────────────────
 // Read 2026-08-12 from CME Group's own contract-spec service, not from a summary of it and not
 // from memory:
@@ -61,7 +76,9 @@ import { loadEnv } from './load-env.mts';
 
 loadEnv();
 
-const { db, contractSpec } = await import('../src/lib/db/index.ts');
+const { db, contractSpec, trade } = await import('../src/lib/db/index.ts');
+const { and, eq, like, sql } = await import('drizzle-orm');
+const { projectAccount } = await import('../src/lib/trades/project.ts');
 
 // tick is the Globex OUTRIGHT tick — never ClearPort, never BTIC, never the calendar spread.
 // Two roots would have been seeded wrong by taking the API's first entry: EMD (ClearPort 0.01
@@ -144,3 +161,51 @@ const values = ROWS.map((r) => Number(r.tickValue.replace(/[$,]/g, '')));
 const lo = ROWS[values.indexOf(Math.min(...values))];
 const hi = ROWS[values.indexOf(Math.max(...values))];
 console.log(`tick value spans ${lo.tickValue} (${lo.root}) to ${hi.tickValue} (${hi.root}).`);
+
+// ── PHASE 2: LET THE TRADES OUT ───────────────────────────────────────────────────────────
+//
+// ADDING A ROW USED TO FIX NOTHING THAT HAD ALREADY HAPPENED. `projectAccount` reads this table
+// fresh on every run and its upsert is written so a cleared reason wins, so re-projection un-
+// quarantines correctly — `scripts/s5-gate.mts` asserts exactly that round trip. But the only
+// caller was the import route, so a trader's existing corn trades stayed parked until they
+// happened to re-import that account, which for a finished evaluation is never.
+//
+// The seeding rule is "the table grows only when a real import quarantines something" (schema.ts).
+// That loop has three steps and the last one was missing. This is it, in the same command, because
+// a second command you have to remember is a step that gets skipped at 11pm.
+//
+// SCOPED BY THE REASON STRING, which `trades/project.ts` writes verbatim. The other three
+// quarantine reasons are unaffected by anything this script does, and re-projecting their accounts
+// would be work that changes nothing.
+const parked = await db
+  .select({ traderId: trade.traderId, accountId: trade.accountId, root: trade.symbolRoot })
+  .from(trade)
+  .where(
+    and(
+      eq(trade.state, 'quarantined'),
+      like(trade.quarantineReason, '%is not in the contract spec.'),
+      sql`${trade.symbolRoot} in (select ${contractSpec.symbolRoot} from ${contractSpec})`
+    )
+  );
+
+if (parked.length === 0) {
+  console.log('nothing parked on a now-known product; no re-projection needed.');
+} else {
+  const roots = [...new Set(parked.map((p) => p.root))].sort();
+  const pairs = [...new Map(parked.map((p) => [`${p.traderId}:${p.accountId}`, p])).values()];
+  console.log(`${parked.length} trade(s) on ${roots.join(', ')} across ${pairs.length} account(s).`);
+
+  // SEQUENTIALLY, NEVER IN PARALLEL. `projectAccount` ends by calling `rebuildSessions(traderId)`,
+  // which DELETES every session row for that trader and re-inserts. Two passes for one trader
+  // running at once would race on that table.
+  let cleared = 0;
+  for (const p of pairs) {
+    const before = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(trade)
+      .where(and(eq(trade.accountId, p.accountId), eq(trade.state, 'quarantined')));
+    const result = await projectAccount(p.traderId, p.accountId);
+    cleared += (before[0]?.n ?? 0) - result.quarantined;
+  }
+  console.log(`re-projected ${pairs.length} account(s); ${cleared} trade(s) un-quarantined.`);
+}

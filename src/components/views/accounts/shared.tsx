@@ -21,6 +21,8 @@ import {
 } from '@/components/ui/modal-shell';
 
 export { MODAL_TITLE_ID, CONFIRM_TITLE_ID };
+import { FindingList } from './finding-notice';
+import type { PreflightFinding } from '@/lib/intake/preflight';
 import { cn } from '@/lib/cn';
 
 /* CENTRED, ONE ROW — back left, title middle, close right.
@@ -205,11 +207,23 @@ export function ImportComplete({
   onDone,
   imported,
   accounts,
+  warnings,
 }: {
   onDone: () => void;
   imported?: number;
   /** Every account the rows resolved to. Usually one; a copy-trader's export carries many. */
   accounts?: string[];
+  /* NON-BLOCKING FINDINGS, WHICH USED TO STOP HERE (2026-09-04). The route already sent them
+     (`warnings: checks.findings.filter((f) => !f.blocking)`) and `use-import-run` already carried
+     them onto the outcome, but this screen never took the prop, so every warning the import raised
+     was computed, streamed, stored and dropped. The route's own comment said they "still have to
+     reach the trader"; this is where they finally do.
+
+     A REFUSAL REPLACES THE PANEL, A WARNING SITS UNDER THE RECEIPT. `ImportRefused` exists because
+     a blocking finding IS the outcome. These are not: the import landed, and the warning qualifies
+     it. So it goes below the "Filed under" line, in the same screen, and the Done button still
+     ends the flow. */
+  warnings?: PreflightFinding[];
 }) {
   /** Rows the database actually accepted, never rows attempted. Zero is a different screen. */
   const nothingNew = imported === 0;
@@ -237,6 +251,15 @@ export function ImportComplete({
           </p>
         )}
       </div>
+      {/* LEFT ALIGNED, unlike everything above it. The block above is a receipt read at a glance and
+          centres for that; a finding is two lines of prose with a number in them, and centred prose
+          re-finds its own left edge on every line. `FindingNotice` is `text-left` for the same
+          reason on the refusal screen. */}
+      {warnings && warnings.length > 0 && (
+        <div className="mt-6 px-6">
+          <FindingList findings={warnings} />
+        </div>
+      )}
       <div className="mt-6 px-6 py-4">
         {/* `ModalActions` PROPERLY, not its four classes copied (2026-08-31). This read them by
             hand because `modal-shell.tsx` imported `MODAL_TITLE_ID` from this file and importing

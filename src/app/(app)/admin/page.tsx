@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { desc, eq, sql } from 'drizzle-orm';
-import { db, analyticsEvent, authUser } from '@/lib/db';
+import { db, analyticsEvent, authUser, trade } from '@/lib/db';
 import { getAdmin } from '@/lib/require-admin';
 import { requireTrader } from '@/lib/trader';
 import { HeaderSlot } from '@/components/shell/header-slot';
@@ -35,7 +35,7 @@ const CARD = cardSurface;
 // All-time figures. Counts are done in SQL, not by pulling every row and counting in JS —
 // that reads the same at 100 rows and falls over at 100k.
 async function loadStats() {
-  const [byEvent, methods, signups, recent, userTotals] = await Promise.all([
+  const [byEvent, methods, signups, recent, userTotals, parked] = await Promise.all([
     db
       .select({
         name: analyticsEvent.name,
@@ -78,6 +78,25 @@ async function loadStats() {
       .limit(50),
 
     db.select({ n: sql<number>`count(*)::int` }).from(authUser),
+
+    /* WHAT IS PARKED, AND WHY. The standing view behind the `🚨 Unknown product` alert - the email
+       is the interrupt, this is the thing you check.
+       GROUPED BY REASON as well as root, because the four reasons in `trades/project.ts` need
+       different actions and only one of them is a spec row: the others are a bad export, a missing
+       fills file, or two fills that cannot be ordered. A list that showed only the root would send
+       every one of them to the same fix. Trader count is here rather than trader ids: two traders
+       on one root is one job, and it is the number that says how urgent it is. */
+    db
+      .select({
+        root: trade.symbolRoot,
+        reason: trade.quarantineReason,
+        n: sql<number>`count(*)::int`,
+        traders: sql<number>`count(distinct ${trade.traderId})::int`,
+      })
+      .from(trade)
+      .where(eq(trade.state, 'quarantined'))
+      .groupBy(trade.symbolRoot, trade.quarantineReason)
+      .orderBy(desc(sql`count(*)`)),
   ]);
 
   const visitors = (name: string) => byEvent.find((e) => e.name === name)?.visitors ?? 0;
@@ -92,6 +111,7 @@ async function loadStats() {
     signups,
     recent,
     users: userTotals[0]?.n ?? 0,
+    parked,
   };
 }
 
@@ -144,6 +164,36 @@ export default async function AdminPage() {
           <Stat label="Users" value={s.users} />
           <Stat label="Tracked events" value={s.recent.length} hint="last 50 shown below" />
         </section>
+
+        {/* NOTHING AT ALL WHEN NOTHING IS PARKED, and that is the same rule `QuarantineNotice`
+            follows on /trades: a permanent "0 quarantined" row is a status light for a condition
+            that has never occurred, and a dashboard of those is a dashboard nobody reads.
+            FIRST ON THE PAGE when it does appear, above the funnel, because it is the only section
+            here that asks for an action rather than reporting a number. */}
+        {s.parked.length > 0 && (
+          <section className={cn(CARD, 'mb-10 p-6')}>
+            <h2 className="text-title mb-1">Quarantined</h2>
+            <p className="text-small mb-4">
+              Trades kept, marked, and out of every figure until the cause is resolved.
+            </p>
+            {s.parked.map((p) => (
+              <Row
+                key={`${p.root}:${p.reason ?? ''}`}
+                label={`${p.root} · ${p.reason ?? 'no reason recorded'}`}
+                value={p.n}
+                hint={p.traders === 1 ? '1 trader' : `${p.traders} traders`}
+              />
+            ))}
+            {/* THE FIX, WHERE THE PROBLEM IS. A spec gap is ten minutes of work and the command is
+                not memorable; without this line the page reports a state and leaves you to
+                remember what to do about it. */}
+            <p className="text-small mt-4">
+              A missing contract spec is fixed in scripts/seed-contract-spec.mts, whose header
+              carries the five steps. Re-running it re-projects the affected accounts and clears
+              these rows.
+            </p>
+          </section>
+        )}
 
         <section className={cn(CARD, 'mb-10 p-6')}>
           <h2 className="text-title mb-1">Funnel</h2>

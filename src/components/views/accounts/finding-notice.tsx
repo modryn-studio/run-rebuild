@@ -1,11 +1,16 @@
 'use client';
 
-/* THE THIRTEEN REFUSALS, IN WORDS. This is the only surface `PreflightCode` ever reaches.
+/* EVERY PREFLIGHT FINDING, IN WORDS. This is the only surface `PreflightCode` ever reaches.
+ *
+ * IT WAS "THE THIRTEEN REFUSALS" and it is now fourteen findings, not all of them refusals
+ * (2026-09-04). `unknown_roots` is the first one that names a gap on OUR side rather than something
+ * in the file, so the title of this comment stopped being true before the list did. A count in a
+ * heading is a thing that goes stale silently; the rules below are what actually matter.
  *
  * The copy lives HERE and not in `wireframes.md`, deliberately (Luke, 2026-08-15): a finding carries
  * a code plus its numbers precisely so the screen can shape a sentence around what actually fits,
  * and whether a number leads or trails, whether it is one row or twelve, is a question only the
- * built component can answer. Drafting all thirteen in a document first would make a second copy of
+ * built component can answer. Drafting them all in a document first would make a second copy of
  * one truth, authored at a different time from the one that ships.
  *
  * THE RULES EVERY LINE HERE FOLLOWS, and they are the reason findings are structured rather than
@@ -176,6 +181,27 @@ export function findingCopy(f: PreflightFinding): FindingCopy {
           ? `${plural(d.blocked ?? 0, 'row')} of ${(d.total ?? 0).toLocaleString()} have no readable date or amount. Re-export it from the Reports tab.`
           : 'It does not have the columns this check needs. Re-export it from the Reports tab.',
       };
+
+    /* NOT BLOCKING, AND THE ONE FINDING WITH NO TRADER REMEDY AT ALL — which is why it breaks rule 1
+       and says so out loud instead of inventing an action.
+       `contract_spec` is seeded only for products whose quote convention has been verified against a
+       real export, so a new product is a gap on our side, not a bad file. Refusing would strand four
+       hundred good trades over one; saying nothing would leave them to find a muted row with a
+       tooltip. So: name the product, name the count, say it is ours, say what happens next. */
+    case 'unknown_roots': {
+      const roots = d.roots ?? [];
+      const named =
+        roots.length === 1
+          ? roots[0]
+          : `${roots.slice(0, -1).join(', ')} and ${roots[roots.length - 1]}`;
+      return {
+        title:
+          roots.length === 1
+            ? `${named} is a product we cannot price yet.`
+            : `${named} are products we cannot price yet.`,
+        detail: `${outOf(d.affected ?? 0, d.total ?? 0, 'trade')} are saved and marked, and left out of every figure until we add ${roots.length === 1 ? 'it' : 'them'}. Everything else in this import came through.`,
+      };
+    }
   }
 }
 

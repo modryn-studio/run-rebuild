@@ -90,7 +90,7 @@ const DEMO_ACCOUNT: RosterAccount = {
   lastSessionDate: null,
 };
 
-type Scene = 'actions' | 'doors' | 'upload' | 'failed' | 'complete' | 'already-saved';
+type Scene = 'actions' | 'doors' | 'upload' | 'failed' | 'complete' | 'warned' | 'already-saved';
 
 const SCENES: { id: Scene; label: string; note: string }[] = [
   {
@@ -117,6 +117,11 @@ const SCENES: { id: Scene; label: string; note: string }[] = [
     id: 'complete',
     label: 'Complete',
     note: 'The end of a normal import. One exit, and it is forward: a trader who stepped away mid-upload needs the confirmation still waiting for them.',
+  },
+  {
+    id: 'warned',
+    label: 'Complete, with a warning',
+    note: 'The import landed AND something in it is worth saying. A refusal replaces the panel; a warning sits under the receipt, because the outcome is still "your record is in". This is the only screen a non-blocking finding reaches, and until 2026-09-04 it did not take the prop: the route sent them, the hook carried them, and they stopped here.',
   },
   {
     id: 'already-saved',
@@ -260,6 +265,22 @@ export function AddAccountDemo() {
             {/* ONE ACCOUNT, NAMED. The line is the answer to "did that land where I meant?" and
                 it is the only place the flow ever says so - see `ImportComplete`. */}
             <ImportComplete imported={777} accounts={['DEMOACCT0000001']} onDone={close} />
+          </Shell>
+        )}
+
+        {scene === 'warned' && (
+          <Shell key={nonce} phone={phone} onDismiss={close} label="Your record is in">
+            {/* THE ONE FINDING WITH NO TRADER REMEDY. `contract_spec` is seeded only for products
+                whose quote convention has been verified, so a new product is a gap on our side.
+                Refusing would strand 409 good trades over 3. */}
+            <ImportComplete
+              imported={412}
+              accounts={['DEMOACCT0000001']}
+              warnings={[
+                { code: 'unknown_roots', blocking: false, detail: { roots: ['ZC'], affected: 3, total: 412 } },
+              ]}
+              onDone={close}
+            />
           </Shell>
         )}
 

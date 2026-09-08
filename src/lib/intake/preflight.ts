@@ -36,6 +36,7 @@ export type PreflightCode =
   | 'statement_unreconciled'
   | 'statement_uncovered'
   | 'statement_unreadable'
+  | 'unknown_roots'
   | 'nothing_to_import';
 
 export interface PreflightFinding {
@@ -66,6 +67,10 @@ export interface PreflightFinding {
     /** `statement_uncovered`: broker days the upload does not account for, and what they are worth. */
     uncoveredDays?: string[];
     uncoveredCents?: number;
+    /** `unknown_roots`: the products with no `contract_spec` row, and how many round trips are on
+     *  them. `total` carries the round-trip count, so the copy can say "3 of 412" rather than "3". */
+    roots?: string[];
+    affected?: number;
   };
 }
 
@@ -137,6 +142,17 @@ export interface PreflightInput {
    *  witness to the number Position History reports. Optional because an upload can arrive without
    *  Cash History; absent means "no opinion", which is not the same as agreement. */
   tradePaired?: ParsedCashRow[];
+  /** Every `symbol_root` in `contract_spec`, so an unknown product is caught before the write
+   *  rather than discovered as a quarantined row afterwards (`architecture.md` §6: the pre-commit
+   *  step validates roots).
+   *
+   *  PASSED IN, NEVER READ. Nothing in `lib/` touches the database — the same reason
+   *  `derivePointValueCents` takes `tickSizeByRoot` as an argument (`lib/desk/tape.ts`).
+   *
+   *  OPTIONAL, AND ABSENT MEANS NO OPINION rather than "nothing is known", exactly as `statement`
+   *  is treated above. A caller with no set gets the old behaviour: the roots are not checked here
+   *  and an unknown one still quarantines at projection. */
+  knownRoots?: Set<string>;
   /** Account Balance History: the broker's own daily statement. Optional — it is a fifth file,
    *  and absent means no opinion rather than agreement. */
   statement?: ParsedStatement;
@@ -153,6 +169,7 @@ export function preflight({
   roundTrips,
   fees,
   tradePaired = [],
+  knownRoots,
   statement = { days: [], unreadableRows: 0, unrecognised: false },
 }: PreflightInput): PreflightResult {
   const findings: PreflightFinding[] = [];
@@ -509,6 +526,38 @@ export function preflight({
       blocking: true,
       detail: { blocked: statement.unreadableRows, total: statement.unreadableRows + statement.days.length },
     });
+  }
+
+  /* A PRODUCT RUN CANNOT PRICE YET, said before the write instead of discovered after it.
+   *
+   * `contract_spec` is seeded narrow on purpose (`schema.ts`): a MISSING row fails loudly, a WRONG
+   * row produces a plausible number nobody catches. Eighteen roots are deliberately absent — the
+   * grains, the treasuries, the livestock and `SR3` — because their published unit and their quoted
+   * unit differ and only a real export settles which one Tradovate writes. So an unknown root is
+   * not an exotic edge case; it is the designed intake path for the next product a trader brings.
+   *
+   * NOT BLOCKING, and it is the same judgement call as `pnl_unreconciled` above. The rest of the
+   * export is good, the affected round trips are kept, marked and out of every figure, and blocking
+   * would mean a trader who traded corn once cannot import the other four hundred trades at all.
+   *
+   * IT DOES NOT DUPLICATE THE QUARANTINE, it precedes it. `trades/project.ts` runs the same test
+   * against the same table after the commit and is what actually parks the rows; this exists so the
+   * trader is told at the moment they are looking, and so the one person who can add the row hears
+   * about it. Absent `knownRoots`, this check does not run and that projection-time behaviour is
+   * unchanged. */
+  if (knownRoots) {
+    const unknown = [...new Set(roundTrips.map((r) => r.symbol).filter((s) => s && !knownRoots.has(s)))].sort();
+    if (unknown.length > 0) {
+      findings.push({
+        code: 'unknown_roots',
+        blocking: false,
+        detail: {
+          roots: unknown,
+          affected: roundTrips.filter((r) => unknown.includes(r.symbol)).length,
+          total: roundTrips.length,
+        },
+      });
+    }
   }
 
   /* NOTHING AT ALL. An upload with no rows of any kind returned `ok: true` with no findings, so a

@@ -157,6 +157,9 @@ export function FileUploadStep({
              `ImportComplete`. Carried on the outcome since the stream was written; this screen was
              the one place it stopped. */
           accounts={readyOutcome.accounts}
+          /* The non-blocking findings. Carried on the outcome since the stream was written and
+             never rendered until now - see the note on `ImportComplete`. */
+          warnings={readyOutcome.warnings}
           onDone={() => {
             onBusyChange(false);
             onDone();

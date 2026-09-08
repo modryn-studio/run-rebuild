@@ -116,6 +116,14 @@ const RACK_FINDINGS: PreflightFinding[] = [
     detail: { uncoveredDays: ['2026-03-01', '2026-03-02'], uncoveredCents: -70_000, total: 7 },
   },
   { code: 'statement_unreadable', blocking: true, detail: { blocked: 3, total: 7 } },
+  /* BOTH ARITIES, because the copy branches on the count for the verb, the pronoun and the list
+     separator, and a one-root fixture would leave three of those unrendered. */
+  { code: 'unknown_roots', blocking: false, detail: { roots: ['ZC'], affected: 3, total: 412 } },
+  {
+    code: 'unknown_roots',
+    blocking: false,
+    detail: { roots: ['ZC', 'ZS', 'ZW'], affected: 31, total: 412 },
+  },
 ];
 
 
@@ -140,17 +148,20 @@ export function IntakeSection() {
         </Note>
       </Row>
 
-      <Row label="The thirteen refusals" note="every PreflightCode, with its real detail object">
+      <Row label="Every preflight finding" note="every PreflightCode, with its real detail object">
         <div className="flex max-w-2xl flex-col gap-3">
-          {RACK_FINDINGS.map((f) => (
-            <FindingNotice key={f.code} finding={f} />
+          {/* KEYED BY INDEX, not by code: `unknown_roots` is racked twice because its copy branches
+              on how many products there are. */}
+          {RACK_FINDINGS.map((f, i) => (
+            <FindingNotice key={`${f.code}-${i}`} finding={f} />
           ))}
         </div>
         <Note>
           This is the ONLY surface these ever reach: there is no confirm panel in the flow, so a
-          refusal has exactly one place to be read. Each detail object is shaped exactly like the
+          finding has exactly one place to be read. Each detail object is shaped exactly like the
           real one, because the copy reads numbers out of them and a fixture missing a field would
-          render a sentence the real finding never produces.
+          render a sentence the real finding never produces. The two at the bottom are NOT refusals
+          and render without the alert mark: the import landed, and the warning qualifies it.
         </Note>
       </Row>
 
