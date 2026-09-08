@@ -108,18 +108,40 @@ function weeksOf(month: string): (string | null)[][] {
   return weeks;
 }
 
+/**
+ * `/trades`, narrowed to one month, carrying the page's account scope unchanged.
+ *
+ * BUILT HERE RATHER THAN HANDED IN, and that is not a preference - it is the RSC boundary. The
+ * first version took `href: (month: string) => string` from the page, which type-checked, built
+ * clean, and threw a 500 on every request: a function cannot be serialised to a Client Component,
+ * and `/today` is the one page behind auth that no local check had loaded. What crosses now is
+ * `scope`, a `string[]`, which is what the band wrote into the URL in the first place.
+ *
+ * THE LAST DAY IS COMPUTED, NEVER TYPED. `Date.UTC(y, m, 0)` is the last day of month `m`, which is
+ * the one piece of arithmetic in a calendar that must not become a table with February in it.
+ */
+function monthHref(month: string, scope: string[]): string {
+  const [y, m] = month.split('-').map(Number);
+  const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  return `/trades?${new URLSearchParams([
+    ['from', `${month}-01`],
+    ['to', end],
+    ...scope.map((id) => ['accounts', id] as [string, string]),
+  ])}`;
+}
+
 export function MonthCalendar({
   days,
   /** The newest counted session. The month this opens on, and the forward bound. */
   endsOn,
-  href,
+  scope = [],
   counted,
   imported,
 }: {
   days: CalendarDay[];
   endsOn: string | null;
-  /** `/trades`, narrowed to the month on screen. Built by the page so the scope travels with it. */
-  href?: (month: string) => string;
+  /** The account ids the band narrowed to, passed through untouched. See `monthHref`. */
+  scope?: string[];
   counted: number;
   imported: boolean;
 }) {
@@ -162,7 +184,7 @@ export function MonthCalendar({
          session` refuses to print a date in the same three states for the same reason. */
       title={empty ? 'This month' : monthLabel(month)}
       period={empty ? undefined : `${inMonth.length === 1 ? '1 session' : `${inMonth.length} sessions`}`}
-      href={empty || !href ? undefined : href(month)}
+      href={empty ? undefined : monthHref(month, scope)}
       /* THE ARROWS ARE THE WIDGET'S OWN SCOPE CONTROL, which is the slot `widget.tsx` describes as
          "the small control that scopes this widget only". The reference centres its month between a
          back arrow and the card edge; Run's header is title-left, control-right for every widget on

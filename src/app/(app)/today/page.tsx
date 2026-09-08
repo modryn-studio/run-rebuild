@@ -257,23 +257,6 @@ export default async function TodayPage({
       ])}`
     : '/trades';
 
-  /* THE SAME URL SHAPE, A MONTH WIDE. Built here rather than in the card for the reason above: the
-     scope belongs to the page, and a client component composing its own `accounts` params is how
-     two surfaces come to disagree about which accounts a link means. The card knows which month is
-     on screen and nothing else, so it hands the month back and this fills in the rest.
-     THE LAST DAY IS COMPUTED, NEVER TYPED. `new Date(Date.UTC(y, m, 0))` is the last day of month
-     `m`, which is the one arithmetic in a calendar that must not be a lookup table with February
-     in it. */
-  const monthHref = (month: string) => {
-    const [y, m] = month.split('-').map(Number);
-    const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-    return `/trades?${new URLSearchParams([
-      ['from', `${month}-01`],
-      ['to', end],
-      ...scope.map((id) => ['accounts', id] as [string, string]),
-    ])}`;
-  };
-
   return (
     <div className={cn(PAGE_COLUMN, 'pb-8')}>
       {/* INTO THE HEADER BAND, where the route title would be. See `greeting.tsx`. */}
@@ -343,7 +326,7 @@ export default async function TodayPage({
         <MonthCalendar
           days={calendarDays}
           endsOn={endsOn}
-          href={monthHref}
+          scope={scope}
           counted={counted.length}
           imported={days.length > 0}
         />

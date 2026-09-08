@@ -910,7 +910,6 @@ export function TodaySection() {
           <MonthCalendar
             days={CALENDAR_FIXTURE}
             endsOn="2027-03-19"
-            href={() => '/trades'}
             counted={3}
             imported
           />
