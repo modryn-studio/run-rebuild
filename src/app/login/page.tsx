@@ -1,7 +1,10 @@
 import { Suspense } from 'react';
 import type { Metadata, Viewport } from 'next';
+import { redirect } from 'next/navigation';
 import { Login } from '@/components/views/auth/login';
 import { LoadingMark } from '@/components/ui/loading-mark';
+import { getSessionUser } from '@/lib/trader';
+import { safeNext } from '@/lib/next-path';
 
 /* THE ONE ROUTE WITH NO PAGE TITLE (found 2026-08-20, Luke: "why does every page have the page
  * name in it on the chrome tab except for the /login page"). Every other route exports its own
@@ -61,7 +64,34 @@ export const viewport: Viewport = {
  * The fallback is what gets STATICALLY PRERENDERED, so it is the first paint a visitor sees before
  * hydration swaps in the real screen. `h-dvh` because `Login` owns that height and the fallback has
  * to stand in the same space, or the page jumps as it arrives. */
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  /* ALREADY SIGNED IN? GO WHERE YOU WERE GOING (2026-09-09). This route had no session check at
+   * all, so a trader with a live session who reached it - most likely from the public door's own
+   * "Sign in" header link, which is the only affordance `/` offers - was shown a form asking them
+   * to sign in again, and an emailed code they did not need.
+   *
+   * IT GUARDS HERE RATHER THAN ON `/`, and that is the deliberate half. The obvious fix is to
+   * redirect signed-in visitors away from the landing page instead; the cost is that `/` stops
+   * being statically rendered, and `/` is the ONE page in this deployment that is indexed, crawled
+   * and worth caching at the edge. `/login` is `noindex` and its static half is only the fallback
+   * below - the real screen already waits on hydration to read `?next=` - so the session lookup
+   * this adds costs a little TTFB on a page nobody crawls, and buys the door's header link the
+   * right behaviour in one hop. The landing page stays static.
+   *
+   * `getSessionUser`, NOT `getTrader`: this needs to know whether a session exists, and
+   * `getTrader` would additionally select and possibly INSERT a trader row - work this route has no
+   * business doing on a page it is about to redirect away from.
+   *
+   * THROUGH `safeNext`, like every other read of this parameter. It is attacker-supplied here
+   * exactly as it is in the client component below, and a redirect performed by the SERVER with a
+   * live session attached is the open-redirect this module exists to prevent. */
+  const { next } = await searchParams;
+  if (await getSessionUser()) redirect(safeNext(next));
+
   return (
     <main>
       <Suspense

@@ -27,8 +27,21 @@
  * land somewhere real rather than on an error about a query parameter they never saw.
  */
 
-/** Where a signed-in user goes when there is nothing better. Point this at the app's real home. */
-export const HOME = '/';
+/* Where a signed-in user goes when there is nothing better.
+ *
+ * `/today` SINCE 2026-09-09, AND IT WAS `/` UNTIL THEN. That value was correct for as long as `/`
+ * was a placeholder reading "still being built, and not open for signups yet" - landing there after
+ * signing in was harmless because there was nothing there. It stopped being correct the moment the
+ * public door shipped (`src/app/page.tsx`, 2026-09-08): every sign-in with no `?next=` - which is
+ * the ordinary case, since the gate only sets one for a deep link - handed a freshly authenticated
+ * trader the MARKETING PAGE. Luke, finding it the next morning: *"like after i log in, i get routed
+ * to it? doesn't make sense to me."*
+ *
+ * The docstring here already said "point this at the app's real home", so nothing had to be
+ * discovered - only done. The lesson worth keeping is the shape: a constant naming a ROUTE goes
+ * stale when the route changes meaning, and nothing in the type system or the build can notice.
+ * `/today` is the app's first nav row and the screen every other surface treats as home. */
+export const HOME = '/today';
 
 /**
  * A `next` value from the URL, reduced to something safe to navigate to.
